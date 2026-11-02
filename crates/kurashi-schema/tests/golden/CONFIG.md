@@ -572,25 +572,6 @@ While the light follows the pointer or the spotlight aims at it, the surfaces' s
 - forced to `false` while `a11y.reduce_motion` is on
 - since schema v7
 
-### Motion
-
-#### `theme.motion.profile` — Motion
-
-Character of animations: expressive (surfaces grow out of the edge on timed curves that overshoot a little), calm or lively (springs), or none at all.
-
-- type: `choice` · default: `"expressive"`
-- choices: `"expressive"` | `"calm"` | `"lively"` | `"none"`
-- forced to `"none"` while `a11y.reduce_motion` is on
-
-#### `theme.motion.speed` — Animation speed
-
-Multiplies every motion duration's speed (2.0 = twice as fast).
-
-- type: `float` · default: `1.0`
-- range: `0.25..=3.0`, step `0.05`
-- only while `theme.motion.profile != "none"`
-- advanced
-
 ### Layout
 
 #### `theme.density` — Density
@@ -995,13 +976,387 @@ A trail behind the pointer, sparkles or a ring round it, drawn over everything w
 - choices: `"off"` | `"style"` | `"trail"` | `"sparkles"` | `"ring"`
 - since schema v7
 
+## Motion
+
+### Profile
+
+#### `theme.motion.profile` — Motion profile
+
+How everything moves, in one choice: the curves, the forms surfaces open and close in, and what moves when. A style recommends one; pick another, or change any part below on top of it.
+
+- type: `string` · default: `"expressive"`
+- choices: from `motion.profiles` (resolved at runtime)
+- forced to `"reduced"` while `a11y.reduce_motion` is on
+
+#### `theme.motion.speed` — Animation speed
+
+Multiplies every motion duration's speed (2.0 = twice as fast).
+
+- type: `float` · default: `1.0`
+- range: `0.25..=3.0`, step `0.05`
+- only while `theme.motion.profile != "none"`
+
+### Timing
+
+#### `theme.motion.timing.open` — Opening
+
+The curve surfaces open and grow on.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.close` — Closing
+
+The curve surfaces close and fold back on.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.fast` — Quick moves
+
+The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.effects` — Fades
+
+The curve of colour and opacity changes; it should not overshoot.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.open_ms` — Opening duration
+
+Milliseconds (0: the profile's; a spring's duration is its response).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.close_ms` — Closing duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.fast_ms` — Quick move duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.effects_ms` — Fade duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+### Forms
+
+#### `theme.motion.form.open` — Opens with
+
+The animation every surface opens with, unless one has its own below.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.form.close` — Closes with
+
+The animation every surface closes with, unless one has its own below.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.form.island.follow` — Island follows the default
+
+The island opens and closes its cards the way every surface does. Off: it uses its own animations below. Its faces and hover peeks keep their springs either way.
+
+- type: `bool` · default: `true`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.form.island.open` — Island opens with
+
+The island's own opening animation.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.form.island.follow == false`
+
+#### `theme.motion.form.island.close` — Island closes with
+
+The island's own closing animation.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.form.island.follow == false`
+
+#### `theme.motion.form.panel.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.panel.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.peek.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.peek.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.launcher.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.launcher.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.centre.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.centre.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.toast.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.toast.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.sidebar.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.sidebar.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.dock.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.dock.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.bar.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.bar.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.osd.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.osd.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.menu.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.menu.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.dialog.open` — Opens with
+
+This surface's own opening animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.form.dialog.close` — Closes with
+
+This surface's own closing animation ("": the default).
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+### Choreography
+
+#### `theme.motion.content` — Content
+
+When a surface's content appears as it opens: late (once the surface has nearly reached its size), with it, or row by row in a cascade.
+
+- type: `choice` · default: `"profile"`
+- choices: `"profile"` | `"late"` | `"with"` | `"cascade"`
+
+#### `theme.motion.stagger_ms` — Cascade step
+
+Milliseconds between one row's arrival and the next in a cascade (-1: the profile's).
+
+- type: `int` · default: `-1`
+- range: `-1..=60` (ms)
+- advanced
+
+#### `theme.motion.squash` — Squash and stretch
+
+How much a shape narrows while it moves fast and bulges as it lands (-1: the profile's).
+
+- type: `float` · default: `-1.0`
+- range: `-1.0..=0.15`, step `0.01`
+- advanced
+
+#### `theme.motion.jelly` — Jelly
+
+A wobble after a surface lands, like pudding settling (-1: the profile's; 0: none).
+
+- type: `float` · default: `-1.0`
+- range: `-1.0..=1.0`, step `0.05`
+
+#### `theme.motion.shadow` — Shadow while moving
+
+What a surface's shadow does during its motion: carried with the shape, or faded out and back at rest (folding forms shade themselves).
+
+- type: `choice` · default: `"profile"`
+- choices: `"profile"` | `"carry"` | `"fade"`
+- advanced
+
+### Windows
+
+#### `theme.motion.windows` — Window animations
+
+Give the compositor's window animations the profile's curves (niri). Off: windows move as the compositor says.
+
+- type: `choice` · default: `"off"`
+- choices: `"off"` | `"follow"`
+
 ## Accessibility
 
 ### Modes
 
 #### `a11y.reduce_motion` — Reduce motion
 
-Turns animations off (forces the motion profile to none).
+Replaces movement with short fades: nothing slides, grows, folds or flashes (forces the motion profile to reduced).
 
 - type: `bool` · default: `false`
 

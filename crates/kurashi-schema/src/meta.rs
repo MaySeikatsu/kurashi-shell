@@ -25,6 +25,9 @@ pub enum Ty {
     Font,
     /// Action id for an input slot; `""` means unbound (ARCHITECTURE §6).
     Action,
+    /// A motion curve (K83): a preset id, `cubic-bezier(…)`, `segments(…)`, `spring(…)`, `steps(n)`, `linear` or a
+    /// motion pack's curve name; `""` = the motion profile's (`kurashi_motion::curve`).
+    Curve,
     /// A list of tables whose fields a mod declares (K38, MODS.md "Records"); the fields are in
     /// [`Constraints::record`], so `Ty` stays `Copy` and its wire name stays `records`.
     Records,
@@ -42,6 +45,7 @@ impl Ty {
             Ty::Color => "color",
             Ty::Font => "font",
             Ty::Action => "action",
+            Ty::Curve => "curve",
             Ty::Records => "records",
         }
     }

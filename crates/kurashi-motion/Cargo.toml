@@ -1,0 +1,13 @@
+[package]
+name = "kurashi-motion"
+description = "The motion engine's model (K83): curves, springs, motion packs and their resolution into tokens"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[lints]
+workspace = true

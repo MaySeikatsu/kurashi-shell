@@ -31,7 +31,7 @@ merge; D: W59.7 ∥ W59.8). Push `main` before spawning. One `CARGO_TARGET_DIR` 
 | `theme.motion.timing.{open,close,fast,effects}_ms` | u32 0–3000, advanced | 0 = the profile's | `requires = profile != none` |
 | `theme.motion.form.{open,close}` | `FormId` (string, validated against `motion.forms` meta) | `""` | the default for every surface |
 | `theme.motion.form.<surface>.{open,close}` | `FormId` | `""` = `form.{open,close}`, then the profile's | surfaces: `island panel peek launcher centre toast sidebar dock bar osd menu dialog`; a form whose meta does not list the surface is invalid there (diag + reason); every form lists `island` (D3) |
-| `theme.motion.island.follow` | bool | `true` | D3: the island follows `form.{open,close}`; off → `form.island.*` apply (they carry `requires = theme.motion.island.follow == false` and read inert with the reason while following) |
+| `theme.motion.form.island.follow` | bool | `true` | D3: the island follows `form.{open,close}`; off → `form.island.*` apply (they carry `requires = theme.motion.form.island.follow == false` and read inert with the reason while following) |
 | `theme.motion.content` | enum `profile late with cascade` | `profile` | |
 | `theme.motion.stagger_ms` | i32 −1…60 | −1 = the profile's | `requires = content == cascade` (or the profile's cascade) |
 | `theme.motion.squash` | f64 −1, 0…0.15 | −1 | |

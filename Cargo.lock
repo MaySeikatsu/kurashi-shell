@@ -1201,6 +1201,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-motion"
+version = "0.0.1"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "kurashi-notify"
 version = "0.0.1"
 dependencies = [
@@ -1220,6 +1227,7 @@ dependencies = [
 name = "kurashi-schema"
 version = "0.0.1"
 dependencies = [
+ "kurashi-motion",
  "kurashi-schema-derive",
  "serde",
  "serde_json",

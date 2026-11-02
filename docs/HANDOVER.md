@@ -30,7 +30,7 @@ screenshot audit.
   SwiftUI, M3 Expressive; five axes timing × form × choreography × accents × speed; motion packs; 25 forms in two
   families — shape and sheet; curve presets and the custom curve syntax; the Motion page and curve editor; engine
   architecture; budget), K83 with the user's answers (D1 reduce motion = short fades via a `reduced` profile; D2 sheet
-  forms keep the hinge joined; D3 the island takes every form and follows the default unless `theme.motion.island.follow`
+  forms keep the hinge joined; D3 the island takes every form and follows the default unless `theme.motion.form.island.follow`
   is off; D4 kami → origami, terminal → phosphor (CRT), aqua/vibrancy → genie on dock and toasts, washi unchanged).
 - Cards `docs/tasks/W59-motion-engine.md` (waves + **frozen contract**: schema keys, token shapes, pack format, frontend
   interfaces) and W59.0–W59.9. BACKLOG I346–I350. PROGRESS S19.1.

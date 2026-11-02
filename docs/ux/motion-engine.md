@@ -176,7 +176,7 @@ a value forced elsewhere shows why it's inert (rule 2). Defaults: `peek`, `osd`,
 lightest form (a fold on a 40-px peek is noise); `toast` has its own open/close (drop, crumple, flick).
 **The island** (D3, user): "It should get every animation style too and also use it by default. The animation style for
 the island should be able to be set up separately though … a setting to follow the animation or use its own." So the
-island takes **every** form, and **follows** the default form unless `theme.motion.island.follow` is off; then its own
+island takes **every** form, and **follows** the default form unless `theme.motion.form.island.follow` is off; then its own
 `theme.motion.form.island.{open,close}` apply (inert with the reason while following — the `screen_corners_follow`
 pattern, K74). What a form animates on the island is its **open/close** (pill → card and back): the pill is the origin
 and the hinge (the card unfolds, rolls or pours out of the pill). Face changes in the pill (clock → volume) and hover
@@ -293,4 +293,4 @@ pickable, but no style recommends them until the user says so in the style revie
 - Reduce motion and photosensitivity rules hold (shots under reduce motion: fades only).
 - `frontend/test-motion.sh` (new) green in `just suites`; `just check`; bench rows within §11's budget; idle 0 frames.
 - Profiles of §12 (origami, phosphor, aqua's genie) accepted by the user on their niri (UX column in PROGRESS).
-- The island: every form opens and closes it out of the pill; `island.follow` off + its own form works; faces and peeks keep K42.
+- The island: every form opens and closes it out of the pill; `form.island.follow` off + its own form works; faces and peeks keep K42.

@@ -261,7 +261,8 @@ async fn a11y_mode_forces_coupled_keys_and_theme_follows() {
         .apply(&[set("a11y.reduce_motion", json!(true))])
         .unwrap();
     let p = f.store.get("theme.motion.profile", None).unwrap();
-    assert_eq!(p.value, json!("none"));
+    // K83 (D1): reduce motion forces the `reduced` profile (short fades); W59.1 resolves it, until then it cuts.
+    assert_eq!(p.value, json!("reduced"));
     assert_eq!(p.source, Source::Forced("accessibility".into()));
     assert_eq!(p.forced_by.as_deref(), Some("a11y.reduce_motion"));
     let after = hub.snapshot("theme").unwrap().1;

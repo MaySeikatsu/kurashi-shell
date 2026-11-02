@@ -38,7 +38,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 11] = [
+pub const CORE_SOURCES: [&str; 13] = [
     "lock.faces",
     "actions",
     "modules",
@@ -50,6 +50,8 @@ pub const CORE_SOURCES: [&str; 11] = [
     "looks",
     "sidebar.sections",
     "sidebar.tabs",
+    "motion.profiles",
+    "motion.forms",
 ];
 
 /// The config files' migrations (user file, profiles, managed.toml; `schema_version`).
@@ -845,6 +847,27 @@ fn offers_now(
                 .collect(),
         );
     }
+    // K83: the motion profiles and forms. W59.0 offers today's (the four profiles, `reduced` for reduce motion, the seven
+    // forms looks use); W59.1 replaces both lists with the motion packs and the forms meta of kurashi-motion.
+    offers.insert(
+        "motion.profiles".to_string(),
+        ["expressive", "calm", "lively", "none", "reduced"]
+            .into_iter()
+            .map(|id| Offer::on(id, format!("config.choice.motion.profile.{id}")))
+            .collect(),
+    );
+    offers.insert(
+        "motion.forms".to_string(),
+        std::iter::once(Offer::on("", "config.choice.motion.form.profile".into()))
+            .chain(
+                [
+                    "grow", "slide", "zoom", "fade", "flip", "bleed", "stepped", "rubber",
+                ]
+                .into_iter()
+                .map(|id| Offer::on(id, format!("config.choice.motion.form.{id}"))),
+            )
+            .collect(),
+    );
     // I39: what a binding slot can run — every registered action, by id; unbound ("") first.
     if let Some(reg) = ACTIONS.get() {
         let mut list = reg.list();

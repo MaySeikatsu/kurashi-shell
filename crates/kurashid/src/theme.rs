@@ -191,7 +191,8 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         opacity: f(store, "theme.material.opacity", 0.85),
         blur: b(store, "theme.material.blur"),
         motion: match s(store, "theme.motion.profile").as_str() {
-            "none" => MotionProfile::None,
+            // K83 (D1): reduce motion forces `reduced` (short fades). Until W59.1 resolves packs it stays today's cut.
+            "none" | "reduced" => MotionProfile::None,
             "lively" => MotionProfile::Lively,
             "calm" => MotionProfile::Calm,
             _ => MotionProfile::Expressive,
