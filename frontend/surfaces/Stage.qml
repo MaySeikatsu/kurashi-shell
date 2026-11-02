@@ -120,6 +120,8 @@ PanelWindow {
         // I340: the bar module this card was opened from — pressed on this output just now — else none (a key, the CLI).
         var lp = IslandGeom.lastPress
         openedFrom = lp.output === outName && Date.now() - lp.t < 1500 ? lp.mid : ""
+        // W59.9a (row 658): and where it was pressed (iris opens from there).
+        openedPress = openedFrom !== "" ? lp : null
         if (shown && open && morphLayout && !gate && contentKind !== wantedKind && contentP > 0.01 && Theme.quickMs > 0) {
             pendingKind = wantedKind
             if (!swap.running) swap.start()
@@ -135,6 +137,7 @@ PanelWindow {
     // an island view too then hangs from the module instead of growing out of the pill) or at the bar's centre (`toCentre`:
     // a panel too then comes out under the island, not under its widget). The island's own pill is always its own origin.
     property string openedFrom: ""
+    property var openedPress: null
     function placeOf(mid) {
         var g = String(bars.valueOf("bar.popups", "module")) === "centre" ? "centre" : "module"
         var other = bars.valueOf("bar.popups_other", []) || []
@@ -794,6 +797,7 @@ PanelWindow {
             neckCx: stage.peekNeckCx
             attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - stage.peekNeckWant) / 32)
             neckScale: stage.peekSf ? 1 : peekSprings.neckScale
+            stretch: stage.peekSf ? stage.peekSf.neck : 1
             x0: stage.peekShapeCx - stage.peekShapeW / 2
             y0: stage.peekBodyTop
             w: stage.peekShapeW
@@ -1009,11 +1013,22 @@ PanelWindow {
     readonly property var origin: {
         if (!shown || headMode) return { x: pillOutCx - pillW / 2, w: pillW, e: pillTop + pillH, kind: "pill" }
         var r = originRect
-        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : barEdgeY, kind: "widget" }
+        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : barEdgeY, kind: "widget",
+                                 r: r.r >= 0 ? r.r : Theme.rSm }
         if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined ? pillTop + pillH : barEdgeY, kind: "pill" }
         return { x: outW / 2 - 40, w: 80, e: joined ? groupFoot : barEdgeY, kind: "centre" }
     }
     readonly property real originCx: origin.x + origin.w / 2
+    // The origin's corner radius (W59.9a: liquid flows from it, a headless shape's corners start at it): the pill's, a
+    // widget's own (IslandGeom), else a bar widget's.
+    readonly property real originR: headMode || origin.kind === "pill" ? pillR : (origin.r !== undefined ? origin.r : Theme.rSm)
+    // W59.9a (row 658): the press that opened the card, in the shape's frame (x in the window, y local); NaN: none.
+    readonly property point pressAt: {
+        var rev = IslandGeom.revision
+        var q = shown && morphMode && openedPress ? IslandGeom.pressOf(openedPress) : null
+        if (!q || !screen) return Qt.point(NaN, NaN)
+        return Qt.point(q.x - boxL, flip ? screen.height - q.y : q.y)
+    }
     // The shape closed: the pill (head), or a sliver at the line it hangs from.
     readonly property real closedW: origin.w
     readonly property real closedFoot: headMode ? pillTop + pillH : origin.e
@@ -1107,7 +1122,9 @@ PanelWindow {
         fromW: stage.morphMode ? stage.closedW : stage.formFrameW * 0.3
         fromTop: stage.morphMode ? stage.originTop : 0
         fromFoot: stage.morphMode ? stage.closedFoot : 0
-        fromR: stage.headMode || stage.origin.kind === "pill" ? stage.pillR : Theme.rSm
+        fromR: stage.originR
+        pressX: stage.pressAt.x
+        pressY: stage.pressAt.y
         toCx: stage.morphMode ? stage.cardCx : stage.formFrameW / 2
         toW: stage.morphMode ? card.width : stage.formFrameW
         toTop: stage.morphMode ? stage.cardTop : 0
@@ -1125,10 +1142,22 @@ PanelWindow {
     readonly property real lift: sf ? sf.lift : 0
     // The content's cut to the shape (a stamp scales the card with its shape instead) and its opacity in a shape form.
     readonly property bool cutsContent: !sf || sf.clipsContent
-    // K83 (W59.4 handover, row 656): while a sheet form warps the card, the card draws its own fill, border and material
-    // (solid: the sheet composites it) — it is the sheet's `source` — and the shape under it gives way: its elevation ×
-    // `sheetShadow`, the shape (neck, fillets, body) × `sheetFillets`, the bar keeps its pill, no compositor blur.
-    readonly property bool morphDraws: morphMode && !cardHost.sheetSolid
+    // K83 (W59.4 handover, row 656; W59.9a seamless landing): while a sheet form warps the card, the shape stands at its
+    // REST geometry both ways (its fill solid: the sheet composites it) and keeps the island's pill, so the frame at p = 1 is
+    // the rest frame with nothing swapped at the landing. The sheet captures only the body's box below the hinge
+    // (`sheetBody`: square where it meets the bar), SheetRest draws the rest of it — the bar's side of the hinge exactly as at
+    // rest, beside the body × `sheetFillets` — the join's fillets grow back from 0 over the landing (MorphShape `stretch`),
+    // the elevation × `sheetShadow`, no compositor blur.
+    readonly property bool sheetOn: morphMode && cardHost.sheetSolid
+    readonly property bool morphDraws: morphMode
+    // The hinge's line (local): the bar's edge on a strip, the body's top under a block (joined: the neck stays the bar's).
+    readonly property real hingeY: joined ? cardTop : barEdgeY
+    // The body's box below the hinge in the window (whole px: the capture's clip and SheetRest's hole are one edge).
+    readonly property rect sheetBody: {
+        var x0 = Math.round(cardOutX - boxL), x1 = Math.round(cardOutX - boxL + card.width)
+        var y0 = Math.round(hingeY), y1 = Math.ceil(cardFoot)
+        return flip ? Qt.rect(x0, morphH - y1, x1 - x0, y1 - y0) : Qt.rect(x0, y0, x1 - x0, y1 - y0)
+    }
     // The origin's top (local), for the outline's first rects: the pill's, else the widget's box, else the bar's.
     readonly property real originTop: {
         if (headMode || origin.kind === "pill") return pillTop
@@ -1142,7 +1171,7 @@ PanelWindow {
         target: IslandGeom
         property: "takenOn"
         value: stage.outName
-        when: stage.taken && stage.morphMode && stage.headMode && !stage.handedToView && !cardHost.sheetSolid
+        when: stage.taken && stage.morphMode && stage.headMode && !stage.handedToView
     }
     // A view with its own chrome (the phone) takes over from the shape once it is in: the shape dissolves into it and the
     // bar gets its pill back while the view stands; closing brings the shape back to fold into the pill.
@@ -1199,13 +1228,14 @@ PanelWindow {
     function clamp01(v) { return Math.max(0, Math.min(1, v)) }
     // How far the shape has grown out of its origin, 0..1 (the foot against the card's): corners, tint and ring follow it.
     // (a shape form: its own `grow`, and `tint` for fill, corners and ring)
-    readonly property real tgrow: sf ? sf.grow : clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
-    readonly property real ttint: sf ? sf.tint : tgrow
+    // (a sheet form: the card at rest, both ways — W59.9a)
+    readonly property real tgrow: sheetOn ? 1 : sf ? sf.grow : clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
+    readonly property real ttint: sheetOn ? 1 : sf ? sf.tint : tgrow
     // The drawn shape, in window px: squash & stretch narrows it while its foot moves fast (I113); a shape form's scale
     // is about the bar's edge (the hinge).
-    readonly property real shapeW: sf ? Math.max(0, sf.w * sf.sx) : Math.max(0, springs.wOut * (1 - springs.squeeze))
-    readonly property real shapeCx: sf ? sf.cx : springs.cxOut - boxL
-    readonly property real shapeFoot: sf ? barEdgeY + (sf.foot - barEdgeY) * sf.sy : springs.hOut
+    readonly property real shapeW: sheetOn ? card.width : sf ? Math.max(0, sf.w * sf.sx) : Math.max(0, springs.wOut * (1 - springs.squeeze))
+    readonly property real shapeCx: sheetOn ? cardCx : sf ? sf.cx : springs.cxOut - boxL
+    readonly property real shapeFoot: sheetOn ? cardFoot : sf ? barEdgeY + (sf.foot - barEdgeY) * sf.sy : springs.hOut
     readonly property real cardCx: cardOutX + card.width / 2 - boxL
     // K61: how far the shape's body is from its place at rest, in output axes: its centre and its foot against the
     // card's (0 once grown), so the panel's sheet comes out with the body as it grows.
@@ -1226,7 +1256,8 @@ PanelWindow {
     readonly property color shapeFill: {
         // (I277: a card is the sheet it grows out of — the bar's surface colour, not the container's)
         var c = headMode ? Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.surface, ttint)) : Theme.surface
-        return Qt.alpha(c, Theme.panel.a)
+        // (solid while a sheet form warps it: the sheet composites a translucent fill at its fallback, W59.4)
+        return Qt.alpha(c, sheetOn ? 1 : Theme.panel.a)
     }
     // I160: the head over the bar's strip, translucent over translucent, made one layer as the card grows: lighter by the
     // strip's own opacity (0 when the two are equal; the strip's colour shows there, as the rest of the bar's).
@@ -1301,7 +1332,9 @@ PanelWindow {
             stage.closedW, Math.max(1, stage.closedFoot - stage.originTop))
         direction: run.dir
         progress: run.sheet ? run.p : 1
-        source: card
+        pressAt: isNaN(stage.pressAt.x) ? stage.pressAt : Qt.point(stage.pressAt.x, stage.flip ? stage.morphH - stage.pressAt.y : stage.pressAt.y)
+        // (W59.9a: on a morph the sheet captures the body's box only — `bodySrc`; SheetRest draws the rest)
+        source: stage.morphMode && run.sheet ? bodySrc : card
         // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1)
         visible: !run.sheet || run.p > 0
     Item {
@@ -1315,6 +1348,12 @@ PanelWindow {
             keep: stage.barEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : 1)
             flipped: stage.flip
         }
+    // W59.9a: the whole drawing (the shape, its material and face, the card): while a sheet form warps the card on a morph,
+    // SheetRest takes it into one layer at its rest geometry, and the sheet captures the body's box of it (`bodySrc`).
+    Item {
+        id: fullDraw
+        width: formLayer.width
+        height: formLayer.height
 
     Item {
         id: shapeBox
@@ -1393,12 +1432,14 @@ PanelWindow {
             w: stage.shapeW
             h: stage.bodyH
             rTop: stage.joined || !stage.headMode ? Theme.rLg : stage.lerp(stage.pillR, Theme.rLg, stage.ttint)
-            rBot: stage.headMode ? stage.lerp(stage.pillR, Theme.rLg, stage.ttint) : Math.min(Theme.rLg, stage.lerp(Theme.rSm, Theme.rLg, stage.ttint))
+            rBot: stage.headMode ? stage.lerp(stage.pillR, Theme.rLg, stage.ttint) : Math.min(Theme.rLg, stage.lerp(stage.originR, Theme.rLg, stage.ttint))
+            // (liquid's thread; under a sheet form the join's fillets grow back from 0 over the landing, W59.9a)
+            stretch: stage.sheetOn ? cardHost.sheetFillets : stage.sf ? stage.sf.neck : 1
             edgeY: stage.joined ? stage.hangE : stage.barEdgeY
             neck: stage.neckR
             fill: stage.shapeFill
             headFill: stage.headMode ? stage.headFill : stage.shapeFill
-            fade: stage.shapeFade * cardHost.sheetFillets
+            fade: stage.shapeFade
             ringScale: 0.5 + 0.5 * stage.ttint
             flip: stage.flip
             barCx: stage.outW / 2 - stage.boxL
@@ -1443,7 +1484,7 @@ PanelWindow {
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
-        opacity: stage.shapeFade * cardHost.sheetFillets
+        opacity: stage.shapeFade
         width: stage.morphW
         height: stage.morphH
         transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
@@ -1462,7 +1503,7 @@ PanelWindow {
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).
     CompactFace {
         id: headFace
-        active: stage.shown && stage.morphMode && stage.headMode && !cardHost.sheetSolid
+        active: stage.shown && stage.morphMode && stage.headMode
         // Not visible while idle: its geometry follows the pill (hover), and a visible item that moves costs a frame (Ma).
         visible: active
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
@@ -1735,6 +1776,28 @@ PanelWindow {
         }
         }
     }
+    }
+    }
+    // W59.9a: the rest of the joined card while a sheet form warps its body (see `sheetOn`), and the body's box of it, which
+    // the sheet form captures (the FormHost's source: hinged on the box's top, square where it meets the bar).
+    SheetRest {
+        id: sheetRest
+        anchors.fill: parent
+        on: stage.sheetOn
+        draw: fullDraw
+        body: stage.sheetBody
+        hingeY: stage.flip ? stage.morphH - stage.hingeY : stage.hingeY
+        barAbove: !stage.flip
+        k: cardHost.sheetFillets
+    }
+    Item {
+        id: bodySrc
+        x: stage.sheetBody.x
+        y: stage.sheetBody.y
+        width: stage.sheetBody.width
+        height: stage.sheetBody.height
+        clip: true
+        SheetRest.Body { rest: sheetRest }
     }
     }
     }

@@ -65,6 +65,9 @@ Shape {
     property real neckCx: x0 + w / 2
     property real attach: 1
     property real neckScale: 1
+    // K83 (W59.9a): a shape form's stretch of the join's fillets (liquid's thread, ShapeForm.neck), × neckScale; on all
+    // three topologies (neckScale, the springs' landing wobble, leaves the joined head's neck alone, as before).
+    property real stretch: 1
     property color headFill: fill
     property real fade: 1
 
@@ -73,7 +76,7 @@ Shape {
     // The neck forms once the bottom has room below the bar's edge for the fillet and the bottom corners.
     readonly property real rb: Math.max(0, Math.min(rBot, w / 2, h / 2))
     readonly property real rt: Math.max(0, Math.min(rTop, w / 2, h / 2, Math.max(0, edgeY - y0)))
-    readonly property real n: Math.max(0, Math.min(neck * neckScale, y1 - edgeY - rb, (y1 - edgeY) / 2))
+    readonly property real n: Math.max(0, Math.min(neck * neckScale * stretch, y1 - edgeY - rb, (y1 - edgeY) / 2))
     function fa(c, a) { return Qt.rgba(c.r, c.g, c.b, c.a * a) }
     readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
     readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
@@ -126,7 +129,7 @@ Shape {
         var bt = Math.max(0, Math.min(rTop - d, (BX1 - BX0) / 2, (BY1 - BY0) / 2))
         var bb = Math.max(0, Math.min(rBot - d, (BX1 - BX0) / 2, (BY1 - BY0) / 2))
         var gap = BY0 - HY1
-        var fl = Math.max(0, Math.min(neckF, gap / 2))
+        var fl = Math.max(0, Math.min(neckF * stretch, gap / 2))
         var cx = (HX0 + HX1) / 2, hhw = (HX1 - HX0) / 2
         var hn = Math.min(Math.max(10, hhw * 0.5), hhw - r - fl, cx - BX0 - bt - fl, BX1 - bt - fl - cx)
         // No room for a neck (a body that has not grown past the head, or a head too small): head and body as they are.
@@ -206,7 +209,7 @@ Shape {
     }
     // W34, headless and joined: the neck's half width, centre and fillets (0 half width: no neck, the body is free).
     readonly property real budGap: y0 - edgeY
-    readonly property real budFl: Math.max(0, Math.min(neckF * neckScale, budGap / 2))
+    readonly property real budFl: Math.max(0, Math.min(neckF * neckScale * stretch, budGap / 2))
     // The neck takes what the body's width leaves it (a body as narrow as the widget hangs from the block by its whole
     // top); the body's top corners round only where the neck leaves room.
     readonly property real budHalf: Math.min(neckCx - x0, x1 - neckCx)

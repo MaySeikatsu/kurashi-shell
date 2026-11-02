@@ -844,15 +844,15 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_forms_fall_back_with_a_note() {
+    fn forms_that_cannot_run_fall_back_with_a_note() {
+        // (every form is available since W59.9a: a surface the form cannot serve takes the same path)
         let mut req = Request::profile("fluent");
         req.axes.form.0 = "liquid".into();
         let out = resolve_in(&req, Registry::bundled(), 1.0, "flat");
-        assert_eq!(out.tokens["motion.form.panel.open"], "slide");
+        assert_eq!(out.tokens["motion.form.panel.open"], "liquid");
+        assert_eq!(out.tokens["motion.form.sidebar.open"], "slide");
         assert!(
-            out.notes
-                .iter()
-                .any(|n| n.contains(forms::REASON_UNAVAILABLE)),
+            out.notes.iter().any(|n| n.contains(forms::REASON_SURFACE)),
             "{:?}",
             out.notes
         );

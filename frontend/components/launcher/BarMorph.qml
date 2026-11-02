@@ -135,6 +135,8 @@ Item {
         fromTop: m.pillTop
         fromFoot: m.closedFoot
         fromR: m.pillR
+        pressX: m.pressAt.x
+        pressY: m.pressAt.y
         toCx: m.cardCx
         toW: m.cardW
         toTop: m.cardTop
@@ -150,21 +152,13 @@ Item {
     // This shape holds the island (see the header).
     property bool holds: false
     function take() {
-        if (outName !== "" && IslandGeom.takenOn === "" && !cardHost.sheetSolid) { IslandGeom.takenOn = outName; holds = true }
+        if (outName !== "" && IslandGeom.takenOn === "") { IslandGeom.takenOn = outName; holds = true }
     }
     function release() {
         if (holds && IslandGeom.takenOn === outName) IslandGeom.takenOn = ""
         holds = false
     }
     Component.onDestruction: release()
-    // K83 (row 656): while a sheet form warps the card the bar keeps its pill (the head gives way with the shape).
-    Connections {
-        target: cardHost
-        function onSheetSolidChanged() {
-            if (cardHost.sheetSolid) m.release()
-            else if (m.shown && m.open && !m.gate) m.take()
-        }
-    }
 
     // Test only (KURASHI_MORPH_DEBUG=1): when the growth starts, and the springs twice a second while the shape is out.
     readonly property bool debugLog: Quickshell.env("KURASHI_MORPH_DEBUG") === "1"
@@ -185,7 +179,21 @@ Item {
             if (t < 900) console.log("bar-morph frame +" + t + " ms w=" + springs.w.toFixed(1) + " h=" + springs.h.toFixed(1))
         }
     }
-    onOpenChanged: { openedAt = Date.now(); follow() }
+    onOpenChanged: {
+        openedAt = Date.now()
+        // W59.9a (row 658): the bar module pressed on this output just now opened it (iris opens from the press).
+        var lp = IslandGeom.lastPress
+        if (open) openedPress = lp.output === outName && openedAt - lp.t < 1500 ? lp : null
+        follow()
+    }
+    property var openedPress: null
+    // The press in the shape's frame (the box is centred on the output; y from the bar's screen edge); NaN: none.
+    readonly property point pressAt: {
+        var rev = IslandGeom.revision
+        var q = shown && morph && openedPress ? IslandGeom.pressOf(openedPress) : null
+        if (!q) return Qt.point(NaN, NaN)
+        return Qt.point(q.x - (Screen.width - morphW) / 2, flip ? Screen.height - q.y : q.y)
+    }
     function follow() {
         if (open) {
             pillGeom = IslandGeom.pillOf(outName)
@@ -264,13 +272,24 @@ Item {
     function clamp01(v) { return Math.max(0, Math.min(1, v)) }
     // How far the shape has grown out of the pill, 0..1 (the foot against the card's): corners, tint and ring follow it.
     // (a shape form: its own `grow`, and `tint` for fill, corners and ring)
-    readonly property real tgrow: sf ? sf.grow : clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
-    readonly property real ttint: sf ? sf.tint : tgrow
+    // (a sheet form: the card at rest, both ways — W59.9a, see `sheetOn`)
+    readonly property real tgrow: sheetOn ? 1 : sf ? sf.grow : clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
+    readonly property real ttint: sheetOn ? 1 : sf ? sf.tint : tgrow
     // The drawn shape: squash & stretch narrows it while its foot moves fast, and it bulges as it lands (I113); a shape
     // form's scale is about the bar's edge (the hinge).
-    readonly property real shapeW: sf ? Math.max(0, sf.w * sf.sx) : Math.max(0, springs.wOut * (1 - springs.squeeze))
-    readonly property real shapeCx: sf ? sf.cx : springs.cxOut
-    readonly property real shapeFoot: sf ? barHt + (sf.foot - barHt) * sf.sy : springs.hOut
+    readonly property real shapeW: sheetOn ? cardW : sf ? Math.max(0, sf.w * sf.sx) : Math.max(0, springs.wOut * (1 - springs.squeeze))
+    readonly property real shapeCx: sheetOn ? cardCx : sf ? sf.cx : springs.cxOut
+    readonly property real shapeFoot: sheetOn ? cardFoot : sf ? barHt + (sf.foot - barHt) * sf.sy : springs.hOut
+    // K83 (W59.4 handover, row 656; W59.9a seamless landing, as the Stage): while a sheet form warps the card, the shape
+    // stands at its rest geometry both ways (solid) and keeps the island; the sheet captures the body's box below the hinge
+    // (`sheetBody`, square where it meets the bar), SheetRest draws the rest (the bar's side as at rest, beside the body ×
+    // the landing), the join's fillets grow back from 0 over the landing, so p = 1 is the rest frame.
+    readonly property bool sheetOn: morph && cardHost.sheetSolid
+    readonly property real hingeY: joined ? cardTop : barHt
+    readonly property rect sheetBody: {
+        var x0 = Math.round((morphW - cardW) / 2), y0 = Math.round(hingeY), y1 = Math.ceil(cardFoot)
+        return flip ? Qt.rect(x0, morphH - y1, cardW, y1 - y0) : Qt.rect(x0, y0, cardW, y1 - y0)
+    }
     readonly property real pillR: Math.min(Theme.rFull, pillH / 2)
     // The body: the whole shape on a strip (the head is its top); joined, what grows out from under the island's block.
     readonly property real bodyTop0: joined ? lerp(closedFoot, cardTop, tgrow) : pillTop
@@ -280,7 +299,7 @@ Item {
     readonly property color shapeFill: {
         // (I277: the card is the sheet it grows out of — the bar's surface colour, not the container's)
         var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.surface, ttint))
-        return Qt.alpha(c, Theme.panel.a)
+        return Qt.alpha(c, sheetOn ? 1 : Theme.panel.a)
     }
     // I160 (as the Stage): the head over the bar's translucent strip is made one layer with it as the card grows.
     readonly property real stripA: Theme.surfaceAlpha.a
@@ -332,8 +351,8 @@ Item {
         origin: Qt.rect(m.pillCx - m.pillW / 2, m.flip ? m.morphH - m.closedFoot : m.pillTop, m.pillW, m.pillH)
         direction: run.dir
         progress: run.sheet ? run.p : 1
-        // (the card itself, its own fill drawn while a sheet warps it; the shape under it gives way: row 656)
-        source: card
+        // (W59.9a: on a morph the sheet captures the body's box of the card at rest — `bodySrc`; SheetRest draws the rest)
+        source: m.morph && run.sheet ? bodySrc : card
         visible: !run.sheet || run.p > 0
     Item {
         id: formLayer
@@ -345,6 +364,12 @@ Item {
             keep: m.barHt - (Theme.outlineW > 0 || m.joined ? 0 : 1)
             flipped: m.flip
         }
+    // W59.9a: the whole drawing (the shape, its material and face, the card); SheetRest takes it into one layer while a
+    // sheet form warps the card, and the sheet captures the body's box of it (`bodySrc`).
+    Item {
+        id: fullDraw
+        width: m.width
+        height: m.height
 
     Item {
         id: shapeBox
@@ -383,6 +408,8 @@ Item {
             hr: m.pillR
             neckF: Theme.rLg / 2
             neckScale: m.sf ? 1 : springs.neckScale
+            // (liquid's thread; under a sheet form the fillets grow back from 0 over the landing, W59.9a)
+            stretch: m.sheetOn ? cardHost.sheetFillets : m.sf ? m.sf.neck : 1
             x0: m.shapeCx - m.shapeW / 2
             y0: m.bodyTop
             w: m.shapeW
@@ -395,7 +422,7 @@ Item {
             headFill: m.headFill
             ringScale: 0.5 + 0.5 * m.ttint
             flip: m.flip
-            fade: cardHost.sheetFillets
+            fade: 1
         }
         // The fill alone, in white, as the relief's mask (I168), redrawn only when the path changes.
         Shape {
@@ -430,7 +457,7 @@ Item {
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
-        opacity: cardHost.sheetFillets
+        opacity: 1
         width: m.morphW
         height: m.morphH
         transform: Scale { yScale: m.flip ? -1 : 1; origin.y: m.morphH / 2 }
@@ -449,7 +476,7 @@ Item {
     // The island's face in the shape's head, where the pill was (only while this shape holds the island).
     CompactFace {
         id: headFace
-        active: m.shown && m.morph && m.holds && !cardHost.sheetSolid
+        active: m.shown && m.morph && m.holds
         visible: active
         face: m.pillGeom ? (m.pillGeom.face || "clock") : "clock"
         animate: m.shown
@@ -470,15 +497,6 @@ Item {
         opacity: m.morph ? (m.sf ? m.sf.content : m.contentP) : (m.formed ? 1 : Math.min(1, m.p * 1.6))
         scale: m.morph ? (m.sf ? 1 : 0.98 + 0.02 * m.contentP) : (m.formed ? 1 : m.slideScale + (1 - m.slideScale) * m.p)
         transformOrigin: m.flip ? Item.Bottom : Item.Top
-        // K83 (row 656): the card's own fill and outline while a sheet form captures it (the shape gives way).
-        Rectangle {
-            visible: m.morph && cardHost.sheetSolid
-            anchors.fill: parent
-            radius: Theme.rLg
-            color: Theme.surface
-            border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
-            border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
-        }
         // K83 (stamp): the card scales with its shape about the bar's edge.
         transform: Scale {
             origin.x: m.shapeCx - card.x
@@ -522,6 +540,27 @@ Item {
                 }
             }
         }
+    }
+    }
+    SheetRest {
+        id: sheetRest
+        width: m.width
+        height: m.height
+        on: m.sheetOn
+        draw: fullDraw
+        body: m.sheetBody
+        hingeY: m.flip ? m.morphH - m.hingeY : m.hingeY
+        barAbove: !m.flip
+        k: cardHost.sheetFillets
+    }
+    Item {
+        id: bodySrc
+        x: m.sheetBody.x
+        y: m.sheetBody.y
+        width: m.sheetBody.width
+        height: m.sheetBody.height
+        clip: true
+        SheetRest.Body { rest: sheetRest }
     }
     }
     }

@@ -684,9 +684,10 @@ my-snap = "segments(0.1 0 0.2 0.5 0.5 0.6, 0.6 0.7 0.9 1 1 1)"
             // W59.3: their forms have landed (pop = stamp, outline = outline).
             "pop",
             "outline",
+            // W59.9a: liquid has landed.
+            "liquid",
         ] {
             assert!(r.find(id).unwrap().available(), "{id}");
         }
-        assert!(!r.find("liquid").unwrap().available(), "liquid");
     }
 }

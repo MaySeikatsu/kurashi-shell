@@ -351,7 +351,6 @@ motion_en() {
   echo "motion M9: jelly from the profile, own, and back"
 
   # M10. the gallery: packs whose animations are not built are folded into one group at the end.
-  [ "$(Q present profiles-later)" = yes ] || fail "motion M10: no folded group for the packs that are not built"
   # (which packs are unbuilt changes as forms land: the first the daemon offers disabled — origami was, until W59.4)
   local later; later=$(timeout 5 "$BIN/kurashi" --json sub schema.settings --count 0 | python3 -I -c '
 import json,sys
@@ -361,8 +360,13 @@ for pg in d.get("pages",[]):
         for r in se["rows"]:
             if r["key"]=="theme.motion.profile":
                 print(next((c["value"] for c in r.get("choices",[]) if c.get("enabled") is False),"")); sys.exit()')
-  [ -n "$later" ] || fail "motion M10: the daemon offers no unbuilt pack, yet the group shows"
-  [ "$(Q present "profile:$later")" = no ] || fail "motion M10: the unbuilt pack $later shows outside its group"
+  # (since W59.9a every pack is built: then the folded group must not show at all)
+  if [ -n "$later" ]; then
+    [ "$(Q present profiles-later)" = yes ] || fail "motion M10: no folded group for the packs that are not built"
+    [ "$(Q present "profile:$later")" = no ] || fail "motion M10: the unbuilt pack $later shows outside its group"
+  else
+    [ "$(Q present profiles-later)" = no ] || fail "motion M10: every pack is built, yet the folded group shows"
+  fi
   Q scroll 0
   mshot gallery
   echo "motion M10: unbuilt packs folded into one group"

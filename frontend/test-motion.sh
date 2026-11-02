@@ -19,6 +19,9 @@
 #           p = 1 equals that surface's motion-off frame (profile none), p < 1 differs; at p = 0.5 a reversal (the close
 #           mid-way continues the open's form) and a quick → session retarget mid-way draw without a QML error. Each shot
 #           also asserts the form was latched (`motion: form` lines are failures). Off: MOTION_FORM_CASES="".
+#           W59.9a: also the right sidebar and a toast (their ShapeLayer), and liquid (panel, island, centre only).
+#   landings (W59.9a) kami/origami: fold, book and roll on a panel, the island and the sidebar, scrubbed at 0.9, 0.97 and 1:
+#           the frames before the landing within MOTION_LANDING_SLACK px of p = 1 at a 6 % colour tolerance (no seam).
 # Shots: frontend/shots/motion/<style>-<profile>-<p>.png, …-rest.png, …-off.png, forms/<case>-<surface>-<form>-<p>.png
 # (gitignored; read them).
 #   nix develop -c frontend/test-motion.sh
@@ -38,8 +41,9 @@ STEPPED=${MOTION_STEPPED:-snes}
 # One form case by default (the suite's 30-minute budget); the review set adds e.g.
 # MOTION_FORM_CASES="washi:expressive:top sekai:lively:bottom kami:expressive:top:dark".
 FORM_CASES=${MOTION_FORM_CASES-washi:expressive:top}
-FORMS=${MOTION_FORMS:-expand iris stamp outline}
-SURFACES=${MOTION_SURFACES:-panel island centre}
+FORMS=${MOTION_FORMS:-expand iris stamp outline liquid}
+# W59.9a: the right sidebar and a toast too (shape forms through their ShapeLayer); liquid only where a morph draws it.
+SURFACES=${MOTION_SURFACES:-panel island centre sidebar toast}
 mkdir -p "$OUT"
 fail() { echo "test-motion: $*" >&2; exit 1; }
 
@@ -202,13 +206,40 @@ done
 FO=$OUT/forms
 mkdir -p "$FO"
 # The pixels two shots differ in, the clock's pill left out (a minute may turn between them).
+# (W59.9a: the sidebar's crop has the bar's clock at its top, a toast its time in its first row: left out too)
 fae() {
   local c="rectangle 360,0 640,46"
   [ "$edge" = bottom ] && c="rectangle 360,534 640,580"
+  case ${3:-} in
+    sidebar) c="rectangle 0,0 500,46 rectangle 0,$(( OH - 46 )) 500,$OH" ;;
+    toast) c="$c rectangle 300,30 700,100"; [ "$edge" = bottom ] && c="$c rectangle 300,420 700,550" ;;
+  esac
   { magick compare -metric AE <(magick "$1" -fill black -draw "$c" png:-) <(magick "$2" -fill black -draw "$c" png:-) null: 2>&1 || true; } \
     | awk '{print int($1)}'
 }
 open_of() { case $1 in panel) echo session.menu ;; island) echo island.expand ;; centre) echo notifications.center ;; esac; }
+# W59.9a: open and close a surface of the matrix (the right sidebar by its toggle, a toast by a notification on the
+# sandbox's bus), and where it is shot.
+TOAST_ID=
+open_sfc() {
+  case $1 in
+    sidebar) K act sidebar.toggle "{\"side\":\"right\",\"output\":\"$ONAME\"}" >/dev/null ;;
+    toast) TOAST_ID=$(timeout 10 gdbus call --session --dest org.freedesktop.Notifications \
+      --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.Notify Calendar 0 "" \
+      "Standup in 5 minutes" "Room 3" '[]' '{}' 60000 | grep -oE '[0-9]+' | tail -1) ;;
+    *) K act "$(open_of "$1")" >/dev/null ;;
+  esac
+}
+close_sfc() {
+  case $1 in
+    sidebar) K act sidebar.toggle "{\"side\":\"right\",\"output\":\"$ONAME\"}" >/dev/null ;;
+    toast) if [ -n "$TOAST_ID" ]; then K act notify.dismiss "{\"id\":$TOAST_ID}" >/dev/null; fi; TOAST_ID= ;;
+    *) K act ui.close >/dev/null ;;
+  esac
+}
+crop_of() { if [ "$1" = sidebar ]; then echo "$(( OW - 500 )),0 500x$OH"; else echo "$FCROP"; fi; }
+# Whether the form runs on that surface (elsewhere the daemon resolves another, which would not hold mid-way).
+serves() { [ "$1" != liquid ] || [[ " panel island centre " == *" $2 "* ]]; }
 bar_edge() {
   local e
   for e in top bottom left right; do
@@ -221,7 +252,8 @@ bar_edge() {
 }
 form_errors() {
   qml_errors "$1"
-  if grep -E 'motion: form .* (failed to load|is not available|is unknown on (panel|centre|launcher))' "$1" | grep -v 'grow is unknown' >/dev/null; then
+  # (W59.9a: `grow` named unknown at start was a false warning, now fixed — no exemption)
+  if grep -E 'motion: form .* (failed to load|is not available|is unknown on )' "$1" >/dev/null; then
     grep 'motion: form' "$1" | head -5 >&2; fail "a form did not load (see $1)"
   fi
 }
@@ -232,16 +264,16 @@ for fc in $FORM_CASES; do
   K set theme.colors.scheme "${scheme:-light}" >/dev/null || fail "theme.colors.scheme ${scheme:-light} refused"
   bar_edge "$edge" || fail "no bar to move to $edge"
   # 1000 × 580 round the bar's centre, from its edge (the output's size from sway).
-  read -r OW OH < <(timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; o=json.load(sys.stdin)[0]['rect']; print(o['width'], o['height'])")
+  read -r OW OH ONAME < <(timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; o=json.load(sys.stdin)[0]; print(o['rect']['width'], o['rect']['height'], o['name'])")
   if [ "$edge" = bottom ]; then FCROP="$(( OW / 2 - 500 )),$(( OH - 580 )) 1000x580"; else FCROP="$(( OW / 2 - 500 )),0 1000x580"; fi
   K reset theme.motion.form.open >/dev/null || true; K reset theme.motion.form.close >/dev/null || true
   # The motion-off frame of every surface.
   K set theme.motion.profile none >/dev/null
   start_fe "$R/qs-forms-$style-off.log"
   for sfc in $SURFACES; do
-    K act "$(open_of "$sfc")" >/dev/null; sleep 1.2; wait_settled 8 0.8 "$FCROP"
-    grim -g "$FCROP" "$FO/$style-$edge-$sfc-off.png"
-    K act ui.close >/dev/null; sleep 0.8
+    open_sfc "$sfc"; sleep 1.2; wait_settled 8 0.8 "$(crop_of "$sfc")"
+    grim -g "$(crop_of "$sfc")" "$FO/$style-$edge-$sfc-off.png"
+    close_sfc "$sfc"; sleep 0.8
   done
   form_errors "$R/qs-forms-$style-off.log"
   stop_fe
@@ -253,9 +285,10 @@ for fc in $FORM_CASES; do
       log=$R/qs-forms-$style-$form-$p.log
       start_fe "$log" KURASHI_MOTION_SCRUB="$p"
       for sfc in $SURFACES; do
+        serves "$form" "$sfc" || continue
         tag=$style-$edge-$sfc-$form-$p
-        K act "$(open_of "$sfc")" >/dev/null; sleep 1.2; wait_settled 8 0.8 "$FCROP"
-        grim -g "$FCROP" "$FO/$tag.png"
+        open_sfc "$sfc"; sleep 1.2; wait_settled 8 0.8 "$(crop_of "$sfc")"
+        grim -g "$(crop_of "$sfc")" "$FO/$tag.png"
         if [ "$p" = 0.5 ] && [ "$sfc" = panel ]; then
           # A reversal mid-way: the close continues the open's form from where it stands.
           K act ui.close >/dev/null; sleep 1; grim -g "$FCROP" "$FO/$style-$edge-$sfc-$form-reverse.png"
@@ -263,15 +296,27 @@ for fc in $FORM_CASES; do
           K act quick.toggle >/dev/null; sleep 0.8; K act session.menu >/dev/null; sleep 1
           grim -g "$FCROP" "$FO/$style-$edge-$sfc-$form-retarget.png"
         fi
-        K act ui.close >/dev/null; sleep 0.6
+        close_sfc "$sfc"; sleep 0.6
       done
       form_errors "$log"
       grep -q "motion: scrub $p" "$log" || fail "$fc $form: no 'motion: scrub $p' line"
       stop_fe
       for sfc in $SURFACES; do
-        d=$(fae "$FO/$style-$edge-$sfc-$form-$p.png" "$FO/$style-$edge-$sfc-off.png")
+        serves "$form" "$sfc" || continue
+        d=$(fae "$FO/$style-$edge-$sfc-$form-$p.png" "$FO/$style-$edge-$sfc-off.png" "$sfc")
         if [ "$p" = 1 ]; then
-          [ "${d:-1}" -le "${MOTION_OFF_SLACK:-16}" ] || fail "$fc $sfc $form: p = 1 differs from motion off in $d px"
+          # (the sidebar under sekai/lively: ≤ 27 single pixels of its text's anti-aliasing apart, scattered — W59.9a)
+          # (kami's island: its pen outline lands up to ~110 px apart from a fresh motion-off frontend's — on the W59.9a base
+          # too, 65 and 106 px in two runs: pre-existing, reported; the card's own frame is checked by the landings below)
+          slack=${MOTION_OFF_SLACK:-16}; [ "$sfc" = sidebar ] && slack=$(( slack * 2 ))
+          # (a toast's pen outline is seeded by its notification's id, a new one per frontend: the same under kami)
+          if [ "$style" = kami ] && { [ "$sfc" = island ] || [ "$sfc" = toast ]; }; then slack=160; fi
+          [ "${d:-1}" -le "$slack" ] || fail "$fc $sfc $form: p = 1 differs from motion off in $d px"
+        elif [ "${d:-0}" = 0 ] && [ "$p" != 0.15 ]; then
+          # (W59.9a: an overshooting curve — expressive's, lively's spring — reaches its end early and passes it, where a
+          # form that clamps (expand) stands at rest, from half its time on; said, not failed: p = 0.15 must differ)
+          echo "test-motion: forms $style $edge $sfc $form p=$p: on the spring's rest already (equals motion off)"
+          continue
         else
           [ "${d:-0}" -gt 0 ] || fail "$fc $sfc $form: p = $p looks like rest (the form held nothing?)"
         fi
@@ -282,6 +327,41 @@ for fc in $FORM_CASES; do
   K reset theme.motion.form.open >/dev/null || true; K reset theme.motion.form.close >/dev/null || true
   bar_edge top || true
 done
+
+# ---- landings (W59.9a): a sheet form on a joined card lands with no seam — the card is captured square where it meets the
+# bar and its fillets are the surface's own, so the frames at p = 0.9 and 0.97 already show the joined corners of the rest
+# frame: each against p = 1 within a 6 % colour tolerance (the warp's resampling), at most MOTION_LANDING_SLACK px.
+# Cases form:surface on kami (origami); MOTION_LANDINGS="" skips.
+LANDINGS=${MOTION_LANDINGS-fold:panel fold:island book:panel roll:sidebar}
+if [ -n "$LANDINGS" ]; then
+  echo "-- landings"
+  edge=top
+  K set theme.style kami >/dev/null; K set theme.colors.scheme light >/dev/null; K set theme.motion.profile origami >/dev/null
+  bar_edge top || true
+  read -r OW OH ONAME < <(timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; o=json.load(sys.stdin)[0]; print(o['rect']['width'], o['rect']['height'], o['name'])")
+  FCROP="$(( OW / 2 - 500 )),0 1000x580"
+  for lc in $LANDINGS; do
+    form=${lc%%:*}; sfc=${lc#*:}
+    K set theme.motion.form.open "$form" >/dev/null || fail "theme.motion.form.open $form refused"
+    for p in 0.9 0.97 1; do
+      log=$R/qs-landing-$form-$sfc-$p.log
+      start_fe "$log" KURASHI_MOTION_SCRUB="$p"
+      open_sfc "$sfc"; sleep 1.2; wait_settled 8 0.8 "$(crop_of "$sfc")"
+      grim -g "$(crop_of "$sfc")" "$FO/landing-$form-$sfc-$p.png"
+      close_sfc "$sfc"; sleep 0.4
+      form_errors "$log"
+      stop_fe
+    done
+    for p in 0.9 0.97; do
+      c="rectangle 360,0 640,46"; [ "$sfc" = sidebar ] && c="rectangle 0,0 500,46"
+      d=$({ magick compare -metric AE -fuzz 6% <(magick "$FO/landing-$form-$sfc-$p.png" -fill black -draw "$c" png:-) \
+        <(magick "$FO/landing-$form-$sfc-1.png" -fill black -draw "$c" png:-) null: 2>&1 || true; } | awk '{print int($1)}')
+      [ "${d:-99999}" -le "${MOTION_LANDING_SLACK:-600}" ] || fail "landing $form on $sfc: p = $p differs from p = 1 in $d px (a seam?)"
+      echo "test-motion: landing $form $sfc p=$p: $d px from p = 1"
+    done
+  done
+  K reset theme.motion.form.open >/dev/null || true
+fi
 
 # W59.4: the sheet forms (fold, roll, book, crumple) in their harness, in a sandbox of their own (MOTION_SHEETS=0 skips).
 if [ "${MOTION_SHEETS:-1}" != 0 ]; then

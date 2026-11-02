@@ -9,7 +9,7 @@ import "../../core/motion"
 //   grow   today's path, untouched: `grow` and the transform forms (slide, zoom, fade, flip, bleed, stepped, rubber; on a
 //          morph they are the morph's grow, as before W59), `none`, and any form this surface cannot draw. The Driver
 //          is off (it stands at 0 or 1), so nothing here moves;
-//   shape  expand, iris, stamp, outline: the Driver runs `p` 0 → 1 (open) or 1 → 0 (close) on the profile's curves, and
+//   shape  expand, iris, stamp, outline, liquid: the Driver runs `p` 0 → 1 (open) or 1 → 0 (close) on the profile's curves, and
 //          `shape` (forms/<Form>.qml, a ShapeForm) turns it into the numbers the surface draws its live shape from;
 //   sheet  a paper form (W59.4+, `family: sheet`, available): the Driver runs `p` and the surface's card-level FormHost
 //          takes it as its progress; the shape stands at rest meanwhile.
@@ -22,8 +22,14 @@ QtObject {
     property bool hold: false
     // The curve role: "auto" (open the opening way, close back) or one role for both ways ("fast": a peek, brief §6).
     property string role: "auto"
-    // Forms this surface draws as shapes (a surface without a morph may serve fewer).
-    property var shapes: ["expand", "iris", "stamp", "outline"]
+    // Forms this surface draws as shapes (a surface without a morph serves fewer: liquid needs the live morph, W59.9a).
+    property var shapes: ["expand", "iris", "stamp", "outline", "liquid"]
+    // Whether the surface hosts the sheet forms (a card-level FormHost); false: a sheet form keeps today's path (W59.9a: the
+    // dock, until it has a host).
+    property bool sheets: true
+    // Where the user pressed (W59.9a, row 658), in the form's frame; NaN = no press (the origin's centre stands in).
+    property real pressX: NaN
+    property real pressY: NaN
     // The ShapeForm's inputs (see forms/ShapeForm.qml), bound by the surface.
     property real fromCx: 0
     property real fromW: 0
@@ -52,7 +58,7 @@ QtObject {
     function modeOf(f) {
         if (shapes.indexOf(f) >= 0) return "shape"
         var m = f !== "" ? Theme.formMeta(f) : null
-        if (m && m.family === "sheet" && m.available !== false) return "sheet"
+        if (sheets && m && m.family === "sheet" && m.available !== false) return "sheet"
         return "grow"
     }
     function pascal(n) { return n.charAt(0).toUpperCase() + n.slice(1) }
@@ -68,6 +74,8 @@ QtObject {
         var o = c.createObject(r)
         var keys = ["fromCx", "fromW", "fromTop", "fromFoot", "fromR", "toCx", "toW", "toTop", "toFoot", "toR", "edgeY"]
         keys.forEach(function (k) { o[k] = Qt.binding(function () { return r[k] }) })
+        o.atX = Qt.binding(function () { return isNaN(r.pressX) ? r.fromCx : r.pressX })
+        o.atY = Qt.binding(function () { return isNaN(r.pressY) ? r.fromFoot : r.pressY })
         o.progress = Qt.binding(function () { return r.p })
         o.direction = Qt.binding(function () { return r.direction })
         o.params = Qt.binding(function () { return Theme.formParams(r.form) })

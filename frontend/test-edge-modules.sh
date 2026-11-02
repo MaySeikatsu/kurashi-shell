@@ -32,6 +32,7 @@ NAME=${1:-${KURASHI_SB_PREFIX:-}w45-edge-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/edge-modules
 TIMER_OUT=$ROOT/mods/timer/shots
+mkdir -p "$TIMER_OUT"  # (shots are untracked since I345: a fresh tree has no folder)
 DECORS=${EDGE_DECORS:-washi sekai}
 PARTS=${EDGE_PARTS:-states span peek keys reserve idle pss island}
 PAIRS=${EDGE_PAIRS:-3}
