@@ -483,10 +483,10 @@
     },
     "drop": {
       "available": false,
-      "family": "shape",
+      "family": "sheet",
       "flags": [],
-      "overshoot": true,
-      "retarget": "morph",
+      "overshoot": false,
+      "retarget": "finish",
       "surfaces": [
         "island",
         "panel",
