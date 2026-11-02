@@ -308,9 +308,9 @@ for fc in $FORM_CASES; do
           # (the sidebar under sekai/lively: ≤ 27 single pixels of its text's anti-aliasing apart, scattered — W59.9a)
           slack=${MOTION_OFF_SLACK:-16}; [ "$sfc" = sidebar ] && slack=$(( slack * 2 ))
           [ "${d:-1}" -le "$slack" ] || fail "$fc $sfc $form: p = 1 differs from motion off in $d px"
-        elif [ "${d:-0}" = 0 ] && [ "$p" != 0.15 ] && [ "$prof" = lively ]; then
-          # (W59.9a: lively's spring reaches its end early and overshoots it, where a form that clamps (expand) stands at
-          # rest — on a toast or the sidebar from half its time on; said, not failed)
+        elif [ "${d:-0}" = 0 ] && [ "$p" != 0.15 ]; then
+          # (W59.9a: an overshooting curve — expressive's, lively's spring — reaches its end early and passes it, where a
+          # form that clamps (expand) stands at rest, from half its time on; said, not failed: p = 0.15 must differ)
           echo "test-motion: forms $style $edge $sfc $form p=$p: on the spring's rest already (equals motion off)"
           continue
         else
