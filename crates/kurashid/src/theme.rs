@@ -293,6 +293,7 @@ fn motion_request(store: &ConfigStore) -> MotionRequest {
         squash: f(store, "theme.motion.squash", -1.0),
         jelly: f(store, "theme.motion.jelly", -1.0),
         shadow: s(store, "theme.motion.shadow"),
+        windows: s(store, "theme.motion.windows"),
         ..Default::default()
     };
     for (i, role) in ROLES.iter().enumerate() {

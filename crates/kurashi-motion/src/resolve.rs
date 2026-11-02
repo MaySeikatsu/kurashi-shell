@@ -38,6 +38,9 @@ pub struct Axes {
     pub squash: f64,
     pub jelly: f64,
     pub shadow: String,
+    /// `theme.motion.windows`: `off` (niri's window animations follow the profile's family, as before K83) or `follow`
+    /// (they take the profile's own curves and springs — `motion.windows`, read by the niri export).
+    pub windows: String,
 }
 
 impl Default for Axes {
@@ -53,6 +56,7 @@ impl Default for Axes {
             squash: -1.0,
             jelly: -1.0,
             shadow: "profile".into(),
+            windows: "off".into(),
         }
     }
 }
@@ -665,6 +669,15 @@ impl Resolver<'_> {
             ),
         };
         t.insert("motion.accent.shadow".into(), json!(shadow));
+        // The compositor's windows (W59.9): `follow` only when the user asks; reduce motion turns them off in the export.
+        let windows = self.user.map_or("off", |u| {
+            if u.windows == "follow" {
+                "follow"
+            } else {
+                "off"
+            }
+        });
+        t.insert("motion.windows".into(), json!(windows));
     }
 
     /// A written curve as its `motion.curve.<role>` token; `dur` is the role's duration after speed and `explicit`

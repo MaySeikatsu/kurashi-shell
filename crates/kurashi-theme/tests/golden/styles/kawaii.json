@@ -989,6 +989,7 @@
     1.0
   ],
   "motion.timed.open_ms": 400,
+  "motion.windows": "off",
   "osd.bg": "#e2b6e6",
   "osd.fg": "#473952",
   "outline.ink": "outline",
