@@ -1,0 +1,13 @@
+CurveControl 1.0 CurveControl.qml
+CurveGraph 1.0 CurveGraph.qml
+CurvePresets 1.0 CurvePresets.qml
+SpringPlot 1.0 SpringPlot.qml
+FormPicker 1.0 FormPicker.qml
+FormGlyph 1.0 FormGlyph.qml
+FormsTable 1.0 FormsTable.qml
+ProfileGallery 1.0 ProfileGallery.qml
+MotionPreview 1.0 MotionPreview.qml
+MotionA11y 1.0 MotionA11y.qml
+MotionTabs 1.0 MotionTabs.qml
+MotionText 1.0 MotionText.qml
+MotionReason 1.0 MotionReason.qml
