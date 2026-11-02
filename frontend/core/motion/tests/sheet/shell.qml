@@ -33,7 +33,13 @@ ShellRoot {
         sidebar: { x: 0, y: 0, w: 380, h: 1000, edge: "left", surface: "sidebar", ox: -1, ow: 0 },
         right: { x: 1540, y: 0, w: 380, h: 1000, edge: "right", surface: "sidebar", ox: -1, ow: 0 },
         toast: { x: 1500, y: 12, w: 400, h: 104, edge: "right", surface: "toast", ox: -1, ow: 0 },
-        bottom: { x: 560, y: 0, w: 620, h: 430, edge: "bottom", surface: "panel", ox: 820, ow: 120 }
+        bottom: { x: 560, y: 0, w: 620, h: 430, edge: "bottom", surface: "panel", ox: 820, ow: 120 },
+        // W59.5: a card under a visible top bar whose origin is a module in it (genie pours into it, the drop falls out
+        // of it), and a dock's card over a floating dock whose origin is one of its icons. `o`: the origin in window px;
+        // `strip`: the bar or the dock, drawn over the card (what the card pours into).
+        module: { x: 560, y: 40, w: 620, h: 430, edge: "top", surface: "panel", o: [840, 6, 120, 28], strip: "top" },
+        dock: { x: 700, y: 1080 - 76 - 380, w: 520, h: 380, edge: "bottom", surface: "dock", o: [1036, 1080 - 64, 48, 48],
+            strip: "dock" }
     })
     readonly property var sc: scenes[sceneName] || scenes.panel
 
@@ -103,7 +109,8 @@ ShellRoot {
             y: root.sceneName === "bottom" ? win.height - Theme.barH - root.sc.h : root.sc.y
             width: root.sc.w
             height: root.sc.h
-            origin: root.sc.ox >= 0 ? Qt.rect(root.sc.ox - root.sc.x, root.sc.edge === "bottom" ? root.sc.h : -24, root.sc.ow, 24)
+            origin: root.sc.o ? Qt.rect(root.sc.o[0] - x, root.sc.o[1] - y, root.sc.o[2], root.sc.o[3])
+                : root.sc.ox >= 0 ? Qt.rect(root.sc.ox - root.sc.x, root.sc.edge === "bottom" ? root.sc.h : -24, root.sc.ow, 24)
                 : Qt.rect(0, 0, 0, 0)
             progress: root.driven ? driver.value : root.held
 
@@ -165,6 +172,55 @@ ShellRoot {
                         spacing: 4
                         Text { text: "Tea is ready"; color: Theme.fg; font.pixelSize: 16; font.weight: Font.DemiBold }
                         Text { text: "Sencha, 3 minutes at 70 °C — pour it now."; color: Theme.fg; opacity: 0.75; font.pixelSize: 14 }
+                    }
+                }
+            }
+        }
+
+        // W59.5: the bar (with the module the card came from) or the dock (with its icons), over the card.
+        Block {
+            visible: root.sc.strip === "top"
+            x: 0
+            y: 0
+            width: win.width
+            height: 40
+            radius: 0
+            fill: Theme.surface
+            Block {
+                x: root.sc.o ? root.sc.o[0] : 0
+                y: root.sc.o ? root.sc.o[1] : 0
+                width: root.sc.o ? root.sc.o[2] : 0
+                height: root.sc.o ? root.sc.o[3] : 0
+                radius: height / 2
+                fill: Theme.selected
+                Text {
+                    anchors.centerIn: parent
+                    text: "Session"
+                    color: Theme.fgOnSelected
+                    font.pixelSize: 14
+                }
+            }
+        }
+        Block {
+            visible: root.sc.strip === "dock"
+            x: 660
+            y: 1080 - 72
+            width: 600
+            height: 64
+            radius: 18
+            fill: Theme.surface
+            Row {
+                x: 16
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 24
+                Repeater {
+                    model: 8
+                    Rectangle {
+                        width: 48
+                        height: 48
+                        radius: 12
+                        color: index === 5 ? Theme.accent
+                            : [Theme.secondary, Theme.tertiary, Theme.warning, Theme.containerHigh][index % 4]
                     }
                 }
             }

@@ -404,6 +404,7 @@ const BUNDLED: &[(&str, &str)] = &[
     ("ember", include_str!("../../../motion/ember.toml")),
     ("outline", include_str!("../../../motion/outline.toml")),
     ("pudding", include_str!("../../../motion/pudding.toml")),
+    ("genie", include_str!("../../../motion/genie.toml")),
 ];
 
 /// The packs in effect: built in, then the user's.

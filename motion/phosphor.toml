@@ -6,9 +6,11 @@ base = "expressive"
 
 [timing]
 open = "standard"
-open_ms = 260
-close = "accelerate"
-close_ms = 200
+open_ms = 300
+# Linear and long enough for the tube's off (W59.5): collapse 136 ms, line to dot 85 ms, the dot's afterglow 120 ms
+# (crt draws them on p 1 → 0.6 → 0.35 → 0).
+close = "cubic-bezier(0, 0, 1, 1)"
+close_ms = 340
 fast = "steps(6)"
 fast_ms = 100
 effects = "cubic-bezier(0, 0, 1, 1)"
