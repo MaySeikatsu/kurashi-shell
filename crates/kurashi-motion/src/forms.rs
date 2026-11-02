@@ -147,8 +147,8 @@ pub const FORMS: &[FormMeta] = &[
     f("drop",     Shape, CARDS | s("toast") | s("peek") | s("osd"),            Morph,  true,  0,          Layer,     false),
     f("liquid",   Shape, but(s("bar") | s("dock")),                            Morph,  true,  0,          Transform, false),
     // W59.8: wave 3.
-    f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      false),
-    f("noren",    Sheet, CARDS | s("sidebar") | s("toast"),                    Finish, false, 0,          Mesh,      false),
+    f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      true),
+    f("noren",    Sheet, CARDS | s("sidebar") | s("toast"),                    Finish, false, 0,          Mesh,      true),
     f("pixelate", Sheet, ALL,                                                  Finish, false, 0,          Layer,     false),
     f("glitch",   Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     false),
     f("dissolve", Sheet, ALL,                                                  Finish, false, 0,          Layer,     false),
