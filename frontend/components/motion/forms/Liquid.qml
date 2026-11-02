@@ -16,7 +16,7 @@ ShapeForm {
     readonly property real lead: progress > 1 ? progress : smooth(0, 0.7, pc)
     readonly property real lag: progress > 1 ? progress : smooth(0.15, 1, pc)
     cx: lerp(fromCx, toCx, lead)
-    w: Math.max(fromW, lerp(fromW, toW, lead))
+    w: lerp(fromW, toW, lead)
     foot: lerp(fromFoot, toFoot, lag)
     grow: lag
     tint: smooth(0.1, 0.6, pc)
