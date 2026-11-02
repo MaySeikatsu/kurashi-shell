@@ -12,7 +12,7 @@
 #           the motion-off frame (profile none; ≤ 16 px: lively's neck fillets differ at rest, on main too); p < 1 differs
 #           from rest (the panel is mid-way);
 #   rest    the same panel without scrub, opened and closed: after the close no `motion: sheet layer` line and 0 surface
-#           commits in 5 s (WAYLAND_DEBUG; the window starts after a minute's turn so the clock does not count).
+#           commits in 5 s once the close has landed (WAYLAND_DEBUG; not across a minute's turn: the clock).
 # Shots: frontend/shots/motion/<style>-<profile>-<p>.png, …-rest.png, …-off.png (gitignored; read them).
 #   nix develop -c frontend/test-motion.sh
 #   MOTION_CASES="washi:calm snes:expressive" MOTION_SCRUBS="0.5 1" nix develop -c frontend/test-motion.sh
@@ -139,7 +139,9 @@ for cs in $CASES; do
   open_panel
   shot "$tag-rest"
   close_panel
-  # (a window that a minute's turn cannot cross: the bar's clock would commit)
+  # The close's last sub-pixel spring steps commit frames the screen does not show: wait until the shell has not
+  # committed for 1 s (at most 10 s), then a window that a minute's turn cannot cross (the bar's clock would commit).
+  wait_log_quiet "$log" 'wl_surface#[0-9]+\.commit\(' 1 10
   while [ "$(date +%S | sed 's/^0//')" -gt 50 ]; do sleep 0.5; done
   off=$(log_size "$log"); sleep 5
   n=$(commits "$off" "$log")
