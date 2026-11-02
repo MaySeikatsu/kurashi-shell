@@ -1,0 +1,296 @@
+# UX brief — the motion engine: timing × form × choreography, per surface, as profiles (W59, session 19)
+> Extends `docs/ux/motion.md` (W34/W36 "the bar reaches out", K42 springs, K74 expressive curves) and `styles.md`'s
+> "Motion kinds" (K80/W53.0a: `motion.style`, `stepped`, `rubber`, `bleed`). Everything there stays and becomes presets
+> of this engine; nothing the user sees today changes unless they (or a new style default they accept) pick it.
+
+User (session 19): "I like the current animation styles and want to keep them, but I want to extend on the animation
+system … a modern, expandable, well thought out motion engine … logically splitting the animation into separate parts,
+so the user can set and control the animation curves, switch between different motion curves and separately choose
+between different animation styles. Then we could have unique animation profiles per style set … Expose the options in
+a dedicated motion menu, and allow users to set up their own custom bezier curves and animation styles." Forms they
+named: origami fold (Kami's default), crumpling paper, rolling carpet, fluid morph from the clicked shape, simple
+expand, raindrop, notebook, CRT zap, magic-lamp genie; curves: modern fluid bouncy, pudding, harsh accel/decel that
+smooths out before stopping. "High quality and polished, no prototype."
+
+## 1. Today (what this generalises)
+- **User controls:** `theme.motion.profile` (expressive · calm · lively · none) and `theme.motion.speed`. That is all.
+- **Daemon** (`kurashi-theme/src/tokens.rs` §motion): the profile picks `motion.kind` (timed · spring · stepped · none),
+  K74's four timed roles `motion.timed.{open,close,fast,effects}_{ms,curve}` (Caelestia's M3 expressive values), K42's
+  spring family `motion.spring.{on,overshoot,spring,damping,squash}`. A **look** may override form and curves through
+  `[decor] motion.style|steps|*_ms|*_curve` (fluent, aqua, material, snes, ps2, kawaii do) — not user-settable, not
+  shown in Settings, no provenance.
+- **Frontend:** `core/Glide.qml` (one value on curve or spring: bar, dock, edge modules), `island/MorphSprings.qml` (the
+  three-axis morph of every shape that grows out of the bar: Stage panels and peeks, launcher, centre, toasts; the
+  sidebar's own two springs), `decor/Entrance.qml` (the look's form drawn on a card's *content*: slide, zoom, fade, flip,
+  bleed, stepped). The island keeps its own springs (K42 identity).
+- So there are really **two timing families and seven forms**, chosen by profile and look; the axes the user asks to
+  separate are fused.
+
+## 2. How others do it
+- **Hyprland** — the closest to the ask: named curves (`bezier = myCurve, 0.05, 0.9, 0.1, 1.05`) and per-event lines
+  (`animation = windowsIn, 1, 7, myCurve, popin 80%`): *event × on/off × speed × curve × style(+param)*. Styles per event
+  family (windows: slide, popin, gnomed; workspaces: slide, slidevert, fade, slidefade). Power users love it; there is no
+  GUI and no preview. We take the split and the param syntax, and add the GUI, preview and provenance.
+- **Compiz Animation plugin** (+ Add-On, Jokes) — the classic catalogue: per event (open, close, minimize, focus, shade)
+  an effect (Magic Lamp, Fold, Horizontal Folds, Curved Fold, Roll Up, Burn, Beam Up, Dream, Domino, Explode, Airplane
+  (a folded paper plane!), Glide, Razr, Skewer, Wave, Zoom) with a duration and a window-type match. Proof that fold,
+  roll, genie and burn read well on UI; also proof that too many knobs per effect overwhelm — we keep params few.
+- **KDE Plasma / KWin** — effects as plugins: Magic Lamp, Wobbly Windows (the "pudding"), Fall Apart, Squash, Glide,
+  Sheet, Scale, Fade; one global "Animation speed" slider; effects are scriptable (JS + GLSL) → user-made effects exist.
+- **niri** — per animation `spring { damping-ratio stiffness epsilon }` or `easing { duration-ms curve }`
+  (incl. `cubic-bezier`), and **custom GLSL shaders** for window-open/close/resize (`niri_progress`, geometry uniforms).
+  We already export an `animations` block (export.rs); the engine maps onto it exactly (§9).
+- **macOS / iOS / SwiftUI** — springs everywhere, interruptible and velocity-preserving; the 2023 spring API is
+  `duration + bounce` (bounce 0 = critically damped) instead of stiffness/damping/mass — understandable by humans. macOS
+  Genie and Scale for minimise, menu-bar extras scale+fade from their item, Reduce Motion **replaces movement with
+  dissolves** rather than cutting.
+- **Material 3 Expressive (2025)** — a *motion physics system*: springs split into **spatial** (position, size; may
+  overshoot) and **effects** (colour, opacity; never overshoot), each fast/default/slow; container transform, shared
+  axis, fade through; M3 still ships cubic tokens for the non-spring world. Our open/close/fast vs effects roles are this
+  split already.
+- **GNOME / libadwaita** — `AdwSpringAnimation` (damping ratio, mass, stiffness) + `AdwTimedAnimation` (easing), one
+  global "animations on/off"; minimal choice, high polish. **Windows 11** — fixed composition curves, connected
+  animations, no user choice. **COSMIC** — minimal, one toggle.
+- **Quickshell shells** — Caelestia: M3 expressive tokens, one blob shape for border + drawers (our K74 reference);
+  end-4: M3 curves, sliding sidebars; DankMaterialShell / Noctalia: an animation-speed setting, a few curve presets;
+  **HyprPanel** (AGS): a `transition` per menu (crossfade · slide_down …) — per-surface form choice in a GUI.
+- **Web tooling** — cubic-bezier.com and easings.net: the editor (two handles on a graph, a ball racing a reference) and
+  the vocabulary (easeOutBack, easeInOutExpo …) users already know. Our editor accepts their notation.
+- **Not doing:** asset animations (Lottie, Rive) — they'd be a parallel motion language beside the tokens (rule 4) and
+  can't follow the shape, material or join.
+
+## 3. The model — five independent axes, bundled as profiles
+```
+                   ┌ timing  (how time maps to progress)     curve per role: open · close · fast · effects
+ motion profile ───┼ form    (what progress does to a sheet)  per surface class, open and close separately
+ (a motion pack)   ├ choreography (who moves when)            content timing, stagger, origin, retarget
+                   ├ accents (secondary motion)               squash & stretch, jelly, overshoot cap, shadow
+                   └ speed   (one multiplier)                 theme.motion.speed, as today
+```
+- **Timing** is a **curve**: cubic (one or more segments) · spring (duration + bounce) · steps(n) · linear. The *kind*
+  (timed/spring/stepped) is derived from the curve, never chosen separately — so a control can't sit inert.
+- **Form** is the transformation of the whole surface as a function of progress `p ∈ [0,1]` (past 1 while a curve
+  overshoots): grow, slide, fold, roll, genie … (§5). Open and close may differ (unfold, crumple away).
+- **Choreography**: content fades in late / with / cascades (stagger by row, derived from the host's progress — no extra
+  timers), the origin (the pressed module's rect, the bar edge, the screen edge, the click point), and how a retarget
+  (quick → session while open) moves.
+- **Accents**: squash & stretch (today's lively `squash`), **jelly** (an area-preserving wobble after landing — pudding),
+  the overshoot cap, what the elevation shadow does during the form (carry · fade).
+- **Profile** = one named bundle of all of it = a **motion pack** (`motion/<id>.toml`, like `looks/` and `styles/`). A
+  style recommends one (`theme.motion.profile` at the style's provenance layer, K53), the user can pick another and
+  override any single axis on top. Today's four profiles and the six looks' `[decor] motion.*` become packs (pixel-
+  identical: §11).
+
+**Precedence** (Shōjiki, rule 2 — every control shows which layer it comes from):
+`built-in default < style's recommended profile < user's profile pick < user's per-axis override < a11y force`.
+Settings: "Opens with: Fold — from profile Origami (style Kami)"; changed by the user: "yours · Reset to Origami's".
+
+## 4. Timing — curve presets and the custom curve
+Canonical text form (one `Curve` leaf, parsed and validated by the daemon, accepted by the editor's paste field):
+`cubic-bezier(x1, y1, x2, y2)` · `segments(x1 y1 x2 y2 ex ey, …)` (QML `bezierCurve` order) · `spring(<ms>, <bounce>)` ·
+`steps(<n>)` · `linear` · or a preset id. x of every control point ∈ [0, 1] (monotonic time); y ∈ [−1, 2].
+Springs: mass 1, `stiffness = (2π / response)²`, `damping = 4π (1 − bounce) / response` (bounce ≥ 0; < 0 overdamped,
+`damping = 4π / (response (1 + bounce))`), bounce ∈ [−0.5, 0.9] — SwiftUI's model, mapped 1:1 onto niri's
+`damping-ratio = 1 − bounce` and `stiffness`. The response is the role's duration.
+
+| preset | kind | values | feel / used by |
+|---|---|---|---|
+| `expressive` | cubic | `[0.38, 1.21, 0.22, 1]` 500 ms | K74 default spatial (Caelestia) — **today's default** |
+| `emphasized` | segments | K74's close curve, 400 ms | M3 emphasized — today's close |
+| `effects` | cubic | `[0.34, 0.8, 0.34, 1]` 200 ms | content fades — never overshoots |
+| `standard` | cubic | `[0.2, 0, 0, 1]` | M3 standard |
+| `decelerate` / `accelerate` | cubic | `[0, 0, 0, 1]` / `[0.3, 0, 1, 1]` | fluent's / exits |
+| `ease` | cubic | `[0.25, 0.1, 0.25, 1]` | CSS ease — aqua |
+| `snap` | segments | in-out quint to 0.9 by t 0.42, then a long soft ease-out to 1 | the user's "harsh acceleration and deceleration, smoothing out before stopping" |
+| `anticipate` | cubic | `[0.68, −0.55, 0.27, 1.55]` | pulls back, then overshoots (easeInOutBack) |
+| `drop` | segments | gravity in, two small bounces (6 %, 1.5 %) | the raindrop's fall, stamping |
+| `paper` | cubic | `[0.3, 0.7, 0.1, 1]` | soft landing without overshoot — origami, scroll |
+| `calm` · `lively` | spring_q | K42's `(4.0, 0.45)` · `(3.2, 0.26)` in SpringAnimation units | **today's** calm/lively, kept bit-exact (internal kind, not user-editable) |
+| `gentle` | spring | `spring(450, 0)` | critically damped |
+| `fluid` | spring | `spring(500, 0.25)` | the user's "modern fluid bouncy" |
+| `bouncy` | spring | `spring(550, 0.45)` | playful |
+| `pudding` | spring | `spring(650, 0.65)` + profile's jelly | wobbles home |
+| `steps(n)` | steps | n held frames | snes, pixel looks (today's `stepped_curve`) |
+
+**Custom curves.** Any role takes a custom curve. The editor (§8) writes the canonical string into the user's config
+(`theme.motion.timing.open = "cubic-bezier(…)"`); "Save as preset…" stores it by name in a **user motion pack**
+(`$XDG_CONFIG_HOME/kurashi/motion/<name>.toml`, `[curves]`), which then lists with the built-ins. No schema maps needed.
+
+## 5. Forms — the catalogue
+Two families, because they draw differently (D2, user: the hinge stays joined):
+- **Shape forms** — the silhouette stays the live vector shape (MorphShape/IslandGeom): joined to the bar with its neck,
+  the elevation shadow, the carried material (K61) and the compositor blur region all follow every frame, as today.
+  They retarget (a shape morphs into the next panel's).
+- **Sheet forms** — the whole card (fill, material, border, content) is captured into **one layer only while it moves**
+  (`ShaderEffectSource`, released at rest — as `bleed`'s blur layer is today) and drawn through a `ShaderEffect`
+  (vertex warp on a `GridMesh` and/or a fragment pass). The edge that touches the bar is the **hinge** and stays on it
+  (the join's fillets fade in over the last 15 % of p); the elevation shadow fades out at the start and in at rest, the
+  warp draws its own shading from the mesh normal (a fold's crease is darker than any static shadow could be); a
+  translucent material draws at its solid fallback while warped and the blur region returns at rest (blurring a moving
+  3-D fold through the compositor is neither possible nor honest). Retarget: finish the form at `fast`, then shape-morph.
+
+| form | family | technique | open → close | params (few, in packs) | default for |
+|---|---|---|---|---|---|
+| `grow` | shape | MorphSprings (K42/K74) | grows out of its origin, folds back | — | expressive · calm · lively (**today**) |
+| `slide` · `zoom` · `fade` · `flip` · `bleed` · `stepped` | as today (Entrance) | transforms; bleed = layer blur | | | fluent/aqua · — · ps2 · — · washi · snes (**today**) |
+| `rubber` | — | alias: `slide` + `anticipate`/rubber curve (kept for kawaii's pack) | | | kawaii (**today**) |
+| `expand` | shape | clip-rect reveal from the origin edge, content still | the user's "simple panel expand" | — | — |
+| `liquid` | shape | the pressed module's own rect and radius morph into the card; smooth-min neck that stretches and necks off; width leads, height lags | the user's "fluidly growing out and morphing from the clicked shape" | neck (0–1) | glass |
+| `iris` | shape | circular clip from the click point (M3 circular reveal) | | — | — |
+| `drop` | shape + frag | a drop (r ≈ 6 px) leaves the origin, falls on `drop` to the card's centre, lands as a ripple whose wavefront refracts what's beneath and reveals the card; close: contracts to a drop that rises home (or evaporates on a toast) | the user's "raindrop" | ring width, refraction | toasts in sumi (ink drop) |
+| `stamp` | shape | lands from 1.06× with the shadow tightening, a press-squash on contact (hanko) | | — | pop (sekai) |
+| `outline` | shape | an outline rectangle steps from the origin to the card in 6–8 frames, then the card appears at once (Windows 95's zoom rect) | | frames | win95 |
+| `fold` | sheet · vertex | **origami**: the card folded accordion-wise into N panels stacked on the hinge; panels unfold one after another (per-panel lag) with perspective and crease shading; `axes = 2`: first a small square unfolds sideways, then down (a letter, then its half) | the user's Kami default; close refolds | panels 2–5 (auto by size), axes 1·2, crease | origami (kami) |
+| `book` | sheet · vertex | split at a spine; closed it's one half with a cover tone (the card's `cover` role), the halves swing open flat with a slight page curl | the user's "notebook" | spine (auto · centre · hinge) | — |
+| `roll` | sheet · vertex | rolled into a cylinder at the hinge; it rolls out unrolling the sheet behind it, the back of the paper shaded with the `backside` role; `scroll` variant: two rollers from the centre (makimono) | the user's "carpet" | radius 10–28, variant | sidebars in origami/sumi, bar reveal |
+| `crumple` | sheet · vertex+frag | close: creases grow (hashed per-vertex displacement + noise normals), the sheet balls up toward its centroid, the ball drops into its origin or flicks off (toast dismiss); open: the reverse, wrinkles smoothing out last | the user's "crumbling paper" | crumple 0–1 | toast close in origami |
+| `genie` | sheet · vertex | magic lamp: the far edge funnels into the origin module along a curve, then the body slides in (macOS's two phases); open = it pours out of the lamp | the user's "magic lamp" (added mid-session) | bend 0–1 | genie (aqua option, dock) |
+| `crt` | sheet · frag | on: a dot → a horizontal line (40 %) → full height (60 %) with bloom, barrel and fading scanlines; off: collapse to a line, to a dot, afterglow. **Flash-safe**: luminance step ≤ 20 %, one flash per transition | the user's "old CRT TV" | glow, scanlines | phosphor (terminal) |
+| `fan` | sheet · vertex | *sensu*: the card in N ribs about a pivot at the origin, ribs open in sequence | (lead idea, Japanese) | ribs 5–12 | wave 3 |
+| `noren` | sheet · vertex | N strips drop in with stagger, each with a small pendulum sway (shop curtain) | (lead idea, Japanese) | strips | wave 3 |
+| `pixelate` | sheet · frag | mosaic resolves 32 → 1 px in steps | (lead idea) | — | ps2/snes option |
+| `glitch` | sheet · frag | slices offset with RGB split, decaying; never full-screen flicker, < 3 Hz | (lead idea) | — | yorha |
+| `dissolve` | sheet · frag | noise threshold with a glowing edge (burning paper, embers) | (lead idea) | edge role | souls, hallownest |
+
+Each form declares (in code, published as `motion.forms` meta): **surfaces** it may serve, **family**, **retarget**
+(morph · finish-then-morph), **overshoot** (whether p > 1 is drawn or clamped), **flags** `vestibular` (large rotation,
+zoom, depth) and `flash` (luminance steps) — what reduce motion and photosensitivity rules key on — and a **cost tier**
+(transform · layer · mesh).
+
+**Custom forms — yes, in two tiers.**
+1. **Recipes** (declarative, in a user motion pack, wave 3): a form built from tracks over progress — `opacity`,
+   `scale`/`scale_x`/`scale_y`, `translate` (fraction of size or px, along/across the edge), `rotate_x|y|z`, `skew`,
+   `blur`, `clip` (inset · iris · wipe), plus the built-in sheet forms' params (fold panels, roll radius, genie bend…) as
+   tracks. Each track: keyframes `[[p, v], …]` and its own curve. The daemon validates (known props, ranges, key order),
+   Settings previews it, the frontend evaluates it with one generic `Recipe.qml`. Covers "pop in and tilt", "drop and
+   squash", "slide with a blur trail" — most of what users invent.
+2. **Mod forms** (code, later): a mod of the QML tier (W11) registers a form component (and precompiled `.qsb` shaders —
+   Qt 6 can't compile GLSL at run time); it appears in the pickers with the mod's name. Raw GLSL in config is not
+   offered (security and quality: a broken shader would blank a surface).
+
+## 6. Surfaces — where forms apply
+Fixed classes (a schema struct, so Settings can generate a table): `island` · `panel` (Stage cards: quick, tray,
+session, mod panels) · `peek` · `launcher` · `centre` · `toast` · `sidebar` · `dock` · `bar` (hover/auto-hide reveal) ·
+`osd` · `menu` (tray submenus, context menus) · `dialog` (polkit). A form not allowed for a class is not offered there;
+a value forced elsewhere shows why it's inert (rule 2). Defaults: `peek`, `osd`, `menu` use `fast` and their profile's
+lightest form (a fold on a 40-px peek is noise); `toast` has its own open/close (drop, crumple, flick).
+**The island** (D3, user): "It should get every animation style too and also use it by default. The animation style for
+the island should be able to be set up separately though … a setting to follow the animation or use its own." So the
+island takes **every** form, and **follows** the default form unless `theme.motion.island.follow` is off; then its own
+`theme.motion.form.island.{open,close}` apply (inert with the reason while following — the `screen_corners_follow`
+pattern, K74). What a form animates on the island is its **open/close** (pill → card and back): the pill is the origin
+and the hinge (the card unfolds, rolls or pours out of the pill). Face changes in the pill (clock → volume) and hover
+peeks keep K42's springs — they are the island's own life, not an opening. A retarget between island views morphs.
+
+## 7. Choreography and interaction
+- **Content**: `late` (fades in at p ≥ 0.6 and out first — today's), `with`, `cascade` (rows/tiles arrive in order:
+  child pᵢ = clamp((p − i·s) / (1 − n·s)), s = `stagger_ms`/duration; one host progress, no timers, Ma).
+- **Origin**: the pressed module's rect (`IslandGeom` registry, I340's rule), else the bar's centre, else the screen
+  edge. Genie, liquid, drop and iris need the rect; fold/roll/book use its edge as the hinge.
+- **Interruptible** (§9 of DESIGN-SYSTEM): a reversal continues the **form in flight** from its current p and velocity
+  (a half-unfolded card refolds even if its close form is crumple); a cubic retarget keeps velocity by choosing the new
+  curve's first handle so its start slope matches; springs keep velocity natively.
+- **Gesture-ready**: the driver can be *tracked* (`track(p)`) and *released* with a velocity (`release(v)` → spring to
+  the nearest end). Wired now for the Settings scrubber; drag-to-dismiss toasts and swipe sidebars are backlog (I346).
+- **Sound** (svc.sound, off by default): a form may name a cue (paper rustle on fold, a tick on stepped) — backlog I348.
+
+## 8. The Motion page (Settings)
+A dedicated page `motion` (generated from the schema, rule 3, with two custom controls), replacing the two motion rows in
+Appearance (which keep a link "Motion…").
+1. **Preview stage** (sticky, top): a miniature bar with buttons for each surface class over a patterned ground; click
+   one (or Space on it) to open its sample card with the current settings; **Slow 1× · ½× · ¼×**, a **scrubber** (drag
+   p 0 → 1 to inspect any frame: the driver's `track`), **Compare** (hold: the previous setting). It plays on change and
+   on demand; it never loops by itself (Ma) and stops while the window is hidden.
+2. **Profile gallery**: a card per motion pack (built-in, style-recommended marked, user packs), each with a still at
+   p = 0.5 and a play-on-hover/focus thumbnail; picking one is a single config op with an undo toast.
+3. **Timing**: speed; one row per role (Opens · Closes · Quick moves · Fades) with the **curve control**.
+4. **Forms**: default open/close, then a table *Surface | Opens | Closes* (rows a form doesn't fit show a reason).
+5. **Choreography & accents**: content (late · with · cascade), stagger, squash, jelly, shadow during motion.
+6. **Accessibility**: reduce-motion state with a link; every row shows the inert reason while it's forced.
+
+**Curve control** (new schema control `curve`, leaf `Curve`): a 240 × 240 graph (y −0.5 … 1.5 so overshoot shows) with
+two draggable handles, the reference linear diagonal, a ball racing a linear ghost on play; tabs **Cubic · Spring ·
+Steps · Presets**; the Spring tab shows duration + bounce (stiffness/damping in "Advanced") and the response plot with
+overshoot % and settle time; a paste field taking `cubic-bezier(…)`, easings.net names, `spring(…)`, Hyprland's
+`x0, y0, x1, y1`. Keyboard: Tab to a handle, arrows nudge 0.01 (Shift 0.1), Enter commits, Esc reverts; screen readers
+read "Handle 1, x 0.38, y 1.21". Invalid input says why (x outside 0…1) and nothing is applied.
+
+**Form picker**: a dropdown with a tiny animated glyph per form (plays on focus only), filtered by surface class.
+
+## 9. Engine architecture (for the cards)
+- **Daemon** (`crates/kurashi-motion`, new, pure): curve model + parser/formatter (`cubic-bezier`, `segments`, `spring`,
+  `steps`, presets), validation with reasons, spring math (response/bounce ↔ stiffness/damping, settle time, sampled
+  plot for Settings), motion packs (built-in `motion/*.toml` + user dir, the same loader rules as looks), profile
+  resolution (`style → profile → user axes → a11y`) into tokens. `kurashi-theme/tokens.rs` calls it instead of its
+  inline §motion. The niri export (`export.rs`) maps open/close curves and springs onto niri's `animations` — and,
+  opt-in, a form's fragment shader onto niri's `window-open`/`window-close` `custom-shader` (crt, dissolve, iris,
+  pixelate translate; fold/roll can't — niri shaders have no mesh) — card W59.9.
+- **Tokens** (frozen by W59.0; new, beside today's which stay derived for compatibility):
+  `motion.profile` (string id) · `motion.curve.{open,close,fast,effects}` =
+  `{kind: "cubic"|"spring"|"spring_q"|"steps", ms, points?|response?+bounce?|spring?+damping?|n?}` ·
+  `motion.form.<surface>.{open,close}` (form id) · `motion.form_params.<form>` (object) ·
+  `motion.accent.{squash, jelly, overshoot_cap, stagger_ms, content, shadow}` · `motion.recipe.<id>` (wave 3) ·
+  `motion.forms` (meta: per form `{family, surfaces, retarget, overshoot, flags, tier}`).
+- **Frontend**: `core/motion/curves.js` (cubic segments by Newton + bisection, analytic damped spring with v₀,
+  steps, the K42 integrator for `spring_q`, retarget slope matching) · `core/motion/Driver.qml` (one FrameAnimation-
+  driven progress per surface: `to`, `value`, `velocity`, `running`, `track/release`, `scrub`; runs only while moving)
+  — `Glide` and `MorphSprings`' timed path move onto it · `components/motion/FormHost.qml` (successor of `Entrance`,
+  which stays as a thin alias): latches the form per transition from `motion.form.<surface>.<dir>`, hands shape forms
+  to the morph and loads a sheet form (`components/motion/forms/<Form>.qml`) through a Loader that is active only
+  while 0 < p < 1 · `components/motion/Accents.qml` (jelly/squash as an area-preserving Scale) ·
+  `components/motion/Stagger.qml` (attached progress for children) · `shaders/motion/*.vert|frag` (qsb: the justfile
+  and flake compile `.frag` only today — W59.4 adds `.vert`).
+- **Deterministic tests**: `KURASHI_MOTION_SCRUB=<p>` holds every Driver at p (shots by progress, not by sleeping);
+  a log line per sheet layer created/released.
+
+## 10. States
+Closed (nothing drawn, no layer) · opening · open (at rest: exactly the motion-off frame) · closing · interrupted
+(reversal from current p and velocity) · retargeting · origin gone (from the bar's centre) · first open of a view not made
+yet (I192: the form holds at p = 0 at its origin until the view exists, then runs; a sheet form needs one rendered frame
+of content first) · forced off (reduce motion) · pack missing/invalid (falls back to the style's, then `expressive`, with
+the diagnostic in Settings) · multi-output (each output's surface runs its own driver from its own bar) · scale 1.5 (layer
+textures at device pixels) · pixel looks (stepped curves step the warp too; at rest exactly on the grid).
+
+## 11. Accessibility, Ma and budget
+- **Reduce motion** (D1, user: short fades): forces the built-in `reduced` profile — every form `fade`, `effects` curve
+  ≤ 150 ms, no accents, `vestibular`/`flash` forms never — instead of today's cuts, as macOS and WCAG 2.3.3 suggest;
+  `none` stays a profile anyone can pick. No information lives only in motion; focus paths unchanged.
+- **Photosensitivity**: `flash` forms limited to one luminance step ≤ 20 % per transition, never > 3 per second.
+- **Ma**: idle = 0 frames, 0 layers, 0 timers; a sheet form's layer and Loader exist only while 0 < p < 1; recipe tracks
+  evaluate from the one progress; thumbnails in Settings play on hover/focus only.
+- **Budget** (BENCH rows per form, machine A and B's iGPU, at 1× and 1.5×): CPU per motion frame p95 ≤ 8 ms (the W34
+  rule); GPU frame ≤ 4 ms for mesh forms at 1×; PSS during a sheet form ≤ +12 MiB and back to baseline ± 1 MiB within
+  2 s of rest; frames during a transition = its duration × refresh, 0 after.
+- **Pixel-identity of today**: expressive, calm, lively, none and the six looks' motion resolve to the same tokens and
+  frames as before (theme goldens unchanged but for the new keys; `test-morph.sh` shots identical).
+
+## 12. Profiles per style (D4)
+The user chose (session 19): **kami → origami, terminal → phosphor (CRT), aqua and vibrancy → genie on the dock and
+toasts**; washi (the default style) keeps today's motion exactly. The other rows are offers: their packs ship and are
+pickable, but no style recommends them until the user says so in the style review (I336).
+| style | profile | open / close | surfaces worth noting | curve |
+|---|---|---|---|---|
+| kami ✔ | **origami** | fold (2 axes on cards and the island, 1 on peeks) / fold | sidebar `roll`, toast `drop` / `crumple` | paper |
+| washi (default) | today's (bleed / fade) — unchanged; **sumi** (scroll sidebar, ink-drop toasts) ships as an offer | | | |
+| sekai | **pop** | stamp / grow | jelly 0.4 | fluid |
+| glass | **liquid** | liquid / liquid | | fluid |
+| terminal ✔ | **phosphor** | crt / crt | menus `stepped` | steps(6) on menus |
+| aqua, vibrancy ✔ | **aqua** (today's pack + genie) | slide / slide; dock and toasts `genie` | | ease |
+| yorha | **glitch** | glitch / dissolve | | snap |
+| souls, hallownest | **ember** | fade / dissolve | | standard |
+| win95 (+luna?) | **outline** | outline / cut | | — |
+| kawaii | **pudding** | rubber / grow | jelly 0.6 | pudding |
+| fluent, material, snes, ps2 | today's, as packs | | | |
+
+## 13. Definition of done
+- Schema v8 + migration; every axis in Settings' Motion page with provenance and inert reasons; today's behaviour
+  pixel-identical (goldens, `test-morph.sh`).
+- Curve editor: cubic, spring, steps, presets, paste formats, keyboard and screen-reader paths; "Save as preset" writes a
+  user pack that lists after a reload.
+- Every form in waves 1–2 on every surface class it allows, shot on **niri** at p = 0.15 / 0.5 / 0.85 / 1 (scrubbed),
+  top and bottom bar, washi, kami, sekai, glass, terminal, light and dark, 1× and 1.5×; p = 1 equals the motion-off frame;
+  reversal mid-way and retarget shots.
+- Reduce motion and photosensitivity rules hold (shots under reduce motion: fades only).
+- `frontend/test-motion.sh` (new) green in `just suites`; `just check`; bench rows within §11's budget; idle 0 frames.
+- Profiles of §12 (origami, phosphor, aqua's genie) accepted by the user on their niri (UX column in PROGRESS).
+- The island: every form opens and closes it out of the pill; `island.follow` off + its own form works; faces and peeks keep K42.

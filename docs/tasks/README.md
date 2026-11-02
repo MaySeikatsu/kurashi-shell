@@ -344,3 +344,18 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 |---|---|---|
 | W44-follow | Bar/BarConfig/Frame/Stage/Dock/Sidebar, core/EdgeReveal, components/{bar,sidebar,island}, their tests | opus |
 | W45-edge | surfaces/EdgeModules (new), shell.qml its Variants, components/modules, core/{Peeks,PeekSource}, MODS.md clock row | opus |
+
+## Wave 59 (2026-11-02, session 19) — the motion engine (K83; brief `docs/ux/motion-engine.md`; overview + frozen contract `W59-motion-engine.md`)
+| Card | Owner paths | Model |
+|---|---|---|
+| W59.0 | schema/config motion keys, fixtures, PROTOCOL, i18n motion skeleton, shader build glob | lead |
+| W59.1 | crates/kurashi-motion (new), motion/*.toml, tokens.rs §motion, looks' motion keys → packs, styles' recipes | opus |
+| W59.2 | frontend/core/motion, components/motion (FormHost, Accents, Stagger, today's forms), Glide, MorphSprings, Entrance, test-motion.sh | opus |
+| W59.3 | surfaces' motion parts, MorphShape/IslandGeom origins, forms Expand/Iris/Stamp/Outline | opus |
+| W59.4 | SheetForm + Fold/Roll/Book/Crumple and their shaders | opus |
+| W59.5 | Genie/Crt/Drop/Liquid and their shaders, liquid neck | opus |
+| W59.6 | settings motion page, curve control, form picker, preview, i18n motion wording | opus |
+| W59.7 | recipes (kurashi-motion recipe.rs, Recipe.qml, settings recipe list) | opus |
+| W59.8 | Fan/Noren/Pixelate/Glitch/Dissolve | haiku (max effort, 2 agents) |
+| W59.9 | final packs + style recipes, niri export, tools/bench/motion.sh, DESIGN-SYSTEM §motion | lead + opus |
+
