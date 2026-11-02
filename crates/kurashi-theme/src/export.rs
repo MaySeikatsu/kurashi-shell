@@ -171,7 +171,7 @@ pub fn values(i: &Inputs) -> Values {
     if let Some(a) = num("color.surface_alpha") {
         v.insert("material.opacity".into(), format!("{a:.2}"));
     }
-    if let Some(profile) = i.tokens.get("motion.profile").and_then(Value::as_str) {
+    if let Some(profile) = niri_family(i.tokens) {
         v.insert(
             "motion.niri".into(),
             niri_animations(profile, i.motion_speed),
@@ -208,6 +208,25 @@ const NIRI_ANIMATIONS: [&str; 6] = [
     "window-movement",
     "window-resize",
 ];
+
+/// The family of [`niri_animations`] for the motion in effect. K83 made `motion.profile` a motion pack's id (`washi`,
+/// `kawaii`), so the family is read from what the pack resolved to — no springs (`none`, reduce motion) is off, a
+/// bouncier spring than calm's is lively, springs are calm, curves expressive; tokens without `motion.kind` (an old
+/// document) keep naming it by `motion.profile`. (W59.9 maps the curves and springs themselves.)
+fn niri_family(t: &serde_json::Map<String, Value>) -> Option<&str> {
+    let Some(kind) = t.get("motion.kind").and_then(Value::as_str) else {
+        return t.get("motion.profile").and_then(Value::as_str);
+    };
+    let damping = t.get("motion.spring.damping").and_then(Value::as_f64);
+    Some(
+        match (kind, t.get("motion.spring.on").and_then(Value::as_bool)) {
+            ("none", _) | (_, Some(false)) => "none",
+            ("spring", _) if damping.is_some_and(|d| d < 0.45) => "lively",
+            ("spring", _) => "calm",
+            _ => "expressive",
+        },
+    )
+}
 
 /// niri's `animations` block for a motion profile (W34): calm settles without a bounce, lively overshoots a little,
 /// none turns every animation off with niri's `off` (not a stiff spring that only looks instant). The stiffness
@@ -616,6 +635,30 @@ mod tests {
         assert_eq!(pt(11.0), "8.5", "11 px = 8.25 pt, to the half point");
         assert_eq!(pt(16.0), "12");
         assert_eq!(pt(9.0), "7");
+    }
+
+    #[test]
+    fn niri_family_from_the_resolved_motion() {
+        let fam =
+            |pairs: serde_json::Value| niri_family(pairs.as_object().unwrap()).map(String::from);
+        let on = |kind: &str, damping: f64| {
+            serde_json::json!({"motion.profile": "kawaii", "motion.kind": kind, "motion.spring.on": true,
+                               "motion.spring.damping": damping})
+        };
+        assert_eq!(fam(on("timed", 0.45)).as_deref(), Some("expressive"));
+        assert_eq!(fam(on("stepped", 0.45)).as_deref(), Some("expressive"));
+        assert_eq!(fam(on("spring", 0.45)).as_deref(), Some("calm"));
+        assert_eq!(fam(on("spring", 0.26)).as_deref(), Some("lively"));
+        assert_eq!(fam(on("none", 1.0)).as_deref(), Some("none"));
+        // Reduce motion: timed fades, no springs — windows do not animate either.
+        assert_eq!(
+            fam(serde_json::json!({"motion.kind": "timed", "motion.spring.on": false})).as_deref(),
+            Some("none")
+        );
+        assert_eq!(
+            fam(serde_json::json!({"motion.profile": "calm"})).as_deref(),
+            Some("calm")
+        );
     }
 
     #[test]
