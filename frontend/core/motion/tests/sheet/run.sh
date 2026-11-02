@@ -179,9 +179,10 @@ for cs in $CASES; do
     ipc at 0 >/dev/null
     for dir in open close; do
       ls=()
+      # (p = 0.01, not 0: the harness draws its card at rest 0 — a real surface is gone there)
       for i in $(seq 0 20); do
-        if [ "$dir" = open ]; then p=$(awk -v i="$i" 'BEGIN { printf "%.2f", i / 20 }')
-        else p=$(awk -v i="$i" 'BEGIN { printf "%.2f", 1 - i / 20 }'); fi
+        if [ "$dir" = open ]; then p=$(awk -v i="$i" 'BEGIN { printf "%.2f", i ? i / 20 : 0.01 }')
+        else p=$(awk -v i="$i" 'BEGIN { printf "%.2f", i < 20 ? 1 - i / 20 : 0.01 }'); fi
         ipc at "$p" >/dev/null
         wait_settled 4 0.2 "$g"
         shot "$g" "$tag-sweep-$dir-$i"
