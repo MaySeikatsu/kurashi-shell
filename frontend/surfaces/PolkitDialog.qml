@@ -5,6 +5,8 @@ import Quickshell.Services.Polkit
 import "../core"
 import "../components"
 import "../components/decor"
+import "../components/motion"
+import "../core/motion"
 
 // The polkit authentication agent and its dialog (K47 (5), docs/ux/polkit.md). The agent is Quickshell's `PolkitAgent`
 // (as illogical-impulse's `services/PolkitService.qml` and DMS's `Services/PolkitService.qml`): libpolkit-agent and the
@@ -102,9 +104,30 @@ Scope {
             readonly property var flow: pd.flow
             property bool busy: false
             property bool failed: false
-            property real p: 0
-            Component.onCompleted: { enter.start(); field.forceActiveFocus(); pickCurrentUser() }
-            NumberAnimation { id: enter; target: win; property: "p"; from: 0; to: 1; duration: Theme.stdMs; easing.type: Easing.OutCubic }
+            // The dialog's entrance (0 → 1, today's out-cubic over `standard`), a Driver since K83 (row 655): scrubbed in
+            // tests. A shape form (expand, iris, stamp, outline: SurfaceForm `dialog`) draws the card on its own progress
+            // (ShapeLayer), from the dialog's top edge; the rise and fade stay the `grow` form's.
+            readonly property real p: enter.value
+            Driver {
+                id: enter
+                curve: ({ kind: "cubic", ms: Theme.stdMs, points: [0.33, 1, 0.68, 1, 1, 1] })
+            }
+            SurfaceForm {
+                id: dlgForm
+                surface: "dialog"
+                fromCx: dlgShape.width / 2
+                fromW: dlgShape.width * 0.3
+                fromTop: 0
+                fromFoot: 0
+                fromR: Theme.rLg
+                toCx: dlgShape.width / 2
+                toW: dlgShape.width
+                toTop: 0
+                toFoot: dlgShape.height - Theme.shadowDy
+                toR: Theme.rLg + 4
+                edgeY: 0
+            }
+            Component.onCompleted: { enter.to = 1; dlgForm.want = true; field.forceActiveFocus(); pickCurrentUser() }
 
             // polkit's prompt, cleaned as ii does: no trailing colon; "Password" (or "Response" for a visible answer)
             // when it sends none.
@@ -176,9 +199,18 @@ Scope {
 
             // The look's form (W53, row 591; decor/Entrance) on the dialog's own progress; `grow` (the default) keeps its
             // rise and fade.
+            ShapeLayer {
+                id: dlgShape
+                run: dlgForm
+                edge: "top"
+                pivotY: height / 2
+                anchors.centerIn: parent
+                width: card.width
+                height: card.height
             Entrance {
                 id: card
-                progress: win.p
+                surface: "dialog"
+                progress: dlgForm.formed ? 1 : win.p
                 edge: "top"
                 width: 420
                 height: body.implicitHeight + 2 * Theme.pad + 2 * blk.inset + Theme.shadowDy + 2 * Theme.xs
@@ -402,6 +434,7 @@ Scope {
                         }
                     }
                 }
+            }
             }
         }
     }

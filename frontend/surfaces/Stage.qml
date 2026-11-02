@@ -345,7 +345,7 @@ PanelWindow {
     // Behind the card as drawn: a morphing card's body follows the springs every frame (the blur never stands ahead of
     // the shape, I295, and a grown card is blurred at rest, I296); the head and the neck's fillets stay unblurred.
     BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
-        : peekLayout ? (peekMorph ? (peekShapeBox.visible ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs ? shapeBlur : emptyRegion) : cardBlur))
+        : peekLayout ? (peekMorph ? (peekShapeBox.visible ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs ? shapeBlur : emptyRegion) : (run.busy && run.mode === "shape" ? emptyRegion : cardBlur)))
     // K83: a shape form that fades its card in (stamp) or draws only an outline keeps the blur off until the card stands
     // (a blurred box before its card would show); an iris blurs inside its circle (shapeBlur's ellipse).
     readonly property bool formBlurs: !sf || sf.below >= 0.999
@@ -435,7 +435,8 @@ PanelWindow {
                                    close: { kind: "cubic", ms: Theme.closeMs, points: Theme.closeCurve } })
             : ({ open: stage.enterCurve, close: stage.enterCurve })
         keepVelocity: false
-        onLanded: if (stage.p <= 0 && !stage.open) stage.shown = false
+        // (a shape form still folding the card ends it itself: `run.landed`)
+        onLanded: if (stage.p <= 0 && !stage.open && !run.busy) stage.shown = false
     }
     // Run the reveal to `t` from where it stands (a new travel also when `to` is there already: a reopen mid-fold).
     function runP(t) { if (pDrv.to !== t) pDrv.to = t; else pDrv.go() }
@@ -1022,23 +1023,30 @@ PanelWindow {
     // (SurfaceForm, forms/<Form>.qml); a sheet form (W59.4) runs the card-level FormHost below on the same progress.
     readonly property string formSurface: islandKinds.indexOf(contentKind) >= 0 ? "island" : "panel"
     // What the form opens to: the card at rest, once the panel has shown its first frame and its size is known (I192).
-    readonly property bool formWant: open && shown && !gate && sizeKnown && morphMode
+    // Where no morph draws it (a side bar, a look whose cards stand apart) a shape form draws the card through a
+    // ShapeLayer instead, in the card's own frame: from the edge it comes from (`slideEdge`), its origin a third of that
+    // edge at its middle.
+    readonly property bool formWant: open && shown && !gate && (morphMode ? sizeKnown : true)
+    readonly property string slideEdge: menuBeside ? bars.edge : (bars.atBottom ? "bottom" : "top")
+    readonly property bool slideAcross: slideEdge === "left" || slideEdge === "right"
+    readonly property real formFrameW: slideAcross ? card.height : card.width
+    readonly property real formFrameH: slideAcross ? card.width : card.height
     SurfaceForm {
         id: run
         surface: stage.formSurface
         want: stage.formWant
         hold: !springs.settled
-        fromCx: stage.originCx - stage.boxL
-        fromW: stage.closedW
-        fromTop: stage.originTop
-        fromFoot: stage.closedFoot
+        fromCx: stage.morphMode ? stage.originCx - stage.boxL : stage.formFrameW / 2
+        fromW: stage.morphMode ? stage.closedW : stage.formFrameW * 0.3
+        fromTop: stage.morphMode ? stage.originTop : 0
+        fromFoot: stage.morphMode ? stage.closedFoot : 0
         fromR: stage.headMode || stage.origin.kind === "pill" ? stage.pillR : Theme.rSm
-        toCx: stage.cardCx
-        toW: card.width
-        toTop: stage.cardTop
-        toFoot: stage.cardFoot
+        toCx: stage.morphMode ? stage.cardCx : stage.formFrameW / 2
+        toW: stage.morphMode ? card.width : stage.formFrameW
+        toTop: stage.morphMode ? stage.cardTop : 0
+        toFoot: stage.morphMode ? stage.cardFoot : stage.formFrameH
         toR: Theme.rLg
-        edgeY: stage.barEdgeY
+        edgeY: stage.morphMode ? stage.barEdgeY : 0
         // Folded back in its form: the pill goes back to the bar first and the shape a moment later (as checkFolded).
         onLanded: at => { if (at <= 0 && !stage.open && stage.shown) { stage.taken = false; handBack.start() } }
     }
@@ -1396,6 +1404,11 @@ PanelWindow {
     }
 
     // ---- card under the Island: the island's view or the quick card, session menu, or tray menu
+    // (K83: where no morph draws a shape form, the ShapeLayer draws the card in it; a plain item otherwise)
+    ShapeLayer {
+        anchors.fill: parent
+        run: stage.morphMode ? null : run
+        edge: stage.slideEdge
     RoundBox {
         id: card
         visible: stage.shown
@@ -1437,7 +1450,7 @@ PanelWindow {
         transform: [
             Scale {
                 origin.y: card.height / 2
-                yScale: stage.stepped && !stage.morphMode ? Math.max(0.001, stage.p) : 1
+                yScale: stage.stepped && !stage.morphMode && !run.formed ? Math.max(0.001, stage.p) : 1
             },
             Scale {
                 origin.x: stage.shapeCx - card.x
@@ -1527,11 +1540,12 @@ PanelWindow {
         // card's progress; `grow` (the default) leaves it to the card's slide, and the morph is the shape's own motion.
         Entrance {
             id: inner
+            surface: stage.formSurface
             x: -reveal.cutLeft
             y: -reveal.cutTop
             width: card.width
             height: card.height
-            progress: stage.morphMode || stage.stepped ? 1 : stage.p
+            progress: stage.morphMode || stage.stepped || run.formed ? 1 : stage.p
             edge: stage.flip ? "bottom" : "top"
 
         // W53.0b (K80): the card's title bar, where the style draws one (`runtime.ui.title`, the daemon's: the buttons
@@ -1648,6 +1662,7 @@ PanelWindow {
         }
         }
         }
+    }
     }
     }
     }
