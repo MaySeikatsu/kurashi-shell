@@ -139,10 +139,12 @@ for cs in $CASES; do
   open_panel
   shot "$tag-rest"
   close_panel
-  # The close's last sub-pixel spring steps commit frames the screen does not show: wait until the shell has not
-  # committed for 1 s (at most 10 s), then a window that a minute's turn cannot cross (the bar's clock would commit).
+  # The window must not hold a minute's turn (the bar's clock commits then): start between :03 and :40 of a minute.
+  # The close's last sub-pixel spring steps commit frames the screen does not show: the window starts once the shell
+  # has not committed for 1 s (at most 10 s).
+  sec() { date +%S | sed 's/^0//'; }
+  while [ "$(sec)" -gt 40 ] || [ "$(sec)" -lt 3 ]; do sleep 0.5; done
   wait_log_quiet "$log" 'wl_surface#[0-9]+\.commit\(' 1 10
-  while [ "$(date +%S | sed 's/^0//')" -gt 50 ]; do sleep 0.5; done
   off=$(log_size "$log"); sleep 5
   n=$(commits "$off" "$log")
   [ "$n" = 0 ] || fail "$tag: $n surface commits in 5 s after the close (idle must be 0 frames)"
