@@ -14,6 +14,12 @@ Item {
     property var curve: null
     // The curve's duration (the ball's run and the spring's span), ms.
     property real ms: 500
+    // A curve to compare with (the profile's own, K83 profile_curve), drawn faint and dashed under the curve and named
+    // in its corner; null for none. Each is drawn over its own run.
+    property var reference: null
+    property real referenceMs: 0
+    readonly property bool referenced: !!g.reference && g.reference.kind !== "spring_q"
+        && CM.canonicalCurve(g.reference) !== (g.curve ? CM.canonicalCurve(g.curve) : "")
     // Handles are offered for a single cubic while this is on.
     property bool editable: false
     // The row's key (objectNames) and label (accessible names).
@@ -78,6 +84,7 @@ Item {
     readonly property real ballY: g.t < 0 || !g.curve ? 0 : CM.sample(g.curve, g.t, g.span)
 
     onCurveChanged: canvas.requestPaint()
+    onReferenceChanged: canvas.requestPaint()
     onYMinChanged: canvas.requestPaint()
     onYMaxChanged: canvas.requestPaint()
     onWidthChanged: canvas.requestPaint()
@@ -128,6 +135,13 @@ Item {
             ctx.beginPath()
             ctx.moveTo(g.px(0), g.py(0)); ctx.lineTo(g.px(1), g.py(1))
             ctx.stroke()
+            if (g.referenced) {
+                ctx.strokeStyle = rgba(Theme.accent, 0.55)
+                ctx.lineWidth = 1.5
+                ctx.setLineDash([6, 4])
+                trace(ctx, g.reference, CM.spanOf(g.reference, g.referenceMs > 0 ? g.referenceMs : g.ms))
+                ctx.stroke()
+            }
             ctx.setLineDash([])
             var c = g.curve
             if (!c || c.kind === "spring_q") return
@@ -143,6 +157,11 @@ Item {
             ctx.strokeStyle = Theme.fg
             ctx.lineWidth = 2.5
             ctx.lineJoin = "round"
+            trace(ctx, c, g.span)
+            ctx.stroke()
+        }
+        // One curve's path over the plot.
+        function trace(ctx, c, span) {
             ctx.beginPath()
             ctx.moveTo(g.px(0), g.py(0))
             if (c.kind === "cubic") {
@@ -157,10 +176,19 @@ Item {
                     ctx.lineTo(g.px((s + 1) / c.n), g.py((s + 1) / c.n))
                 }
             } else {
-                for (var k = 1; k <= 160; k++) ctx.lineTo(g.px(k / 160), g.py(CM.sample(c, k / 160, g.span)))
+                for (var k = 1; k <= 160; k++) ctx.lineTo(g.px(k / 160), g.py(CM.sample(c, k / 160, span)))
             }
-            ctx.stroke()
         }
+    }
+    // The reference named in words (dashed, so not colour alone).
+    MotionText {
+        objectName: "curve-reference:" + g.key
+        visible: g.referenced
+        x: g.padL + g.plotW - width - 4
+        y: g.padT + g.plotH - height - 4
+        small: true
+        color: Theme.accent
+        text: "– – " + I18n.tr("motion.ui.curve.reference")
     }
     // How far the curve overshoots (or pulls back), named on the band: never colour alone.
     MotionText {

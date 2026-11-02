@@ -126,6 +126,8 @@ Flickable {
         if (r && r.row.control === "curve") return cCurve
         if (key === "theme.motion.profile") return cProfiles
         if (r && r.row.choices_from === "motion.forms") return cFormPicker
+        // A number whose lowest value means "the profile's" (-1 or 0): "From the profile (…)", never the raw sentinel.
+        if (/^theme\.motion\.(jelly|squash|stagger_ms|timing\.[a-z]+_ms)$/.test(key)) return cProfileValue
         return p.pickers[key] ? (p.extraOf(key) ?? null) : null
     }
     function extraOf(key) {
@@ -158,6 +160,7 @@ Flickable {
     Component { id: cCurve; CurveControl {} }
     Component { id: cProfiles; ProfileGallery {} }
     Component { id: cFormPicker; FormPicker {} }
+    Component { id: cProfileValue; ProfileValue {} }
     Component { id: cFormsTable; FormsTable { onOpenKey: key => p.openKey(key) } }
     // The note under the selected edge's header when its bar has no modules (Settings › Layout; EmptyBarNote).
     Component {

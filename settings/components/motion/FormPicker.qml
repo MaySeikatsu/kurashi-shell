@@ -50,7 +50,13 @@ Column {
         var s = fp.tokens["motion.style"]
         return typeof s === "string" ? s : ""
     }
-    readonly property string inEffect: fp.value !== "" ? fp.value : fp.follows
+    // What plays (the glyph): the daemon's resolved form for the surface — a value the surface cannot use is skipped there
+    // (K83) —, else the value, else what "" follows.
+    readonly property string inEffect: {
+        var t = fp.surface !== "" ? fp.tokens["motion.form." + fp.surface + "." + fp.dir] : undefined
+        if (typeof t === "string" && t !== "") return t
+        return fp.value !== "" ? fp.value : fp.follows
+    }
     function fits(id) {
         var m = fp.meta[id]
         if (!m) return true
@@ -72,6 +78,9 @@ Column {
                 out.push({ value: c.value, label: c.label, enabled: false, reason: "motion.ui.form.unfit" })
             }
         })
+        // A value the surface's offers leave out (I9) still shows by its name, never its raw id; it cannot be picked again.
+        if (fp.value !== "" && !out.some(function (o) { return o.value === fp.value }))
+            out.push({ value: fp.value, label: fp.formName(fp.value), enabled: false, reason: "motion.ui.form.unfit" })
         return out
     }
 
@@ -82,7 +91,8 @@ Column {
             id: glyph
             anchors.verticalCenter: parent.verticalCenter
             form: fp.inEffect
-            opacity: fp.editable ? 1 : 0.5
+            // Fainter while the cell follows the default: the picture is the default's.
+            opacity: (fp.editable ? 1 : 0.5) * (fp.value === "" ? 0.55 : 1)
         }
         Select {
             objectName: "form:" + fp.rowKey

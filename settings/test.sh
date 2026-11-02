@@ -299,7 +299,9 @@ motion_en() {
   [[ "$(val theme.motion.timing.open)" == '"cubic-bezier('* ]] || fail "motion M5: the handle edit was not written ($(val theme.motion.timing.open))"
   [ "$(src theme.motion.timing.open)" = user ] || fail "motion M5: the curve's layer is $(src theme.motion.timing.open)"
   mshot curve-cubic
-  echo "motion M5: handle 1 moved by keyboard: $(val theme.motion.timing.open)"
+  # The profile's own curve (K83 profile_curve) is drawn under the user's, named.
+  [ "$(Q present curve-reference:theme.motion.timing.open)" = yes ] || fail "motion M5: the profile's curve is not drawn for reference"
+  echo "motion M5: handle 1 moved by keyboard: $(val theme.motion.timing.open); the profile's curve drawn under it"
 
   # M6. the tabs by keyboard: Quick moves' Presets, the first tile, Right, Return picks Emphasized. A spring and steps drawn.
   Q scroll 0; Q focusList >/dev/null
@@ -316,6 +318,8 @@ motion_en() {
     | grep -q applied || fail "motion M6: a spring and steps were refused"
   sleep 0.5
   [ "$(Q present spring-stats:theme.motion.timing.open)" = yes ] || fail "motion M6: the spring's plot is not shown"
+  # What the profile alone runs on keeps the profile's curve, not the user's spring (the "would use" line reads it).
+  [[ "$(mtoken motion.profile_curve.open)" != *response* ]] || fail "motion M6: profile_curve.open carries the user's spring"
   Q scrollTo curve:theme.motion.timing.open
   mshot curve-spring
   Q scrollTo curve:theme.motion.timing.close
@@ -325,12 +329,32 @@ motion_en() {
   # M7. the island: following the default its own pickers are inert; off, they are its own.
   Q scrollTo forms-table
   mshot forms-follow
-  K '{"t":"apply","id":"m7","ops":[{"set":"theme.motion.form.island.follow","value":false},{"set":"theme.motion.form.toast.open","value":"fade"}]}' \
+  K '{"t":"apply","id":"m7","ops":[{"set":"theme.motion.form.island.follow","value":false},{"set":"theme.motion.form.toast.open","value":"fade"},{"set":"theme.motion.form.panel.open","value":"iris"},{"set":"theme.motion.form.launcher.open","value":"zoom"},{"set":"theme.motion.form.centre.open","value":"slide"},{"set":"theme.motion.form.peek.open","value":"fold"},{"set":"theme.motion.form.dock.close","value":"grow"}]}' \
     | grep -q applied || fail "motion M7: refused"
   sleep 0.5
   Q scrollTo forms-table
   mshot forms-own
   echo "motion M7: the forms table, following and on its own"
+
+  # M9. a value whose -1 means "the profile's" (jelly) reads "From the profile (…)", never -1; an own value, then back.
+  [ "$(Q present inherit-on:theme.motion.jelly)" = yes ] || fail "motion M9: jelly does not say it follows the profile"
+  [ "$(Q present slider:theme.motion.jelly)" = yes ] || fail "motion M9: jelly has no slider"
+  Q scrollTo slider:theme.motion.jelly
+  mshot accent-follow
+  K '{"t":"apply","id":"m9a","ops":[{"set":"theme.motion.jelly","value":0.4}]}' | grep -q applied || fail "motion M9: refused"
+  for _ in $(seq 50); do [ "$(Q present inherit-on:theme.motion.jelly)" = no ] && break; sleep 0.1; done
+  [ "$(Q present inherit-on:theme.motion.jelly)" = no ] || fail "motion M9: an own jelly still says it follows the profile"
+  mshot accent-own
+  K '{"t":"apply","id":"m9b","ops":[{"reset":"theme.motion.jelly"}]}' | grep -q applied || fail "motion M9: the reset was refused"
+  mwait_present inherit-on:theme.motion.jelly "M9: the reset did not go back to the profile's"
+  echo "motion M9: jelly from the profile, own, and back"
+
+  # M10. the gallery: packs whose animations are not built are folded into one group at the end.
+  [ "$(Q present profiles-later)" = yes ] || fail "motion M10: no folded group for the packs that are not built"
+  [ "$(Q present profile:origami)" = no ] || fail "motion M10: an unbuilt pack shows outside its group"
+  Q scroll 0
+  mshot gallery
+  echo "motion M10: unbuilt packs folded into one group"
 
   # M8. reduce motion: the profile is forced (its row says by what), the page's line says so.
   K '{"t":"apply","id":"m8","ops":[{"set":"a11y.reduce_motion","value":true}]}' | grep -q applied || fail "motion M8: refused"

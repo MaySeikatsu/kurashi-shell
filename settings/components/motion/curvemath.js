@@ -300,19 +300,27 @@ function extent(c) {
 // `motion.curve.<role>` (W59.1's token: {kind, ms, points|response+bounce|spring+damping|n}) when published; until then
 // today's tokens (`motion.kind`, `motion.timed.<role>_curve`/`_ms`, `motion.spring.*`), as W59.2's Theme readers do.
 // Result: {curve, ms} or null (no motion).
+function fromToken(c) {
+    switch (c.kind) {
+    case "cubic": return { curve: { kind: "cubic", points: c.points }, ms: c.ms }
+    case "spring": return { curve: { kind: "spring", response: c.response, bounce: c.bounce }, ms: c.ms }
+    case "spring_q": return { curve: { kind: "spring_q", spring: c.spring, damping: c.damping }, ms: c.ms }
+    case "steps": return { curve: { kind: "steps", n: c.n }, ms: c.ms }
+    case "linear": return { curve: { kind: "linear" }, ms: c.ms }
+    }
+    return null
+}
+// What the profile alone would run on for a role (K83 `motion.profile_curve.<role>`: no user curve or duration), {curve,
+// ms} or null (no motion). The resolved curve stands in only on a daemon that does not publish it yet.
+function profileCurve(tokens, role) {
+    var c = (tokens || ({}))["motion.profile_curve." + role]
+    if (c && typeof c === "object" && c.kind) return fromToken(c)
+    return inEffect(tokens, role)
+}
 function inEffect(tokens, role) {
     var t = tokens || ({})
     var c = t["motion.curve." + role]
-    if (c && typeof c === "object" && c.kind) {
-        switch (c.kind) {
-        case "cubic": return { curve: { kind: "cubic", points: c.points }, ms: c.ms }
-        case "spring": return { curve: { kind: "spring", response: c.response, bounce: c.bounce }, ms: c.ms }
-        case "spring_q": return { curve: { kind: "spring_q", spring: c.spring, damping: c.damping }, ms: c.ms }
-        case "steps": return { curve: { kind: "steps", n: c.n }, ms: c.ms }
-        case "linear": return { curve: { kind: "linear" }, ms: c.ms }
-        }
-        return null
-    }
+    if (c && typeof c === "object" && c.kind) return fromToken(c)
     var kind = t["motion.kind"]
     if (kind === "none") return null
     if (kind === "spring")

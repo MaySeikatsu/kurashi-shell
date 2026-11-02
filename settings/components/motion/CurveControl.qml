@@ -32,15 +32,18 @@ Column {
 
     // The value read as the daemon reads it (a pack's curve name has no curve here: its pack has it).
     readonly property var parsed: cc.value === "" ? null : CM.parse(cc.value)
-    // The curve the profile gives this role, from the theme document (W59.1's tokens, else today's).
-    readonly property var profiles: { Store.theme; return CM.inEffect(Store.theme.tokens, cc.role) }
-    // The curve in effect: the user's when it reads, else the profile's.
+    // What the profile alone gives this role (K83 `motion.profile_curve.<role>`): the provenance line and the graph's
+    // reference. Never the resolved curve: that one already carries the user's.
+    readonly property var profiles: { Store.theme; return CM.profileCurve(Store.theme.tokens, cc.role) }
+    // What runs (`motion.curve.<role>`, resolved by the daemon).
+    readonly property var resolved: { Store.theme; return CM.inEffect(Store.theme.tokens, cc.role) }
+    // The curve in effect: the user's when it reads, else the resolved one.
     readonly property var effective: cc.parsed && cc.parsed.ok && cc.parsed.curve ? cc.parsed.curve
-        : (cc.profiles ? cc.profiles.curve : null)
+        : (cc.resolved ? cc.resolved.curve : null)
     // The duration: the role's own (theme.motion.timing.<role>_ms), else the preset's, else the profile's.
     readonly property int ownMs: { Store.config; var v = Store.valueOf(cc.rowKey + "_ms", ""); return typeof v === "number" ? v : 0 }
     readonly property real ms: cc.ownMs > 0 ? cc.ownMs
-        : (cc.parsed && cc.parsed.ms ? cc.parsed.ms : (cc.profiles && cc.profiles.ms ? cc.profiles.ms : 500))
+        : (cc.parsed && cc.parsed.ms ? cc.parsed.ms : (cc.resolved && cc.resolved.ms ? cc.resolved.ms : 500))
 
     // --- drafts: a handle moved, not committed yet (Return or the pointer's release commits, Escape reverts) ------------
     property var draft: null
@@ -118,7 +121,11 @@ Column {
     }
     readonly property string whose: {
         var tr = I18n.strings
-        var profiles = cc.profiles ? cc.nameOf(cc.profiles.curve) : I18n.tr("motion.ui.curve.none")
+        // The profile's curve by name, with its duration when it has one (a spring_q preset has none: its spring sets it).
+        var profiles = !cc.profiles ? I18n.tr("motion.ui.curve.none")
+            : cc.profiles.ms > 0 && cc.profiles.curve.kind !== "spring_q"
+            ? I18n.fmt("motion.ui.curve.with_ms", { curve: cc.nameOf(cc.profiles.curve), ms: Math.round(cc.profiles.ms) })
+            : cc.nameOf(cc.profiles.curve)
         var from = I18n.fmt("motion.ui.profile_source", { profile: cc.profileName, source: cc.profileSource })
         if (cc.value === "") return I18n.fmt("motion.ui.curve.from_profile", { curve: profiles, from: from })
         if (cc.parsed && cc.parsed.ok && cc.parsed.type === "named")
@@ -147,6 +154,9 @@ Column {
             label: cc.label
             ms: cc.ms
             curve: cc.openTab === "steps" ? ({ kind: "steps", n: cc.stepsN }) : cc.shown
+            // The profile's own curve, faint, while the user's differs (K83 profile_curve).
+            reference: cc.value !== "" && cc.profiles && cc.openTab === "cubic" ? cc.profiles.curve : null
+            referenceMs: cc.profiles ? cc.profiles.ms : 0
             editable: cc.editable && cc.openTab === "cubic"
             onMoved: points => cc.draft = points.slice(0, 4)
             onCommit: cc.commitDraft()
