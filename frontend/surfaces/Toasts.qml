@@ -3,6 +3,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../components/motion"
 import "../components"
 import "../components/island"
 import "../components/decor"
@@ -261,7 +262,9 @@ Scope {
         color: "transparent"
         mask: hitRegion
         // Glass only (Theme.blur); rounded as the cards are (I276).
-        BackgroundEffect.blurRegion: Theme.blur ? blurRegion : noBlur
+        // (K83: none while a sheet form warps a card — it draws its fill solid itself)
+        property int sheetsUp: 0
+        BackgroundEffect.blurRegion: Theme.blur && sheetsUp === 0 ? blurRegion : noBlur
         Region { id: hitRegion; item: hit }
         Region { id: blurRegion; item: hit; radius: Theme.rLg }
         Region { id: noBlur }
@@ -478,9 +481,19 @@ Scope {
                 property real fx: 0
                 property real fade: 1
                 property real frozenY: 0
+                // K83 (W59.3, row 656): a toast leaves in its close form when that is a sheet form (crumple, fold, roll:
+                // W59.4) — the card balls up or folds where it stands, then it is gone; else flicked or drifting, as before.
+                SurfaceForm {
+                    id: tRun
+                    surface: "toast"
+                    shapes: []
+                    Component.onCompleted: standOpen()
+                    onLanded: at => { if (at <= 0 && d.leaving) root.gone(d.nid) }
+                }
                 onLeavingChanged: if (leaving) {
                     frozenY = ly
-                    leave.start()
+                    tRun.want = false
+                    if (!tRun.sheet) leave.start()
                 }
                 ParallelAnimation {
                     id: leave
@@ -585,6 +598,21 @@ Scope {
                     }
                 }
 
+                // K83: the card's form host (a sheet form captures the card; its elevation stays out, × `sheetShadow`).
+                FormHost {
+                    id: tHost
+                    width: win.width
+                    height: win.height
+                    surface: "toast"
+                    edge: win.flip ? "bottom" : "top"
+                    origin: win.drip ? Qt.rect(win.neckCx - win.pillW / 2, win.wy(win.pillTop, win.pillH), win.pillW, win.pillH)
+                        : Qt.rect(0, 0, 0, 0)
+                    direction: tRun.dir
+                    progress: tRun.sheet ? tRun.p : 1
+                    visible: !tRun.sheet || tRun.p > 0
+                    source: card
+                    onSheetBlurOffChanged: win.sheetsUp += sheetBlurOff ? 1 : -1
+                    Component.onDestruction: if (sheetBlurOff) win.sheetsUp -= 1
                 // The card's slot (its place); the card itself moves only when it is swiped (NotificationCard's x).
                 Item {
                     x: win.cardX + d.fx + (1 - d.enter) * 32
@@ -599,6 +627,7 @@ Scope {
                     }
                     Elevation {
                         visible: !d.drawn
+                        opacity: tHost.sheetShadow
                         width: win.cardW
                         height: card.height
                         radius: card.radius
@@ -619,6 +648,7 @@ Scope {
                         onDismissed: root.dismiss(d.nid)
                         onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
                     }
+                }
                 }
                 // A leaving card's chrome fades with it, an entering one's comes in (group opacity only while it moves, K16).
                 opacity: d.leaving ? d.fade : d.enter

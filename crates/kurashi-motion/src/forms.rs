@@ -131,11 +131,13 @@ pub const FORMS: &[FormMeta] = &[
     f("bleed",    Shape, ALL,                                                  Morph,  false, 0,          Layer,     true),
     f("stepped",  Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
     f("rubber",   Shape, ALL,                                                  Morph,  true,  0,          Transform, true),
-    // W59.3: shape forms.
-    f("expand",   Shape, ALL,                                                  Morph,  false, 0,          Transform, false),
-    f("iris",     Shape, but(s("bar")),                                        Morph,  false, 0,          Transform, false),
-    f("stamp",    Shape, but(s("bar") | s("dock") | s("sidebar")),             Morph,  true,  0,          Transform, false),
-    f("outline",  Shape, but(s("bar")),                                        Morph,  false, 0,          Transform, false),
+    // W59.3: shape forms — drawn on the cards (the Stage's island views and panels, the launcher, the centre, the polkit
+    // dialog). The peek, toast, sidebar, dock, bar, osd and menu classes do not draw them yet (a value naming one there
+    // is not in effect, with the reason; row 659). iris, stamp and outline draw through a mask layer while they move.
+    f("expand",   Shape, CARDS,                                                Morph,  false, 0,          Transform, true),
+    f("iris",     Shape, CARDS,                                                Morph,  false, 0,          Layer,     true),
+    f("stamp",    Shape, CARDS,                                                Morph,  true,  0,          Layer,     true),
+    f("outline",  Shape, CARDS,                                                Morph,  false, 0,          Layer,     true),
     // W59.4: paper.
     f("fold",     Sheet, CARDS | s("peek") | s("toast") | s("sidebar") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
     f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      true),

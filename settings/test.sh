@@ -351,7 +351,8 @@ motion_en() {
 
   # M10. the gallery: packs whose animations are not built are folded into one group at the end.
   [ "$(Q present profiles-later)" = yes ] || fail "motion M10: no folded group for the packs that are not built"
-  [ "$(Q present profile:origami)" = no ] || fail "motion M10: an unbuilt pack shows outside its group"
+  # (the one pack left unbuilt after W59.3/W59.8: liquid, whose form needs the morph neck)
+  [ "$(Q present profile:liquid)" = no ] || fail "motion M10: an unbuilt pack shows outside its group"
   Q scroll 0
   mshot gallery
   echo "motion M10: unbuilt packs folded into one group"

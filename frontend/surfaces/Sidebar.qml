@@ -7,6 +7,7 @@ import "../core"
 import "../components"
 import "../components/sidebar"
 import "../components/island"
+import "../components/motion"
 
 // An edge sidebar (cards W29, W44; docs/ux/sidebar.md, docs/ux/layout.md): `side` left or right. Where it stands and how it
 // meets its neighbours comes from `runtime.layout` (`sidebars.<side>`: draw, visibility, width, inset, span, joins, radius;
@@ -228,6 +229,17 @@ Scope {
                 onRunningChanged: col.settled()
             }
             readonly property real overPx: Math.max(0, p - 1) * colW
+            // K83 (W59.3, row 656): a sheet form (roll, fold: W59.4) opens and closes the column instead of its slide — the
+            // column stands at rest while the sheet unrolls it from its screen edge (the hinge) or rolls it back, and goes
+            // once the sheet has. The window's FormHost (below) draws it; every other form keeps the slide.
+            SurfaceForm {
+                id: sbRun
+                surface: "sidebar"
+                shapes: []
+                // (a slide still in flight keeps its way: a reversal continues it)
+                hold: col.held && (spring.running || timedP.running || (col.p > 0.001 && col.p < 0.999))
+                onLanded: at => { if (at <= 0 && !col.wanted && col.held) { col.held = false; col.p = 0 } }
+            }
             onWantedChanged: drive()
             Component.onCompleted: if (wanted) drive()
             function drive() {
@@ -239,6 +251,15 @@ Scope {
                         if (sb.geometryLog) console.log("sidebar-hold " + sb.side + " " + out + " p=" + p.toFixed(3) + " off=" + Math.round(off))
                     }
                     else { held = false; p = 0 }
+                    return
+                }
+                sbRun.want = wanted && !sb.instant
+                if (sbRun.sheet) {
+                    if (wanted) {
+                        // (at rest at once: `gate` keeps the slide's Behavior off for this write)
+                        if (!held) { frozen = false; held = true }
+                        gate = true; p = 1; gate = false
+                    }
                     return
                 }
                 var fz = sb.readFreeze(wanted ? "open" : "close")
@@ -395,8 +416,8 @@ Scope {
                     BackgroundEffect.blurRegion: Region {
                         x: win.realX(win.shX0, win.blurX1)
                         y: win.blurY0
-                        width: Theme.blur && !win.flyouts ? Math.max(0, win.blurX1 - win.shX0) : 0
-                        height: Theme.blur && !win.flyouts ? Math.max(0, win.blurY1 - win.blurY0) : 0
+                        width: Theme.blur && !win.flyouts && !sbHost.sheetBlurOff ? Math.max(0, win.blurX1 - win.shX0) : 0
+                        height: Theme.blur && !win.flyouts && !sbHost.sheetBlurOff ? Math.max(0, win.blurY1 - win.blurY0) : 0
                         topLeftRadius: shape.sTL
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
@@ -579,6 +600,17 @@ Scope {
                         }
                     }
 
+                    // K83 (row 656): the column's form host — a sheet form captures `sheetSrc` (the column's fill, its
+                    // material and its content; the shadows stay out of it, × `sheetShadow`), hinged on the screen's edge.
+                    FormHost {
+                        id: sbHost
+                        anchors.fill: parent
+                        surface: "sidebar"
+                        edge: sb.side
+                        direction: sbRun.dir
+                        progress: sbRun.sheet ? sbRun.p : 1
+                        visible: !sbRun.sheet || sbRun.p > 0
+                        source: sheetSrc
                     // Everything the column draws, cut where it meets its neighbours.
                     Item {
                         id: clipper
@@ -588,13 +620,13 @@ Scope {
                         height: Math.max(0, win.clipY1 - win.clipY0)
                         clip: true
 
-                        // The shape, its shadow and its relief mask, in the canonical frame.
+                        // The column's shadows, in the canonical frame (outside what a sheet form captures).
                         Item {
-                            id: box
-                            x: (sb.side === "left" ? 0 : win.width - win.boxW) - clipper.x
-                            y: -clipper.y
+                            x: box.x
+                            y: box.y
                             width: win.boxW
                             height: win.height
+                            opacity: sbHost.sheetShadow
                             transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
                             SoftShadow {
                                 visible: col.floating && shape.shown && !win.flyouts
@@ -621,6 +653,18 @@ Scope {
                                 cutRight: win.openO
                                 mirrorX: sb.side === "left" ? -1 : 1
                             }
+                        }
+                        Item {
+                            id: sheetSrc
+                            anchors.fill: parent
+                        // The shape and its relief mask, in the canonical frame.
+                        Item {
+                            id: box
+                            x: (sb.side === "left" ? 0 : win.width - win.boxW) - clipper.x
+                            y: -clipper.y
+                            width: win.boxW
+                            height: win.height
+                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
                             ColumnShape {
                                 id: shape
                                 // (drawn as nothing under flyouts: `shown` keeps its geometry for the content and the input)
@@ -635,9 +679,9 @@ Scope {
                                 openO: win.openO
                                 // A join with the screen's edge is flush, without a fillet; a bar or the band: the
                                 // layout's radius (0 = connected, a straight join).
-                                neckT: col.joinStart === "edge" ? 0 : col.aR
-                                neckB: col.joinEnd === "edge" ? 0 : col.aR
-                                neckO: col.sideBar ? col.aR : 0
+                                neckT: col.joinStart === "edge" ? 0 : col.aR * sbHost.sheetFillets
+                                neckB: col.joinEnd === "edge" ? 0 : col.aR * sbHost.sheetFillets
+                                neckO: col.sideBar ? col.aR * sbHost.sheetFillets : 0
                                 squareOuter: !col.floating
                                 // K74: a joined column's free corners are corners of the window cut into the sheet: the
                                 // layout's one radius, as its fillets (0 = connected, straight)
@@ -647,7 +691,8 @@ Scope {
                                 ruled: !col.floating && Theme.frameOutline
                                 chrome: col.floating
                                 // Joined, the column takes its neighbour's colour (one sheet); a free column the panel's.
-                                fill: col.floating ? Theme.panel : Theme.surfaceAlpha
+                                fill: sbHost.sheetSolid ? Qt.alpha(col.floating ? Theme.panel : Theme.surfaceAlpha, 1)
+                                    : col.floating ? Theme.panel : Theme.surfaceAlpha
                             }
                             // The shape's fill as a mask for its relief (I168): drawn only into `shapeMask`'s texture, which
                             // is redrawn when the path changes (while the column moves) and never at rest.
@@ -729,6 +774,8 @@ Scope {
                                 sourceComponent: sb.mode === "pages" ? leftC : rightC
                             }
                         }
+                        }
+                    }
                     }
                     // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
                     ShaderEffectSource {
