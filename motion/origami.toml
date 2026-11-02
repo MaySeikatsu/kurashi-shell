@@ -32,6 +32,17 @@ panels = 0
 axes = 2
 crease = 0.35
 
+# W59.4 drafts (W59.9 tunes them on niri): the sidebar's roll, the toast's crumple; book is offered, not used here.
+[params.roll]
+radius = 18
+variant = "roll"
+
+[params.crumple]
+crumple = 0.8
+
+[params.book]
+spine = "auto"
+
 [accents]
 content = "late"
 stagger_ms = 0

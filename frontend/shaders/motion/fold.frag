@@ -83,11 +83,11 @@ void main() {
     int j = int(clamp(floor(a / la), 0.0, na - 1.0));
     int j0 = int(ubuf.u1.w + 0.5);
 
-    // The panel's normal: the across tilt (in a, z), then the along tilt (about the hinge's direction).
+    // The panel's normal: the along tilt (about the hinge's direction), then the across turn (about d).
     float s = j == j0 ? 0.0 : acrossAngle(j);
     vec2 m = j > j0 ? vec2(-sin(s), cos(s)) : (j < j0 ? vec2(sin(s), cos(s)) : vec2(0.0, 1.0));
     float f = alongAngle(k);
-    vec3 n = vec3(m.x, -m.y * sin(f), m.y * cos(f));
+    vec3 n = vec3(m.x * cos(f), -sin(f), m.y * cos(f));
     vec3 ns = vec3(ubuf.uAxes.xy * n.x + ubuf.uAxes.zw * n.y, n.z);
     vec4 c = lit(paperAt(vUv), ns);
 

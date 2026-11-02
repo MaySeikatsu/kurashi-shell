@@ -1,6 +1,6 @@
 #version 440
 // fold (W59.4, K83; docs/ux/motion-engine.md §5): origami — the card as an accordion of panels hanging from its hinge
-// (along, `d`), and with two axes first a letter folded across (`a`) around the panel under the origin. A panel's angle
+// (along, `d`), and with two axes a letter: folded along, then across (`a`) around the panel under the origin. A panel's angle
 // is its own (forms/Fold.qml computes them from p with the per-panel lag); here each vertex walks the chain to its panel.
 // The zig-zag keeps every panel within ±90° of the screen, so the projection is monotone along both axes: no panel ever
 // lies over another, and the mesh needs no depth order. The mesh is the panel grid itself (every crease on a vertex
@@ -56,9 +56,23 @@ void main() {
     int j = int(clamp(floor(a / la + 1e-3), 0.0, na - 1.0));
     int j0 = int(ubuf.u1.w + 0.5);
 
-    // Across: the anchor stays; the panels to either side hang from it, each from the one before.
+    // Along: panel k hangs from the end of panel k − 1 (y away from the hinge, z1 toward the viewer).
+    vec2 pk = vec2(0.0);
+    for (int i = 0; i < 5; i++) {
+        if (i >= k) break;
+        float f = alongAngle(i);
+        pk += ld * vec2(cos(f), sin(f));
+    }
+    float v = d - float(k) * ld;
+    float f = alongAngle(k);
+    float y = pk.x + v * cos(f);
+    float z1 = pk.y + v * sin(f);
+
+    // Across (the outer fold, the letter's last): the anchor stays; the panels to either side turn about their creases
+    // (lines along d), each from the end of the one before, carrying the along fold with them — so while the along
+    // panels still stand edge-on they stay a thin edge under the strip.
     float ax = a;
-    float az = 0.0;
+    float z = z1;
     if (j > j0) {
         vec2 q = vec2(float(j0 + 1) * la, 0.0);
         for (int i = 1; i < 5; i++) {
@@ -68,8 +82,8 @@ void main() {
         }
         float u = a - float(j) * la;
         float s = acrossAngle(j);
-        ax = q.x + u * cos(s);
-        az = q.y + u * sin(s);
+        ax = q.x + u * cos(s) - z1 * sin(s);
+        z = q.y + u * sin(s) + z1 * cos(s);
     } else if (j < j0) {
         vec2 q = vec2(float(j0) * la, 0.0);
         for (int i = 1; i < 5; i++) {
@@ -79,21 +93,9 @@ void main() {
         }
         float u = float(j + 1) * la - a;
         float s = acrossAngle(j);
-        ax = q.x - u * cos(s);
-        az = q.y + u * sin(s);
+        ax = q.x - u * cos(s) + z1 * sin(s);
+        z = q.y + u * sin(s) + z1 * cos(s);
     }
-
-    // Along: panel k hangs from the end of panel k − 1; the across fold rides on it (its z along the panel's normal).
-    vec2 pk = vec2(0.0);
-    for (int i = 0; i < 5; i++) {
-        if (i >= k) break;
-        float f = alongAngle(i);
-        pk += ld * vec2(cos(f), sin(f));
-    }
-    float v = d - float(k) * ld;
-    float f = alongAngle(k);
-    float y = pk.x + v * cos(f) - az * sin(f);
-    float z = pk.y + v * sin(f) + az * cos(f);
 
     // Back to the screen, through the eye over the hinge's middle.
     vec2 sp = ubuf.uHinge.xy + ubuf.uAxes.xy * ax + ubuf.uAxes.zw * y;

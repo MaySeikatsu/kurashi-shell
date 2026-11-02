@@ -54,7 +54,7 @@ ShellRoot {
             return root.state()
         }
         function play(to: real): string {
-            if (!root.driven) { driver.snap(host.progress); root.driven = true }
+            if (!root.driven) { driver.snap(host.progress); driver.to = host.progress; root.driven = true }
             driver.to = to
             return "playing to " + to
         }

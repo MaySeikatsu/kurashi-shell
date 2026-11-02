@@ -181,4 +181,8 @@ for cs in $CASES; do
   [ "$d" -le "${MOTION_OFF_SLACK:-16}" ] || fail "$tag: the panel at rest differs from the motion-off frame in $d px"
   echo "test-motion: $tag rest vs off: $d px; idle 0 commits in 5 s"
 done
+# W59.4: the sheet forms (fold, roll, book, crumple) in their harness, in a sandbox of their own (MOTION_SHEETS=0 skips).
+if [ "${MOTION_SHEETS:-1}" != 0 ]; then
+  "$ROOT/frontend/core/motion/tests/sheet/run.sh" || fail "the sheet forms failed (frontend/core/motion/tests/sheet/run.sh)"
+fi
 echo "test-motion: ok (shots in $OUT)"
