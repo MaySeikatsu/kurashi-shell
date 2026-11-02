@@ -264,3 +264,5 @@
 "motion.ui.recipe.sep" = ", "
 "motion.ui.recipe.where_all_open" = "every surface (opening)"
 "motion.ui.recipe.where_all_close" = "every surface (closing)"
+"config.choice.motion.profile.genie" = "Magic lamp"
+"config.choice.motion.profile.genie.desc" = "Panels pour out of the button you pressed and back into it, like a genie from its lamp."

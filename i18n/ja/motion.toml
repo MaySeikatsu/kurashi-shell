@@ -264,3 +264,5 @@
 "motion.ui.recipe.sep" = "、"
 "motion.ui.recipe.where_all_open" = "すべての面（開くとき）"
 "motion.ui.recipe.where_all_close" = "すべての面（閉じるとき）"
+"config.choice.motion.profile.genie" = "魔法のランプ"
+"config.choice.motion.profile.genie.desc" = "押したボタンからパネルが流れ出し、ランプの精のように戻っていきます。"
