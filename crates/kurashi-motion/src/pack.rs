@@ -106,8 +106,10 @@ pub struct Pack {
     pub accents: Option<Accents>,
     /// `[curves]`: named curves (a user's "Save as preset…").
     pub curves: BTreeMap<String, Curve>,
-    /// `[recipes]`, kept as written until W59.7 validates them.
+    /// `[recipes]` as written; `recipe.rs` validates them (W59.7).
     pub recipes: BTreeMap<String, Value>,
+    /// The file it was read from (none for a built-in pack): Settings' "open the pack file".
+    pub path: Option<PathBuf>,
 }
 
 /// A problem in a pack: which pack, the i18n key of what is wrong, and the detail (a key, a value, a parse error).
@@ -149,16 +151,17 @@ impl Pack {
             accents: None,
             curves: BTreeMap::new(),
             recipes: BTreeMap::new(),
+            path: None,
         }
     }
 
     /// Whether its default forms can be drawn now (a pack built on forms whose card has not merged is offered disabled).
+    /// Its own recipes count as drawn (W59.7): a broken one falls back when resolved, with its diagnostic.
     pub fn available(&self) -> bool {
         self.forms.as_ref().is_none_or(|f| {
-            [&f.open, &f.close]
-                .into_iter()
-                .flatten()
-                .all(|id| forms::form(id).is_some_and(|m| m.available))
+            [&f.open, &f.close].into_iter().flatten().all(|id| {
+                self.recipes.contains_key(id) || forms::form(id).is_some_and(|m| m.available)
+            })
         })
     }
 }
@@ -234,7 +237,7 @@ pub fn parse(src: &str, fallback_id: &str, bundled: bool) -> Result<(Pack, Vec<D
         for (k, val) in form.into_iter().flatten() {
             match (k.as_str(), val) {
                 ("open" | "close", toml::Value::String(id)) => {
-                    let ok = form_id(id, &mut diags, &p.id);
+                    let ok = form_id(id, &p.recipes, &mut diags, &p.id);
                     if k == "open" {
                         f.open = ok;
                     } else {
@@ -245,8 +248,12 @@ pub fn parse(src: &str, fallback_id: &str, bundled: bool) -> Result<(Pack, Vec<D
                     let mut pair = (None, None);
                     for (dir, id) in t {
                         match (dir.as_str(), id.as_str()) {
-                            ("open", Some(id)) => pair.0 = form_id(id, &mut diags, &p.id),
-                            ("close", Some(id)) => pair.1 = form_id(id, &mut diags, &p.id),
+                            ("open", Some(id)) => {
+                                pair.0 = form_id(id, &p.recipes, &mut diags, &p.id)
+                            }
+                            ("close", Some(id)) => {
+                                pair.1 = form_id(id, &p.recipes, &mut diags, &p.id)
+                            }
                             _ => diags.push(Diag {
                                 pack: p.id.clone(),
                                 key: DIAG_KEY,
@@ -282,8 +289,14 @@ pub fn parse(src: &str, fallback_id: &str, bundled: bool) -> Result<(Pack, Vec<D
     Ok((p, diags))
 }
 
-fn form_id(id: &str, diags: &mut Vec<Diag>, pack: &str) -> Option<String> {
-    if forms::form(id).is_some() {
+/// A form a pack may name: a built-in one, or a recipe of its own (W59.7; validated when resolved).
+fn form_id(
+    id: &str,
+    recipes: &BTreeMap<String, Value>,
+    diags: &mut Vec<Diag>,
+    pack: &str,
+) -> Option<String> {
+    if forms::form(id).is_some() || recipes.contains_key(id) {
         Some(id.to_owned())
     } else {
         diags.push(Diag {
@@ -485,7 +498,10 @@ fn read(path: &Path) -> Result<(Pack, Vec<Diag>), Diag> {
         key: DIAG_BROKEN,
         detail: e.to_string(),
     })?;
-    parse(&src, stem, false)
+    parse(&src, stem, false).map(|(mut p, d)| {
+        p.path = Some(path.to_path_buf());
+        (p, d)
+    })
 }
 
 /// `$XDG_CONFIG_HOME/kurashi/motion` (or `~/.config/kurashi/motion`): the user's packs.
