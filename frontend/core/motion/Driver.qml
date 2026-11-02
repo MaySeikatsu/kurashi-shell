@@ -64,6 +64,7 @@ QtObject {
     property real target: 0
     property real elapsed: 0
     property bool fresh: false
+    property real startedAt: 0
     property var st: ({ x: 0, v: 0, acc: 0 })
     property var sp: ({ d: 0, v: 0 })
     property real d0: 0
@@ -97,7 +98,7 @@ QtObject {
         } else if (!moving) {
             velocity = 0
         }
-        if (!fa.running) fresh = true
+        if (!fa.running) { fresh = true; startedAt = Date.now() }
         running = true
         fa.running = true
     }
@@ -110,8 +111,9 @@ QtObject {
     }
 
     function advance(dt) {
-        // The first frame of a run counts one step: the time since the driver last ran is not motion (MorphSprings').
-        var step = (fresh ? 0.016 : Math.min(dt, 0.05)) * 1000
+        // The first frame of a run counts the time since the travel began (as QML's animations count from their start:
+        // a Glide's spring steps exactly as the SpringAnimation it replaces), not the time since the driver last ran.
+        var step = fresh ? Math.max(0, Math.min(50, Date.now() - startedAt)) : Math.min(dt, 0.05) * 1000
         fresh = false
         var goal = target, span = goal - from, done = false
         if (active.kind === "spring_q") {
