@@ -1971,6 +1971,11 @@ impl ConfigStore {
     /// Republishes `schema.settings` with the sources' current options, for a source that changed
     /// without a config change (the island registered a face, a mod's palette came and went). The
     /// `config` document follows, since a value may now be outside its options (I9).
+    /// A motion pack was added, edited or removed (I358): offers, inert reasons and the theme (a listener) follow.
+    pub fn packs_changed(&self) {
+        self.publish();
+    }
+
     pub fn refresh_choices(&self) {
         self.publish_settings();
         self.publish_document();
@@ -2395,6 +2400,40 @@ impl ConfigStore {
                 })))
             }
         });
+        // K83 (row 664, rule 1): Settings' "Open the pack file" — the daemon opens a motion pack in the user's editor
+        // (xdg-open), and only a `.toml` inside the user's motion folder, never any other path a client names.
+        actions.register(
+            "motion.pack.open",
+            "action.motion.pack.open",
+            move |v| async move {
+                use kurashi_theme::kurashi_motion::pack::user_dir;
+                let path = v
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                let dir = user_dir()
+                    .and_then(|d| d.canonicalize().ok())
+                    .ok_or_else(|| {
+                        ActionError::Unavailable("motion: no user motion folder".into())
+                    })?;
+                let file = std::path::Path::new(path)
+                    .canonicalize()
+                    .map_err(|_| ActionError::Invalid(ARGS_INVALID.into()))?;
+                if file.parent() != Some(dir.as_path())
+                    || file.extension().is_none_or(|x| x != "toml")
+                {
+                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
+                }
+                tokio::process::Command::new("xdg-open")
+                    .arg(&file)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .map(|_| Some(json!({"opened": file})))
+                    .map_err(|e| ActionError::Unavailable(format!("xdg-open: {e}")))
+            },
+        );
         let app = Arc::new(app);
         let me = self.clone();
         actions.register("settings.open", "action.settings.open", move |v| {
@@ -2832,6 +2871,8 @@ mod tests {
 enum Touched {
     Config,
     Profiles,
+    /// K83 (I358): a motion pack in `motion/` changed — the offers and the theme follow without a config change.
+    Motion,
 }
 
 /// `profiles/<name>.toml`, or the profiles directory itself (created or removed: the list changes).
@@ -2850,6 +2891,7 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
     let paths = store.paths();
     let names = [paths.user_file(), paths.managed_file()];
     let profiles = paths.user_profiles_dir();
+    let motion = paths.config_dir.join("motion");
     let dir = paths.config_dir.clone();
     std::fs::create_dir_all(&dir).ok();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Touched>();
@@ -2864,6 +2906,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
             let _ = tx.send(Touched::Config);
         } else if ev.paths.iter().any(|p| is_profile_event(p, &profiles)) {
             let _ = tx.send(Touched::Profiles);
+        } else if ev.paths.iter().any(|p| is_profile_event(p, &motion)) {
+            let _ = tx.send(Touched::Motion);
         }
     })?;
     watcher.watch(&dir, RecursiveMode::Recursive)?;
@@ -2881,6 +2925,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
                 // Reloads and publishes the whole `config` document.
                 Touched::Config => store.reload(),
                 Touched::Profiles => store.publish_document(),
+                // The packs are read again by the offers and the theme on a publish (both load them fresh).
+                Touched::Motion => store.packs_changed(),
             }
         }
     });

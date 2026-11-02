@@ -271,7 +271,7 @@ Column {
                         objectName: "recipe-open:" + card.rid
                         text: I18n.tr("motion.ui.recipe.open_file")
                         Accessible.name: I18n.fmt("motion.ui.recipe.open_file_name", { name: card.name })
-                        onActivated: Qt.openUrlExternally("file://" + card.t.path)
+                        onActivated: Store.act("motion.pack.open", { path: card.t.path })
                     }
                 }
                 // Scrub: any frame between closed (0) and open (1), by drag or the arrow keys (it holds the preview there
