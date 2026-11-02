@@ -890,6 +890,15 @@ fn offers_now(
                         .filter(|m| m.available)
                         .map(|m| Offer::on(m.id, format!("config.choice.motion.form.{}", m.id))),
                 )
+                // W59.7: the packs' valid recipes, by their own label, after the built-in forms (a skipped one is no
+                // option; Settings' recipe list says why).
+                .chain(
+                    kurashi_theme::kurashi_motion::recipe::collect(&packs)
+                        .0
+                        .into_iter()
+                        .filter(|r| r.ok())
+                        .map(|r| Offer::on(&r.id, r.label)),
+                )
                 .collect(),
         );
         // The profiles under which nothing moves but fades or nothing at all (base `none` or `reduced`): every other
