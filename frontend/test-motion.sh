@@ -87,7 +87,10 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 K() { timeout 10 "$W/kurashi" "$@"; }
 rm -rf "$R/xdg"; mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-: > "$XDG_CONFIG_HOME/kurashi/config.toml"
+# (no idle lock: a full run outlasts its timeout, and the lock screen then covers every shot — and a locked previous run
+# starts the next one locked, I241)
+rm -f "$R/kurashi/locked"
+printf '[idle]\nenabled = false\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 : > "$R/server.log"
 env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
     PULSE_SERVER="unix:$R/no-pulse/native" PULSE_RUNTIME_PATH="$R/no-pulse" \
