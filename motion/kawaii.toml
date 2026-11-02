@@ -1,0 +1,13 @@
+# Kawaii — Bouncy: things pop in with a little overshoot.
+# Moved from looks/kawaii.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "kawaii"
+base = "lively"
+
+[timing]
+
+
+[form]
+open = "rubber"
+close = "rubber"
+
+[accents]

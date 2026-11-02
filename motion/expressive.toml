@@ -1,0 +1,4 @@
+# Expressive (K74, the default): surfaces grow out of their edge on Caelestia's M3 expressive curves and overshoot a
+# little. A base only: on a style with a motion pack of its own it moves that pack's forms and curves (K83).
+name = "expressive"
+base = "expressive"

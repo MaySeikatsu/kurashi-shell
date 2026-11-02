@@ -1,0 +1,13 @@
+# Vibrancy (macOS 11–14) — Motion: popovers and Control Centre modules zoom and fade from their source on springs.
+# Moved from looks/vibrancy.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "vibrancy"
+base = "calm"
+
+[timing]
+
+
+[form]
+open = "zoom"
+close = "zoom"
+
+[accents]

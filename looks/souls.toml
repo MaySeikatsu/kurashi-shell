@@ -8,7 +8,7 @@ category = "fiction"
 # large serif for a wrong password (never the game's death message). Original cues and pointer. Numbers in §9.3.
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "souls"
 "theme.motion.speed" = 0.8
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.84
@@ -74,14 +74,6 @@ sounds = "souls"
 "start.word" = "menu"
 "start.mark" = "diamond"
 "start.family" = ["OptimusPrinceps", "Trajan Pro", "Cinzel"]
-# Slow fades: everything dissolves in rather than moving.
-"motion.style" = "fade"
-"motion.open_ms" = 650
-"motion.close_ms" = 520
-"motion.fast_ms" = 300
-"motion.open_curve" = [0.37, 0.0, 0.63, 1.0]
-"motion.close_curve" = [0.37, 0.0, 0.63, 1.0]
-"motion.fast_curve" = [0.37, 0.0, 0.63, 1.0]
 "cursor" = "souls"
 # Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
 "quick.frame" = "flyout"

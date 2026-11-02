@@ -10,7 +10,7 @@ category = "modern"
 # beeps as cues. The green or amber phosphor is a palette option (`phosphor`, `phosphor-amber`).
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "terminal"
 "theme.motion.speed" = 1.6
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
@@ -58,16 +58,6 @@ sounds = "terminal"
 "icons.family" = ["Material Symbols Sharp"]
 "icon.fill" = 0
 "icon.weight" = 400
-# Motion: a cut, softened only to a quick linear fade (a terminal redraws; it does not animate).
-"motion.style" = "fade"
-"motion.open_ms" = 80
-"motion.close_ms" = 60
-"motion.fast_ms" = 60
-"motion.effects_ms" = 60
-"motion.open_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.close_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.fast_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.effects_curve" = [0.0, 0.0, 1.0, 1.0]
 "cursor" = "terminal"
 # The launcher and the island's card stand apart from the status line as boxed windows (a TUI's dialog box), not grown
 # out of the bar.

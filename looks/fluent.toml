@@ -9,7 +9,7 @@ category = "inspired"
 # visual, Segoe UI Variable (the free Selawik as its stand-in, OFL) and outline symbols at a light weight.
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "fluent"
 "theme.material.kind" = "translucent"
 "theme.material.blur" = true
 "theme.material.opacity" = 0.86
@@ -69,16 +69,6 @@ sounds = "fluent"
 # Symbols: outline, light (Segoe Fluent Icons draws 1 px strokes at 16 px); the shell's Rounded cut at weight 300.
 "icon.fill" = 0
 "icon.weight" = 300
-# Motion: flyouts rise from their edge and fade in, decelerating; they leave fast, accelerating.
-"motion.style" = "slide"
-"motion.open_ms" = 250
-"motion.open_curve" = [0.0, 0.0, 0.0, 1.0]
-"motion.close_ms" = 167
-"motion.close_curve" = [1.0, 0.0, 1.0, 1.0]
-"motion.fast_ms" = 167
-"motion.fast_curve" = [0.0, 0.0, 0.0, 1.0]
-"motion.effects_ms" = 83
-"motion.effects_curve" = [0.0, 0.0, 0.0, 1.0]
 "cursor" = "fluent"
 # Start: the pinned grid six to a row (three rows), the recommended rows under it, the footer with the user and power.
 "start.grid" = 6

@@ -1,0 +1,29 @@
+# Sumi (an offer for washi): washi's ink bleed, sidebars unrolled as hanging scrolls, toasts as an ink drop.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "sumi"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0.2, 0, 0.1, 1)"
+open_ms = 360
+close = "cubic-bezier(0.4, 0, 1, 1)"
+close_ms = 220
+fast = "cubic-bezier(0.2, 0, 0.1, 1)"
+fast_ms = 180
+effects_ms = 200
+
+[form]
+open = "bleed"
+close = "bleed"
+[form.sidebar]
+open = "roll"
+close = "roll"
+[form.toast]
+open = "drop"
+close = "drop"
+
+[params.roll]
+radius = 16
+variant = "scroll"
+
+[accents]

@@ -1,0 +1,20 @@
+# Terminal — Motion: a cut, softened only to a quick linear fade (a terminal redraws; it does not animate).
+# Moved from looks/terminal.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "terminal"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0, 0, 1, 1)"
+open_ms = 80
+close = "cubic-bezier(0, 0, 1, 1)"
+close_ms = 60
+fast = "cubic-bezier(0, 0, 1, 1)"
+fast_ms = 60
+effects = "cubic-bezier(0, 0, 1, 1)"
+effects_ms = 60
+
+[form]
+open = "fade"
+close = "fade"
+
+[accents]

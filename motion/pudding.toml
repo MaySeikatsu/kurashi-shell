@@ -1,0 +1,20 @@
+# Pudding (an offer for kawaii): cards stretch in like a rubber band and wobble home like pudding; they close by
+# shrinking back into their origin.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "pudding"
+base = "expressive"
+
+[timing]
+open = "pudding"
+close = "emphasized"
+close_ms = 360
+fast = "bouncy"
+effects = "effects"
+effects_ms = 200
+
+[form]
+open = "rubber"
+close = "grow"
+
+[accents]
+jelly = 0.6

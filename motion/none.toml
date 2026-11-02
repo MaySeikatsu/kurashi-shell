@@ -1,0 +1,3 @@
+# Off: no animation at all — things appear at once.
+name = "none"
+base = "none"

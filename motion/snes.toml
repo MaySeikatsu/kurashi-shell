@@ -1,0 +1,20 @@
+# SNES — Stepped motion: a window grows in four steps, one frame each at 60 Hz (67 ms), no easing — FF6 opens its dialogue box
+# one 8 px strip pair per update (window.asm DlgOpenMaskTbl, five steps).
+# Moved from looks/snes.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "snes"
+base = "expressive"
+
+[timing]
+open_ms = 67
+close_ms = 67
+fast_ms = 50
+effects_ms = 50
+
+[form]
+open = "stepped"
+close = "stepped"
+
+[params.stepped]
+hold = 1
+
+[accents]
