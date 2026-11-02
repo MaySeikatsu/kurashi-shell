@@ -14,5 +14,12 @@ fast_ms = 150
 [form]
 open = "slide"
 close = "slide"
+# K83 D4 (the user): the dock and toasts pour out of and back into their source like the Genie effect.
+[form.dock]
+open = "genie"
+close = "genie"
+[form.toast]
+open = "genie"
+close = "genie"
 
 [accents]

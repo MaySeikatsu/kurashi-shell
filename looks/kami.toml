@@ -6,7 +6,8 @@ category = "inspired"
 # bar a pencil line; tooltips and toasts notes torn from the page; the lock a notebook page with a handwritten clock.
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
+# K83 D4 (the user): kami opens like origami — cards unfold, sidebars roll out, toasts fall in as a drop and leave crumpled.
+"theme.motion.profile" = "origami"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 13

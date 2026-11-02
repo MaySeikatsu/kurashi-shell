@@ -384,8 +384,8 @@
   "motion.form.centre.open": "slide",
   "motion.form.dialog.close": "slide",
   "motion.form.dialog.open": "slide",
-  "motion.form.dock.close": "slide",
-  "motion.form.dock.open": "slide",
+  "motion.form.dock.close": "genie",
+  "motion.form.dock.open": "genie",
   "motion.form.island.close": "slide",
   "motion.form.island.open": "slide",
   "motion.form.launcher.close": "slide",
@@ -400,8 +400,8 @@
   "motion.form.peek.open": "slide",
   "motion.form.sidebar.close": "slide",
   "motion.form.sidebar.open": "slide",
-  "motion.form.toast.close": "slide",
-  "motion.form.toast.open": "slide",
+  "motion.form.toast.close": "genie",
+  "motion.form.toast.open": "genie",
   "motion.forms": {
     "bleed": {
       "available": true,

@@ -9,5 +9,12 @@ base = "calm"
 [form]
 open = "zoom"
 close = "zoom"
+# K83 D4 (the user): the dock and toasts pour out of and back into their source like the Genie effect.
+[form.dock]
+open = "genie"
+close = "genie"
+[form.toast]
+open = "genie"
+close = "genie"
 
 [accents]
