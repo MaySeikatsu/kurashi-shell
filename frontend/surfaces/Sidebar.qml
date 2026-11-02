@@ -638,7 +638,7 @@ Scope {
                         direction: sbRun.dir
                         progress: sbRun.sheet ? sbRun.p : 1
                         visible: !sbRun.sheet || sbRun.p > 0
-                        source: sheetSrc
+                        source: bodySrc
                     // K83 (W59.9a): a shape form draws the column (and its shadows) through its mask while it moves.
                     ShapeLayer {
                         anchors.fill: parent
@@ -655,8 +655,8 @@ Scope {
 
                         // The column's shadows, in the canonical frame (outside what a sheet form captures).
                         Item {
-                            x: box.x
-                            y: box.y
+                            x: box.x - clipper.x
+                            y: box.y - clipper.y
                             width: win.boxW
                             height: win.height
                             opacity: sbHost.sheetShadow
@@ -687,14 +687,20 @@ Scope {
                                 mirrorX: sb.side === "left" ? -1 : 1
                             }
                         }
+                        // W59.9a: the column as drawn, window-aligned (a sheet form's layers then keep its material
+                        // registered with the output): SheetRest takes it into one layer while a sheet form runs, and
+                        // the form captures its body's box (`bodySrc`).
                         Item {
                             id: sheetSrc
-                            anchors.fill: parent
+                            x: -clipper.x
+                            y: -clipper.y
+                            width: win.width
+                            height: win.height
                         // The shape and its relief mask, in the canonical frame.
                         Item {
                             id: box
-                            x: (sb.side === "left" ? 0 : win.width - win.boxW) - clipper.x
-                            y: -clipper.y
+                            x: sb.side === "left" ? 0 : win.width - win.boxW
+                            y: 0
                             width: win.boxW
                             height: win.height
                             transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
@@ -772,8 +778,8 @@ Scope {
                         FocusScope {
                             id: content
                             z: 1
-                            x: shapeRect.x - clipper.x + Theme.pad
-                            y: shapeRect.y - clipper.y + Theme.pad
+                            x: shapeRect.x + Theme.pad
+                            y: shapeRect.y + Theme.pad
                             width: col.colW - 2 * Theme.pad
                             height: shapeRect.height - 2 * Theme.pad
                             focus: true
@@ -807,6 +813,31 @@ Scope {
                                 sourceComponent: sb.mode === "pages" ? leftC : rightC
                             }
                         }
+                        }
+                        // W59.9a: while a sheet form warps the column, the rest of it (the join's fillets, sized by the
+                        // landing, and anything beside the body) × the landing, and the body's box the form captures —
+                        // hinged on the screen's edge, square where it meets its neighbours, so p = 1 is the rest frame.
+                        SheetRest {
+                            id: sbRest
+                            x: -clipper.x
+                            y: -clipper.y
+                            width: win.width
+                            height: win.height
+                            on: sbHost.sheetSolid
+                            draw: sheetSrc
+                            body: Qt.rect(Math.round(shapeRect.x), Math.round(shapeRect.y), Math.round(shapeRect.width),
+                                Math.round(shapeRect.height))
+                            hingeY: -1e6
+                            k: sbHost.sheetFillets
+                        }
+                        Item {
+                            id: bodySrc
+                            x: sbRest.body.x - clipper.x
+                            y: sbRest.body.y - clipper.y
+                            width: sbRest.body.width
+                            height: sbRest.body.height
+                            clip: true
+                            SheetRest.Body { rest: sbRest }
                         }
                     }
                     }

@@ -63,8 +63,13 @@ Item {
             height: sl.height
         }
     }
-    OutlineRects {
+    // (made only while the outline form steps: a Shape per surface window that comes and goes, a sidebar's or a toast's,
+    // kept memory per window it was made in — 3.6 MiB a sidebar open/close, the lead's K16 finding, W59.9a)
+    Loader {
         anchors.fill: parent
-        rects: sl.sf && sl.sf.outline ? sl.sf.rects.map(function (r) { return sl.rectOf(r) }) : []
+        active: sl.sf !== null && sl.sf.outline
+        sourceComponent: OutlineRects {
+            rects: sl.sf && sl.sf.outline ? sl.sf.rects.map(function (r) { return sl.rectOf(r) }) : []
+        }
     }
 }

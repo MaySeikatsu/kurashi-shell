@@ -41,8 +41,8 @@ ShaderEffect {
     component Body: ShaderEffect {
         property Item rest: null
         visible: rest !== null && rest.on
-        x: rest ? -parent.x : 0
-        y: rest ? -parent.y : 0
+        x: rest ? rest.x - parent.x : 0
+        y: rest ? rest.y - parent.y : 0
         width: rest ? rest.width : 0
         height: rest ? rest.height : 0
         property var source: rest ? rest.texture : null
