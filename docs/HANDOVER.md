@@ -26,17 +26,18 @@ style defaults (kami origami, terminal phosphor, aqua/vibrancy genie), niri `the
 `just suites` (before W59.3's follow-ups): 11/13 — recipes fixed since; **sidebars USS +11 MiB** (handed to W59.9a).
 **User rules this session:** at most **two** agents at once (memory `max-two-agents`); screenshots stay local (I345).
 
-**Two agent branches may be finished but unmerged** (their agents ran when the session hit its limit):
+W59.6b (Settings live preview + gallery thumbnail) is merged too (c8e5ff1c; its full `settings/test.sh` was green; rows
+690–692 await a decision: the settings links — accept as rows 650/663; `FormHost.forceForm`; per-pack preview data).
+**One agent branch may be finished but unmerged** (its agent was still running at the session's end):
 - `feat/w59-9a-surface-polish` (worktree `.claude/worktrees/agent-a30f10a30628a8d36`, card `docs/tasks/W59.9a-*.md`):
   liquid, shape forms on toast/dock/sidebar, iris press point, seamless landings, **+ the sidebar USS leak and the false
   "form grow is unknown" warnings**.
-- `feat/w59-6b-motion-preview` (worktree `…/agent-a3a2d0ca949469604`): Settings' live preview stage + gallery thumbnails.
 
 **Next steps (short, in order):**
-1. For each branch above: `git log feat/w59-motion-engine..<branch>`; if the work looks complete, merge `--no-ff` into
+1. For the branch above: `git log feat/w59-motion-engine..<branch>`; if the work looks complete, merge `--no-ff` into
    `feat/w59-motion-engine`, run its card's acceptance (W59.9a: `frontend/test-sidebars.sh` alone must pass the USS check;
-   `frontend/test-motion.sh`; W59.6b: `SETTINGS_PART=motion settings/test.sh`), then remove the worktree/branch and
-   `~/.cache/kurashi-agents-target/W59.9a|W59.6b`. If a branch is half-done, merge only what passes and file the rest.
+   `frontend/test-motion.sh`), then remove the worktree/branch and
+   `~/.cache/kurashi-agents-target/W59.9a`. If a branch is half-done, merge only what passes and file the rest.
 2. README previews: `nix develop -c tools/motion-previews.sh` (session menu), plus `MOTION_SURFACE=sidebar … roll` and
    `MOTION_SURFACE=toast … drop crumple`; look at **every** frame sheet in `/tmp/kurashi-motion-previews/review/` for personal
    data (I345) before `git add docs/media/motion/`; README §Motion already points at those files.
