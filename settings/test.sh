@@ -210,6 +210,177 @@ shot() { sleep 1; grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 # No settle delay: a search flash or a tooltip is only on screen for a moment.
 shot_now() { grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 
+# --- W59.6 (K83; docs/ux/motion-engine.md §3, §4, §8, §11): Settings › Motion. -------------------------------------------
+# M1 the page opens with its preview stage (a placeholder until W59.2), the reduce-motion line, the profile gallery, the curve
+# editors and the forms table; M2 a profile picked → the theme document's motion.profile changes and the row reads "you";
+# M3 `cubic-bezier(0.2, 2.5, 0.3, 1)` typed into a curve's paste field → refused with its reason, nothing applied; M4 a
+# Hyprland curve typed → written canonical; M5 a handle moved by keyboard (arrows, Shift) → Return applies it, Escape puts a
+# nudge back; M6 the tabs by keyboard (Presets, a pick), a spring and steps; M7 the island's own forms once it stops following;
+# M8 reduce motion on → the profile is forced and the page says so. Shots: settings/shots/motion/ (local, I345).
+# `SETTINGS_PART=motion settings/test.sh` runs only this part (both languages) after the app starts.
+mshot() { sleep 1; mkdir -p "$SHOTS/motion"; grim -o HEADLESS-1 "$SHOTS/motion/$1.png"; [ -s "$SHOTS/motion/$1.png" ]; }
+# A keyboard of the part's own when the run has none open yet (a keyboard that goes away drops the focus: one for the part).
+mkeys() {
+  [ -n "$kbd_pid" ] && return 0
+  rm -f "$R/keys.fifo"; mkfifo "$R/keys.fifo"
+  python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & kbd_pid=$!; pids+=("$kbd_pid")
+  exec 3> "$R/keys.fifo"
+}
+mkp() { for k in "$@"; do echo "$k" >&3; sleep 0.15; done; sleep 0.2; }
+mtab_to() {   # <objectName or accessible name> [max]
+  for _ in $(seq "${2:-200}"); do [ "$(Q focused)" = "$1" ] && return 0; echo tab >&3; sleep 0.12; done
+  fail "motion: Tab never reached $1 ($(Q focused))"
+}
+# A token of the theme document as JSON (the first snapshot of a subscription).
+mtoken() { timeout 5 "$BIN/kurashi" --json sub theme --count 0 | python3 -I -c 'import json,sys; d=json.loads(sys.stdin.readline()); t=d.get("tokens") or d.get("v",{}).get("tokens") or d.get("data",{}).get("tokens") or {}; print(json.dumps(t.get(sys.argv[1])))' "$1"; }
+mwait_val() { for _ in $(seq 50); do [ "$(val "$1")" = "$2" ] && return 0; sleep 0.1; done; fail "motion: $1 is $(val "$1"), expected $2"; }
+motion_en() {
+  mkeys
+  Q goto motion
+  for _ in $(seq 50); do [ "$(Q current)" = motion ] && break; sleep 0.2; done
+  [ "$(Q current)" = motion ] || fail "motion: the page did not open ($(Q current))"
+  Q scroll 0
+  for n in motion-preview motion-a11y:off profiles:theme.motion.profile curve:theme.motion.timing.open \
+           curve:theme.motion.timing.effects forms-table forms-line:island form:theme.motion.form.open; do
+    [ "$(Q present "$n")" = yes ] || fail "motion M1: $n is not on the page"
+  done
+  [[ "$(Q sections)" == *motion.profile*motion.timing*motion.forms*motion.choreography*motion.windows* ]] \
+    || fail "motion M1: the sections are $(Q sections)"
+  mshot page
+  echo "motion M1: the page opens with the preview stage, the gallery, the curve editors and the forms table"
+
+  # M2. a profile: the gallery's pick is one change; the theme document follows and the row reads "you".
+  Q pick theme.motion.profile '"calm"'
+  mwait_val theme.motion.profile '"calm"'
+  [ "$(src theme.motion.profile)" = user ] || fail "motion M2: the profile's layer is $(src theme.motion.profile)"
+  for _ in $(seq 50); do [ "$(mtoken motion.profile)" = '"calm"' ] && break; sleep 0.1; done
+  [ "$(mtoken motion.profile)" = '"calm"' ] || fail "motion M2: the theme's motion.profile is $(mtoken motion.profile)"
+  mshot profile-calm
+  echo "motion M2: profile calm picked; the theme document says calm and the row says you"
+  K '{"t":"apply","id":"m2","ops":[{"reset":"theme.motion.profile"}]}' | grep -q applied || fail "motion M2: reset refused"
+
+  # M3. a refused curve, typed: the reason under the row, the text kept, nothing applied.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "Closing as text"
+  Q scrollTo curve:theme.motion.timing.close
+  mkp c u b i c - b e z i e r "(" 0 . 2 , space 2 . 5 , space 0 . 3 , space 1 ")" return
+  for _ in $(seq 30); do [ -n "$(Q rowError theme.motion.timing.close)" ] && break; sleep 0.1; done
+  [[ "$(Q rowError theme.motion.timing.close)" == *"between -1 and 2"* ]] \
+    || fail "motion M3: the refusal reads '$(Q rowError theme.motion.timing.close)'"
+  [ "$(val theme.motion.timing.close)" = '""' ] || fail "motion M3: a refused curve was applied ($(val theme.motion.timing.close))"
+  mshot curve-refused
+  echo "motion M3: cubic-bezier(0.2, 2.5, 0.3, 1) refused: $(Q rowError theme.motion.timing.close)"
+
+  # M4. Hyprland's x0, y0, x1, y1 typed over it: written in the canonical form.
+  mkp ctrl+a backspace 0 . 3 , space 0 , space 0 . 8 , space 0 . 1 5 return
+  mwait_val theme.motion.timing.close '"cubic-bezier(0.3, 0, 0.8, 0.15)"'
+  [ -z "$(Q rowError theme.motion.timing.close)" ] || fail "motion M4: the refusal stayed"
+  echo "motion M4: 0.3, 0, 0.8, 0.15 written as cubic-bezier(0.3, 0, 0.8, 0.15)"
+
+  # M5. a handle by keyboard: Escape puts a nudge back; Up Up Shift+Right then Return writes the moved curve.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "curve-handle:theme.motion.timing.open:1"
+  mkp up escape
+  sleep 0.3
+  [ "$(val theme.motion.timing.open)" = '""' ] || fail "motion M5: Escape did not put the nudge back ($(val theme.motion.timing.open))"
+  mkp up up shift+right
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-handle-draft
+  mkp return
+  for _ in $(seq 50); do [[ "$(val theme.motion.timing.open)" == '"cubic-bezier('* ]] && break; sleep 0.1; done
+  [[ "$(val theme.motion.timing.open)" == '"cubic-bezier('* ]] || fail "motion M5: the handle edit was not written ($(val theme.motion.timing.open))"
+  [ "$(src theme.motion.timing.open)" = user ] || fail "motion M5: the curve's layer is $(src theme.motion.timing.open)"
+  mshot curve-cubic
+  echo "motion M5: handle 1 moved by keyboard: $(val theme.motion.timing.open)"
+
+  # M6. the tabs by keyboard: Quick moves' Presets, the first tile, Right, Return picks Emphasized. A spring and steps drawn.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "curve-tab:theme.motion.timing.fast:cubic"
+  mkp right right right
+  [ "$(Q focused)" = "curve-tab:theme.motion.timing.fast:presets" ] || fail "motion M6: the arrows did not open Presets ($(Q focused))"
+  mkp tab
+  [[ "$(Q focused)" == curve-preset:theme.motion.timing.fast:* ]] || fail "motion M6: Tab did not enter the presets ($(Q focused))"
+  mkp right return
+  mwait_val theme.motion.timing.fast '"emphasized"'
+  Q scrollTo curve:theme.motion.timing.fast
+  mshot curve-presets
+  K '{"t":"apply","id":"m6","ops":[{"set":"theme.motion.timing.open","value":"spring(550ms, 0.45)"},{"set":"theme.motion.timing.close","value":"steps(6)"}]}' \
+    | grep -q applied || fail "motion M6: a spring and steps were refused"
+  sleep 0.5
+  [ "$(Q present spring-stats:theme.motion.timing.open)" = yes ] || fail "motion M6: the spring's plot is not shown"
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-spring
+  Q scrollTo curve:theme.motion.timing.close
+  mshot curve-steps
+  echo "motion M6: Presets by keyboard (emphasized), a spring with its overshoot and settle time, steps"
+
+  # M7. the island: following the default its own pickers are inert; off, they are its own.
+  Q scrollTo forms-table
+  mshot forms-follow
+  K '{"t":"apply","id":"m7","ops":[{"set":"theme.motion.form.island.follow","value":false},{"set":"theme.motion.form.toast.open","value":"fade"}]}' \
+    | grep -q applied || fail "motion M7: refused"
+  sleep 0.5
+  Q scrollTo forms-table
+  mshot forms-own
+  echo "motion M7: the forms table, following and on its own"
+
+  # M8. reduce motion: the profile is forced (its row says by what), the page's line says so.
+  K '{"t":"apply","id":"m8","ops":[{"set":"a11y.reduce_motion","value":true}]}' | grep -q applied || fail "motion M8: refused"
+  for _ in $(seq 50); do [ "$(Q present motion-a11y:on)" = yes ] && break; sleep 0.1; done
+  [ "$(Q present motion-a11y:on)" = yes ] || fail "motion M8: the page does not say reduce motion is on"
+  [ "$(src theme.motion.profile)" = forced ] || fail "motion M8: the profile is not forced ($(src theme.motion.profile))"
+  Q scroll 0
+  mshot reduced
+  echo "motion M8: reduce motion forces the profile; the page says so"
+  # Dark, then back to the baseline the later steps expect.
+  K '{"t":"apply","id":"m9","ops":[{"set":"theme.colors.scheme","value":"dark"},{"reset":"a11y.reduce_motion"}]}' | grep -q applied || fail "motion: dark refused"
+  sleep 1
+  Q scroll 0
+  mshot page-dark
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-spring-dark
+  K '{"t":"apply","id":"m10","ops":[{"reset":"theme.colors.scheme"},{"reset":"theme.motion"}]}' | grep -q applied || fail "motion: the reset was refused"
+  echo "motion: SKIPPED the preview scrub (card acceptance): the preview stage waits for W59.2's FormHost and Driver"
+  Q goto layout
+}
+motion_ja() {
+  Q goto motion
+  for _ in $(seq 50); do [ "$(Q current)" = motion ] && break; sleep 0.2; done
+  Q scroll 0
+  mshot ja-page
+  K '{"t":"apply","id":"mj","ops":[{"set":"theme.motion.timing.open","value":"spring(550ms, 0.45)"}]}' | grep -q applied || fail "motion ja: refused"
+  sleep 0.5
+  Q scrollTo curve:theme.motion.timing.open
+  mshot ja-curve-spring
+  Q scrollTo forms-table
+  mshot ja-forms
+  K '{"t":"apply","id":"mj2","ops":[{"reset":"theme.motion"}]}' | grep -q applied || fail "motion ja: reset refused"
+  echo "motion ja: the page, a spring and the forms table in Japanese"
+}
+qml_errors() {
+  if grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to assign|SyntaxError|Expected token|anchors' \
+      "$R/settings.log" | sed 's/\x1b\[[0-9;]*m//g' | grep -q .; then
+    grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to assign|SyntaxError|Expected token|anchors' \
+      "$R/settings.log" | sed 's/\x1b\[[0-9;]*m//g' | head -20
+    fail "QML errors in the settings log"
+  fi
+}
+if [ "${SETTINGS_PART:-}" = motion ]; then
+  motion_en
+  exec 3>&-; kbd_pid=""
+  qml_errors
+  kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
+  sleep 0.5
+  start_daemon ja_JP.UTF-8
+  start_qs "" motion
+  for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+  sleep 1.5
+  motion_ja
+  qml_errors
+  echo "ok (motion part, $HOST host): $SHOTS/motion/"; ls "$SHOTS/motion"
+  exit 0
+fi
+
 # 0. the deep link: the palette row's page opens by itself once the schema is in (the check is the page, the shot shows
 #    the row in place; its flash is over after a second).
 for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
@@ -1413,6 +1584,9 @@ K '{"t":"apply","id":"cl2","ops":[{"reset":"theme.colors.scheme"},{"reset":"them
 wait_ap look kanso
 Q goto layout
 
+# W59.6: Settings › Motion (the part defined after the start; SETTINGS_PART=motion runs it alone).
+motion_en
+
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
@@ -1427,6 +1601,7 @@ sleep 1.5
 shot ja-page-link-records
 Q goto layout
 lshot ja-layout-top
+motion_ja
 Q goto appearance
 shot ja-appearance
 Q goto power
