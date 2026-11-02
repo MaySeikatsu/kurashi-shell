@@ -9,9 +9,10 @@
 #                                                             (~30–60 ms a shot) catches enough frames; playback undoes it
 #
 # Privacy (I345): the sandbox still sees the real HOME until card W60 lands, so this films only cards that carry no
-# personal data (the session menu, the clock, an empty sidebar, a toast with fixed text) over a generated wallpaper,
+# personal data (the session menu, the clock, a toast with fixed text) over a generated wallpaper,
 # with no launcher and no terminal. It writes a contact sheet of every frame (OUT/review/<form>.png): look at each one
-# before committing a preview. Previews are the one place images are tracked on purpose (docs/media/, not a shots/ dir).
+# before committing a preview. The sidebar is NOT safe yet: its header shows the login name (seen 2026-11-02, I364).
+# Previews are the one place images are tracked on purpose (docs/media/, not a shots/ dir).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SB="$ROOT/tools/bench/niri-sandbox.sh"
