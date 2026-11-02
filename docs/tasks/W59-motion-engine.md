@@ -91,7 +91,7 @@ makes kami recommend `origami`, terminal `phosphor`, and gives the `aqua` pack (
 (D4); washi stays as it is; the rest are offers.
 
 ### Frontend interfaces (W59.2 creates; W59.3–W59.8 use)
-- `Theme.motionCurve(role)`, `Theme.motionForm(surface, dir)`, `Theme.formParams(form)`, `Theme.accent(name)`,
+- `Theme.motionCurve(role)`, `Theme.motionForm(surface, dir)`, `Theme.formParams(form)`, `Theme.motionAccent(name)` (row 651),
   `Theme.formMeta(form)` — plain readers of the tokens above (Theme.qml stays the token gate).
 - `Driver { to; role: "auto"|…; value; velocity; progress; running; direction; function track(p); function release(v);
   function snap(v) }` — FrameAnimation-driven, running only while moving; honours `KURASHI_MOTION_SCRUB`.
