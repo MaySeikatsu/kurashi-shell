@@ -233,6 +233,10 @@ mtab_to() {   # <objectName or accessible name> [max]
 }
 # A token of the theme document as JSON (the first snapshot of a subscription).
 mtoken() { timeout 5 "$BIN/kurashi" --json sub theme --count 0 | python3 -I -c 'import json,sys; d=json.loads(sys.stdin.readline()); t=d.get("tokens") or d.get("v",{}).get("tokens") or d.get("data",{}).get("tokens") or {}; print(json.dumps(t.get(sys.argv[1])))' "$1"; }
+# The daemon's reason on a key (K21), or "-" when it gives none.
+why() { K "{\"t\":\"cfg.get\",\"id\":\"w\",\"key\":\"$1\"}" | python3 -c 'import json,sys; m=json.loads(sys.stdin.readline()); print(m["v"].get("reason") or "-")'; }
+# Waits up to 5 s for the page to show an item named so.
+mwait_present() { for _ in $(seq 50); do [ "$(Q present "$1")" = yes ] && return 0; sleep 0.1; done; fail "motion: $2 ($1 is not on the page)"; }
 mwait_val() { for _ in $(seq 50); do [ "$(val "$1")" = "$2" ] && return 0; sleep 0.1; done; fail "motion: $1 is $(val "$1"), expected $2"; }
 motion_en() {
   mkeys
@@ -333,11 +337,45 @@ motion_en() {
   for _ in $(seq 50); do [ "$(Q present motion-a11y:on)" = yes ] && break; sleep 0.1; done
   [ "$(Q present motion-a11y:on)" = yes ] || fail "motion M8: the page does not say reduce motion is on"
   [ "$(src theme.motion.profile)" = forced ] || fail "motion M8: the profile is not forced ($(src theme.motion.profile))"
+  # The axes say why they do nothing now, in the daemon's words (K83 inert pass): a curve row and a plain slider alike.
+  [ "$(why theme.motion.timing.open)" = settings.inert.motion.reduced ] \
+    || fail "motion M8: timing.open's reason is $(why theme.motion.timing.open)"
+  mwait_present reason:theme.motion.timing.open:daemon "M8: the opening curve does not say reduce motion is on"
+  mwait_present reason:theme.motion.speed:daemon "M8: the speed does not say reduce motion is on"
   Q scroll 0
   mshot reduced
-  echo "motion M8: reduce motion forces the profile; the page says so"
+  echo "motion M8: reduce motion forces the profile; the page and every axis say so"
+  K '{"t":"apply","id":"m8b","ops":[{"reset":"a11y.reduce_motion"}]}' | grep -q applied || fail "motion M8: the reset was refused"
+  for _ in $(seq 50); do [ "$(Q present reason:theme.motion.speed:daemon)" = no ] && break; sleep 0.1; done
+  [ "$(Q present reason:theme.motion.speed:daemon)" = no ] || fail "motion M8: speed still says it is inert"
+
+  # M8b. a profile that does not move (win95's): the axes say so.
+  K '{"t":"apply","id":"m8c","ops":[{"set":"theme.motion.profile","value":"win95"}]}' | grep -q applied \
+    || fail "motion M8b: the win95 profile was refused"
+  for _ in $(seq 50); do [ "$(why theme.motion.speed)" = settings.inert.motion.still ] && break; sleep 0.1; done
+  [ "$(why theme.motion.speed)" = settings.inert.motion.still ] || fail "motion M8b: speed's reason is $(why theme.motion.speed)"
+  mwait_present reason:theme.motion.speed:daemon "M8b: the speed does not say the profile does not move"
+  Q scrollTo curve:theme.motion.timing.open
+  mshot still
+  echo "motion M8b: a profile that does not move: the axes say so"
+  K '{"t":"apply","id":"m8d","ops":[{"reset":"theme.motion.profile"}]}' | grep -q applied || fail "motion M8b: the reset was refused"
+
+  # M8c. a form the surface cannot use (fold on the bar): the line says the default plays; the cell stays editable.
+  K '{"t":"apply","id":"m8e","ops":[{"set":"theme.motion.form.bar.open","value":"fold"}]}' | grep -q applied \
+    || fail "motion M8c: fold on the bar was refused"
+  # The daemon says either: the bar's offers leave fold out (I9, checked first) or the forms meta does not let it serve.
+  for _ in $(seq 50); do [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] && break; sleep 0.1; done
+  [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] \
+    || fail "motion M8c: bar.open's reason is $(why theme.motion.form.bar.open)"
+  mwait_present forms-reason:bar:unavailable "M8c: the bar's line does not say its form cannot be used"
+  Q scrollTo forms-line:bar
+  mshot surface
+  [ "$(Q present form-inert:theme.motion.form.bar.open)" = no ] || fail "motion M8c: the bar's cell cannot be changed back"
+  [ "$(Q present form-inert:theme.motion.form.bar.close)" = no ] || fail "motion M8c: the bar's closing cell is inert"
+  echo "motion M8c: a form the surface cannot use: said on its line, and the cell can be changed back"
+  K '{"t":"apply","id":"m8f","ops":[{"reset":"theme.motion.form.bar.open"}]}' | grep -q applied || fail "motion M8c: the reset was refused"
   # Dark, then back to the baseline the later steps expect.
-  K '{"t":"apply","id":"m9","ops":[{"set":"theme.colors.scheme","value":"dark"},{"reset":"a11y.reduce_motion"}]}' | grep -q applied || fail "motion: dark refused"
+  K '{"t":"apply","id":"m9","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' | grep -q applied || fail "motion: dark refused"
   sleep 1
   Q scroll 0
   mshot page-dark

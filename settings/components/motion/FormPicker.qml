@@ -1,7 +1,6 @@
 import QtQuick
 import "../../core"
 import ".."
-import "reasons.js" as RS
 
 // The form a surface opens or closes in (brief §5, §6, §8): a dropdown of the forms the daemon offers (`motion.forms`), with
 // a small glyph of the form in effect. The forms meta (`motion.forms` token: {family, surfaces, available, …}, W59.1)
@@ -24,10 +23,9 @@ Column {
     readonly property string dir: fp.parts[fp.parts.length - 1]
     readonly property var prov: { Store.config; return Store.prov(fp.rowKey, "") }
     readonly property string value: fp.prov && typeof fp.prov.value === "string" ? fp.prov.value : ""
-    // The daemon's own reason (K83: a form that cannot serve this surface, motion off …), when Store.inertReasons does not
-    // word it: shown here, and inert.
-    readonly property var own: RS.extra(fp.prov)
-    readonly property bool inert: { Store.config; return fp.own !== null || Store.inertReasons(fp.row, "").some(function (x) {
+    // As SettingRow decides it; the reasons (K83's too) are SettingRow's lines under the picker, or in the forms table the
+    // line's. A pending restart, a missing offer, a form the surface cannot use or a mod that is off keep it editable.
+    readonly property bool inert: { Store.config; return Store.inertReasons(fp.row, "").some(function (x) {
         return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off" }) }
     readonly property bool editable: !fp.inert && Store.live
 
@@ -98,6 +96,7 @@ Column {
             cancellable: false
             onPicked: v => { if (v !== fp.value) Store.setValue(fp.rowKey, v, "") }
         }
+        // The settings test reads whether the cell can be changed (W59.6).
+        Item { objectName: "form-inert:" + fp.rowKey; visible: !fp.editable; width: 0; height: 0 }
     }
-    MotionReason { reason: fp.own; onOpenKey: key => fp.openKey(key) }
 }

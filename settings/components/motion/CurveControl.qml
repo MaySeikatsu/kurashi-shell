@@ -2,7 +2,6 @@ import QtQuick
 import "../../core"
 import ".."
 import "curvemath.js" as CM
-import "reasons.js" as RS
 
 // The `curve` control (schema control "curve", K83; brief docs/ux/motion-engine.md §4, §8): one role's curve
 // (theme.motion.timing.<role>) as a graph, in four tabs — Cubic (two handles), Spring (duration and bounce, stiffness and
@@ -25,14 +24,11 @@ Column {
     readonly property var prov: { Store.config; return Store.prov(cc.rowKey, "") }
     readonly property string value: cc.prov && typeof cc.prov.value === "string" ? cc.prov.value : ""
     // As SettingRow decides it: a pending restart, a missing offer or a mod that is off keep a row editable.
-    // The daemon's own reason (K83: motion off, …) when Store.inertReasons does not word it: shown here, and inert.
-    readonly property var own: RS.extra(cc.prov)
-    readonly property bool inert: { Store.config; return cc.own !== null || Store.inertReasons(cc.row, "").some(function (x) {
+    readonly property bool inert: { Store.config; return Store.inertReasons(cc.row, "").some(function (x) {
         return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off" }) }
     readonly property bool editable: !cc.inert && Store.live
     readonly property bool refused: !!Store.rowErrors[cc.rowKey]
 
-    MotionReason { reason: cc.own; onOpenKey: key => cc.openKey(key) }
 
     // The value read as the daemon reads it (a pack's curve name has no curve here: its pack has it).
     readonly property var parsed: cc.value === "" ? null : CM.parse(cc.value)

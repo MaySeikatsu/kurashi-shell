@@ -2,7 +2,6 @@ import QtQuick
 import "../../core"
 import ".."
 import "curvemath.js" as CM
-import "reasons.js" as RS
 
 // The motion profiles as cards (brief §8 item 2): one per motion pack the daemon offers (`motion.profiles`), each with its
 // name and what it does; the one in effect has a ring and a check, the one the style recommends says so (from the key's
@@ -20,8 +19,7 @@ Column {
     readonly property var row: { Store.schema; var h = Store.rowOf(pg.rowKey); return h ? h.row : ({}) }
     readonly property var prov: { Store.config; return Store.prov(pg.rowKey, "") }
     readonly property string current: pg.prov && typeof pg.prov.value === "string" ? pg.prov.value : (pg.row.default ?? "")
-    readonly property var own: RS.extra(pg.prov)
-    readonly property bool inert: { Store.config; return pg.own !== null || Store.inertReasons(pg.row, "").some(function (x) {
+    readonly property bool inert: { Store.config; return Store.inertReasons(pg.row, "").some(function (x) {
         return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off" }) }
     readonly property bool editable: !pg.inert && Store.live
     // Packs that cannot run yet (a draft whose forms are not built: `enabled: false` with its reason) stay in the gallery,
@@ -200,5 +198,4 @@ Column {
             onActivated: { pg.picked = ""; Store.undo() }
         }
     }
-    MotionReason { reason: pg.own; onOpenKey: key => pg.openKey(key) }
 }

@@ -1,7 +1,6 @@
 import QtQuick
 import "../../core"
 import ".."
-import "reasons.js" as RS
 
 // Forms per surface (brief §6, §8 "Surface | Opens | Closes"): one line per surface class with its two form pickers. Each
 // cell is its own setting (theme.motion.form.<surface>.<dir>): a cell the user set says so, with its Reset; a line's
@@ -51,12 +50,6 @@ Column {
                         seen[r.text] = true
                         out.push(r)
                     })
-                    // The switch's own daemon reason (the cells show theirs under their dropdowns).
-                    var own = k === "theme.motion.form.island.follow" ? RS.extra(Store.prov(k, "")) : null
-                    if (own && !seen[own.text]) {
-                        seen[own.text] = true
-                        out.push({ kind: "daemon", key: own.key, text: I18n.tr(own.text) })
-                    }
                 })
                 return out
             }
@@ -77,7 +70,7 @@ Column {
                     spacing: Theme.gap
                     readonly property var row: { Store.schema; var h = Store.rowOf("theme.motion.form.island.follow"); return h ? h.row : ({}) }
                     readonly property var prov: { Store.config; return Store.prov("theme.motion.form.island.follow", "") }
-                    readonly property bool inert: { Store.config; return RS.extra(prov) !== null || Store.inertReasons(row, "").some(function (x) {
+                    readonly property bool inert: { Store.config; return Store.inertReasons(row, "").some(function (x) {
                         return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off" }) }
                     MotionText { width: ft.nameW; anchors.verticalCenter: parent.verticalCenter; text: I18n.tr("motion.surface.island") }
                     Toggle {
@@ -143,6 +136,7 @@ Column {
                 model: line.reasons
                 delegate: Row {
                     required property var modelData
+                    objectName: "forms-reason:" + line.modelData + ":" + modelData.kind
                     x: ft.nameW + Theme.gap
                     spacing: Theme.gap
                     MotionText {
