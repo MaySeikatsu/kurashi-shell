@@ -526,8 +526,12 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
         "dialog"
       ],
       "tier": "transform"
@@ -694,14 +698,18 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
         "dialog"
       ],
       "tier": "layer"
     },
     "liquid": {
-      "available": false,
+      "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": true,
@@ -711,12 +719,7 @@
         "panel",
         "peek",
         "launcher",
-        "centre",
-        "toast",
-        "sidebar",
-        "osd",
-        "menu",
-        "dialog"
+        "centre"
       ],
       "tier": "transform"
     },
@@ -768,8 +771,12 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
         "dialog"
       ],
       "tier": "layer"
@@ -871,8 +878,12 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
         "dialog"
       ],
       "tier": "layer"

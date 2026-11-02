@@ -69,12 +69,14 @@ const fn s(name: &str) -> u16 {
         _ => panic!("unknown surface"),
     }
 }
-/// Every class but these.
-const fn but(mask: u16) -> u16 {
-    ALL & !mask
-}
 /// The cards that open from a bar or the island (a mesh needs room to fold, roll or pour).
 const CARDS: u16 = s("island") | s("panel") | s("launcher") | s("centre") | s("dialog");
+/// The surfaces that draw the shape forms (expand, iris, stamp, outline): the cards, and through a ShapeLayer (or the
+/// peek's morph) the peek, the toasts, the sidebars and the dock (W59.9a).
+const SHAPED: u16 = CARDS | s("peek") | s("toast") | s("sidebar") | s("dock");
+/// The surfaces whose live shape morphs out of its origin — the Stage's island views, panels and peeks, BarMorph's
+/// launcher and centre: what liquid needs (the origin's own rect and radius flow into the card).
+const MORPHS: u16 = s("island") | s("panel") | s("peek") | s("launcher") | s("centre");
 
 pub struct FormMeta {
     pub id: &'static str,
@@ -132,12 +134,13 @@ pub const FORMS: &[FormMeta] = &[
     f("stepped",  Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
     f("rubber",   Shape, ALL,                                                  Morph,  true,  0,          Transform, true),
     // W59.3: shape forms — drawn on the cards (the Stage's island views and panels, the launcher, the centre, the polkit
-    // dialog). The peek, toast, sidebar, dock, bar, osd and menu classes do not draw them yet (a value naming one there
-    // is not in effect, with the reason; row 659). iris, stamp and outline draw through a mask layer while they move.
-    f("expand",   Shape, CARDS,                                                Morph,  false, 0,          Transform, true),
-    f("iris",     Shape, CARDS,                                                Morph,  false, 0,          Layer,     true),
-    f("stamp",    Shape, CARDS,                                                Morph,  true,  0,          Layer,     true),
-    f("outline",  Shape, CARDS,                                                Morph,  false, 0,          Layer,     true),
+    // dialog); W59.9a: the peek, the toasts, the sidebars and the dock too. The bar, osd and menu classes do not draw them
+    // (a value naming one there is not in effect, with the reason; row 659). iris, stamp and outline draw through a mask
+    // layer while they move.
+    f("expand",   Shape, SHAPED,                                               Morph,  false, 0,          Transform, true),
+    f("iris",     Shape, SHAPED,                                               Morph,  false, 0,          Layer,     true),
+    f("stamp",    Shape, SHAPED,                                               Morph,  true,  0,          Layer,     true),
+    f("outline",  Shape, SHAPED,                                               Morph,  false, 0,          Layer,     true),
     // W59.4: paper.
     f("fold",     Sheet, CARDS | s("peek") | s("toast") | s("sidebar") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
     f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      true),
@@ -147,7 +150,7 @@ pub const FORMS: &[FormMeta] = &[
     f("genie",    Sheet, CARDS | s("dock") | s("toast") | s("peek") | s("menu"), Finish, false, VESTIBULAR, Mesh,  true),
     f("crt",      Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     true),
     f("drop",     Sheet, CARDS | s("toast") | s("peek") | s("osd"),            Finish, false, 0,          Layer,     true),
-    f("liquid",   Shape, but(s("bar") | s("dock")),                            Morph,  true,  0,          Transform, false),
+    f("liquid",   Shape, MORPHS,                                               Morph,  true,  0,          Transform, true),
     // W59.8: wave 3.
     f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      true),
     f("noren",    Sheet, CARDS | s("sidebar") | s("toast"),                    Finish, false, 0,          Mesh,      true),
@@ -243,14 +246,19 @@ mod tests {
     }
 
     #[test]
-    fn todays_forms_are_available_and_the_new_ones_wait_for_their_cards() {
+    fn every_form_is_available_where_it_is_drawn() {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
         for id in ["fan", "noren", "fold", "pixelate", "glitch", "dissolve"] {
             assert!(form(id).unwrap().available, "{id}");
         }
-        assert!(!form("liquid").unwrap().available);
+        // W59.9a: the last one (liquid) has landed; the shape forms reach the peek, toasts, sidebars and dock.
+        assert!(FORMS.iter().all(|m| m.available));
+        assert!(form("iris").unwrap().serves("toast"));
+        assert!(form("expand").unwrap().serves("dock"));
+        assert!(form("liquid").unwrap().serves("peek"));
+        assert!(!form("liquid").unwrap().serves("sidebar"));
         let m = meta();
         assert_eq!(m["fold"]["family"], "sheet");
         assert_eq!(m["fold"]["flags"], json!(["vestibular"]));
