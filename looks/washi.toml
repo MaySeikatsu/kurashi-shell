@@ -8,7 +8,7 @@ category = "inspired"
 # surfaces arrive as ink bleeds into paper (a calm fade while a blur clears).
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "washi"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 9
@@ -41,13 +41,4 @@ sounds = "washi"
 "menu.radius" = 0
 # Slips: square-ish paper, 2 px corners.
 "tooltip.radius" = 2
-# Ink settling into paper: a slow fade whose blur clears (open 360 ms decelerating, close 220 ms), nothing springs.
-"motion.style" = "bleed"
-"motion.open_ms" = 360
-"motion.open_curve" = [0.2, 0.0, 0.1, 1.0]
-"motion.close_ms" = 220
-"motion.close_curve" = [0.4, 0.0, 1.0, 1.0]
-"motion.fast_ms" = 180
-"motion.fast_curve" = [0.2, 0.0, 0.1, 1.0]
-"motion.effects_ms" = 200
 "cursor" = "washi"

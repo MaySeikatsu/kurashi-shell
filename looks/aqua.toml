@@ -9,7 +9,7 @@ category = "retro"
 # captures at 1:1 (the brief's §5 cites them).
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "aqua"
 "theme.material.kind" = "solid"
 "theme.material.blur" = false
 "theme.shape.corners" = "rounded"
@@ -99,14 +99,6 @@ sounds = "aqua"
 "button.gloss" = 0.9
 "button.pulse" = 3
 "button.pulse_ms" = 1500
-# Motion: sheets slide down out of the bar (~250 ms, ease out); menus and panels fade out.
-"motion.style" = "slide"
-"motion.open_ms" = 250
-"motion.close_ms" = 200
-"motion.fast_ms" = 150
-"motion.open_curve" = [0.25, 0.1, 0.25, 1.0]
-"motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
-"motion.fast_curve" = [0.25, 0.1, 0.25, 1.0]
 "cursor" = "aqua"
 # Quick settings as a menu extra's drop-down (no phone): compact toggles, the sliders (W53.3's generic keys); toasts in the
 # top-right corner under the menu bar, as a small utility panel (10.x had no system notifications).

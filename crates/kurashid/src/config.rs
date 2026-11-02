@@ -697,6 +697,13 @@ impl Offer {
         }
     }
 
+    /// Offered but not selectable now, with the reason (a value naming it is not in effect: `offered`).
+    fn unavailable(mut self, reason: &str) -> Self {
+        self.enabled = false;
+        self.reason = Some(reason.into());
+        self
+    }
+
     fn in_group(mut self, group: &str) -> Self {
         self.group = Some(group.into());
         self
@@ -847,27 +854,39 @@ fn offers_now(
                 .collect(),
         );
     }
-    // K83: the motion profiles and forms. W59.0 offers today's (the four profiles, `reduced` for reduce motion, the seven
-    // forms looks use); W59.1 replaces both lists with the motion packs and the forms meta of kurashi-motion.
-    offers.insert(
-        "motion.profiles".to_string(),
-        ["expressive", "calm", "lively", "none", "reduced"]
-            .into_iter()
-            .map(|id| Offer::on(id, format!("config.choice.motion.profile.{id}")))
-            .collect(),
-    );
-    offers.insert(
-        "motion.forms".to_string(),
-        std::iter::once(Offer::on("", "config.choice.motion.form.profile".into()))
-            .chain(
-                [
-                    "grow", "slide", "zoom", "fade", "flip", "bleed", "stepped", "rubber",
-                ]
-                .into_iter()
-                .map(|id| Offer::on(id, format!("config.choice.motion.form.{id}"))),
-            )
-            .collect(),
-    );
+    // K83: the motion profiles are the motion packs (built in and the user's, `$XDG_CONFIG_HOME/kurashi/motion`); the
+    // forms are kurashi-motion's forms meta. A form whose frontend has not landed yet is no option (a value naming one is
+    // not in effect); a pack built on such forms is offered disabled, with the reason, until they have.
+    {
+        use kurashi_theme::kurashi_motion::{forms, pack};
+        let packs = pack::Registry::load(&pack::user_dir().into_iter().collect::<Vec<_>>());
+        offers.insert(
+            "motion.profiles".to_string(),
+            packs
+                .packs
+                .iter()
+                .map(|p| {
+                    let o = Offer::on(&p.id, p.label.clone());
+                    if p.available() {
+                        o
+                    } else {
+                        o.unavailable(forms::REASON_UNAVAILABLE)
+                    }
+                })
+                .collect(),
+        );
+        offers.insert(
+            "motion.forms".to_string(),
+            std::iter::once(Offer::on("", "config.choice.motion.form.profile".into()))
+                .chain(
+                    forms::FORMS
+                        .iter()
+                        .filter(|m| m.available)
+                        .map(|m| Offer::on(m.id, format!("config.choice.motion.form.{}", m.id))),
+                )
+                .collect(),
+        );
+    }
     // I39: what a binding slot can run — every registered action, by id; unbound ("") first.
     if let Some(reg) = ACTIONS.get() {
         let mut list = reg.list();

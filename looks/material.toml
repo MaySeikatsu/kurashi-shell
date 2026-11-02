@@ -10,7 +10,7 @@ category = "modern"
 # workspace, Android's big stacked lock clock, Roboto Flex (then Roboto) and Material Symbols at weight 400.
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "material"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
 # md.sys.shape.corner.extra-large (28 dp): sheets, dialogs, the quick settings shade; the smaller steps below.
@@ -68,17 +68,4 @@ sounds = "material"
 "calendar.cells" = "flat"
 # Snackbars: one box low in the centre (md.comp.snackbar), drawn by the tooltip part (inverse surface, 4 px).
 "toast.place" = "bottom"
-# Emphasized motion (md.sys.motion, material-web tokens): M3's emphasized easing is a two-segment path; its halves are
-# the tokens for a one-way move — elements entering decelerate (0.05, 0.7, 0.1, 1) over medium4 400 ms, elements leaving
-# accelerate (0.3, 0, 0.8, 0.15) over short4 200 ms (m3.material.io "Easing and duration": enter 400, exit 200). Small
-# moves on the standard curve (0.2, 0, 0, 1) at short4 200 ms, fades at short3 150 ms.
-"motion.style" = "grow"
-"motion.open_ms" = 400
-"motion.open_curve" = [0.05, 0.7, 0.1, 1.0]
-"motion.close_ms" = 200
-"motion.close_curve" = [0.3, 0.0, 0.8, 0.15]
-"motion.fast_ms" = 200
-"motion.fast_curve" = [0.2, 0.0, 0.0, 1.0]
-"motion.effects_ms" = 150
-"motion.effects_curve" = [0.2, 0.0, 0.0, 1.0]
 "cursor" = "material"

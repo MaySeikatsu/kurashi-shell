@@ -1,0 +1,18 @@
+# Souls — Slow fades: everything dissolves in rather than moving.
+# Moved from looks/souls.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "souls"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0.37, 0, 0.63, 1)"
+open_ms = 650
+close = "cubic-bezier(0.37, 0, 0.63, 1)"
+close_ms = 520
+fast = "cubic-bezier(0.37, 0, 0.63, 1)"
+fast_ms = 300
+
+[form]
+open = "fade"
+close = "fade"
+
+[accents]
