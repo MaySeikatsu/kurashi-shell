@@ -1089,3 +1089,41 @@ fn golden_every_style() {
         );
     }
 }
+
+/// K83 (W59.1): today's motion tokens for every style × every profile the user could pick over it — captured before the
+/// motion engine moved the looks' motion into packs, and equal after it (`tests/golden/motion-sweep.json`).
+fn motion_sweep(resolve_with: impl Fn(&str, &str) -> TokenMap) {
+    use kurashi_theme::appearance::{Kind, all_in};
+    let mut out = TokenMap::new();
+    for s in all_in(Kind::Style, &[]) {
+        for p in ["expressive", "calm", "lively", "none"] {
+            let legacy: serde_json::Map<String, serde_json::Value> = resolve_with(&s.name, p)
+                .into_iter()
+                .filter(|(k, _)| k.starts_with("motion.") && is_legacy_motion(k))
+                .collect();
+            out.insert(format!("{}/{p}", s.name), legacy.into());
+        }
+    }
+    golden("motion-sweep.json", &out);
+}
+
+/// The motion tokens that existed before K83 (the new families are left out of the sweep).
+fn is_legacy_motion(k: &str) -> bool {
+    !["motion.curve.", "motion.form", "motion.accent.", "motion.recipe."]
+        .iter()
+        .any(|n| k.starts_with(n))
+}
+
+#[test]
+fn motion_sweep_every_style_and_profile() {
+    motion_sweep(|style, p| {
+        let mut i = style_input(style);
+        i.axes.motion = match p {
+            "none" => MotionProfile::None,
+            "calm" => MotionProfile::Calm,
+            "lively" => MotionProfile::Lively,
+            _ => MotionProfile::Expressive,
+        };
+        resolve(&i, &fonts()).unwrap().tokens
+    });
+}
