@@ -68,8 +68,10 @@ void main() {
     // (1 − dist): the texels by the fire's start have the largest τ, so they are the first to burn as p falls. The mix
     // lies about 0.58 ± 0.12 over a card (mean ± a deviation): the span of two deviations is scaled to 0 … 1, so the front
     // sweeps the card across the middle of p, quickest where most of the paper is.
-    float tau = (mix(noise, 1.0 - dist, ubuf.u3.w) - 0.34) / 0.48;
     float m = ubuf.u3.z;
+    // (Kept inside the threshold's sweep: an outlier below −m stayed alive as a speck of paper until the layer went at
+    // p = 0, one above 1 + m burned at rest; lead review.)
+    float tau = clamp((mix(noise, 1.0 - dist, ubuf.u3.w) - 0.34) / 0.48, -m + 0.02, 1.0 + m - 0.02);
     float threshold = p * (1.0 + 2.0 * m) - m;
     float e = (threshold - tau) / max(fwidth(tau), 1e-4);
 

@@ -27,7 +27,9 @@ SheetForm {
         width: glitch.area.width + 2 * glitch.margin
         u0: Qt.vector4d(glitch.margin, glitch.reach, glitch.split, glitch.tearReach)
         u1: Qt.vector4d(8, 0.27, 0.71, glitch.tearH)
+        // (z: the slices' re-rolls per transition — 2 = one jump mid-way, ~2 Hz over a 450 ms open: the brief's < 3 Hz,
+        // lead review; luminance is unaffected either way)
         u2: Qt.vector4d(Math.max(1, glitch.capture.textureSize.width), Math.max(1, glitch.capture.textureSize.height),
-            6, glitch.fade)
+            2, glitch.fade)
     }
 }
