@@ -5,7 +5,7 @@
 #           valid ones in the forms meta (`recipe: true`, pop-tilt flagged vestibular) and offers them in `motion.forms`;
 #           profile `mine` (the pack) resolves its forms to its recipes; reduce motion never names pop-tilt;
 #   shell   the notification centre on ps2 (no join: its content moves through FormHost) opened under profile `mine`
-#           (panel opens with pop-tilt): its FormHost logs `motion: recipe pop-tilt on panel` and a frame mid-way differs
+#           (panel opens with pop-tilt): its FormHost logs `motion: recipe pop-tilt on centre` (its own surface since W59.3) and a frame mid-way differs
 #           from rest, no QML errors; at rest
 #           the centre equals the motion-off frame (profile none) pixel for pixel; after the close 0 surface commits in 5 s.
 # Scrubbed frames by progress are Settings' recipe preview's (its scrubber; the same forms/Recipe.qml) — the centre's
@@ -137,7 +137,7 @@ sleep 0.25
 shot mine-mid
 wait_settled 8 0.8 "$CROP"
 shot mine-rest
-grep -q "motion: recipe pop-tilt on panel" "$log" || fail "no FormHost took the recipe pop-tilt (see $log)"
+grep -q "motion: recipe pop-tilt on centre" "$log" || fail "no FormHost took the recipe pop-tilt (see $log)"
 d=$(ae mine-mid mine-rest)
 [ "$d" -gt 0 ] || fail "the centre mid-way looks like the centre at rest: the recipe did not run"
 echo "test-recipes: centre mid-way differs from rest in $d px"
