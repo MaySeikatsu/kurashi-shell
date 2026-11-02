@@ -481,7 +481,7 @@
       "tier": "mesh"
     },
     "dissolve": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [],
       "overshoot": false,
@@ -650,7 +650,7 @@
       "tier": "mesh"
     },
     "glitch": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "flash"
@@ -797,7 +797,7 @@
       "tier": "transform"
     },
     "pixelate": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [],
       "overshoot": false,
