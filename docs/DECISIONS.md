@@ -1161,3 +1161,9 @@ Expressive's spatial/effects spring split (https://m3.material.io/styles/motion/
   `theme.motion.form.island.follow`; value type `curve` (`MotionCurve` leaf, control `curve`) validated by
   `kurashi_motion::curve::parse` (errors `error.config.curve.*`); choice sources `motion.profiles` and `motion.forms`
   (W59.0 offers today's ids; W59.1 the packs and the forms meta); `reduced` cuts until W59.1 resolves it.
+- **W59.1 as built (rows 640–646):** every look that carried `[decor] motion.*` (fifteen, washi included) is a pack of
+  its name, bit-exact (the sweep golden: every style × expressive/calm/lively/none unchanged). Packs carry a `base` and
+  their blocks layer over the style's pack, so picking calm on washi still bleeds, as before. Settings stays honest
+  through a daemon inert pass: under `reduced` or a pack that does not move (win95) every other motion row reads inert,
+  and a surface's form that cannot serve it reads inert.
+
