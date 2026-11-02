@@ -35,7 +35,10 @@ Column {
     function formName(id) {
         if (id === "" || id === undefined) return ""
         if (id === "none") return I18n.tr("motion.ui.form.none")
-        return I18n.has("config.choice.motion.form." + id) ? I18n.tr("config.choice.motion.form." + id) : id
+        if (I18n.has("config.choice.motion.form." + id)) return I18n.tr("config.choice.motion.form." + id)
+        // A recipe (W59.7) by its own label.
+        var r = fp.tokens["motion.recipe." + id]
+        return r && r.label ? I18n.tr(String(r.label)) : id
     }
     // What "" resolves to here: the surface's resolved form (token motion.form.<surface>.<dir>, W59.1), else the default
     // row's value, else the profile's form (today's motion.style).
