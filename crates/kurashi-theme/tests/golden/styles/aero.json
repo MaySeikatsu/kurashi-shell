@@ -565,7 +565,7 @@
       "tier": "transform"
     },
     "fan": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
@@ -759,7 +759,7 @@
       "tier": "transform"
     },
     "noren": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [],
       "overshoot": false,

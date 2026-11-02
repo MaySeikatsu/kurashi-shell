@@ -16,6 +16,8 @@
 #   nix develop -c frontend/core/motion/tests/sheet/run.sh
 #   SHEET_CASES="fold:panel roll:sidebar" SHEET_PS="0.3 0.7" nix develop -c frontend/core/motion/tests/sheet/run.sh
 #   SHEET_CASES="genie:dock:aqua:dark crt:panel:terminal" nix develop -c frontend/core/motion/tests/sheet/run.sh
+#   a look, a scheme and a scale (W59.8: the variants are shot into their own folders with SHEET_OUT):
+#   SHEET_STYLE=washi SHEET_SCHEME=dark SHEET_SCALE=1.5 SHEET_OUT=$PWD/frontend/shots/motion/sheet-washi-dark-1.5 …
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -25,8 +27,12 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHEET_OUT:-$ROOT/frontend/shots/motion/sheet}
 CASES=${SHEET_CASES:-fold:panel fold:bottom fold:launcher roll:sidebar roll:right book:panel crumple:launcher crumple:toast \
 genie:module:aqua genie:dock:aqua:dark genie:toast:aqua crt:panel:terminal crt:launcher:terminal:light drop:toast:washi \
-drop:panel:washi:dark drop:module:washi}
+drop:panel:washi:dark drop:module:washi fan:panel fan:bottom fan:launcher fan:leftpanel noren:panel noren:sidebar noren:toast}
 PS=${SHEET_PS:-0.15 0.5 0.85}
+# The look (theme.style), the scheme (light | dark | empty = the config's) and the output's scale (1 or 1.5, the 1.5 output
+# being 2880×1620 at scale 1.5 — the same 1920×1080 logical screen the regions are written in).
+STYLE=${SHEET_STYLE:-kami}
+SCHEME=${SHEET_SCHEME:-}
 SCALE=${SHEET_SCALE:-1}
 mkdir -p "$OUT"
 fail() { echo "sheet: $*" >&2; exit 1; }
@@ -79,13 +85,14 @@ ipc() { timeout 10 qs ipc -p "$H" call sheet "$@"; }
 # The scenes' regions (the harness's card rects, with room for what a form draws past them).
 region() {
   case $1 in
-    panel|bottom) echo "540,0 680x1080" ;;
-    launcher) echo "560,0 800x600" ;;
+    panel|bottom) echo "200,0 1320x1080" ;;
+    launcher) echo "300,0 1320x800" ;;
     sidebar) echo "0,0 420x1080" ;;
     right) echo "1500,0 420x1080" ;;
     toast) echo "1300,0 620x200" ;;
     module) echo "540,0 680x520" ;;
     dock) echo "640,580 640x500" ;;
+    leftpanel) echo "0,0 700x1080" ;;
   esac
 }
 # A style's motion profile (W59.5's cases name a style; W59.4's run on kami's origami).
@@ -133,8 +140,9 @@ for cs in $CASES; do
   surf=$(surface_of "$scene"); g=$(region "$scene")
   tag=$form-$scene${style:+-$style}${scheme:+-$scheme}
   echo "-- $tag"
-  K set theme.style "${style:-kami}" >/dev/null || fail "$tag: theme.style ${style:-kami} refused"
-  K set theme.motion.profile "$(profile_of "${style:-kami}")" >/dev/null || fail "$tag: the profile was refused"
+  style=${style:-$STYLE}; scheme=${scheme:-$SCHEME}
+  K set theme.style "$style" >/dev/null || fail "$tag: theme.style $style refused"
+  K set theme.motion.profile "$(profile_of "$style")" >/dev/null || fail "$tag: the profile was refused"
   if [ -n "$scheme" ]; then
     K set theme.colors.scheme "$scheme" >/dev/null || fail "$tag: theme.colors.scheme $scheme refused"
   else
