@@ -141,10 +141,10 @@ pub const FORMS: &[FormMeta] = &[
     f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      true),
     f("roll",     Sheet, CARDS | s("sidebar") | s("bar") | s("toast") | s("dock") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
     f("crumple",  Sheet, CARDS | s("toast") | s("peek"),                       Finish, false, VESTIBULAR, Mesh,      true),
-    // W59.5.
-    f("genie",    Sheet, CARDS | s("dock") | s("toast") | s("peek") | s("menu"), Finish, false, VESTIBULAR, Mesh,  false),
-    f("crt",      Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     false),
-    f("drop",     Shape, CARDS | s("toast") | s("peek") | s("osd"),            Morph,  true,  0,          Layer,     false),
+    // W59.5. (drop is a sheet form: its ripple refracts the captured card, CONTRACT-CHANGE row 670.)
+    f("genie",    Sheet, CARDS | s("dock") | s("toast") | s("peek") | s("menu"), Finish, false, VESTIBULAR, Mesh,  true),
+    f("crt",      Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     true),
+    f("drop",     Sheet, CARDS | s("toast") | s("peek") | s("osd"),            Finish, false, 0,          Layer,     true),
     f("liquid",   Shape, but(s("bar") | s("dock")),                            Morph,  true,  0,          Transform, false),
     // W59.8: wave 3.
     f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      false),
@@ -245,7 +245,7 @@ mod tests {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
-        for id in ["genie", "crt", "glitch"] {
+        for id in ["liquid", "fan", "glitch"] {
             assert!(!form(id).unwrap().available, "{id}");
         }
         let m = meta();

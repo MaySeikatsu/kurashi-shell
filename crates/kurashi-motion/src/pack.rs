@@ -417,6 +417,7 @@ const BUNDLED: &[(&str, &str)] = &[
     ("ember", include_str!("../../../motion/ember.toml")),
     ("outline", include_str!("../../../motion/outline.toml")),
     ("pudding", include_str!("../../../motion/pudding.toml")),
+    ("genie", include_str!("../../../motion/genie.toml")),
 ];
 
 /// The packs in effect: built in, then the user's.
@@ -674,10 +675,13 @@ my-snap = "segments(0.1 0 0.2 0.5 0.5 0.6, 0.6 0.7 0.9 1 1 1)"
             "reduced",
             "pudding",
             "origami",
+            "phosphor",
+            "sumi",
+            "genie",
         ] {
             assert!(r.find(id).unwrap().available(), "{id}");
         }
-        for id in ["phosphor", "glitch", "pop", "liquid", "outline", "ember"] {
+        for id in ["glitch", "pop", "liquid", "outline", "ember"] {
             assert!(!r.find(id).unwrap().available(), "{id}");
         }
     }

@@ -435,7 +435,7 @@
       "tier": "mesh"
     },
     "crt": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "flash"
@@ -500,11 +500,11 @@
       "tier": "layer"
     },
     "drop": {
-      "available": false,
-      "family": "shape",
+      "available": true,
+      "family": "sheet",
       "flags": [],
-      "overshoot": true,
-      "retarget": "morph",
+      "overshoot": false,
+      "retarget": "finish",
       "surfaces": [
         "island",
         "panel",
@@ -626,7 +626,7 @@
       "tier": "mesh"
     },
     "genie": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
