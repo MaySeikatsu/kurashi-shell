@@ -1,0 +1,20 @@
+# PS2 — Slow fades: everything eases in and out over half a second, no overshoot.
+# Moved from looks/ps2.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "ps2"
+base = "expressive"
+
+[timing]
+open = "ease-in-out"
+open_ms = 500
+close = "ease-in-out"
+close_ms = 450
+fast = "ease-in-out"
+fast_ms = 400
+effects = "ease-in-out"
+effects_ms = 400
+
+[form]
+open = "fade"
+close = "fade"
+
+[accents]

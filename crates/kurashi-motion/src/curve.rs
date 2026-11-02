@@ -30,6 +30,8 @@ pub enum Curve {
     /// `n` equal jumps, each held (`motion.style = stepped`, W53.0a).
     Steps(u32),
     Linear,
+    /// No motion: the end at once (the profile `none`). No text form a user writes; the resolver makes it.
+    None,
 }
 
 /// A parsed curve value.
@@ -507,11 +509,21 @@ impl Curve {
             }
             Curve::Steps(n) => format!("steps({n})"),
             Curve::Linear => "linear".into(),
+            Curve::None => "none".into(),
         }
     }
 
-    /// Progress at time `x` ∈ [0, 1] for the curves that are a function of time alone (cubic, steps, linear); springs
-    /// answer in `spring.rs` (W59.1). For tests, plots and the niri export.
+    /// The curve as QML `bezierCurve` segments, for the curves that are one (cubic, linear).
+    pub fn cubic_points(&self) -> Option<Vec<f64>> {
+        match self {
+            Curve::Cubic(c) => Some(c.clone()),
+            Curve::Linear => Some(vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0]),
+            _ => None,
+        }
+    }
+
+    /// Progress at time `x` ∈ [0, 1] for the curves that are a function of time alone (cubic, steps, linear, none);
+    /// springs answer in [`crate::spring`]. For tests, plots and the niri export.
     pub fn sample(&self, x: f64) -> Option<f64> {
         let x = x.clamp(0.0, 1.0);
         match self {
@@ -521,6 +533,7 @@ impl Curve {
                 Some(if x >= 1.0 { 1.0 } else { (x * n).floor() / n })
             }
             Curve::Cubic(c) => Some(sample_cubic(c, x)),
+            Curve::None => Some(1.0),
             Curve::Spring { .. } | Curve::SpringQ { .. } => None,
         }
     }
@@ -752,5 +765,87 @@ mod tests {
         assert_eq!(c.sample(0.1), Some(0.0));
         assert_eq!(c.sample(0.3), Some(0.25));
         assert_eq!(c.sample(1.0), Some(1.0));
+    }
+
+    mod props {
+        use super::*;
+        use proptest::prelude::*;
+
+        /// A number as the canonical form writes it (at most 4 decimals), within a range given in 1/10000.
+        fn n(lo: i32, hi: i32) -> impl Strategy<Value = f64> {
+            (lo..=hi).prop_map(|v| f64::from(v) / 1e4)
+        }
+
+        /// Monotonic segments: each segment's controls between its ends, the last end (1, 1).
+        fn segments() -> impl Strategy<Value = Vec<f64>> {
+            prop::collection::vec(
+                (
+                    n(0, 10_000),
+                    n(0, 10_000),
+                    n(-10_000, 20_000),
+                    n(-10_000, 20_000),
+                ),
+                1..5,
+            )
+            .prop_flat_map(|segs| {
+                let k = segs.len();
+                (
+                    Just(segs),
+                    prop::collection::vec(n(0, 10_000), k - 1),
+                    prop::collection::vec(n(-10_000, 20_000), k - 1),
+                )
+            })
+            .prop_map(|(segs, mut ends, ys)| {
+                ends.sort_by(f64::total_cmp);
+                ends.push(1.0);
+                let mut ys = ys;
+                ys.push(1.0);
+                let mut out = vec![];
+                let mut x0 = 0.0;
+                for (i, (a, b, y1, y2)) in segs.into_iter().enumerate() {
+                    let ex = ends[i];
+                    let lerp = |t: f64| ((x0 + (ex - x0) * t) * 1e4).round() / 1e4;
+                    let (c1, c2) = (lerp(a.min(b)), lerp(a.max(b)));
+                    out.extend([c1, y1, c2, y2, ex, ys[i]]);
+                    x0 = ex;
+                }
+                out
+            })
+        }
+
+        proptest! {
+            #[test]
+            fn cubic_round_trips(x1 in n(0, 10_000), y1 in n(-10_000, 20_000), x2 in n(0, 10_000), y2 in n(-10_000, 20_000)) {
+                let s = Curve::Cubic(vec![x1, y1, x2, y2, 1.0, 1.0]).canonical();
+                let spec = parse(&s).unwrap();
+                prop_assert_eq!(spec.curve().unwrap(), Curve::Cubic(vec![x1, y1, x2, y2, 1.0, 1.0]));
+                prop_assert_eq!(spec.canonical(), s);
+            }
+
+            #[test]
+            fn segments_round_trip(c in segments()) {
+                prop_assert!(validate_cubic(&c).is_ok(), "{c:?}");
+                let s = Curve::Cubic(c.clone()).canonical();
+                let back = parse(&s).unwrap();
+                prop_assert_eq!(back.curve().unwrap(), Curve::Cubic(c));
+                prop_assert_eq!(parse(&back.canonical()).unwrap(), back);
+            }
+
+            #[test]
+            fn springs_and_steps_round_trip(ms in 50u32..=3000, bounce in -5000i32..=9000, steps in 1u32..=60) {
+                let spring = Curve::Spring { response_ms: f64::from(ms), bounce: f64::from(bounce) / 1e4 };
+                prop_assert_eq!(parse(&spring.canonical()).unwrap().curve().unwrap(), spring);
+                let st = Curve::Steps(steps);
+                prop_assert_eq!(parse(&st.canonical()).unwrap().curve().unwrap(), st);
+            }
+
+            #[test]
+            fn anything_parses_or_says_why(s in "\\PC{0,40}") {
+                // Never a panic; a refusal names an i18n key.
+                if let Err(e) = parse(&s) {
+                    prop_assert!(e.key().starts_with("error.config.curve."));
+                }
+            }
+        }
     }
 }

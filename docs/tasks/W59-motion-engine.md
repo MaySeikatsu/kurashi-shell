@@ -62,6 +62,9 @@ Fixture: the theme golden(s) gain these keys (`fixtures/ipc/server/*theme*`, M3-
 ### Motion pack (`motion/<id>.toml`)
 ```toml
 name = "origami"
+base = "expressive"     # row 641: what today's K42/K74 machinery does under the pack (expressive|calm|lively|none|reduced)
+# Blocks layer (row 641): [timing], [form](+[params]), [accents] are this pack's when present (an empty table = the
+# defaults), else the style's pack's — so expressive/calm/lively/none are timing-only profiles over the style's forms.
 label = "config.choice.motion.origami"        # i18n
 description = "config.choice.motion.origami.desc"
 [timing]            # curve strings (brief §4) and durations

@@ -1,0 +1,23 @@
+# Material 3 — Emphasized motion (md.sys.motion, material-web tokens): M3's emphasized easing is a two-segment path; its halves are
+# the tokens for a one-way move — elements entering decelerate (0.05, 0.7, 0.1, 1) over medium4 400 ms, elements leaving
+# accelerate (0.3, 0, 0.8, 0.15) over short4 200 ms (m3.material.io "Easing and duration": enter 400, exit 200). Small
+# moves on the standard curve (0.2, 0, 0, 1) at short4 200 ms, fades at short3 150 ms.
+# Moved from looks/material.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "material"
+base = "expressive"
+
+[timing]
+open = "emphasized-decelerate"
+open_ms = 400
+close = "emphasized-accelerate"
+close_ms = 200
+fast = "standard"
+fast_ms = 200
+effects = "standard"
+effects_ms = 150
+
+[form]
+open = "grow"
+close = "grow"
+
+[accents]

@@ -9,7 +9,7 @@ category = "retro"
 # island as a text box that types its line out once, quick settings as a config screen ("ON  OFF").
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "snes"
 "theme.material.kind" = "solid"
 "theme.material.opacity" = 1.0
 "theme.material.blur" = false
@@ -61,14 +61,6 @@ sounds = "snes"
 "focus.offset" = -4
 "focus.width" = 2
 "focus.color" = "on_surface"
-# Stepped motion: a window grows in four steps, one frame each at 60 Hz (67 ms), no easing — FF6 opens its dialogue box
-# one 8 px strip pair per update (window.asm DlgOpenMaskTbl, five steps).
-"motion.style" = "stepped"
-"motion.steps" = 1
-"motion.open_ms" = 67
-"motion.close_ms" = 67
-"motion.fast_ms" = 50
-"motion.effects_ms" = 50
 "icon.fill" = 1
 "icon.weight" = 700
 "cursor" = "snes"
