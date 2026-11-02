@@ -17,6 +17,38 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-02 — session 19, part 2 (machine A): the motion engine built — W59.0–W59.8 merged; finish and open the PR
+**State:** branch `feat/w59-motion-engine` (not pushed; `main` = e2bc7d68 on origin after the history rewrite). Merged
+into it: W59.0 contract, W59.1 daemon/packs, W59.2 runtime, W59.3 surfaces, W59.4 paper forms, W59.5 genie/crt/drop,
+W59.6 Settings page, W59.7 recipes, W59.8a/b fan/noren/pixelate/glitch/dissolve; lead: inert pass, profile_curve, D4
+style defaults (kami origami, terminal phosphor, aqua/vibrancy genie), niri `theme.motion.windows = follow`,
+`motion.pack.open` + pack-dir live reload, DESIGN-SYSTEM §9. Every form but `liquid` is available. Last full
+`just suites` (before W59.3's follow-ups): 11/13 — recipes fixed since; **sidebars USS +11 MiB** (handed to W59.9a).
+**User rules this session:** at most **two** agents at once (memory `max-two-agents`); screenshots stay local (I345).
+
+**Two agent branches may be finished but unmerged** (their agents ran when the session hit its limit):
+- `feat/w59-9a-surface-polish` (worktree `.claude/worktrees/agent-a30f10a30628a8d36`, card `docs/tasks/W59.9a-*.md`):
+  liquid, shape forms on toast/dock/sidebar, iris press point, seamless landings, **+ the sidebar USS leak and the false
+  "form grow is unknown" warnings**.
+- `feat/w59-6b-motion-preview` (worktree `…/agent-a3a2d0ca949469604`): Settings' live preview stage + gallery thumbnails.
+
+**Next steps (short, in order):**
+1. For each branch above: `git log feat/w59-motion-engine..<branch>`; if the work looks complete, merge `--no-ff` into
+   `feat/w59-motion-engine`, run its card's acceptance (W59.9a: `frontend/test-sidebars.sh` alone must pass the USS check;
+   `frontend/test-motion.sh`; W59.6b: `SETTINGS_PART=motion settings/test.sh`), then remove the worktree/branch and
+   `~/.cache/kurashi-agents-target/W59.9a|W59.6b`. If a branch is half-done, merge only what passes and file the rest.
+2. README previews: `nix develop -c tools/motion-previews.sh` (session menu), plus `MOTION_SURFACE=sidebar … roll` and
+   `MOTION_SURFACE=toast … drop crumple`; look at **every** frame sheet in `/tmp/kurashi-motion-previews/review/` for personal
+   data (I345) before `git add docs/media/motion/`; README §Motion already points at those files.
+3. `just check` and `just suites` (merge set) green; PROGRESS row; push the branch (ask the user first) and
+   `gh pr create --base main --head feat/w59-motion-engine` with a summary of K83 and the previews.
+
+**Deferred (BACKLOG/W59.9 notes, not blocking the PR):** `tools/bench/motion.sh` (agents measured 1.2–1.6 ms CPU per
+frame, idle 0), crumple's mid-frames read as cloth, drop wants ≥ 500 ms and genie ≥ 400 ms curves, fold PSS on kami
+(+58 MiB once), I346–I363.
+
+---
+
 ## 2026-11-02 — session 19 (machine A): the motion engine planned (K83, W59); screenshot privacy audit
 **State:** `main` = the merge of `feat/s19-motion-engine` (docs: the plan; shots untracked). **History was rewritten**
 (user's choice, I345): every `*/shots/` path is gone from all commits (`git filter-repo`), and `main` plus the remote
@@ -194,55 +226,3 @@ a start button for Windows styles; cursor theme + trail per style, off by defaul
 **Risks:** an unreleased niri for pointer-light users (check releases, I316); elevation's two RectangularShadows per
 surface are unmeasured against BENCH; the W53 wave is large — keep the system card first.
 
----
-
-## 2026-10-29 — session 17, part 3 (machine A): outlines in general, Settings on the shell's Theme, cards for corners, shadows, the light
-**State:** branch `feat/s17-frame-ink` (on top of `main` 0e0f3adb+) is **not merged**. Its full check run finished:
-`just check` green (1254 tests), 13 of 15 suites green (the merge set + pen, look, settings texture). Two failed alone too:
-- `frontend/test-sidebars.sh` — **from this branch** (green on main): under kami, "the fillet (231, 231, 231) is the bar
-  strip's colour (247, 244, 236)" for top-kami calm/lively left/right, plus "open 40 ms: p=1.003/1.096" in kami lively.
-  Most likely kami's new sketched ink on the joined column (ColumnShape `penOn`/`oc` with `pen.line = sketch`, or the
-  sketch's second pass/overshoot landing on the sampled fillet pixel). **Fix before merging.**
-- `settings/test-sheet.sh` "the spotlight does not follow the pointer over the sheet" — **fails on main too** (I314),
-  older; not a blocker.
-Logs: `/tmp/kurashi-suites/s17-settings/` (summary.txt) and `/tmp/kurashi-lead-logs/main-{sidebars,sheet}.log` (main). A package of the
-branch was built (`nix run .` from the checkout runs it); `main` and its package are part 2's. Nothing pushed.
-The `nix run .` regression of part 1 (passthru `bin` → the app ran the unwrapped daemon) is fixed on `main` with a flake
-check (`apps-wrapped`).
-
-**On the branch:**
-- Outlines in general (user): `theme.outline_ink` (outline | text | accent → token `outline.ink`; `Theme.outlineColor`
-  honours it everywhere, kami's sketch decor too); `theme.pen.line` gains `sketch` (pen.js, kami's two light passes);
-  kami's recipe: text + sketch. `theme.frame_outline` still decides whether the frame and the bars' inner edges get a line.
-- Settings: `settings/core/Theme.qml` and `Glide.qml` are links to the shell's (one Theme: Settings follows every token);
-  the sheet grows down from its top edge on the profile's motion (Caelestia's curves under expressive), the window's
-  content fades/slides in; pages scroll kinetically (`KineticWheel`) with a grabbable `PageScrollBar`; the navigation is
-  framed as the section cards. UX brief: `docs/ux/settings.md` "Opening, scrolling and the navigation's frame".
-- Tools: `niri-sandbox.sh` starts from an empty sandbox dir and has `wheel`; `test-suites.sh` adds named suites to
-  `--changed`.
-
-**Next steps (ordered):**
-1. Finish the branch: fix the kami fillet in `test-sidebars` (see State; compare on niri with `niri-sandbox.sh`, look kami,
-   chrome line, the right sidebar's top fillet, against main), then `just suites sidebars` + `just suites --changed main`,
-   `just check`, merge `--no-ff`, `nix build .#kurashi`, ask the user to push. The sheet spotlight (I314) is older.
-2. Bugs found today: I309 (kami: the island card's head shows the wallpaper across the bar — main too), I305 (keycap
-   frame outline under grouped bars looks heavy), re-check on the user's niri I296 (sidebar band with blur) and I298
-   (dock texture after a Sheet change: a guess is in), I304 (layer stacking by map order), I306 (mock tokens), I308 (pen
-   idle flake; W55 should settle it).
-3. W56 corners (I288 squircle on every visible shape incl. relief.frag's box; I269 concentric rest) — `docs/tasks/W56-corners.md`.
-4. W57 elevation shadows (I310; the user wants them smooth: layered ambient + key, no banding) — UX brief first,
-   `docs/tasks/W57-elevation-shadows.md` (static via niri layer-rule shadows vs client-drawn for follow-light).
-5. W58 the pointer light across the screen (I311) — `docs/tasks/W58-pointer-light.md`. **Decided (user):** the Wayland
-   cursor protocol (ext-image-copy-capture cursor sessions) in kurashid; niri 26.04 lacks it → a patched niri through the
-   flake, switched on by the modules only while the pointer light is on; lighting becomes a module later (I313). The effects sheet (I312:
-   ripples, trails, waves) builds on it later.
-6. W55 fast suites, W53 styles (I294 first if style edits pile up), I280, I284/I285.
-
-**Rules in force (CLAUDE.md, memory):** niri is the lead platform for every visual check; suites via `just suites`
-(`--changed` while iterating); no subagents unless the user allows one.
-
-**Risks:** Settings now shares the shell's Theme file — a Theme change reaches both apps (Settings-only members are at
-the end of it). Schema v7 keys were renamed on this branch before release (`frame_outline_ink/stroke` → `outline_ink`
-and `pen.line = sketch`); a config that set the old keys on the branch reads them as unknown.
-
----
