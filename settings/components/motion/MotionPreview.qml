@@ -190,6 +190,15 @@ RoundBox {
     readonly property var barLeft: ["launcher", "sidebar", "menu", "peek"]
     readonly property var barRight: ["panel", "centre", "toast", "osd", "dock", "bar", "dialog"]
     readonly property var barOrder: pv.barLeft.concat(["island"], pv.barRight)
+    // A narrow bar (the window's default width in Japanese): the chips lose some of their padding. (The width they need
+    // at full padding, so it never flips back and forth.)
+    readonly property real chipsW: {
+        var w = islandChip.natural + 20 + 2 * (pv.barOrder.length - 3)
+        for (var i = 0; i < leftChips.count; i++) { var a = leftChips.itemAt(i); if (a) w += a.natural }
+        for (var j = 0; j < rightChips.count; j++) { var b = rightChips.itemAt(j); if (b) w += b.natural }
+        return w
+    }
+    readonly property bool tight: pv.chipsW > bar.width
     function chipOf(s) {
         if (s === "island") return islandChip
         var i = pv.barLeft.indexOf(s)
@@ -205,7 +214,8 @@ RoundBox {
         readonly property bool pill: modelData === "island"
         objectName: "preview-class:" + modelData
         // The island is the pill in the bar's middle; the rest are its modules.
-        width: lbl.implicitWidth + (pill ? 22 : 12)
+        readonly property real natural: lbl.implicitWidth + (pill ? 22 : 12)
+        width: lbl.implicitWidth + (pill ? (pv.tight ? 14 : 22) : (pv.tight ? 6 : 12))
         height: pv.barH - 8
         y: 4
         radius: pill ? height / 2 : Theme.rSm
@@ -269,7 +279,7 @@ RoundBox {
         var g
         var under = function (w, h) {
             var x = Math.max(8, Math.min(W - w - 8, cx - w / 2))
-            return { x: x, y: B, w: w, h: h, edge: "top" }
+            return { x: x, y: B, w: w, h: Math.min(h, H - B - 8), edge: "top" }
         }
         switch (s) {
         case "island": g = under(Math.min(300, W - 16), 124); break
@@ -279,11 +289,11 @@ RoundBox {
         case "centre": g = { x: W - 8 - 220, y: B, w: 220, h: H - B - 8, edge: "top" }; break
         case "toast": g = { x: W - 8 - 220, y: B + 8, w: 220, h: 56, edge: "right" }; break
         case "sidebar": g = { x: 0, y: B, w: 170, h: H - B, edge: "left" }; break
-        case "dock": g = { x: (W - 220) / 2, y: H - 46 - 104, w: 220, h: 96, edge: "bottom" }; break
+        case "dock": { var dh = Math.min(96, H - B - 58); g = { x: (W - 220) / 2, y: H - 50 - dh, w: 220, h: dh, edge: "bottom" }; break }
         case "bar": g = { x: 24, y: H - 8 - 26, w: W - 48, h: 26, edge: "bottom" }; break
         case "osd": g = { x: (W - 200) / 2, y: H - 16 - 40, w: 200, h: 40, edge: "bottom" }; break
         case "menu": g = under(150, 104); break
-        case "dialog": g = { x: (W - 280) / 2, y: B + (H - B - 124) / 2, w: 280, h: 124, edge: "top" }; break
+        case "dialog": { var lh = Math.min(124, H - B - 16); g = { x: (W - 280) / 2, y: B + (H - B - lh) / 2, w: 280, h: lh, edge: "top" }; break }
         default: g = under(240, 136)
         }
         // The origin in the card's own coordinates: the pressed button (cards out of the bar), the dock's icon, else none.
@@ -337,7 +347,9 @@ RoundBox {
             id: stage
             objectName: "preview-stage"
             width: parent.width
-            height: 214
+            // Shorter in a short window: stuck at the page's top it leaves the rows room.
+            height: pv.win && pv.win.height < 900 ? 168 : 214
+            onHeightChanged: Qt.callLater(pv.place)
             clip: true
             Accessible.role: Accessible.Animation
             Accessible.name: pv.stateText
@@ -452,7 +464,8 @@ RoundBox {
                             surface: pv.surface
                             progress: drv.value
                             content: pv.running ? pv.running.accents.content : "late"
-                            staggerMs: pv.running ? pv.running.accents.stagger : 0
+                            // (stretched with the stage's curves, so a cascade keeps its spacing at ½× and ¼×)
+                            staggerMs: pv.running ? pv.running.accents.stagger / pv.speed : 0
                             durationMs: pv.runCurves.open ? (pv.runCurves.open.ms || 0) : 0
                         }
                     }
@@ -470,12 +483,19 @@ RoundBox {
                 Accessible.name: I18n.tr("motion.ui.preview.classes")
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.outline }
                 Row {
+                    id: leftRow
                     x: 6
                     spacing: 2
                     Repeater { id: leftChips; model: pv.barLeft; delegate: Chip {} }
                 }
-                Chip { id: islandChip; modelData: "island"; x: (bar.width - width) / 2 }
+                // In the middle, unless the modules either side leave it no room there (a narrow window, longer words).
+                Chip {
+                    id: islandChip
+                    modelData: "island"
+                    x: Math.max(leftRow.x + leftRow.width + 4, Math.min((bar.width - width) / 2, rightRow.x - 4 - width))
+                }
                 Row {
+                    id: rightRow
                     anchors.right: parent.right
                     anchors.rightMargin: 6
                     spacing: 2
