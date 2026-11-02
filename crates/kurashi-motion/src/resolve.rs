@@ -799,7 +799,7 @@ mod tests {
     #[test]
     fn unavailable_forms_fall_back_with_a_note() {
         let mut req = Request::profile("fluent");
-        req.axes.form.0 = "fold".into();
+        req.axes.form.0 = "genie".into();
         let out = resolve_in(&req, Registry::bundled(), 1.0, "flat");
         assert_eq!(out.tokens["motion.form.panel.open"], "slide");
         assert!(
@@ -809,9 +809,12 @@ mod tests {
             "{:?}",
             out.notes
         );
-        // The origami draft runs its fallbacks until fold lands.
+        // The origami draft: its paper forms have landed (W59.4); the toast's drop runs its fallback until W59.5.
         let t = res(&Request::profile("origami"));
-        assert_eq!(t["motion.form.panel.open"], "grow");
+        assert_eq!(t["motion.form.panel.open"], "fold");
+        assert_eq!(t["motion.form.sidebar.open"], "roll");
+        assert_eq!(t["motion.form.toast.close"], "crumple");
+        assert_ne!(t["motion.form.toast.open"], "drop");
         assert_eq!(t["motion.form.peek.open"], "grow");
     }
 

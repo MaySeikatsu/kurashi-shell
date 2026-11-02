@@ -422,7 +422,7 @@
       "tier": "layer"
     },
     "book": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
@@ -463,7 +463,7 @@
       "tier": "layer"
     },
     "crumple": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
@@ -609,7 +609,7 @@
       "tier": "transform"
     },
     "fold": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
@@ -820,7 +820,7 @@
       "tier": "layer"
     },
     "roll": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
