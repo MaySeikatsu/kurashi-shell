@@ -7,6 +7,7 @@
 pub mod curve;
 pub mod forms;
 pub mod pack;
+pub mod recipe;
 pub mod resolve;
 pub mod spring;
 

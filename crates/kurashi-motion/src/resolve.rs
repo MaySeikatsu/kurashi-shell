@@ -17,6 +17,7 @@ use serde_json::{Value, json};
 use crate::curve::{self, Curve, Spec};
 use crate::forms::{self, FormMeta, SURFACES};
 use crate::pack::{Accents, Base, Forms, Pack, ROLES, Registry, Role};
+use crate::recipe::{self, Recipe};
 
 /// The user's per-axis keys (`theme.motion.*`) as the config holds them: `""`, `0`, `-1` and `profile` are "the
 /// profile's".
@@ -128,6 +129,11 @@ pub fn resolve(req: &Request, speed: f64, chrome: &str) -> Output {
 /// bounce more, K42).
 pub fn resolve_in(req: &Request, reg: &Registry, speed: f64, chrome: &str) -> Output {
     let mut notes: Vec<String> = reg.diags.iter().map(|d| format!("motion: {d}")).collect();
+    // W59.7: every pack's recipes, a form each once valid; the rest say why they are skipped.
+    let (recipes, shadowed) = recipe::collect(reg);
+    for r in recipes.iter().chain(&shadowed) {
+        notes.extend(r.diags.iter().map(|d| recipe::note(r, d)));
+    }
     let wanted = if req.reduce_motion {
         "reduced"
     } else if req.profile.is_empty() {
@@ -183,6 +189,7 @@ pub fn resolve_in(req: &Request, reg: &Registry, speed: f64, chrome: &str) -> Ou
         forms: forms_block,
         accents,
         user,
+        recipes: &recipes,
         sk: speed.clamp(0.25, 4.0),
         speed,
         chrome,
@@ -205,6 +212,7 @@ struct Resolver<'a> {
     forms: Option<&'a Forms>,
     accents: Option<&'a Accents>,
     user: Option<&'a Axes>,
+    recipes: &'a [Recipe],
     sk: f64,
     speed: f64,
     chrome: &'a str,
@@ -331,19 +339,35 @@ impl Resolver<'_> {
         }
     }
 
-    /// Whether `id` may run on `surface` now (and, under reduce motion, moves nothing and flashes nothing).
-    fn usable(
+    /// Whether `id` may run on `surface` now (and, under reduce motion, moves nothing and flashes nothing): its id.
+    fn usable(&self, id: &str, surface: &str, notes: &mut Vec<String>) -> Option<String> {
+        if let Some(m) = forms::form(id) {
+            return self.usable_form(m, surface, notes).map(|m| m.id.to_owned());
+        }
+        // A recipe (W59.7) serves every surface; a skipped one falls back (its reasons are in the notes already), and
+        // reduce motion never runs one that turns or zooms a lot.
+        if let Some(r) = self.recipes.iter().find(|r| r.id == id) {
+            if !r.ok() {
+                notes.push(format!(
+                    "motion: form {id} is a recipe that is skipped (config.diag.recipe)"
+                ));
+                return None;
+            }
+            return (!(self.pure && r.vestibular())).then(|| r.id.clone());
+        }
+        notes.push(format!(
+            "motion: form {id} unknown (config.diag.form.unknown)"
+        ));
+        None
+    }
+
+    fn usable_form(
         &self,
-        id: &str,
+        m: &'static FormMeta,
         surface: &str,
         notes: &mut Vec<String>,
     ) -> Option<&'static FormMeta> {
-        let Some(m) = forms::form(id) else {
-            notes.push(format!(
-                "motion: form {id} unknown (config.diag.form.unknown)"
-            ));
-            return None;
-        };
+        let id = m.id;
         if !m.available {
             notes.push(format!(
                 "motion: form {id} not available yet ({})",
@@ -367,15 +391,15 @@ impl Resolver<'_> {
     /// The form of a surface class for one direction: the user's for the class, the user's default, the pack's for the
     /// class, the pack's default — the first that may run there. The island follows the defaults unless the user turns
     /// `form.island.follow` off (D3).
-    fn form(&self, surface: &str, open: bool, notes: &mut Vec<String>) -> &'static str {
+    fn form(&self, surface: &str, open: bool, notes: &mut Vec<String>) -> String {
         if self.base == Base::None {
-            return "none";
+            return "none".into();
         }
         self.chain(surface, open, notes)
     }
 
     /// [`Resolver::form`] as if motion were on (today's tokens keep the look's form under `none`).
-    fn chain(&self, surface: &str, open: bool, notes: &mut Vec<String>) -> &'static str {
+    fn chain(&self, surface: &str, open: bool, notes: &mut Vec<String>) -> String {
         fn pick<'s>(open: bool, pair: (Option<&'s str>, Option<&'s str>)) -> Option<&'s str> {
             if open { pair.0 } else { pair.1 }
         }
@@ -401,18 +425,17 @@ impl Resolver<'_> {
             .flatten()
             .filter(|id| !id.is_empty())
             .find_map(|id| self.usable(id, surface, notes))
-            .map_or(if self.pure { "fade" } else { "grow" }, |m| m.id)
+            .unwrap_or_else(|| if self.pure { "fade" } else { "grow" }.into())
     }
 
     /// The form today's tokens name (`motion.style`, Entrance): the default opening form, one of the forms before K83.
     fn legacy_style(&self, notes: &mut Vec<String>) -> &'static str {
         // Under `none` the look's form still shaped the (unused) timed curves: a stepped look kept its staircase.
         let form = self.chain("panel", true, notes);
-        if forms::LEGACY.contains(&form) {
-            form
-        } else {
-            "grow"
-        }
+        forms::LEGACY
+            .into_iter()
+            .find(|l| *l == form)
+            .unwrap_or("grow")
     }
 
     fn accent_num(&self, user: impl Fn(&Axes) -> f64, pack: Option<f64>, default: f64) -> f64 {
@@ -567,7 +590,7 @@ impl Resolver<'_> {
         t.insert("motion.spring.squash".into(), json!(squash));
 
         // Forms per surface class and direction, and the parameters of those in use.
-        let mut used: Vec<&str> = vec![];
+        let mut used: Vec<String> = vec![];
         for surface in SURFACES {
             for (dir, open) in [("open", true), ("close", false)] {
                 let f = self.form(surface, open, notes);
@@ -579,12 +602,23 @@ impl Resolver<'_> {
         }
         if let Some(fb) = self.forms {
             for f in used {
-                if let Some(p) = fb.params.get(f) {
+                if let Some(p) = fb.params.get(&f) {
                     t.insert(format!("motion.form_params.{f}"), Value::Object(p.clone()));
                 }
             }
         }
-        t.insert("motion.forms".into(), forms::meta());
+        // The forms meta: every built-in form, then every valid recipe (W59.7, `recipe: true`); and each recipe the packs
+        // define as `motion.recipe.<id>` — the tracks to run, or why it is skipped (Settings lists both).
+        let mut meta = forms::meta();
+        if let Value::Object(m) = &mut meta {
+            for r in self.recipes.iter().filter(|r| r.ok()) {
+                m.insert(r.id.clone(), r.meta());
+            }
+        }
+        t.insert("motion.forms".into(), meta);
+        for r in self.recipes {
+            t.insert(format!("motion.recipe.{}", r.id), r.token());
+        }
 
         // Accents.
         let still = matches!(base, Base::None | Base::Reduced);
@@ -948,5 +982,112 @@ mod tests {
             }
             assert!(t["motion.forms"]["fold"].is_object());
         }
+    }
+
+    /// W59.7: a user pack's recipes are forms — in the meta, in `motion.recipe.<id>`, pickable on any surface and as the
+    /// pack's own forms; a skipped one falls back; reduce motion never runs a vestibular one.
+    #[test]
+    fn recipes_are_forms() {
+        let brief = include_str!("../tests/recipes-brief.toml");
+        let dir = std::env::temp_dir().join(format!("kurashi-recipes-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("mine.toml");
+        std::fs::write(&file, brief).unwrap();
+        std::fs::write(
+            dir.join("broken.toml"),
+            "[recipes.wobbly]\n[[recipes.wobbly.track]]\nprop = \"wobble\"\nkeys = [[0, 1]]\n",
+        )
+        .unwrap();
+        let reg = Registry::load(std::slice::from_ref(&dir));
+        std::fs::remove_dir_all(&dir).unwrap();
+        let run = |req: &Request| resolve_in(req, &reg, 1.0, "flat");
+
+        // The pack "mine" as the profile: its forms are its recipes.
+        let out = run(&Request::profile("mine"));
+        let t = &out.tokens;
+        assert_eq!(t["motion.form.panel.open"], "pop-tilt");
+        assert_eq!(t["motion.form.panel.close"], "fade");
+        assert_eq!(t["motion.form.toast.open"], "drop-squash");
+        assert_eq!(t["motion.form.sidebar.close"], "slide-blur");
+        assert_eq!(
+            t["motion.style"], "grow",
+            "today's token names a form before K83"
+        );
+        assert_eq!(t["motion.forms"]["pop-tilt"]["recipe"], true);
+        assert_eq!(
+            t["motion.forms"]["pop-tilt"]["flags"],
+            json!(["vestibular"])
+        );
+        assert_eq!(t["motion.forms"]["slide-blur"]["tier"], "layer");
+        assert_eq!(
+            t["motion.forms"]["pop-tilt"]["surfaces"]
+                .as_array()
+                .unwrap()
+                .len(),
+            12
+        );
+        assert!(
+            t["motion.forms"].get("wobbly").is_none(),
+            "a skipped recipe is no form"
+        );
+        let pop = &t["motion.recipe.pop-tilt"];
+        assert_eq!(pop["ok"], true);
+        assert_eq!(pop["label"], "Pop and tilt");
+        assert_eq!(pop["pack"], "mine");
+        assert_eq!(pop["path"], json!(file.to_string_lossy()));
+        assert_eq!(
+            pop["tracks"][0]["keys"],
+            json!([[0, 0.6], [0.7, 1.06], [1, 1]])
+        );
+        let bad = &t["motion.recipe.wobbly"];
+        assert_eq!(bad["ok"], false);
+        assert_eq!(bad["diags"][0]["key"], "config.diag.recipe.prop");
+        assert!(
+            out.notes
+                .iter()
+                .any(|n| n.contains("recipe wobbly (broken)")),
+            "{:?}",
+            out.notes
+        );
+
+        // Picked on one surface under another profile; a skipped one falls back along the chain.
+        let mut req = Request::profile("expressive");
+        req.axes
+            .surfaces
+            .insert("toast".into(), ("drop-squash".into(), "wobbly".into()));
+        let t = run(&req).tokens;
+        assert_eq!(t["motion.form.toast.open"], "drop-squash");
+        assert_eq!(t["motion.form.toast.close"], "grow");
+        assert_eq!(t["motion.form.panel.open"], "grow");
+
+        // Reduce motion: the `reduced` profile whole; a user's reduced pack naming a vestibular recipe still fades.
+        let mut req = Request::profile("mine");
+        req.reduce_motion = true;
+        let t = run(&req).tokens;
+        assert_eq!(t["motion.form.panel.open"], "fade");
+        assert_eq!(t["motion.form.toast.open"], "fade");
+        let recipes = brief.split_once("[recipes.pop-tilt]").unwrap().1;
+        let (p, d) = crate::pack::parse(
+            &format!(
+                "name = \"reduced\"\nbase = \"reduced\"\n[form]\nopen = \"pop-tilt\"\n\
+                 [form.toast]\nopen = \"drop-squash\"\n[recipes.pop-tilt]{recipes}"
+            ),
+            "reduced",
+            false,
+        )
+        .unwrap();
+        assert!(d.is_empty(), "{d:?}");
+        let mut reg2 = reg.clone();
+        let slot = reg2.packs.iter_mut().find(|p| p.id == "reduced").unwrap();
+        *slot = p;
+        let t = resolve_in(&req, &reg2, 1.0, "flat").tokens;
+        assert_eq!(
+            t["motion.form.panel.open"], "fade",
+            "pop-tilt zooms from 0.6: vestibular"
+        );
+        assert_eq!(
+            t["motion.form.toast.open"], "drop-squash",
+            "within 0.8–1.2, no turn"
+        );
     }
 }

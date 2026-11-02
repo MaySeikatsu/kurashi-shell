@@ -64,7 +64,10 @@ Item {
         bleed: "Bleed", stepped: "Stepped" })
     property var failed: ({})
     readonly property bool sheetOk: family === "sheet" && meta && meta.available !== false && !failed[form]
-    readonly property string transformComp: transforms[form] !== undefined ? transforms[form]
+    // A recipe (W59.7: a user's form from a motion pack, `recipe: true` in the meta): forms/Recipe.qml runs its tracks
+    // (`motion.recipe.<id>`) at content level, as a transform form.
+    readonly property var recipe: meta && meta.recipe === true ? Theme.tokens["motion.recipe." + form] || null : null
+    readonly property string transformComp: recipe ? "Recipe" : transforms[form] !== undefined ? transforms[form]
         : family === "shape" || family === "none" || sheetOk ? "" : "Fade"
     onTransformCompChanged: loadTransform()
     onFormChanged: checkForm()
@@ -99,13 +102,20 @@ Item {
             origin.y: host.f ? host.f.ry : 0
             axis { x: host.f ? host.f.ax : 0; y: host.f ? host.f.ay : 1; z: 0 }
             angle: host.f ? host.f.angle : 0
-        }
+        },
+        // A recipe's tracks (scale, skew, turns, translation) as one matrix, after the rest; identity for the others.
+        Matrix4x4 { matrix: host.f && host.f.matrix !== undefined ? host.f.matrix : host.identity }
     ]
+    readonly property matrix4x4 identity: Qt.matrix4x4()
+    // A form may size the blur (a recipe's own px) and mask the layer (a recipe's clip); today's forms: 24, no mask.
+    readonly property real blurMaxOf: f && f.blurMax !== undefined ? f.blurMax : 24
     layer.enabled: f ? f.layered : false
     layer.effect: MultiEffect {
-        blurEnabled: true
-        blurMax: 24
+        blurEnabled: host.blurMaxOf > 0
+        blurMax: Math.max(1, Math.round(host.blurMaxOf))
         blur: host.f ? host.f.blur : 0
+        maskEnabled: !!(host.f && host.f.mask)
+        maskSource: host.f && host.f.mask ? host.f.mask : null
     }
 
     // --- the content ---
