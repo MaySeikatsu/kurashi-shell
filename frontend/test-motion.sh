@@ -309,7 +309,8 @@ for fc in $FORM_CASES; do
           # (kami's island: its pen outline lands up to ~110 px apart from a fresh motion-off frontend's — on the W59.9a base
           # too, 65 and 106 px in two runs: pre-existing, reported; the card's own frame is checked by the landings below)
           slack=${MOTION_OFF_SLACK:-16}; [ "$sfc" = sidebar ] && slack=$(( slack * 2 ))
-          [ "$sfc" = island ] && [ "$style" = kami ] && slack=160
+          # (a toast's pen outline is seeded by its notification's id, a new one per frontend: the same under kami)
+          if [ "$style" = kami ] && { [ "$sfc" = island ] || [ "$sfc" = toast ]; }; then slack=160; fi
           [ "${d:-1}" -le "$slack" ] || fail "$fc $sfc $form: p = 1 differs from motion off in $d px"
         elif [ "${d:-0}" = 0 ] && [ "$p" != 0.15 ]; then
           # (W59.9a: an overshooting curve — expressive's, lively's spring — reaches its end early and passes it, where a
