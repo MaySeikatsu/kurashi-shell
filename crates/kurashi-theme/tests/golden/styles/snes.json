@@ -491,7 +491,7 @@
       "tier": "layer"
     },
     "expand": {
-      "available": false,
+      "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": false,
@@ -499,15 +499,8 @@
       "surfaces": [
         "island",
         "panel",
-        "peek",
         "launcher",
         "centre",
-        "toast",
-        "sidebar",
-        "dock",
-        "bar",
-        "osd",
-        "menu",
         "dialog"
       ],
       "tier": "transform"
@@ -666,7 +659,7 @@
       "tier": "transform"
     },
     "iris": {
-      "available": false,
+      "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": false,
@@ -674,17 +667,11 @@
       "surfaces": [
         "island",
         "panel",
-        "peek",
         "launcher",
         "centre",
-        "toast",
-        "sidebar",
-        "dock",
-        "osd",
-        "menu",
         "dialog"
       ],
-      "tier": "transform"
+      "tier": "layer"
     },
     "liquid": {
       "available": false,
@@ -746,7 +733,7 @@
       "tier": "mesh"
     },
     "outline": {
-      "available": false,
+      "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": false,
@@ -754,17 +741,11 @@
       "surfaces": [
         "island",
         "panel",
-        "peek",
         "launcher",
         "centre",
-        "toast",
-        "sidebar",
-        "dock",
-        "osd",
-        "menu",
         "dialog"
       ],
-      "tier": "transform"
+      "tier": "layer"
     },
     "pixelate": {
       "available": false,
@@ -855,7 +836,7 @@
       "tier": "transform"
     },
     "stamp": {
-      "available": false,
+      "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": true,
@@ -863,15 +844,11 @@
       "surfaces": [
         "island",
         "panel",
-        "peek",
         "launcher",
         "centre",
-        "toast",
-        "osd",
-        "menu",
         "dialog"
       ],
-      "tier": "transform"
+      "tier": "layer"
     },
     "stepped": {
       "available": true,
