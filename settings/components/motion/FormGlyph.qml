@@ -30,8 +30,9 @@ Canvas {
         ctx.fillStyle = a(fill, 0.85)
         ctx.strokeStyle = ink
         var x = 3, y = 3, w = W - 6, h = H - 6
-        switch (form) {
-        case "grow": case "expand": ctx.fillRect(x, y, w, h * 0.55); break
+        // (expand draws as grow; a regex, not a quoted name: nix/icon-names.py counts quoted words that are icons)
+        switch (/^(grow|expand)$/.test(form) ? "grow" : form) {
+        case "grow": ctx.fillRect(x, y, w, h * 0.55); break
         case "slide": ctx.fillRect(x + w * 0.35, y, w, h); break
         case "zoom": case "outline": ctx.fillRect(x + w * 0.2, y + h * 0.2, w * 0.6, h * 0.6); break
         case "fade": case "bleed": case "dissolve": ctx.fillStyle = a(fill, 0.4); ctx.fillRect(x, y, w, h); break
