@@ -100,8 +100,10 @@ Scope {
             if (rowOf(id) >= 0) continue
             if (budBusy) break
             var at = slotFor(top[k])
-            var bud = animated && !held && at === 0 && win.drip
-            cards.insert(at, { nid: id, leaving: false, flick: false, bud: bud })
+            // K83 (W59.9a): a toast whose open form is a shape or sheet form opens in it (no drip, no slide).
+            var form = animated && !held && formsOpen()
+            var bud = !form && animated && !held && at === 0 && win.drip
+            cards.insert(at, { nid: id, leaving: false, flick: false, bud: bud, form: form })
             if (bud) budBusy = true
         }
         var live = {}
@@ -123,6 +125,15 @@ Scope {
         cache = c
     }
     function detached() { budBusy = false; Qt.callLater(sync) }
+    // K83 (W59.9a): the toast's open form is one a card draws itself — a shape form (expand, iris, stamp, outline: through
+    // the card's ShapeLayer) or an available sheet form (the card's FormHost) — rather than today's drip or slide.
+    readonly property var shapeForms: ["expand", "iris", "stamp", "outline"]
+    function formsOpen() {
+        var f = Theme.motionForm("toast", "open")
+        if (shapeForms.indexOf(f) >= 0) return true
+        var m = f !== "" ? Theme.formMeta(f) : null
+        return !!m && m.family === "sheet" && m.available !== false
+    }
 
     NotificationCenter { screen: root.screen }
 
@@ -287,6 +298,8 @@ Scope {
                 required property bool leaving
                 required property bool flick
                 required property bool bud
+                // K83 (W59.9a): it opens in its open form (a shape or sheet form, `tRun`) instead of the drip or the slide.
+                required property bool form
                 readonly property var item: root.cache[nid] || ({})
                 readonly property real cardH: card.implicitHeight
 
@@ -303,8 +316,8 @@ Scope {
                 // ---- the drip: `t` 0 … 1 (snaps at 0.8), started on the first presented frame; then the spring back.
                 property real t: bud ? 0 : 1
                 // Without a drip (a side bar, no bar): the card slides in from the screen's edge as it fades in (W36).
-                property real enter: !bud && !win.drip && root.animated && Theme.stdMs > 0 ? 0 : 1
-                property bool waiting: bud || enter < 1
+                property real enter: !bud && !form && !win.drip && root.animated && Theme.stdMs > 0 ? 0 : 1
+                property bool waiting: bud || form || enter < 1
                 property bool detached: !bud
                 property bool freed: !bud
                 // Test only (KURASHI_MORPH_DEBUG=1): once it stands free, the card's top from the bar's screen edge and its height.
@@ -343,11 +356,18 @@ Scope {
                     target: d.waiting ? d.Window.window : null
                     function onFrameSwapped() {
                         d.waiting = false
-                        if (d.bud) budAnim.start()
+                        if (d.form) tRun.want = true
+                        else if (d.bud) budAnim.start()
                         else enterAnim.start()
                     }
                 }
-                Component.onDestruction: if (!d.detached) root.detached()
+                Component.onDestruction: {
+                    if (!d.detached) root.detached()
+                    if (shapeBusy) win.sheetsUp -= 1
+                }
+                // K83 (W59.9a): no blur behind the stack while a shape form masks a card (it would show the card's rect).
+                readonly property bool shapeBusy: tRun.busy && tRun.mode === "shape"
+                onShapeBusyChanged: win.sheetsUp += shapeBusy ? 1 : -1
                 onTChanged: {
                     if (!detached && t >= 0.8) detach()
                     if (t >= 1) checkFree()
@@ -481,19 +501,33 @@ Scope {
                 property real fx: 0
                 property real fade: 1
                 property real frozenY: 0
-                // K83 (W59.3, row 656): a toast leaves in its close form when that is a sheet form (crumple, fold, roll:
-                // W59.4) — the card balls up or folds where it stands, then it is gone; else flicked or drifting, as before.
+                // K83 (W59.3, row 656; W59.9a): a toast opens and leaves in its forms when they are shape or sheet forms —
+                // a sheet (crumple, fold, roll, drop …) folds or balls the card where it stands, a shape form (expand, iris,
+                // stamp, outline) draws it through the card's ShapeLayer, from the island's pill on a bar — then it is in, or
+                // gone; else the drip (or the slide) in and the flick (or the drift) out, as before. A reversal mid-way (a
+                // toast dismissed while it opens) continues the form in flight.
                 SurfaceForm {
                     id: tRun
                     surface: "toast"
-                    shapes: []
-                    Component.onCompleted: standOpen()
+                    shapes: root.shapeForms
+                    // (the card's own frame: along its width, away from the edge it comes from)
+                    fromCx: win.drip ? win.neckCx - win.cardX : win.cardW / 2
+                    fromW: win.drip ? Math.min(win.cardW, win.pillW) : win.cardW * 0.3
+                    fromR: Theme.rSm
+                    toCx: win.cardW / 2
+                    toW: win.cardW
+                    toFoot: card.height
+                    toR: Theme.rLg
+                    Component.onCompleted: if (!d.form) standOpen()
                     onLanded: at => { if (at <= 0 && d.leaving) root.gone(d.nid) }
                 }
                 onLeavingChanged: if (leaving) {
                     frozenY = ly
+                    var unseen = d.form && tRun.p <= 0 && !tRun.busy
                     tRun.want = false
-                    if (!tRun.sheet) leave.start()
+                    // (a toast that leaves before its form has drawn a frame is gone at once)
+                    if (unseen) root.gone(d.nid)
+                    else if (!tRun.formed) leave.start()
                 }
                 ParallelAnimation {
                     id: leave
@@ -625,7 +659,15 @@ Scope {
                         xScale: d.detached ? d.sw / win.cardW : 1
                         yScale: d.detached ? win.cardW / d.sw : 1
                     }
+                    // K83 (W59.9a): a shape form draws the card (and its elevation) through its mask while it moves; a
+                    // plain item otherwise.
+                    ShapeLayer {
+                        anchors.fill: parent
+                        run: tRun
+                        edge: win.flip ? "bottom" : "top"
+                        bleed: Math.ceil(tElev.reach)
                     Elevation {
+                        id: tElev
                         visible: !d.drawn
                         opacity: tHost.sheetShadow
                         width: win.cardW
@@ -647,6 +689,7 @@ Scope {
                         tailAt: win.neckCx - win.cardX - 7
                         onDismissed: root.dismiss(d.nid)
                         onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
+                    }
                     }
                 }
                 }

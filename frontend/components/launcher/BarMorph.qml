@@ -135,6 +135,8 @@ Item {
         fromTop: m.pillTop
         fromFoot: m.closedFoot
         fromR: m.pillR
+        pressX: m.pressAt.x
+        pressY: m.pressAt.y
         toCx: m.cardCx
         toW: m.cardW
         toTop: m.cardTop
@@ -185,7 +187,21 @@ Item {
             if (t < 900) console.log("bar-morph frame +" + t + " ms w=" + springs.w.toFixed(1) + " h=" + springs.h.toFixed(1))
         }
     }
-    onOpenChanged: { openedAt = Date.now(); follow() }
+    onOpenChanged: {
+        openedAt = Date.now()
+        // W59.9a (row 658): the bar module pressed on this output just now opened it (iris opens from the press).
+        var lp = IslandGeom.lastPress
+        if (open) openedPress = lp.output === outName && openedAt - lp.t < 1500 ? lp : null
+        follow()
+    }
+    property var openedPress: null
+    // The press in the shape's frame (the box is centred on the output; y from the bar's screen edge); NaN: none.
+    readonly property point pressAt: {
+        var rev = IslandGeom.revision
+        var q = shown && morph && openedPress ? IslandGeom.pressOf(openedPress) : null
+        if (!q) return Qt.point(NaN, NaN)
+        return Qt.point(q.x - (Screen.width - morphW) / 2, flip ? Screen.height - q.y : q.y)
+    }
     function follow() {
         if (open) {
             pillGeom = IslandGeom.pillOf(outName)
@@ -383,6 +399,7 @@ Item {
             hr: m.pillR
             neckF: Theme.rLg / 2
             neckScale: m.sf ? 1 : springs.neckScale
+            stretch: m.sf ? m.sf.neck : 1
             x0: m.shapeCx - m.shapeW / 2
             y0: m.bodyTop
             w: m.shapeW

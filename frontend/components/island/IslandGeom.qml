@@ -123,8 +123,21 @@ Singleton {
     property int revision: 0
     // I340: the bar module last pressed (or run by key) — `{output, mid, t}` — so the Stage knows which module a card it
     // opens came from (a module opens its card through an action, which does not say where it was pressed).
-    property var lastPress: ({ output: "", mid: "", t: 0 })
-    function notePress(output, mid) { lastPress = { output: output, mid: mid, t: Date.now() } }
+    // W59.9a (row 658): and where in the module it was pressed (`fx`, `fy`: fractions of its box; 0.5, 0.5 for a key), so
+    // a form that starts at the press (iris, drop's bead) starts there — `pressOf` gives it on the output.
+    property var lastPress: ({ output: "", mid: "", t: 0, fx: 0.5, fy: 0.5 })
+    function notePress(output, mid, fx, fy) {
+        lastPress = { output: output, mid: mid, t: Date.now(),
+                      fx: fx === undefined || isNaN(fx) ? 0.5 : Math.max(0, Math.min(1, fx)),
+                      fy: fy === undefined || isNaN(fy) ? 0.5 : Math.max(0, Math.min(1, fy)) }
+    }
+    // The press `p` (a lastPress, latched by its reader) as a point on its output (logical px), or null: its module is
+    // gone or not on a bar of that output.
+    function pressOf(p) {
+        if (!p || p.mid === "") return null
+        var r = rectOf(p.output, "module:" + p.mid)
+        return r ? Qt.point(r.x + p.fx * r.w, r.y + p.fy * r.h) : null
+    }
     function register(output, key, item, by) {
         if (output === "" || key === "" || !item) return
         var o = origins[output] || ({})
@@ -141,7 +154,8 @@ Singleton {
     }
     // The registered item's box on its output (logical px, its bar window's place counted: row 512 — a floating bar's window
     // stands in from the output's corner) as { x, y, w, h, edge }, `edge` the bar it stands in ("" when none of this output's
-    // bars holds it), or null: no such key, or the item is gone or hidden. `key` ending in ":" takes the first registered key
+    // bars holds it) and `r` its corner radius (-1: unknown), or null: no such key, or the item is gone or hidden. `key`
+    // ending in ":" takes the first registered key
     // with that prefix (a mod's panel opened from another of its widgets).
     function rectOf(output, key) {
         var o = origins[output]
@@ -154,7 +168,10 @@ Singleton {
         var t = a.item
         var p0 = t.mapToItem(null, 0, 0), p1 = t.mapToItem(null, t.width, t.height)
         var b = barHolding(output, t)
+        // (`r`: the origin's corner radius when the item says it — `originRadius`, else its own `radius` — else -1: the
+        // caller's default, a bar widget's Theme.rSm; W59.9a, liquid starts from it)
+        var rr = typeof t.originRadius === "number" ? t.originRadius : (typeof t.radius === "number" ? t.radius : -1)
         return { x: (b ? b.ox : 0) + Math.min(p0.x, p1.x), y: (b ? b.oy : 0) + Math.min(p0.y, p1.y),
-                 w: Math.abs(p1.x - p0.x), h: Math.abs(p1.y - p0.y), edge: b ? b.edge : "" }
+                 w: Math.abs(p1.x - p0.x), h: Math.abs(p1.y - p0.y), edge: b ? b.edge : "", r: rr }
     }
 }

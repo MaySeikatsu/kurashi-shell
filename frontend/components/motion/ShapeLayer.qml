@@ -1,17 +1,21 @@
 import QtQuick
 
-// A shape form drawn on a surface that has no morph of its own (K83, W59.3): a dialog, a card that slides from a side
-// bar, a toast without a bar, the dock, a sidebar. Put the surface's card inside; give it the surface's SurfaceForm
-// (`run`), whose from*/to*/edgeY are in the form's frame — y away from `edge` (the side the surface comes from), x along
-// it — in this item's px. While a shape form moves (and only then: a layer, Ma) it draws the card through FormMask:
-// expand cut at its foot, iris inside its circle, stamp at its fade and scale (about (cx, `pivotY`)), outline as its
-// stepped rects with the card hidden. At rest, and in every other form, it is a plain item: today's frames unchanged.
+// A shape form drawn on a surface that has no morph of its own (K83, W59.3; W59.9a): a dialog, a card that slides from a
+// side bar, a toast, the dock, a sidebar. Put the surface's card inside; give it the surface's SurfaceForm (`run`), whose
+// from*/to*/edgeY are in the form's frame — y away from `edge` (the side the surface comes from), x along it — in this
+// item's px. While a shape form moves (and only then: a layer, Ma) it draws the card through FormMask: expand cut at its
+// foot, iris inside its circle, stamp at its fade and scale (about (cx, `pivotY`)), outline as its stepped rects with the
+// card hidden. At rest, and in every other form, it is a plain item: today's frames unchanged.
+// `bleed` (W59.9a): the layer reaches that far past this item on every side, so what the card casts outside its box (its
+// elevation) is drawn through the mask too instead of being cut by the layer's bounds; an expand lets it in over the last
+// fifth of the travel, so the frame at p = 1 is the rest frame with nothing popping in.
 Item {
     id: sl
     property QtObject run: null
     property string edge: "top"
     // The frame y the stamp scales about (default: the edge the surface comes from).
     property real pivotY: run ? run.edgeY : 0
+    property real bleed: 0
     default property alias content: inner.data
 
     readonly property QtObject sf: run && run.mode === "shape" && run.busy ? run.shape : null
@@ -31,7 +35,10 @@ Item {
 
     Item {
         id: masked
-        anchors.fill: parent
+        x: -sl.bleed
+        y: -sl.bleed
+        width: sl.width + 2 * sl.bleed
+        height: sl.height + 2 * sl.bleed
         layer.enabled: sl.sf !== null
         layer.effect: FormMask {
             form: sl.sf
@@ -39,14 +46,22 @@ Item {
             flipped: sl.flipped
             transposed: sl.transposed
             cut: true
+            pad: sl.bleed
+            frame: Qt.rect(sl.bleed, sl.bleed, sl.width, sl.height)
         }
         transform: Scale {
-            origin.x: sl.pivot.x
-            origin.y: sl.pivot.y
+            origin.x: sl.pivot.x + sl.bleed
+            origin.y: sl.pivot.y + sl.bleed
             xScale: sl.sf ? (sl.transposed ? sl.sf.sy : sl.sf.sx) : 1
             yScale: sl.sf ? (sl.transposed ? sl.sf.sx : sl.sf.sy) : 1
         }
-        Item { id: inner; anchors.fill: parent }
+        Item {
+            id: inner
+            x: sl.bleed
+            y: sl.bleed
+            width: sl.width
+            height: sl.height
+        }
     }
     OutlineRects {
         anchors.fill: parent

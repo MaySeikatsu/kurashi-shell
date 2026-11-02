@@ -11,6 +11,8 @@ import QtQuick
 //              bar, width, top, foot (the line the shape hangs from) and corner radius
 //   to*        the card at rest: its centre, width, top, foot and corner radius
 //   edgeY      the bar's inner edge — the hinge: what lies before it (the bar's strip, the island's head) stays drawn
+//   atX atY    where the user pressed (W59.9a, row 658: the module's press point, I340), else the origin's centre on the
+//              line it hangs from (fromCx, fromFoot) — a key, the CLI, a press on another output or too long ago
 //   params     `motion.form_params.<form>`
 // Outputs. At p = 1 every output is the card's own, so the frame at rest is exactly the motion-off frame:
 //   cx w foot  the silhouette's centre, width and foot
@@ -23,6 +25,7 @@ import QtQuick
 //   clipsContent  the content is cut to the silhouette (false: it is drawn whole, transformed with the card)
 //   outline    outline rects drawn instead of the shape: `rects` = [{x, y, w, h, r, a}] in the same frame
 //   lift       the elevation one level up, 0 at rest … 1 (the shadow tightens as the card lands)
+//   neck       the join's fillets × this (MorphShape `stretch`; liquid's thread), 1 at rest
 QtObject {
     property real progress: 1
     property string direction: "open"
@@ -38,6 +41,8 @@ QtObject {
     property real toFoot: 0
     property real toR: 0
     property real edgeY: 0
+    property real atX: fromCx
+    property real atY: fromFoot
 
     readonly property real pc: Math.max(0, Math.min(1, progress))
     readonly property bool moving: progress < 1
@@ -62,4 +67,5 @@ QtObject {
     property bool outline: false
     property var rects: []
     property real lift: 0
+    property real neck: 1
 }

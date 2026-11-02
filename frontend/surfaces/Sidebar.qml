@@ -232,16 +232,19 @@ Scope {
             // K83 (W59.3, row 656): a sheet form (roll, fold: W59.4) opens and closes the column instead of its slide — the
             // column stands at rest while the sheet unrolls it from its screen edge (the hinge) or rolls it back, and goes
             // once the sheet has. The window's FormHost (below) draws it; every other form keeps the slide.
+            // W59.9a: the shape forms (expand, iris, stamp, outline) too — the column stands at rest while the window's
+            // ShapeLayer draws it through the form's mask (its frame and origin: the window's Bindings below).
             SurfaceForm {
                 id: sbRun
                 surface: "sidebar"
-                shapes: []
+                shapes: ["expand", "iris", "stamp", "outline"]
                 // (a slide still in flight keeps its way: a reversal continues it)
                 hold: col.held && (spring.running || timedP.running || (col.p > 0.001 && col.p < 0.999))
                 onLanded: at => { if (at <= 0 && !col.wanted && col.held) { col.held = false; col.p = 0 } }
             }
             onWantedChanged: drive()
             Component.onCompleted: if (wanted) drive()
+            property var openedPress: null
             function drive() {
                 timedP.stop()
                 if (holding || sb.holdP >= 0) {
@@ -253,8 +256,11 @@ Scope {
                     else { held = false; p = 0 }
                     return
                 }
+                // W59.9a (row 658): the sidebar button pressed on this output just now opened it (an iris opens there).
+                var lp = IslandGeom.lastPress
+                if (wanted) openedPress = lp.output === out && Date.now() - lp.t < 1500 && lp.mid.indexOf("sidebar") === 0 ? lp : null
                 sbRun.want = wanted && !sb.instant
-                if (sbRun.sheet) {
+                if (sbRun.formed) {
                     if (wanted) {
                         // (at rest at once: `gate` keeps the slide's Behavior off for this write)
                         if (!held) { frozen = false; held = true }
@@ -416,8 +422,8 @@ Scope {
                     BackgroundEffect.blurRegion: Region {
                         x: win.realX(win.shX0, win.blurX1)
                         y: win.blurY0
-                        width: Theme.blur && !win.flyouts && !sbHost.sheetBlurOff ? Math.max(0, win.blurX1 - win.shX0) : 0
-                        height: Theme.blur && !win.flyouts && !sbHost.sheetBlurOff ? Math.max(0, win.blurY1 - win.blurY0) : 0
+                        width: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurX1 - win.shX0) : 0
+                        height: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurY1 - win.blurY0) : 0
                         topLeftRadius: shape.sTL
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
@@ -495,6 +501,28 @@ Scope {
                     readonly property rect restRect: Qt.rect(realX(rx0, rx1), y0, col.colW, y1 - y0)
                     // K61: the column's material comes with it (output axes).
                     readonly property point shapeCarry: Qt.point((sb.side === "left" ? -1 : 1) * col.off, 0)
+                    // K83 (W59.9a): the shape forms' frame — ShapeLayer's on this window, y away from the screen's edge (the
+                    // canonical x mirrored: boxW − x), x along it (the window's y). The column at rest, and its origin: the
+                    // sidebar button's press when one opened it, else a third of the column at its middle, on its outer side.
+                    readonly property bool formBlurOff: sbHost.sheetBlurOff || (sbRun.busy && sbRun.mode === "shape")
+                    readonly property point formPress: {
+                        var rev = IslandGeom.revision
+                        var q = col.openedPress ? IslandGeom.pressOf(col.openedPress) : null
+                        if (!q) return Qt.point(NaN, NaN)
+                        return Qt.point(q.y - offTop, sb.side === "left" ? q.x : col.sw - q.x)
+                    }
+                    Binding { target: sbRun; property: "fromCx"; value: (win.y0 + win.y1) / 2 }
+                    Binding { target: sbRun; property: "fromW"; value: (win.y1 - win.y0) * 0.3 }
+                    Binding { target: sbRun; property: "fromTop"; value: win.boxW - win.rx1 }
+                    Binding { target: sbRun; property: "fromFoot"; value: win.boxW - win.rx1 }
+                    Binding { target: sbRun; property: "toCx"; value: (win.y0 + win.y1) / 2 }
+                    Binding { target: sbRun; property: "toW"; value: win.y1 - win.y0 }
+                    Binding { target: sbRun; property: "toTop"; value: win.boxW - win.rx1 }
+                    Binding { target: sbRun; property: "toFoot"; value: win.boxW - win.rx0 }
+                    Binding { target: sbRun; property: "toR"; value: col.floating ? col.floatR : col.joinR }
+                    Binding { target: sbRun; property: "edgeY"; value: win.boxW - win.rx1 }
+                    Binding { target: sbRun; property: "pressX"; value: win.formPress.x }
+                    Binding { target: sbRun; property: "pressY"; value: win.formPress.y }
 
                     function logGeom() {
                         if (!sb.geometryLog) return
@@ -611,6 +639,11 @@ Scope {
                         progress: sbRun.sheet ? sbRun.p : 1
                         visible: !sbRun.sheet || sbRun.p > 0
                         source: sheetSrc
+                    // K83 (W59.9a): a shape form draws the column (and its shadows) through its mask while it moves.
+                    ShapeLayer {
+                        anchors.fill: parent
+                        run: sbRun
+                        edge: sb.side
                     // Everything the column draws, cut where it meets its neighbours.
                     Item {
                         id: clipper
@@ -775,6 +808,7 @@ Scope {
                             }
                         }
                         }
+                    }
                     }
                     }
                     // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.

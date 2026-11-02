@@ -27,6 +27,9 @@ Item {
     // The origin (the pressed module's rect, in host coordinates); empty = none (the bar's centre is the surface's
     // business).
     property rect origin: Qt.rect(0, 0, 0, 0)
+    // Where the user pressed (W59.9a, row 658; host coordinates), NaN = no press: a sheet form that starts at a point
+    // (drop's bead) reads it when it has a `pressAt` of its own.
+    property point pressAt: Qt.point(NaN, NaN)
     property real progress: 1
     // "open", "close", or "auto": opening when the transition starts from 0, closing from 1.
     property string direction: "auto"
@@ -71,7 +74,10 @@ Item {
         : family === "shape" || family === "none" || sheetOk ? "" : "Fade"
     onTransformCompChanged: loadTransform()
     onFormChanged: checkForm()
-    function checkForm() {
+    // (checked once the form's meta and family have followed it: inside onFormChanged they may still be the last form's,
+    // which named `grow` unknown on every surface at start — the lead's finding, W59.9a)
+    function checkForm() { Qt.callLater(checkNow) }
+    function checkNow() {
         if (transformComp === "Fade" && form !== "fade")
             warnOnce(form, family === "sheet" ? "is not available" : "is unknown")
     }
@@ -149,6 +155,7 @@ Item {
             item.direction = Qt.binding(function () { return host.dir })
             item.surface = Qt.binding(function () { return host.surface })
             item.form = Qt.binding(function () { return host.form })
+            if (item.pressAt !== undefined) item.pressAt = Qt.binding(function () { return host.pressAt })
         }
         onStatusChanged: if (status === Loader.Error) {
             var m = Object.assign({}, host.failed)
