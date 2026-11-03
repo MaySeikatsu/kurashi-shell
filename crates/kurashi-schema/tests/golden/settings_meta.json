@@ -4671,6 +4671,54 @@
               "restart": false,
               "since": 1,
               "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.button_logo.look",
+                  "value": "look"
+                },
+                {
+                  "label": "config.choice.button_logo.os",
+                  "value": "os"
+                },
+                {
+                  "label": "config.choice.button_logo.own",
+                  "value": "own"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "look",
+              "help": "config.launcher.button_logo.help",
+              "key": "launcher.button_logo",
+              "label": "config.launcher.button_logo.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "launcher.button_logo",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "own"
+                }
+              ],
+              "default": "",
+              "help": "config.launcher.button_icon.help",
+              "key": "launcher.button_icon",
+              "label": "config.launcher.button_icon.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string"
             }
           ]
         }

@@ -189,6 +189,13 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("start.family", Families, "[]"),
     k("start.size", Int(0, 32), "0"),
     k("start.italic", Bool, "false"),
+    // I374: how the launcher button tints the OS logo (`launcher.button_logo = os`): its own colours, the text's ink, or
+    // the four console colours round it (a conic sweep of red, yellow, teal, blue: the PS2 look).
+    k(
+        "start.logo_tint",
+        Choice(&["none", "ink", "console"]),
+        r#""none""#,
+    ),
     // W53.2: the tray well's fill ("" = the part's own): XP's lighter blue notification area.
     k("tray.fill", Role, r#""""#),
     // W53.2, the `bar` slot (a part drawn as the bar's ground, under its groups): its fill (one role solid, two a

@@ -19,6 +19,7 @@ category = "retro"
 
 [slots]
 frame = "ps2"
+start = "towers"
 bar = "void"
 menu = "glow"
 scroll = "hairline"
@@ -29,6 +30,7 @@ lock = "dashboard"
 sounds = "ps2"
 
 [decor]
+"start.logo_tint" = "console"
 # Thin type: the regular weight is Light, bold is Regular.
 "type.weight" = 300
 # A soft blue glow round panels and selected rows (static halos; high contrast drops them).

@@ -1409,6 +1409,17 @@ pub struct Desktop {
 
 // --- launcher --------------------------------------------------------------------------------
 
+/// What the launcher button shows (I374).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ButtonLogo {
+    /// The look's mark
+    Look,
+    /// The OS logo
+    Os,
+    /// My own image
+    Own,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "launcher", section = "apps")]
 pub struct Launcher {
@@ -1424,6 +1435,15 @@ pub struct Launcher {
     /// The address a query is searched at, `{}` standing for the query; empty = no web search row.
     #[kurashi(default = "https://duckduckgo.com/?q={}".to_owned())]
     pub web_search: String,
+    /// Launcher button logo
+    /// What the bar's launcher button shows: the look's own mark (or the plain apps icon), your OS's logo (from
+    /// os-release; a look may tint it, the PS2 look in its four colours), or an image of your own below.
+    #[kurashi(default = ButtonLogo::Look, since = 7)]
+    pub button_logo: ButtonLogo,
+    /// Your image
+    /// A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
+    #[kurashi(default = String::new(), requires = "launcher.button_logo == own", since = 7)]
+    pub button_icon: String,
 }
 
 // --- idle (K47) ------------------------------------------------------------------------------

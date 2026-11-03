@@ -1566,6 +1566,22 @@ The address a query is searched at, `{}` standing for the query; empty = no web 
 
 - type: `string` · default: `"https://duckduckgo.com/?q={}"`
 
+#### `launcher.button_logo` — Launcher button logo
+
+What the bar's launcher button shows: the look's own mark (or the plain apps icon), your OS's logo (from os-release; a look may tint it, the PS2 look in its four colours), or an image of your own below.
+
+- type: `choice` · default: `"look"`
+- choices: `"look"` | `"os"` | `"own"`
+- since schema v7
+
+#### `launcher.button_icon` — Your image
+
+A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
+
+- type: `string` · default: `""`
+- only while `launcher.button_logo == "own"`
+- since schema v7
+
 ## Desktop
 
 ### Widgets

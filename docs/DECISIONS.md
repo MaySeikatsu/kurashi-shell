@@ -1196,3 +1196,14 @@ longer advanced and pick from `desktop.cards` (core cards, then the mods' `desk:
 other cards". Free placement stays I222. *Why:* the user found the left sidebar poorer than the right, the "Open from
 the bar" switch misleading, wanted a pin and both desk columns from Settings.
 
+## K85 — The launcher button's logo: the look's mark, the OS logo, or your own image (session 20, user)
+
+🟢 `launcher.button_logo` (look · os · own; default look) in every look, `launcher.button_icon` the image for "own"
+(a path on this machine, never in the repo). "os" draws the OS's logo (theme token `os.logo` from os-release, read once
+by the daemon, rule 1), tinted as the look's `[decor] start.logo_tint` says: none (its own colours), ink, or console (a
+conic sweep of four hard quarters, red · yellow · teal · blue — the PS2 look). The PS2 look gets its own start mark,
+`start/Towers.qml`: four light towers rising on a floor line in those colours (after its boot screen), never Sony's logo,
+letters or controller symbols. *Why:* the user wanted the retro PlayStation logo on the launcher button; it is a
+trademark we cannot ship (BACKLOG I374), so the look ships an original mark and the user can show the OS logo in the
+look's colours or any image of their own.
+
