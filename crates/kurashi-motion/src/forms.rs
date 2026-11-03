@@ -268,7 +268,12 @@ mod tests {
         assert!(form("iris").unwrap().serves("toast"));
         assert!(form("expand").unwrap().serves("dock"));
         // S21: every form but liquid on every class.
-        assert!(FORMS.iter().filter(|m| m.id != "liquid").all(|m| m.surfaces().count() == 12));
+        assert!(
+            FORMS
+                .iter()
+                .filter(|m| m.id != "liquid")
+                .all(|m| m.surfaces().count() == 12)
+        );
         assert!(form("liquid").unwrap().serves("peek"));
         assert!(!form("liquid").unwrap().serves("sidebar"));
         let m = meta();
