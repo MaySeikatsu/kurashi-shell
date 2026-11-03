@@ -1031,82 +1031,6 @@ Multiplies every motion duration's speed (2.0 = twice as fast).
 - range: `0.25..=3.0`, step `0.05`
 - only while `theme.motion.profile != "none"`
 
-### Timing
-
-#### `theme.motion.timing.preset` — Timing preset
-
-How the profile's animations are timed: the profile's own, or a preset's curves (calm, lively …) under its forms.
-
-- type: `string` · default: `""`
-- choices: from `motion.timings` (resolved at runtime)
-- only while `theme.motion.profile != "none"`
-
-### Advanced curves
-
-#### `theme.motion.timing.open` — Opening
-
-The curve surfaces open and grow on.
-
-- type: `curve` · default: `""`
-- only while `theme.motion.profile != "none"`
-
-#### `theme.motion.timing.close` — Closing
-
-The curve surfaces close and fold back on.
-
-- type: `curve` · default: `""`
-- only while `theme.motion.profile != "none"`
-
-#### `theme.motion.timing.fast` — Quick moves
-
-The curve of small, fast moves: hover peeks, menus, a bar sliding in.
-
-- type: `curve` · default: `""`
-- only while `theme.motion.profile != "none"`
-
-#### `theme.motion.timing.effects` — Fades
-
-The curve of colour and opacity changes; it should not overshoot.
-
-- type: `curve` · default: `""`
-- only while `theme.motion.profile != "none"`
-
-#### `theme.motion.timing.open_ms` — Opening duration
-
-Milliseconds (0: the profile's; a spring's duration is its response).
-
-- type: `int` · default: `0`
-- range: `0..=3000` (ms)
-- only while `theme.motion.profile != "none"`
-- advanced
-
-#### `theme.motion.timing.close_ms` — Closing duration
-
-Milliseconds (0: the profile's).
-
-- type: `int` · default: `0`
-- range: `0..=3000` (ms)
-- only while `theme.motion.profile != "none"`
-- advanced
-
-#### `theme.motion.timing.fast_ms` — Quick move duration
-
-Milliseconds (0: the profile's).
-
-- type: `int` · default: `0`
-- range: `0..=3000` (ms)
-- only while `theme.motion.profile != "none"`
-- advanced
-
-#### `theme.motion.timing.effects_ms` — Fade duration
-
-Milliseconds (0: the profile's).
-
-- type: `int` · default: `0`
-- range: `0..=3000` (ms)
-- only while `theme.motion.profile != "none"`
-- advanced
-
 ### Animation style
 
 #### `theme.motion.form.open` — Opens with
@@ -1343,6 +1267,82 @@ This surface's own closing animation ("": the default).
 
 - type: `string` · default: `""`
 - choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+### Timing
+
+#### `theme.motion.timing.preset` — Timing preset
+
+How the profile's animations are timed: the profile's own, or a preset's curves (calm, lively …) under its forms.
+
+- type: `string` · default: `""`
+- choices: from `motion.timings` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+
+### Advanced curves
+
+#### `theme.motion.timing.open` — Opening
+
+The curve surfaces open and grow on.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.close` — Closing
+
+The curve surfaces close and fold back on.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.fast` — Quick moves
+
+The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.effects` — Fades
+
+The curve of colour and opacity changes; it should not overshoot.
+
+- type: `curve` · default: `""`
+- only while `theme.motion.profile != "none"`
+
+#### `theme.motion.timing.open_ms` — Opening duration
+
+Milliseconds (0: the profile's; a spring's duration is its response).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.close_ms` — Closing duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.fast_ms` — Quick move duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
+- only while `theme.motion.profile != "none"`
+- advanced
+
+#### `theme.motion.timing.effects_ms` — Fade duration
+
+Milliseconds (0: the profile's).
+
+- type: `int` · default: `0`
+- range: `0..=3000` (ms)
 - only while `theme.motion.profile != "none"`
 - advanced
 

@@ -3291,221 +3291,6 @@
           ]
         },
         {
-          "id": "timing",
-          "label": "settings.section.timing",
-          "rows": [
-            {
-              "advanced": false,
-              "choices": [],
-              "choices_from": "motion.timings",
-              "control": "select",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": "",
-              "help": "config.theme.motion.timing.preset.help",
-              "key": "theme.motion.timing.preset",
-              "label": "config.theme.motion.timing.preset.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "string"
-            }
-          ]
-        },
-        {
-          "id": "advanced_curves",
-          "label": "settings.section.advanced_curves",
-          "rows": [
-            {
-              "advanced": false,
-              "control": "curve",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": "",
-              "help": "config.theme.motion.timing.open.help",
-              "key": "theme.motion.timing.open",
-              "label": "config.theme.motion.timing.open.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "curve"
-            },
-            {
-              "advanced": false,
-              "control": "curve",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": "",
-              "help": "config.theme.motion.timing.close.help",
-              "key": "theme.motion.timing.close",
-              "label": "config.theme.motion.timing.close.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "curve"
-            },
-            {
-              "advanced": false,
-              "control": "curve",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": "",
-              "help": "config.theme.motion.timing.fast.help",
-              "key": "theme.motion.timing.fast",
-              "label": "config.theme.motion.timing.fast.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "curve"
-            },
-            {
-              "advanced": false,
-              "control": "curve",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": "",
-              "help": "config.theme.motion.timing.effects.help",
-              "key": "theme.motion.timing.effects",
-              "label": "config.theme.motion.timing.effects.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "curve"
-            },
-            {
-              "advanced": true,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": 0,
-              "help": "config.theme.motion.timing.open_ms.help",
-              "key": "theme.motion.timing.open_ms",
-              "label": "config.theme.motion.timing.open_ms.label",
-              "max": 3000,
-              "min": 0,
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "int",
-              "unit": "ms"
-            },
-            {
-              "advanced": true,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": 0,
-              "help": "config.theme.motion.timing.close_ms.help",
-              "key": "theme.motion.timing.close_ms",
-              "label": "config.theme.motion.timing.close_ms.label",
-              "max": 3000,
-              "min": 0,
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "int",
-              "unit": "ms"
-            },
-            {
-              "advanced": true,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": 0,
-              "help": "config.theme.motion.timing.fast_ms.help",
-              "key": "theme.motion.timing.fast_ms",
-              "label": "config.theme.motion.timing.fast_ms.label",
-              "max": 3000,
-              "min": 0,
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "int",
-              "unit": "ms"
-            },
-            {
-              "advanced": true,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": 0,
-              "help": "config.theme.motion.timing.effects_ms.help",
-              "key": "theme.motion.timing.effects_ms",
-              "label": "config.theme.motion.timing.effects_ms.label",
-              "max": 3000,
-              "min": 0,
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "int",
-              "unit": "ms"
-            }
-          ]
-        },
-        {
           "id": "animation_style",
           "label": "settings.section.animation_style",
           "rows": [
@@ -4127,6 +3912,221 @@
               "restart": false,
               "since": 1,
               "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "timing",
+          "label": "settings.section.timing",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.timings",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.preset.help",
+              "key": "theme.motion.timing.preset",
+              "label": "config.theme.motion.timing.preset.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "advanced_curves",
+          "label": "settings.section.advanced_curves",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.open.help",
+              "key": "theme.motion.timing.open",
+              "label": "config.theme.motion.timing.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.close.help",
+              "key": "theme.motion.timing.close",
+              "label": "config.theme.motion.timing.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.fast.help",
+              "key": "theme.motion.timing.fast",
+              "label": "config.theme.motion.timing.fast.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.effects.help",
+              "key": "theme.motion.timing.effects",
+              "label": "config.theme.motion.timing.effects.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.open_ms.help",
+              "key": "theme.motion.timing.open_ms",
+              "label": "config.theme.motion.timing.open_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.close_ms.help",
+              "key": "theme.motion.timing.close_ms",
+              "label": "config.theme.motion.timing.close_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.fast_ms.help",
+              "key": "theme.motion.timing.fast_ms",
+              "label": "config.theme.motion.timing.fast_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.effects_ms.help",
+              "key": "theme.motion.timing.effects_ms",
+              "label": "config.theme.motion.timing.effects_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
             }
           ]
         },

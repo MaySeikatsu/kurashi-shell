@@ -86,6 +86,9 @@ fail() { echo "FAIL: $*"; exit 1; }
 rm -rf "$R/cfg" "$R/state" "$R/data" "$R/cache"   # a reused sandbox name keeps its dir: start from empty XDG dirs
 mkdir -p "$R/cfg/kurashi/profiles" "$R/state" "$R/data" "$R/cache" "$R/root/i18n/en" "$R/root/i18n/ja"
 export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
+# M8b's profile that does not move (since S21 no bundled pack but none/reduced holds still: win95 outlines).
+mkdir -p "$R/cfg/kurashi/motion"
+printf 'name = "still"\nbase = "none"\n' > "$R/cfg/kurashi/motion/still.toml"
 cat > "$R/cfg/kurashi/config.toml" <<'T'
 schema_version = 1
 [bar]
@@ -249,7 +252,7 @@ motion_en() {
            curve:theme.motion.timing.effects forms-table forms-line:island form:theme.motion.form.open; do
     [ "$(Q present "$n")" = yes ] || fail "motion M1: $n is not on the page"
   done
-  [[ "$(Q sections)" == *motion.profile*motion.timing*motion.forms*motion.choreography*motion.windows* ]] \
+  [[ "$(Q sections)" == *motion.profiles*motion.animation_style*motion.timing*motion.advanced_curves*motion.choreography*motion.windows* ]] \
     || fail "motion M1: the sections are $(Q sections)"
   mshot page
   echo "motion M1: the page opens with the preview stage, the gallery, the curve editors and the forms table"
@@ -388,9 +391,9 @@ for pg in d.get("pages",[]):
   for _ in $(seq 50); do [ "$(Q present reason:theme.motion.speed:daemon)" = no ] && break; sleep 0.1; done
   [ "$(Q present reason:theme.motion.speed:daemon)" = no ] || fail "motion M8: speed still says it is inert"
 
-  # M8b. a profile that does not move (win95's): the axes say so.
-  K '{"t":"apply","id":"m8c","ops":[{"set":"theme.motion.profile","value":"win95"}]}' | grep -q applied \
-    || fail "motion M8b: the win95 profile was refused"
+  # M8b. a profile that does not move (the user pack `still`, base none): the axes say so.
+  K '{"t":"apply","id":"m8c","ops":[{"set":"theme.motion.profile","value":"still"}]}' | grep -q applied \
+    || fail "motion M8b: the still profile was refused"
   for _ in $(seq 50); do [ "$(why theme.motion.speed)" = settings.inert.motion.still ] && break; sleep 0.1; done
   [ "$(why theme.motion.speed)" = settings.inert.motion.still ] || fail "motion M8b: speed's reason is $(why theme.motion.speed)"
   mwait_present reason:theme.motion.speed:daemon "M8b: the speed does not say the profile does not move"
@@ -399,10 +402,10 @@ for pg in d.get("pages",[]):
   echo "motion M8b: a profile that does not move: the axes say so"
   K '{"t":"apply","id":"m8d","ops":[{"reset":"theme.motion.profile"}]}' | grep -q applied || fail "motion M8b: the reset was refused"
 
-  # M8c. a form the surface cannot use (fold on the bar): the line says the default plays; the cell stays editable.
-  K '{"t":"apply","id":"m8e","ops":[{"set":"theme.motion.form.bar.open","value":"fold"}]}' | grep -q applied \
-    || fail "motion M8c: fold on the bar was refused"
-  # The daemon says either: the bar's offers leave fold out (I9, checked first) or the forms meta does not let it serve.
+  # M8c. a form the surface cannot use (liquid on the bar: it needs a morphing surface): the line says the default plays; the cell stays editable.
+  K '{"t":"apply","id":"m8e","ops":[{"set":"theme.motion.form.bar.open","value":"liquid"}]}' | grep -q applied \
+    || fail "motion M8c: liquid on the bar was refused"
+  # The daemon says either: the bar's offers leave liquid out (I9, checked first) or the forms meta does not let it serve.
   for _ in $(seq 50); do [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] && break; sleep 0.1; done
   [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] \
     || fail "motion M8c: bar.open's reason is $(why theme.motion.form.bar.open)"

@@ -1049,10 +1049,11 @@ pub struct Motion {
     #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
-    #[kurashi(nested, section = "timing")]
-    pub timing: MotionTiming,
+    // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
     #[kurashi(nested, section = "animation_style")]
     pub form: MotionForms,
+    #[kurashi(nested, section = "timing")]
+    pub timing: MotionTiming,
     /// Content
     /// When a surface's content appears as it opens: late (once the surface has nearly reached its size), with it, or
     /// row by row in a cascade.

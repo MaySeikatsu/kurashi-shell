@@ -240,7 +240,11 @@ Scope {
                 shapes: ["expand", "iris", "stamp", "outline"]
                 // (a slide still in flight keeps its way: a reversal continues it)
                 hold: col.held && (spring.running || timedP.running || (col.p > 0.001 && col.p < 0.999))
-                onLanded: at => { if (at <= 0 && !col.wanted && col.held) { col.held = false; col.p = 0 } }
+                // (a form that lands open is the column's rest too: the tests' `sidebar-rest`)
+                onLanded: at => {
+                    if (at <= 0 && !col.wanted && col.held) { col.held = false; col.p = 0 }
+                    else if (at >= 1) col.settled()
+                }
             }
             onWantedChanged: drive()
             Component.onCompleted: if (wanted) drive()
