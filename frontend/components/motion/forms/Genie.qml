@@ -46,6 +46,13 @@ SheetForm {
     // The slide's length: the far edge ends `fadeLen` inside the module.
     readonly property real travel: away + fadeLen
 
+    // S21 (the user: the lamp "looks off with its shadows"): the card's elevation shadow stands at the rest rect, so over
+    // a long pour a 10 % fade popped it in at the landing and left a shadow without a card at a close's start. It follows
+    // the pour here: in as the sides relax (the last 45 % of an open), out as they bend (the first 30 % of a close); the
+    // join's fillets come back only once the body is through the funnel.
+    shadowK: smooth01((p - 0.55) / 0.45)
+    filletK: smooth01((p - 0.7) / 0.3)
+
     // A row strip per ~6 px (the funnel's curve between two rows is far under a pixel), a few columns across.
     readonly property int rows: Math.max(32, Math.min(160, Math.ceil(away / 6)))
 

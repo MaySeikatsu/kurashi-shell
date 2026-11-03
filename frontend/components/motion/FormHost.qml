@@ -125,7 +125,8 @@ Item {
     }
 
     // --- the content ---
-    Item { id: body; anchors.fill: parent }
+    // (S21: a sheet form opening from 0 draws nothing until it moves — the card must not show for the frame it is mapped)
+    Item { id: body; anchors.fill: parent; visible: !(host.sheetOk && host.progress <= 0 && host.nextDir === "open") }
 
     // --- sheet forms (W59.4+) ---
     // The handover a surface applies while a sheet form warps its card (row 656, brief §5): its elevation shadow ×

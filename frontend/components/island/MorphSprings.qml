@@ -173,6 +173,10 @@ QtObject {
         vcx = 0; vw = 0; vh = 0
         scx = 0; sw = 0; sh = 0
         lcx = cxTo; lw = wTo; lh = hTo
+        // S21: every axis's timed/closed-form travel ends here too — a later target change on ONE axis restarts the
+        // runner for all three, and an axis left with its old start (t0) would run that travel again (the card that
+        // jumped back to its origin's width once a sheet form had landed and its height moved).
+        t0 = [cxTo, wTo, hTo]; tEl = [tDur, tDur, tDur]; tV0 = [0, 0, 0]
         publish()
     }
     // The start of a morph: values set, no velocity, nothing runs until a target moves.

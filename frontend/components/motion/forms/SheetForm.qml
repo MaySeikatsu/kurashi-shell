@@ -88,8 +88,9 @@ Item {
     property real shade: 0.35
 
     // --- handover (read by the host: CONTRACT-CHANGE row 656) ---
-    readonly property real shadowK: smooth01((p - 0.9) / 0.1)
-    readonly property real filletK: smooth01((p - 0.85) / 0.15)
+    // (a form may widen these windows — genie's body pours a long way, so its shadow fades with it, S21)
+    property real shadowK: smooth01((p - 0.9) / 0.1)
+    property real filletK: smooth01((p - 0.85) / 0.15)
     readonly property bool solidFill: true
     readonly property bool blurOff: true
 
