@@ -68,6 +68,14 @@ Flickable {
         }
     }
 
+    // The tile with this id (a pin's id or a control's name), else null: the origin a panel opens from (K83, W64).
+    function tileOf(id) {
+        for (var i = 0; i < rep.count; i++) {
+            var f = focusable(i)
+            if (f && ((f.pin && f.pin.id === id) || f.name === id)) return f
+        }
+        return null
+    }
     // Tab from a tile: into the card when one is up, else on to the next tile; Shift+Tab steps back.
     function tabFrom(back) {
         if (!back && strip.panelOpen) strip.tabPressed()
