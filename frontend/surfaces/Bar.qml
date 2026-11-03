@@ -10,6 +10,7 @@ import "../components/bar"
 import "../components/bar/framegeom.js" as FG
 import "../components/modules" as M
 import "../components/decor" as Decor
+import "../components/motion"
 
 // The bar on one edge of one output (K71, docs/ux/layout.md): there while `runtime.layout` has `edges.<edge>.bar` for this
 // output, its rows (top, bottom) or columns (left, right) the edge's zones `start`, `center`, `end`, each entry a module
@@ -169,13 +170,30 @@ Scope {
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
     // 0 = slid out past its edge, 1 = in place: on Caelestia's curves (expressive: the bar grows out of the band and
     // overshoots a little) or a spring (calm, lively; K65), cut when motion is off (K74, Glide).
-    readonly property real shownAmt: glide.value
+    // K83 (W64; docs/ux/motion-engine.md §6, `bar`: the hover / empty-desktop reveal, role `fast`): while a shape form
+    // (expand, iris, stamp, outline) or a sheet form (genie, fold, roll, pixelate …) brings the bar out or puts it away it
+    // stands at rest and the form draws it (`bRun`: the window's ShapeLayer, or its FormHost `bHost`, hinged on the screen's
+    // edge); the slide runs underneath, unseen. `slide` and the other transform forms are today's glide, untouched.
+    readonly property bool formDraws: bRun.formed && (bRun.busy || bRun.want)
+    readonly property real shownAmt: formDraws ? 1 : glide.value
     readonly property Glide glide: Glide { to: bar.wantShown ? 1 : 0; damping: Math.max(Theme.damping, 0.6) }
+    readonly property SurfaceForm bRun: SurfaceForm {
+        surface: "bar"
+        role: "fast"
+        shapes: ["expand", "iris", "stamp", "outline"]
+        // (a slide still in flight keeps its way: a reversal continues it)
+        hold: !formed && bar.glide.value > 0.001 && bar.glide.value < 0.999
+    }
+    // (driven from here, not bound: a bar that is out when it is made stands open — Component.onCompleted below — and
+    // does not play its form at start)
     // The window: while the bar is out or sliding, while it keeps a zone or carries the frame's strip (both hold while it
     // is in), and — once shown — kept unmapped while hidden (the dock's pattern; BENCH "W44 bar": the cheaper of the two).
     readonly property bool keepsSpace: holdsZone && reserve > 0
     property bool everShown: false
-    onWantShownChanged: if (wantShown) everShown = true
+    onWantShownChanged: {
+        if (wantShown) everShown = true
+        bRun.want = wantShown
+    }
     // (Bench only: KURASHI_BAR_DROP=1 makes no window while hidden, the other choice measured.)
     readonly property bool keepWindow: Quickshell.env("KURASHI_BAR_DROP") !== "1"
     readonly property bool windowWanted: on && (wantShown || shownAmt > 0 || keepsSpace || carries || (everShown && keepWindow))
@@ -187,7 +205,11 @@ Scope {
     BarConfig { id: cfg; screen: bar.scr }
     readonly property bool primary: cfg.enabled && cfg.edge === edge
     onPrimaryChanged: if (primary) Peeks.setEdge(outName, edge)
-    Component.onCompleted: { if (primary) Peeks.setEdge(outName, edge); report() }
+    Component.onCompleted: {
+        if (primary) Peeks.setEdge(outName, edge)
+        report()
+        if (wantShown) bRun.standOpen()
+    }
 
     // Where the body stands from its edge, for the neck, the sidebar's join and the frame (IslandGeom's bar registry).
     // Also the window's content item and its place on the output, so the Stage can tell which bar an origin stands in and
@@ -340,12 +362,33 @@ Scope {
             // K61 carried sheet: the body's distance from its place at rest while it slides.
             readonly property point sheetCarry: Qt.point(body.x - body.restX, body.y - body.restY)
 
+            // K83 (W64): the forms' frame — ShapeLayer's on this window, x along the edge, y away from the screen's edge: the
+            // body at rest (`edgeRoom` off its edge), its origin a third of it at its middle, on the edge's line.
+            readonly property real formAlong0: bar.vertical ? body.restY : body.restX
+            readonly property real formAlong: bar.vertical ? body.height : body.width
+            Binding { target: bar.bRun; property: "fromCx"; value: win.formAlong0 + win.formAlong / 2 }
+            Binding { target: bar.bRun; property: "fromW"; value: win.formAlong * 0.3 }
+            Binding { target: bar.bRun; property: "fromTop"; value: 0 }
+            Binding { target: bar.bRun; property: "fromFoot"; value: win.edgeRoom }
+            Binding { target: bar.bRun; property: "fromR"; value: Theme.rSm }
+            Binding { target: bar.bRun; property: "toCx"; value: win.formAlong0 + win.formAlong / 2 }
+            Binding { target: bar.bRun; property: "toW"; value: win.formAlong }
+            Binding { target: bar.bRun; property: "toTop"; value: win.edgeRoom }
+            Binding { target: bar.bRun; property: "toFoot"; value: win.edgeRoom + bar.barH }
+            Binding { target: bar.bRun; property: "toR"; value: bar.drawFloating ? bar.barH / 2 : 0 }
+            Binding { target: bar.bRun; property: "edgeY"; value: win.edgeRoom }
+            // The weight of what the bar casts at rest (its sheet shadow, its elevation) while a form draws it: a shape form
+            // brings it in with its progress, a sheet form out at its start and in over its landing (`sheetShadow`).
+            readonly property real formShade: !bar.bRun.busy ? 1
+                : bar.bRun.sheet ? bHost.sheetShadow : Math.max(0, Math.min(1, bar.bRun.p))
+
             // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol): the body, and the frame's fills
             // this window carries.
             // Glass only (Theme.blur). The body as drawn: a floating bar's pill round, a docked strip square; nothing for a
             // clear strip (its groups are pills of their own) — a square region showed the blur past the outline (I276).
+            // (K83, W64: none while a form draws the body — a mask or a warp would show the body's rect)
             BackgroundEffect.blurRegion: Region {
-                item: Theme.blur && body.shownNow && !bb.clearStrip ? bg : null
+                item: Theme.blur && body.shownNow && !bb.clearStrip && !bar.bRun.busy && !bHost.sheetBlurOff ? bg : null
                 radius: bar.drawFloating ? Math.min(bg.width, bg.height) / 2 : 0
                 Region { item: Theme.blur && carried.item ? carried.item.fillAt(0) : null }
                 Region { item: Theme.blur && carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
@@ -416,9 +459,31 @@ Scope {
                 origin: win.sheetOrigin
                 own: win.sheetOwn
                 // (a sliding bar's shadow goes with it; the band a carrying bar leaves stays)
-                opacity: bar.carries ? 1 : Math.min(1, bar.shownAmt)
+                opacity: bar.carries ? 1 : Math.min(1, bar.shownAmt) * win.formShade
             }
 
+            // K83 (W64, the sidebar's pattern): the bar's form host — a sheet form captures `bodySrc` (the body's box of
+            // `barDraw`: the strip or the pill, its material and its modules), hinged on the screen's edge; a shape form
+            // draws the body through its mask (ShapeLayer). The frame's strip this window carries stays outside: the band
+            // stays on its edge.
+            FormHost {
+                id: bHost
+                anchors.fill: parent
+                surface: "bar"
+                edge: bar.edge
+                direction: bar.bRun.dir
+                progress: bar.bRun.sheet ? bar.bRun.p : 1
+                visible: !bar.bRun.sheet || bar.bRun.p > 0
+                source: bodySrc
+            ShapeLayer {
+                anchors.fill: parent
+                run: bar.bRun
+                edge: bar.edge
+            // The bar as drawn, window-aligned: SheetRest takes it into one layer while a sheet form runs.
+            Item {
+                id: barDraw
+                width: win.width
+                height: win.height
             Item {
                 id: body
                 // At rest: past the edge room, the start room and (bottom, right) the carried depth.
@@ -464,8 +529,10 @@ Scope {
                     readonly property bool live: bar.shownAmt > 0
 
                     // I338: a floating bar stands off the sheet at level 2 (its shadow from the shell's light).
+                    // (W64: × the form's shade — out while a sheet form warps the pill, back over its landing)
                     Elevation {
                         visible: bar.drawFloating
+                        opacity: win.formShade
                         anchors.fill: parent
                         radius: Math.min(width, height) / 2
                         level: 2
@@ -478,7 +545,9 @@ Scope {
                         anchors.topMargin: bar.edge === "bottom" ? -body.over : 0
                         anchors.rightMargin: bar.edge === "left" ? -body.over : 0
                         anchors.leftMargin: bar.edge === "right" ? -body.over : 0
-                        color: bb.clearStrip || bar.drawFloating || ground.has ? "transparent" : Theme.surfaceAlpha
+                        // (a translucent fill draws solid while a sheet form warps it: the sheet composites it, W64)
+                        color: bb.clearStrip || bar.drawFloating || ground.has ? "transparent"
+                            : bHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
                         // W53.2: the look's bar ground (`[slots] bar`: XP's glossy taskbar, 7's glass superbar) in place of the
                         // strip's fill; nothing is made without one.
                         Decor.BarGround {
@@ -541,7 +610,7 @@ Scope {
                                 width: bg.width
                                 height: bg.height + Theme.shadowDy
                                 radius: Theme.rFull
-                                fill: Theme.surfaceAlpha
+                                fill: bHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
                                 animate: false
                             }
                         }
@@ -625,6 +694,30 @@ Scope {
                         sourceComponent: verticalLayout
                     }
                 }
+            }
+            }
+            // W64: while a sheet form warps the body, the rest of the bar (what the pill casts beside its box: the keycap
+            // shadow, the elevation) × the landing, and the body's box the form captures, so p = 1 is the rest frame.
+            SheetRest {
+                id: bRest
+                width: win.width
+                height: win.height
+                on: bHost.sheetSolid
+                draw: barDraw
+                body: Qt.rect(Math.round(body.restX), Math.round(body.restY), Math.round(body.width), Math.round(body.height))
+                hingeY: -1e6
+                k: bHost.sheetFillets
+            }
+            Item {
+                id: bodySrc
+                x: bRest.body.x
+                y: bRest.body.y
+                width: bRest.body.width
+                height: bRest.body.height
+                clip: true
+                SheetRest.Body { rest: bRest }
+            }
+            }
             }
             // The frame's rule this window carries, over the body: the arcs meet the body's outline (I302).
             Loader {

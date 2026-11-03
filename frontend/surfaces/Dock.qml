@@ -283,26 +283,29 @@ Scope {
 
             // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change: on Caelestia's curves while the motion
             // is timed (K74: it grows out of its edge and overshoots a little; Glide), else on the enter curve.
-            // K83 (W59.9a): while a shape form (expand, iris, stamp, outline) opens or closes the dock it stands at rest and
-            // the form draws it (`dRun`, the window's ShapeLayer); the slide runs underneath, unseen, so a form that ends
-            // hands back to where the slide is.
-            readonly property bool formDraws: dRun.mode === "shape" && (dRun.busy || dRun.want)
-            readonly property real shownAmt: formDraws ? 1 : Theme.timed ? glide.value : easedAmt
+            // K83 (W59.9a, W64): while a shape form (expand, iris, stamp, outline) or a sheet form (genie, fold, roll,
+            // pixelate …) opens or closes the dock it stands at rest and the form draws it (`dRun`: the window's ShapeLayer,
+            // or its FormHost `dkHost`); the slide runs underneath, unseen, so a form that ends hands back to where the slide is.
+            readonly property bool formDraws: dRun.formed && (dRun.busy || dRun.want)
+            readonly property real slideAmt: Theme.timed ? glide.value : easedAmt
+            readonly property real shownAmt: formDraws ? 1 : slideAmt
             // The motion starts on the window's first presented frame after it is mapped (as the sidebar's and the Stage's):
             // started with the map, its first frames ran before the compositor showed the window, and the dock came up
             // nearly out already — a jump (I278).
             property bool presented: false
             readonly property bool growing: wantShown && presented
             readonly property Glide glide: Glide { to: dock.growing ? 1 : 0 }
-            // The dock's form (K83, `dock`): the shape forms only — a sheet form has no host here yet (it keeps the slide).
-            // In the window's frame (ShapeLayer: along the edge, away from it): the body stands `edgeGap` off its edge and
-            // `room` in along it on every side; the origin is a third of the body at its middle, on the edge's line.
+            // The dock's form (K83, `dock`): the shape forms through the window's ShapeLayer, the sheet forms through its
+            // FormHost (W64), hinged on the dock's screen edge. In the window's frame (ShapeLayer: along the edge, away from
+            // it): the body stands `edgeGap` off its edge and `room` in along it on every side; the origin is a third of the
+            // body at its middle, on the edge's line.
             readonly property real formAlong: horiz ? bodyW : bodyH
             readonly property SurfaceForm dRun: SurfaceForm {
                 surface: "dock"
                 shapes: ["expand", "iris", "stamp", "outline"]
-                sheets: false
                 want: dock.growing
+                // (a slide still in flight keeps its way: a reversal continues it, as the sidebar's)
+                hold: !formed && dock.slideAmt > 0.001 && dock.slideAmt < 0.999
                 fromCx: dock.room + dock.formAlong / 2
                 fromW: dock.formAlong * 0.3
                 fromTop: 0
@@ -562,11 +565,53 @@ Scope {
                             y: dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0)
                         }
                         opacity: Store.live ? 1 : Theme.staleOpacity
+                        // K83 (W64, the sidebar's pattern, W59.9a): the dock's form host — a sheet form captures `bodySrc`
+                        // (the body's box of `sheetSrc`: fill, material, tiles; the elevation stays out of it, × `sheetShadow`),
+                        // hinged on the dock's screen edge; genie pours out of a mouth on that edge (`lamp`).
+                        FormHost {
+                            id: dkHost
+                            anchors.fill: parent
+                            surface: "dock"
+                            edge: dock.edge
+                            direction: dock.dRun.dir
+                            progress: dock.dRun.sheet ? dock.dRun.p : 1
+                            visible: !dock.dRun.sheet || dock.dRun.p > 0
+                            source: bodySrc
+                            origin: dkHost.lamp
+                            // The lamp: a third of the body at its middle, on the screen's side of the hinge (between the
+                            // body and its screen edge, at least 8 px deep), so the genie's funnel ends in the edge.
+                            readonly property rect lamp: {
+                                var w = Math.max(32, dock.formAlong * 0.3), d = Math.max(8, dock.edgeGap)
+                                var cx = body.x + body.width / 2, cy = body.y + body.height / 2
+                                if (dock.edge === "bottom") return Qt.rect(cx - w / 2, body.y + body.height, w, d)
+                                if (dock.atTop) return Qt.rect(cx - w / 2, body.y - d, w, d)
+                                if (dock.edge === "left") return Qt.rect(body.x - d, cy - w / 2, d, w)
+                                return Qt.rect(body.x + body.width, cy - w / 2, d, w)
+                            }
                         // K83 (W59.9a): a shape form draws the dock through its mask while it moves (a plain item else).
                         ShapeLayer {
                             anchors.fill: parent
                             run: dock.dRun
                             edge: dock.edge
+
+                        // W57 (K78): a floating dock's elevation (joined, it is one sheet with the band) — outside what a
+                        // sheet form captures, faded out while one warps the body and back in over its landing (W64).
+                        Elevation {
+                            visible: !dock.joined
+                            opacity: dkHost.sheetShadow
+                            x: body.x
+                            y: body.y
+                            width: body.width
+                            height: body.height
+                            radius: Theme.rLg + 4
+                            level: 2
+                        }
+                        // W64: the dock as drawn, window-aligned: SheetRest takes it into one layer while a sheet form runs
+                        // (the joined fillets beside the body, × the landing), and the form captures its body's box.
+                        Item {
+                            id: sheetSrc
+                            width: win.width
+                            height: win.height
 
                         // The joined body (K71): flush on its edge, concave fillets of the layout's radius into it (the
                         // island's neck turned to the band; 0 = connected's straight sides), its free corners rounded. In
@@ -594,8 +639,9 @@ Scope {
                                 y1: dock.atTop ? body.y + body.height : (dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy)
                                 openT: dock.horiz
                                 openO: !dock.horiz
-                                neckT: dock.aR
-                                neckO: dock.aR
+                                // (W64: a sheet form's landing grows the fillets back, as the sidebar's)
+                                neckT: dock.aR * dkHost.sheetFillets
+                                neckO: dock.aR * dkHost.sheetFillets
                                 // K74: the joined dock's corners are corners of the window cut into the sheet: the layout's
                                 // one radius, as its fillets (0 = connected, straight)
                                 radius: dock.joinR
@@ -603,7 +649,8 @@ Scope {
                                 flipY: dock.edge === "bottom"
                                 flipX: dock.edge === "left"
                                 ruled: Theme.frameOutline
-                                fill: Theme.surfaceAlpha
+                                // (a translucent fill draws solid while a sheet form warps it: the sheet composites it)
+                                fill: dkHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
                             }
                             // The shape's fill as a mask for its relief (I168, the sidebar's pattern): drawn only into
                             // `joinedMask`'s texture, redrawn when the path changes (the fillets morph) and never at rest.
@@ -649,13 +696,7 @@ Scope {
                             width: dock.bodyW
                             height: dock.bodyH
                             readonly property real inset: 0
-                            // W57 (K78): a floating dock's elevation (joined, it is one sheet with the band).
-                            Elevation {
-                                visible: !dock.joined
-                                anchors.fill: parent
-                                radius: Theme.rLg + 4
-                                level: 2
-                            }
+                            // (its elevation stands beside `sheetSrc`, outside what a sheet form captures: W64)
                             // W53.4 (contract row 605): the look's dock body (`[slots] dock`: Mac OS X's shelf, macOS 11+'s
                             // floating panel) in place of the block; nothing is made without one.
                             DockGround {
@@ -671,7 +712,7 @@ Scope {
                                 anchors.fill: parent
                                 visible: !dock.joined && !dockPart.ready
                                 radius: Theme.rLg + 4
-                                fill: Theme.surfaceAlpha
+                                fill: dkHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
                                 flatBorder: Theme.outline
                                 animate: win.visible && !dock.joined
                             }
@@ -983,6 +1024,30 @@ Scope {
                                     }
                                 }
                             }
+                        }
+                        }
+                        // W64: while a sheet form warps the body, the rest of the dock (the joined fillets, sized by the
+                        // landing, and what the block casts beside its box) × the landing, and the body's box the form
+                        // captures — square on its edge, so p = 1 is the rest frame with nothing changing at the swap.
+                        SheetRest {
+                            id: dkRest
+                            width: win.width
+                            height: win.height
+                            on: dkHost.sheetSolid
+                            draw: sheetSrc
+                            body: Qt.rect(Math.round(body.x), Math.round(body.y), Math.round(body.width), Math.round(body.height))
+                            hingeY: -1e6
+                            k: dkHost.sheetFillets
+                        }
+                        Item {
+                            id: bodySrc
+                            x: dkRest.body.x
+                            y: dkRest.body.y
+                            width: dkRest.body.width
+                            height: dkRest.body.height
+                            clip: true
+                            SheetRest.Body { rest: dkRest }
+                        }
                         }
                         }
                     }
