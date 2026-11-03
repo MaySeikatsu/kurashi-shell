@@ -376,9 +376,12 @@ PanelWindow {
     onPanelGoChanged: if (panelGo) originKey = side !== "" ? sideOwner : shownId
     // Its box in the window's item px, then in the form's frame (ShapeLayer on the window: x along the edge, y away from the
     // screen's edge; the panel stands `stripPx` off it, its hinge there).
+    // (worked out only while a form opens or closes the panel: the strip's slide re-reads it every frame otherwise — Ma, and
+    // the JS garbage of a binding per frame showed as USS growth over 20 reveals)
     readonly property rect panelOrigin: {
-        var dep = [reveal, cardReveal, rowList, width, height]
-        var t = originKey !== "" ? stripItem.tileOf(originKey) : null
+        if (originKey === "" || !(pRun.want || pRun.busy)) return Qt.rect(0, 0, 0, 0)
+        void reveal; void rowList; void width; void height
+        var t = stripItem.tileOf(originKey)
         if (!t) return Qt.rect(0, 0, 0, 0)
         var p = t.mapToItem(pHost, 0, 0)
         return Qt.rect(p.x, p.y, t.width, t.height)
