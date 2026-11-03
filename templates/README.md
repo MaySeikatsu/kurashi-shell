@@ -19,11 +19,18 @@ so matugen templates work unchanged), and:
 | `{{shape.border}}` | the shell's outline width in px; 2 for flat chrome, which draws none |
 | `{{motion.ms}}` | the standard motion duration in ms |
 | `{{motion.curve}}` | the continuous easing as `cubic-bezier(…)` |
-| `{{motion.niri}}` | niri's `animations {}` block for the motion profile and speed (calm, lively: springs; none: `off`) |
+| `{{motion.niri}}` | niri's `animations {}` block for the motion profile and speed (calm, lively: springs; none: `off`); empty with `theme.window_animations` off |
+| `{{motion.hyprland}}`, `{{motion.mango}}` | the same for Hyprland (`animations {}`: a `kurashi` bezier from the continuous curve, speed from the standard duration) and MangoWM (`animation_*` keys); empty with `theme.window_animations` off |
+| `{{frame.niri.ring}}`, `{{frame.niri.border}}`, `{{frame.hyprland}}`, `{{frame.mango}}`, `{{frame.sway}}` | `theme.window_frame` on: the frame at `{{shape.border}}` (niri: `off` for the focus ring, `on` for the border); off: empty, the compositor keeps its own |
+| `{{opacity.niri}}`, `{{opacity.hyprland}}`, `{{opacity.mango}}` | `theme.inactive_transparent` on: unfocused windows at `theme.inactive_opacity` (niri: a `window-rule` on `is-focused=false`); off: empty |
+| `{{titlebar.sway}}`, `{{titlebar.hyprland}}` | `theme.window_titlebars` on: sway's `default_border normal` and font; Hyprland's `plugin { hyprbars { … } }` block (the plugin must be loaded); off: empty |
 | `{{ghostty.shader}}` | the ghostty target only: `custom-shader = <abs path>` and `custom-shader-animation = false` while the material is on for the shell (scope shell / shell_wallpaper, a known kind), else empty; the shader is `ghostty/shaders/kurashi.glsl` (I174, row 403) |
 | `{{material.opacity}}` | the surface opacity in effect (1.00 when solid) |
 | `{{paths.config}}` | `$XDG_CONFIG_HOME`, absolute |
 | `{{gsettings.color_scheme}}` | `prefer-dark` or `default` (GNOME's colour scheme) |
+
+An include line may name these values too (Firefox's `@import` names `{{paths.config}}`), and an include file that starts
+with `~/` sits under `$HOME` (Zen's profile), not `$XDG_CONFIG_HOME`.
 
 A placeholder with no value is reported as unknown and left in the file. A line whose value is empty
 (`icon_theme=` with no icon theme chosen, `icon-theme=''`) is not written: the app keeps its own choice.
@@ -44,6 +51,31 @@ A placeholder with no value is reported as unknown and left in the file. A line 
   clips their client-side shadows. Earlier versions wrote
   `kurashi-colors.kdl`; that file is now a comment-only stub, so an old include still loads, and Settings marks its
   line as stale. Replace it with the new line.
+- **zellij**: `zellij/themes/kurashi.kdl` (`theme "kurashi"` in `config.kdl`).
+- **fzf**: `kurashi/apps/fzf`, an options file of `--color` lines for fzf 0.47+, read through `FZF_DEFAULT_OPTS_FILE`
+  (fish: `set -gx FZF_DEFAULT_OPTS_FILE …` in `config.fish`; bash/zsh: `export`). noren's picker is fzf, so noren follows
+  through it (and zellij's theme around it).
+- **nvim**: `nvim/colors/kurashi.lua`, a colour scheme (`vim.cmd.colorscheme("kurashi")` in `init.lua`; it is read when
+  the scheme is loaded, so `:colorscheme kurashi` again after a theme change).
+- **helix**: `helix/themes/kurashi.toml` (`theme = "kurashi"`, then `:config-reload`).
+- **zed**: `zed/themes/kurashi.json`, a theme family with one theme in the scheme in effect (`"theme": "Kurashi",` in
+  `settings.json`; Zed watches the folder).
+- **firefox, zen**: `mozilla.css` written as `kurashi/apps/firefox.css` (`zen.css`), the browser chrome's variables
+  (Zen's own included). `@import url("file://…");` at the very top of the profile's `chrome/userChrome.css`, and
+  `toolkit.legacyUserProfileCustomizations.stylesheets` = true in `about:config` (Zen has it on). Restart to reload.
+- **vesktop**: `vesktop/themes/kurashi.css`, Discord's CSS variables (old and refreshed names). Enable it in Vesktop:
+  Settings → Vencord → Themes. No config line.
+- **spicetify**: `spicetify/Themes/Kurashi/color.ini`; `lines/spicetify.ini` holds `current_theme` and `color_scheme`
+  for `config-xpui.ini`. Spotify takes the colours on `spicetify apply`: run it after a theme change (the shell runs
+  nothing).
+- **obsidian**: `kurashi/apps/obsidian.css`, Obsidian's CSS variables. Link it into each vault and enable it under
+  Settings → Appearance → CSS snippets: `ln -s ~/.config/kurashi/apps/obsidian.css <vault>/.obsidian/snippets/kurashi.css`.
+- **hyprland**: `hypr/kurashi.conf` (`source = ~/.config/hypr/kurashi.conf` at the end of `hyprland.conf`): border
+  colours, groups, corner radius, shadow, background; frame, see-through, animations and titlebars as switched.
+- **mango**: `mango/kurashi.conf` (`source=~/.config/mango/kurashi.conf` at the end of `config.conf`): border, focus and
+  urgent colours, the root colour, corner radius; frame, see-through and animations as switched (no titlebars).
+- **sway**: `sway/kurashi.conf` (`include ~/.config/sway/kurashi.conf`): `client.*` colours; frame and titlebars as
+  switched (sway has no animations and no unfocused opacity).
 - **gsettings**: `gsettings.ini` is applied, not written to a file. It sets `color-scheme`, `font-name` and
   `icon-theme` of `org.gnome.desktop.interface` (GNOME, GTK 4 and libadwaita apps read them), and only the values that
   differ from the current ones. The opt-in is the only consent: nothing else is changed. It needs `gsettings` on the

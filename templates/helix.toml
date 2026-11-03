@@ -1,0 +1,104 @@
+# Written by kurashid from the theme (K49). Do not edit: it is rewritten.
+# Use it in ~/.config/helix/config.toml:   theme = "kurashi"   (then :config-reload)
+
+"ui.background" = { bg = "surface" }
+"ui.text" = "fg"
+"ui.text.focus" = { fg = "fg", modifiers = ["bold"] }
+"ui.text.inactive" = "muted"
+"ui.cursor" = { fg = "surface", bg = "muted" }
+"ui.cursor.primary" = { fg = "surface", bg = "accent" }
+"ui.cursor.match" = { bg = "accent_container", modifiers = ["bold"] }
+"ui.cursorline.primary" = { bg = "container_low" }
+"ui.selection" = { bg = "container_high" }
+"ui.selection.primary" = { fg = "on_accent_container", bg = "accent_container" }
+"ui.linenr" = "outline"
+"ui.linenr.selected" = { fg = "accent", modifiers = ["bold"] }
+"ui.gutter" = { bg = "surface" }
+"ui.statusline" = { fg = "fg", bg = "container" }
+"ui.statusline.inactive" = { fg = "muted", bg = "container_low" }
+"ui.statusline.normal" = { fg = "on_accent", bg = "accent", modifiers = ["bold"] }
+"ui.statusline.insert" = { fg = "surface", bg = "secondary", modifiers = ["bold"] }
+"ui.statusline.select" = { fg = "surface", bg = "tertiary", modifiers = ["bold"] }
+"ui.bufferline" = { fg = "muted", bg = "container_low" }
+"ui.bufferline.active" = { fg = "fg", bg = "surface", modifiers = ["bold"] }
+"ui.bufferline.background" = { bg = "container_low" }
+"ui.popup" = { fg = "fg", bg = "container" }
+"ui.window" = "outline"
+"ui.help" = { fg = "fg", bg = "container" }
+"ui.menu" = { fg = "fg", bg = "container" }
+"ui.menu.selected" = { fg = "on_accent_container", bg = "accent_container" }
+"ui.menu.scroll" = { fg = "outline", bg = "container" }
+"ui.picker.header" = { fg = "accent", modifiers = ["bold"] }
+"ui.virtual.whitespace" = "outline_variant"
+"ui.virtual.ruler" = { bg = "container_low" }
+"ui.virtual.indent-guide" = "outline_variant"
+"ui.virtual.inlay-hint" = { fg = "outline" }
+"ui.virtual.jump-label" = { fg = "error", modifiers = ["bold"] }
+
+"comment" = { fg = "outline", modifiers = ["italic"] }
+"keyword" = "accent"
+"keyword.control" = "accent"
+"function" = "secondary"
+"function.builtin" = "secondary"
+"function.macro" = "tertiary"
+"type" = "tertiary"
+"type.builtin" = "tertiary"
+"constructor" = "tertiary"
+"constant" = "warning"
+"constant.numeric" = "warning"
+"constant.character.escape" = "secondary"
+"string" = "success"
+"string.regexp" = "warning"
+"variable" = "fg"
+"variable.builtin" = "error"
+"variable.parameter" = "fg"
+"variable.other.member" = "muted"
+"label" = "tertiary"
+"namespace" = "tertiary"
+"operator" = "muted"
+"punctuation" = "muted"
+"tag" = "accent"
+"attribute" = "tertiary"
+"special" = "secondary"
+
+"markup.heading" = { fg = "accent", modifiers = ["bold"] }
+"markup.bold" = { modifiers = ["bold"] }
+"markup.italic" = { modifiers = ["italic"] }
+"markup.strikethrough" = { modifiers = ["crossed_out"] }
+"markup.link.url" = { fg = "secondary", underline = { style = "line" } }
+"markup.link.text" = "accent"
+"markup.quote" = { fg = "muted", modifiers = ["italic"] }
+"markup.raw" = "success"
+"markup.list" = "accent"
+
+"diff.plus" = "success"
+"diff.minus" = "error"
+"diff.delta" = "warning"
+
+"error" = "error"
+"warning" = "warning"
+"info" = "secondary"
+"hint" = "outline"
+"diagnostic.error" = { underline = { color = "error", style = "curl" } }
+"diagnostic.warning" = { underline = { color = "warning", style = "curl" } }
+"diagnostic.info" = { underline = { color = "secondary", style = "curl" } }
+"diagnostic.hint" = { underline = { color = "outline", style = "curl" } }
+
+[palette]
+surface = "{{colors.surface.default.hex}}"
+container_low = "{{colors.surface_container_low.default.hex}}"
+container = "{{colors.surface_container.default.hex}}"
+container_high = "{{colors.surface_container_high.default.hex}}"
+fg = "{{colors.on_surface.default.hex}}"
+muted = "{{colors.on_surface_variant.default.hex}}"
+outline = "{{colors.outline.default.hex}}"
+outline_variant = "{{colors.outline_variant.default.hex}}"
+accent = "{{colors.primary.default.hex}}"
+on_accent = "{{colors.on_primary.default.hex}}"
+accent_container = "{{colors.primary_container.default.hex}}"
+on_accent_container = "{{colors.on_primary_container.default.hex}}"
+secondary = "{{colors.secondary.default.hex}}"
+tertiary = "{{colors.tertiary.default.hex}}"
+success = "{{colors.success.default.hex}}"
+warning = "{{colors.warning.default.hex}}"
+error = "{{colors.error.default.hex}}"

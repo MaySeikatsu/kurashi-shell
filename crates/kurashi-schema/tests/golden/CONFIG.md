@@ -410,10 +410,45 @@ Used in light and dark alike, adjusted only as far as legibility needs.
 
 #### `theme.export` — Apps that follow
 
-Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the file; Settings shows it.
+Write the shell's colours for these apps whenever the theme changes: GTK, Qt, KDE, terminals, editors, browsers, Discord, Spotify, Obsidian and the compositors (K49). Each one needs one line in its own config to read the file; Settings shows it.
 
 - type: `string_list` · default: `[]`
 - choices: from `theme.export` (resolved at runtime)
+
+#### `theme.window_frame` — Window frames
+
+The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round every window: the accent round the focused one, the outline round the others, as wide as the shell's outline. Off: each keeps its own frame setting and only takes the colours.
+
+- type: `bool` · default: `false`
+- since schema v7
+
+#### `theme.inactive_transparent` — See-through unfocused windows
+
+The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it). Off: each keeps its own.
+
+- type: `bool` · default: `false`
+- since schema v7
+
+#### `theme.inactive_opacity` — Unfocused opacity
+
+- type: `float` · default: `0.9`
+- range: `0.5..=1.0`, step `0.05`
+- only while `theme.inactive_transparent == true`
+- since schema v7
+
+#### `theme.window_animations` — Window animations
+
+The compositors that follow open, close and move windows with the shell's motion: niri on its springs, Hyprland and MangoWM on its curve and duration (sway has none). Off: each keeps its own.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `theme.window_titlebars` — Titlebars
+
+The compositors that draw titlebars give them the shell's colours and font: sway its own, Hyprland through the hyprbars plugin (it must be loaded). niri and MangoWM draw none: the apps draw theirs, in the colours GTK and Qt follow. Off: each keeps its own.
+
+- type: `bool` · default: `false`
+- since schema v7
 
 #### `theme.icon_theme` — Icons for apps
 

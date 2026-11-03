@@ -655,6 +655,20 @@ placeholder unfilled is never written — the last good file stays (an unfilled 
 whole config). Placeholders beyond colours: `templates/README.md`. *Why:* the user wants every app to follow the shell
 "by default", icons and fonts included, and the compositor to match the shell's shape and motion (I175, I183, I184).
 
+**K49 amendment 2** (session 20, user): more targets — zellij, fzf (noren's picker), Neovim, Helix, Zed, Firefox, Zen, Vesktop (Discord), Spicetify
+(Spotify), Obsidian, and the compositors Hyprland, MangoWM and sway beside niri. Four switches under "Apps that follow"
+reach every compositor that supports them, and each one off leaves the compositor's own setting (the line is empty):
+`theme.window_frame` (border at the shell's outline width, accent/outline; niri: border in place of the focus ring),
+`theme.inactive_transparent` + `theme.inactive_opacity` (niri, Hyprland, MangoWM; sway has none),
+`theme.window_animations` (default on: niri's springs as before; Hyprland/MangoWM on the continuous curve and standard
+duration, not a 1:1 copy; sway has none) and `theme.window_titlebars` (sway's own; Hyprland only through hyprbars;
+niri/MangoWM draw none). An include line may name values (`{{paths.config}}`: Firefox's `@import` needs a file URL)
+and a `~/` include file sits under `$HOME` (Zen's profile). Apps whose reader lives in a per-profile or per-vault
+folder (Firefox, Zen, Obsidian) get our file under `$XDG_CONFIG_HOME/kurashi/apps/`; Vesktop and Obsidian are switched
+on in the app. No reader without editing the app's config or installing something: VSCode, Anki, Steam, Signal,
+Chromium-based browsers (BACKLOG). *Why:* the user wants their daily apps and every compositor kurashi targets to
+follow the shell.
+
 **K64** 🟢 Keyboard shortcuts are config (I72, user session 7 / 13): `keys.*` — one combo per shell action
 (launcher, notification centre, sidebars, quick settings, session menu, lock, Settings, web dock, volume, mute,
 brightness; `""` = none) and `keys.write` (default off). With `write` on, kurashid writes the compositor's binds file

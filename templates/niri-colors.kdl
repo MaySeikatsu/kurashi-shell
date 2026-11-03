@@ -5,7 +5,9 @@
 
 layout {
 
+    // "Window frames" on: the border (active and inactive colours) in place of the focus ring.
     focus-ring {
+        {{frame.niri.ring}}
         width {{shape.border}}
         active-color   "{{colors.primary.default.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
@@ -13,6 +15,7 @@ layout {
     }
 
     border {
+        {{frame.niri.border}}
         width {{shape.border}}
         active-color   "{{colors.primary.default.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
@@ -40,6 +43,9 @@ window-rule {
     geometry-corner-radius {{shape.radius}}
     clip-to-geometry true
 }
+
+// "See-through unfocused windows": every window but the focused one.
+{{opacity.niri}}
 
 // The shell's motion profile: calm and lively are springs, none switches niri's animations off.
 {{motion.niri}}
