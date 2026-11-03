@@ -1207,3 +1207,25 @@ letters or controller symbols. *Why:* the user wanted the retro PlayStation logo
 trademark we cannot ship (BACKLOG I374), so the look ships an original mark and the user can show the OS logo in the
 look's colours or any image of their own.
 
+## K86 — Motion polish: every form everywhere, a form's pace, three tiers on the Motion page, a style's own animation (session 21, user)
+
+🟢 The user's eight points after W59 (`docs/ux/motion-engine.md` §8, §12; card W64):
+- **Every form but liquid serves every surface class** (`kurashi-motion/src/forms.rs`): the dock, the bar's reveal and
+  the web dock host them (W64). liquid stays on the morphing surfaces (it needs the origin's live shape).
+- **Pace:** the forms meta gains `pace` (a duration factor); `SurfaceForm`'s Driver and Settings' preview stretch the
+  profile's curves by it (`curves.js` `stretch`). *Why:* drop and fold at a 240 ms curve cross their story in a few
+  frames; a per-form factor keeps the profile's character and the speed setting honest (the preview says the stretched
+  ms).
+- **Three tiers:** Profiles = packs that name forms (offers grouped `full` / `timing` in `motion.profiles`); a new key
+  `theme.motion.timing.preset` (offers `motion.timings`: the timing-only packs) swaps the profile's `[timing]` and base
+  (spring family) under its forms, not under a still profile; the per-role curves are their own section "Advanced
+  curves". Sections renamed `profiles`, `animation_style`, `timing`, `advanced_curves`. The speed row moved into the
+  preview stage; the preview-only ½× · ¼× are gone.
+- **A style's own animation:** the table in brief §12 (the user accepted the proposal); a `kanso` pack (expand).
+- **Fixes:** a sheet close keeps its content on the pages until it lands (Stage, BarMorph); `MorphSprings.snap()` ends
+  every axis's timed travel (a card jumped back to its origin's width once a form landed and another axis moved — the
+  sysmon stutter); a sheet form draws nothing at p = 0 (the first-frame flash); BarMorph's non-morph reveal is the
+  sheet form's alone, on the profile's paced curves (the launcher flash); drop gathers the module's shape into a bulge,
+  falls from rest under gravity, squashes and ripples; genie's shadow and fillets follow the pour; maximize/restore of a
+  captioned card moves on the profile's curve.
+
