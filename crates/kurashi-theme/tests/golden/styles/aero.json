@@ -432,8 +432,15 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -477,6 +484,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -516,7 +528,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
         "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -536,6 +552,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "transform"
@@ -576,6 +595,11 @@
         "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -621,6 +645,9 @@
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -641,7 +668,10 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
         "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -708,6 +738,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -758,10 +791,15 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -781,6 +819,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -818,12 +859,14 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
         "dock",
         "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -888,6 +931,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"

@@ -369,22 +369,22 @@
     0.15
   ],
   "motion.emphasized_ms": 320,
-  "motion.form.bar.close": "grow",
-  "motion.form.bar.open": "grow",
+  "motion.form.bar.close": "fold",
+  "motion.form.bar.open": "fold",
   "motion.form.centre.close": "fold",
   "motion.form.centre.open": "fold",
   "motion.form.dialog.close": "fold",
   "motion.form.dialog.open": "fold",
-  "motion.form.dock.close": "grow",
-  "motion.form.dock.open": "grow",
+  "motion.form.dock.close": "fold",
+  "motion.form.dock.open": "fold",
   "motion.form.island.close": "fold",
   "motion.form.island.open": "fold",
   "motion.form.launcher.close": "fold",
   "motion.form.launcher.open": "fold",
   "motion.form.menu.close": "fold",
   "motion.form.menu.open": "fold",
-  "motion.form.osd.close": "grow",
-  "motion.form.osd.open": "grow",
+  "motion.form.osd.close": "fold",
+  "motion.form.osd.open": "fold",
   "motion.form.panel.close": "fold",
   "motion.form.panel.open": "fold",
   "motion.form.peek.close": "grow",
@@ -439,8 +439,15 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -484,6 +491,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -523,7 +535,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
         "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -543,6 +559,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "transform"
@@ -583,6 +602,11 @@
         "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -628,6 +652,9 @@
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -648,7 +675,10 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
         "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -715,6 +745,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -765,10 +798,15 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -788,6 +826,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -825,12 +866,14 @@
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
         "dock",
         "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -895,6 +938,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
