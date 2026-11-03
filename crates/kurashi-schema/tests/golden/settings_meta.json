@@ -1793,6 +1793,10 @@
                 {
                   "label": "config.choice.texture.brush",
                   "value": "brush"
+                },
+                {
+                  "label": "config.choice.texture.display",
+                  "value": "display"
                 }
               ],
               "control": "select",
@@ -2228,6 +2232,10 @@
                 {
                   "label": "config.choice.texture.brush",
                   "value": "brush"
+                },
+                {
+                  "label": "config.choice.texture.display",
+                  "value": "display"
                 }
               ],
               "control": "select",

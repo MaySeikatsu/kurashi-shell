@@ -604,6 +604,8 @@ pub enum TextureKind {
     Paint,
     /// Brush strokes (bristles)
     Brush,
+    /// Display (pixel grid)
+    Display,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

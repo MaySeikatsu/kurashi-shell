@@ -646,8 +646,8 @@
 # brushed oil paint. It adds light and shade from the light below, never colours of its own
 # (K59).
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
-#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" · forced
-#   to "none" while a11y.high_contrast is on · forced to "none" while
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
+#   "display" · forced to "none" while a11y.high_contrast is on · forced to "none" while
 #   a11y.reduce_transparency is on
 # kind = "none"
 #
@@ -723,9 +723,9 @@
 #
 # Wallpaper material — The relief baked into the wallpaper.
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
-#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" · only
-#   while theme.texture.wallpaper.own == true · only while theme.texture.scope != "shell" ·
-#   only while theme.texture.scope != "everything"
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
+#   "display" · only while theme.texture.wallpaper.own == true · only while
+#   theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
 # kind = "paper"
 #
 # Wallpaper strength — How strongly the wallpaper's relief reads.

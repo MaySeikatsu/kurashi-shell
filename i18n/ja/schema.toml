@@ -536,6 +536,7 @@
 "settings.section.pen" = "ペン"
 "settings.section.settings_app" = "設定アプリ"
 "config.choice.texture.brush" = "刷毛の筆跡"
+"config.choice.texture.display" = "ディスプレイ（画素グリッド）"
 "config.theme.texture.depth.label" = "深さ"
 "config.theme.texture.depth.help" = "凹凸の険しさ。目、糸、罫が深くなり、光が低いと影も長くなります。"
 "config.theme.texture.shadows.label" = "凹凸の影"
