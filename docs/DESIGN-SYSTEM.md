@@ -354,7 +354,7 @@ and ink-free = (128, 128, 128) and no ink.
 | `texture.scale` | the user's scale: the sheet position is divided by `tile_logical × scale` |
 | `texture.amp` | the largest shade either way (strength × 0.18, capped so body text keeps 4.5:1) |
 | `texture.gloss`, `texture.shininess` | the material's specular amount and exponent |
-| `texture.ink`, `texture.ink_alpha` | the ink colour (a palette role per kind) and its opacity at full coverage; 0 = tint off |
+| `texture.ink`, `texture.ink_alpha` | the ink colour (a palette role per kind; `#000000` for the `shade` role, W62's black matrix) and its opacity at full coverage; 0 = tint off |
 | `texture.text` | the relief also shades text and icons (drawn over content instead of under it) |
 | `texture.shell`, `texture.overlay` | shell surfaces draw it (scope shell / shell_wallpaper); the click-through overlay is on (scope everything) |
 | `light.mode` | `static` \| `pointer` \| `daytime` \| `wallpaper` |

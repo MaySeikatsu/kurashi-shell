@@ -646,7 +646,7 @@ Multiplies every type size token.
 A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and shade from the light below, never colours of its own (K59).
 
 - type: `choice` · default: `"none"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"`
 - forced to `"none"` while `a11y.high_contrast` is on
 - forced to `"none"` while `a11y.reduce_transparency` is on
 
@@ -756,7 +756,7 @@ Give the wallpaper a material of its own instead of the shell's (it is baked int
 The relief baked into the wallpaper.
 
 - type: `choice` · default: `"paper"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"`
 - only while `theme.texture.wallpaper.own == true`
 - only while `theme.texture.scope != "shell"`
 - only while `theme.texture.scope != "everything"`

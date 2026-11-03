@@ -22,7 +22,7 @@ pub const PLACEHOLDER: &str = "ghostty.shader";
 
 /// The kinds with a procedural recipe here: every `theme.texture.kind` but `none` (kurashid's tests hold it to
 /// `kurashi_texture::Kind::ALL`).
-pub const KINDS: [&str; 13] = [
+pub const KINDS: [&str; 14] = [
     "paper",
     "paper_dots",
     "paper_lines",
@@ -36,6 +36,7 @@ pub const KINDS: [&str; 13] = [
     "wood",
     "paint",
     "brush",
+    "display",
 ];
 
 /// Written in place of the shader while the material is off, when a shader file is there: a config that still names
@@ -338,6 +339,14 @@ fn recipe(kind: &str) -> Option<Recipe> {
             1.3,
             "float kindHeight(vec2 p) { return strokes(p, 0.6, 90.0, 1.3, 22.0); }\n\
              float kindInk(vec2 p) { return vnoise(p / 40.0 + 3.0); }\n",
+        ),
+        // W62: the tile's lattice (4 px pitch, 1 px gaps centred on 1.5 + 4k, in sheet px), its cloud and its dent.
+        "display" => r(
+            0.1,
+            "float gapCover(float x) { return 1.0 - smoothstep(0.4, 0.6, abs(mod(x + 0.5, 4.0) - 2.0)); }\n\
+             float gapAt(vec2 p) { return max(gapCover(p.x), gapCover(p.y)); }\n\
+             float kindHeight(vec2 p) { return (1.0 - gapAt(p)) - 0.5 + 6.0 * (vnoise(p / 120.0) - 0.5); }\n\
+             float kindInk(vec2 p) { return gapAt(p); }\n",
         ),
         _ => None,
     }
