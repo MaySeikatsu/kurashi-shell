@@ -220,6 +220,14 @@ pub struct Run<'a> {
     pub icon_theme: &'a str,
     /// `theme.motion.speed`.
     pub motion_speed: f64,
+    /// `theme.window_frame`.
+    pub window_frame: bool,
+    /// `theme.inactive_opacity` while `theme.inactive_transparent` is on.
+    pub inactive_opacity: Option<f64>,
+    /// `theme.window_animations`.
+    pub animations: bool,
+    /// `theme.window_titlebars`.
+    pub titlebars: bool,
     pub desktop: &'a Desktop,
     /// The material's tile parameters (`theme.texture.kind`, …) for a target's generated shader (ghostty, W37).
     pub material: &'a ghostty_shader::Material,
@@ -238,6 +246,11 @@ pub fn export(run: &Run) -> Value {
         icon_theme: run.icon_theme,
         motion_speed: run.motion_speed,
         config_dir: &config_dir,
+        window_frame: run.window_frame,
+        inactive_opacity: run.inactive_opacity,
+        animations: run.animations,
+        titlebars: run.titlebars,
+        palette: &p,
     });
     if !run.targets.iter().any(|t| t == "gsettings") {
         run.desktop.forget();
@@ -363,7 +376,16 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
         }
     }
     if let Some((file, line)) = t.include {
-        let cfg = run.home.join(file);
+        // `~/…`: under $HOME (Zen's profile); otherwise under $XDG_CONFIG_HOME. The line may name values
+        // (`{{paths.config}}`: Firefox's import needs an absolute file URL).
+        let cfg = match file.strip_prefix("~/") {
+            Some(rest) => std::env::var_os("HOME")
+                .map_or_else(|| run.home.join(rest), |h| PathBuf::from(h).join(rest)),
+            None => run.home.join(file),
+        };
+        let (line, u) = export::render(line, p, values);
+        unknown.extend(u);
+        let line = line.as_str();
         let text = std::fs::read_to_string(&cfg).ok();
         let holds = |l: &str| {
             text.as_deref()
@@ -455,6 +477,18 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     .get("theme.motion.speed", None)
                     .and_then(|p| p.value.as_f64())
                     .unwrap_or(1.0);
+                let flag = |k: &str| {
+                    store
+                        .get(k, None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(false)
+                };
+                let inactive_opacity = flag("theme.inactive_transparent").then(|| {
+                    store
+                        .get("theme.inactive_opacity", None)
+                        .and_then(|p| p.value.as_f64())
+                        .unwrap_or(0.9)
+                });
                 let (home, data) = config_and_data();
                 let bundled = crate::i18n::data_dir().join("templates");
                 let material = material_of(&store);
@@ -466,6 +500,13 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     bundled: &bundled,
                     icon_theme: &icon_theme,
                     motion_speed,
+                    window_frame: flag("theme.window_frame"),
+                    inactive_opacity,
+                    animations: store
+                        .get("theme.window_animations", None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(true),
+                    titlebars: flag("theme.window_titlebars"),
                     desktop: &desktop,
                     material: &material,
                 })
@@ -511,7 +552,7 @@ mod tests {
                 "color.on_accent_container": "#e9e4d8", "color.surface_container": "#252329",
                 "color.surface_container_high": "#2f2c33", "color.surface_container_highest": "#38353d",
                 "color.surface_container_low": "#211f24", "color.on_surface_variant": "#b9b2a6",
-                "color.outline_variant": "#3a3740", "color.shadow": "#000000", "color.on_error": "#000000",
+                "color.outline_variant": "#3a3740", "color.surface_container_lowest": "#161519", "color.shadow": "#000000", "color.on_error": "#000000",
                 "color.on_secondary": "#000000", "color.on_tertiary": "#000000",
                 "font.family": "Inter", "font.size.body": 13, "radius.lg": radius, "chrome.outline": 2,
                 "motion.standard_ms": 220, "motion.easing.continuous": [0.4, 0.0, 0.2, 1.0],
@@ -562,6 +603,10 @@ mod tests {
             bundled: &bundled,
             icon_theme: icon,
             motion_speed: 1.0,
+            window_frame: false,
+            inactive_opacity: None,
+            animations: true,
+            titlebars: false,
             desktop,
             material,
         })
@@ -831,6 +876,185 @@ mod tests {
         )
         .unwrap();
         niri_validate(&dir.path().join("config.kdl"), "legacy stub");
+    }
+
+    /// The app and compositor targets: every file renders with no unknown placeholder, the frame and see-through
+    /// switches reach each compositor (and leave its own setting when off), and the compositors' own checkers accept
+    /// the result where they are installed.
+    #[test]
+    fn apps_and_compositors_render_and_take_the_frame_and_opacity() {
+        const APPS: &[&str] = &[
+            "zellij",
+            "fzf",
+            "nvim",
+            "helix",
+            "zed",
+            "firefox",
+            "zen",
+            "vesktop",
+            "spicetify",
+            "obsidian",
+            "niri",
+            "hyprland",
+            "mango",
+            "sway",
+        ];
+        let desktop = Desktop::new("/nonexistent/gsettings", vec![]);
+        for (frame, opacity, motion, bars) in [
+            (false, None, false, false),
+            (true, Some(0.85), true, false),
+            (true, Some(0.85), true, true),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let home = dir.path();
+            let targets: Vec<String> = APPS.iter().map(|s| (*s).to_owned()).collect();
+            let (data, bundled) = (home.join("data"), bundled());
+            let doc = export(&Run {
+                theme: &theme("dark", 12, "calm"),
+                targets: &targets,
+                home,
+                data: &data,
+                bundled: &bundled,
+                icon_theme: "",
+                motion_speed: 1.0,
+                window_frame: frame,
+                inactive_opacity: opacity,
+                animations: motion,
+                titlebars: bars,
+                desktop: &desktop,
+                material: &ghostty_shader::Material::default(),
+            });
+            for name in APPS {
+                let e = entry(&doc, name);
+                assert!(
+                    e.get("error").is_none() && e.get("unknown").is_none(),
+                    "{name}: {e}"
+                );
+                let text = std::fs::read_to_string(e["path"].as_str().unwrap()).unwrap();
+                assert!(!text.contains("{{"), "{name}: {text}");
+            }
+            let read = |rel: &str| std::fs::read_to_string(home.join(rel)).unwrap();
+            let (niri, hypr, mango, sway) = (
+                read("niri/kurashi.kdl"),
+                read("hypr/kurashi.conf"),
+                read("mango/kurashi.conf"),
+                read("sway/kurashi.conf"),
+            );
+            assert_eq!(niri.contains("        on\n"), frame, "{niri}");
+            assert_eq!(hypr.contains("border_size = 2"), frame, "{hypr}");
+            assert_eq!(mango.contains("borderpx=2"), frame, "{mango}");
+            assert_eq!(sway.contains("default_border pixel 2"), frame, "{sway}");
+            assert_eq!(niri.contains("opacity 0.85"), opacity.is_some(), "{niri}");
+            assert_eq!(
+                hypr.contains("inactive_opacity = 0.85"),
+                opacity.is_some(),
+                "{hypr}"
+            );
+            assert_eq!(
+                mango.contains("unfocused_opacity=0.85"),
+                opacity.is_some(),
+                "{mango}"
+            );
+            assert_eq!(niri.contains("spring damping-ratio"), motion, "{niri}");
+            assert_eq!(
+                hypr.contains("bezier = kurashi, 0.4, 0, 0.2, 1"),
+                motion,
+                "{hypr}"
+            );
+            assert_eq!(
+                mango.contains("animation_curve_open=0.4,0,0.2,1"),
+                motion,
+                "{mango}"
+            );
+            assert_eq!(hypr.contains("hyprbars {"), bars, "{hypr}");
+            assert_eq!(sway.contains("default_border normal 2"), bars, "{sway}");
+            let fx = entry(&doc, "firefox");
+            assert_eq!(
+                fx["include"]["line"],
+                format!(
+                    "@import url(\"file://{}/kurashi/apps/firefox.css\");",
+                    home.display()
+                )
+            );
+            if tool_ok("fzf", "--version") {
+                let out = Command::new("fzf")
+                    .args(["--filter", "x"])
+                    .env("FZF_DEFAULT_OPTS_FILE", home.join("kurashi/apps/fzf"))
+                    .stdin(std::process::Stdio::null())
+                    .output()
+                    .unwrap();
+                let said = String::from_utf8_lossy(&out.stderr);
+                assert!(said.trim().is_empty(), "fzf, its options file: {said}");
+            }
+            toml::from_str::<toml::Value>(&read("helix/themes/kurashi.toml"))
+                .expect("helix theme is TOML");
+            serde_json::from_str::<Value>(&read("zed/themes/kurashi.json"))
+                .expect("zed theme is JSON");
+            let what =
+                format!("frame {frame}, opacity {opacity:?}, motion {motion}, titlebars {bars}");
+            // Without the hyprbars plugin Hyprland refuses its block: checked with the titlebars off.
+            if !bars && tool_ok("Hyprland", "--version") {
+                let cfg = home.join("hyprland.conf");
+                std::fs::write(
+                    &cfg,
+                    format!("source = {}\n", home.join("hypr/kurashi.conf").display()),
+                )
+                .unwrap();
+                let out = Command::new("Hyprland")
+                    .arg("--verify-config")
+                    .arg("-c")
+                    .arg(&cfg)
+                    .output()
+                    .unwrap();
+                let said = String::from_utf8_lossy(&out.stdout).to_string()
+                    + &String::from_utf8_lossy(&out.stderr);
+                assert!(
+                    out.status.success() && said.contains("config ok"),
+                    "Hyprland, {what}: {said}"
+                );
+            }
+            if tool_ok("niri", "--version") {
+                let cfg = home.join("config.kdl");
+                std::fs::write(&cfg, "include \"niri/kurashi.kdl\"\n").unwrap();
+                niri_validate(&cfg, &what);
+            }
+            // `mango -p` checks `$HOME/.config/mango/config.conf` (it ignores `-c`) and exits 0 on errors.
+            if tool_ok("mango", "-v") {
+                let fake = home.join("mango-home");
+                std::fs::create_dir_all(fake.join(".config/mango")).unwrap();
+                let src = home.join("mango/kurashi.conf");
+                std::fs::write(
+                    fake.join(".config/mango/config.conf"),
+                    format!("source={}\n", src.display()),
+                )
+                .unwrap();
+                let out = Command::new("mango")
+                    .arg("-p")
+                    .env("HOME", &fake)
+                    .env("XDG_CONFIG_HOME", fake.join(".config"))
+                    .output()
+                    .unwrap();
+                let said = String::from_utf8_lossy(&out.stdout).to_string()
+                    + &String::from_utf8_lossy(&out.stderr);
+                assert!(
+                    out.status.success() && !said.to_lowercase().contains("error"),
+                    "mango, {what}: {said}"
+                );
+            }
+            if tool_ok("nvim", "--version") {
+                let out = Command::new("nvim")
+                    .args(["--headless", "-u", "NONE", "--cmd"])
+                    .arg(format!("set rtp^={}", home.join("nvim").display()))
+                    .args(["-c", "colorscheme kurashi", "-c", "qa!"])
+                    .output()
+                    .unwrap();
+                let said = String::from_utf8_lossy(&out.stderr);
+                assert!(
+                    out.status.success() && said.trim().is_empty(),
+                    "nvim, {what}: {said}"
+                );
+            }
+        }
     }
 
     fn niri_validate(cfg: &Path, what: &str) {
