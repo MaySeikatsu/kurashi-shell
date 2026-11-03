@@ -1,16 +1,18 @@
-# Windows 95: no animation; a window would open in four held steps.
-# Moved from looks/win95.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Windows 95: the zoom rectangle — a window's outline steps out of where it was opened, then the window is there; on
+# a linear clock, as the original (S21: the style's own animation; before, no animation at all).
 name = "win95"
-base = "none"
+base = "expressive"
 
 [timing]
-
+open = "cubic-bezier(0, 0, 1, 1)"
+open_ms = 220
+close = "cubic-bezier(0, 0, 1, 1)"
+close_ms = 180
+fast = "cubic-bezier(0, 0, 1, 1)"
+fast_ms = 120
 
 [form]
-open = "stepped"
-close = "stepped"
-
-[params.stepped]
-hold = 4
+open = "outline"
+close = "outline"
 
 [accents]

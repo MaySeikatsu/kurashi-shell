@@ -366,7 +366,6 @@ ShellRoot {
                 else if (cmd === "play") pv.play(a[0], a[1] || "open")
                 else if (cmd === "at") { pv.select(a[0]); pv.scrubTo(Number(a[1])) }
                 else if (cmd === "release") pv.letGo(0)
-                else if (cmd === "speed") pv.speed = Number(a[0])
                 else if (cmd === "compare") pv.compare(a[0] === "1")
                 else if (cmd === "rest") pv.rest()
                 else if (cmd === "card") return JSON.stringify(pv.cardRect())

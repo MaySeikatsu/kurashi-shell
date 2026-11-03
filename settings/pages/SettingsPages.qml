@@ -94,7 +94,8 @@ Flickable {
         server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
         recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode",
         pen: "ink_pen", settings_app: "web_asset", shortcuts: "keyboard",
-        "motion.profile": "animation", "motion.timing": "speed", "motion.forms": "category", "motion.choreography": "stack",
+        "motion.profiles": "animation", "motion.timing": "speed", "motion.animation_style": "category",
+        "motion.advanced_curves": "tune", "motion.choreography": "stack",
         "motion.windows": "web_asset"
     })
     function sectionIcon(pageId, id) {
@@ -246,7 +247,10 @@ Flickable {
     // search shows them as rows, as any other.
     function motionSections(list) {
         return list.map(function (s) {
-            if (s.id !== "forms") return s
+            // S21: the speed lives in the preview stage (where it is tried), not under the profiles.
+            if (s.id === "profiles") return { id: s.id, label: s.label, rows: s.rows.filter(function (r) {
+                return r.key !== "theme.motion.speed" }) }
+            if (s.id !== "animation_style") return s
             return { id: s.id, label: s.label, rows: s.rows.filter(function (r) {
                 return r.key === "theme.motion.form.open" || r.key === "theme.motion.form.close" }) }
         })
@@ -459,6 +463,7 @@ Flickable {
                 spacing: Theme.gap
                 MotionPreview {
                     width: parent.width
+                    onOpenKey: key => p.openKey(key)
                     transform: Translate { y: p.stuck }
                 }
                 MotionA11y { onOpenKey: key => p.openKey(key) }
@@ -650,7 +655,7 @@ Flickable {
                         // Settings › Motion: the forms per surface, as one table under the two defaults (motionSections).
                         Loader {
                             width: sec.width - 2 * Theme.pad
-                            active: pageOf === "motion" && !p.searching && sec.modelData.id === "forms"
+                            active: pageOf === "motion" && !p.searching && sec.modelData.id === "animation_style"
                             visible: active
                             sourceComponent: cFormsTable
                         }

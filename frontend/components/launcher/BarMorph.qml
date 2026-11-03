@@ -312,7 +312,9 @@ Item {
     property bool reached: false
     onNearChanged: if (near && open && shown && !gate) reached = true
     onGateChanged: reached = false
-    readonly property bool contentWanted: morph ? (open && shown && !gate && (reached || near)) : true
+    // S21: a sheet form folds the card closed with its content on the pages (Stage's `sheetCloses`).
+    readonly property bool sheetCloses: run.sheet && run.dir === "close" && run.busy
+    readonly property bool contentWanted: morph ? ((open && shown && !gate && (reached || near)) || sheetCloses) : true
     onContentWantedChanged: contentP = contentWanted ? 1 : 0
     // (a shape form shows the content itself: no fade after it)
     Behavior on contentP {

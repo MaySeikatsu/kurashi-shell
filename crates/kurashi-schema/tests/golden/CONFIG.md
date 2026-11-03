@@ -1013,7 +1013,7 @@ A trail behind the pointer, sparkles or a ring round it, drawn over everything w
 
 ## Motion
 
-### Profile
+### Profiles
 
 #### `theme.motion.profile` — Motion profile
 
@@ -1032,6 +1032,16 @@ Multiplies every motion duration's speed (2.0 = twice as fast).
 - only while `theme.motion.profile != "none"`
 
 ### Timing
+
+#### `theme.motion.timing.preset` — Timing preset
+
+How the profile's animations are timed: the profile's own, or a preset's curves (calm, lively …) under its forms.
+
+- type: `string` · default: `""`
+- choices: from `motion.timings` (resolved at runtime)
+- only while `theme.motion.profile != "none"`
+
+### Advanced curves
 
 #### `theme.motion.timing.open` — Opening
 
@@ -1097,7 +1107,7 @@ Milliseconds (0: the profile's).
 - only while `theme.motion.profile != "none"`
 - advanced
 
-### Forms
+### Animation style
 
 #### `theme.motion.form.open` — Opens with
 

@@ -1,5 +1,5 @@
-# YoRHa — Mechanical: panels slide in fast and stop dead, no overshoot.
-# Moved from looks/yorha.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# YoRHa — Mechanical: a panel resolves out of a coarse mosaic, as on a pod's display, and breaks back into blocks;
+# fast, no overshoot (S21: the style's own animation, the user's table). Timing from looks/yorha.toml's motion (W53, K80).
 name = "yorha"
 base = "expressive"
 
@@ -12,7 +12,7 @@ fast = "standard"
 fast_ms = 140
 
 [form]
-open = "slide"
-close = "slide"
+open = "pixelate"
+close = "pixelate"
 
 [accents]

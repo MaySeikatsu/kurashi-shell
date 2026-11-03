@@ -1,13 +1,12 @@
-# Kawaii — Bouncy: things pop in with a little overshoot.
-# Moved from looks/kawaii.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Kawaii — Bouncy: cards land like a stamp and wobble a little, then shrink home (S21: the style's own animation).
 name = "kawaii"
 base = "lively"
 
 [timing]
 
-
 [form]
-open = "rubber"
-close = "rubber"
+open = "stamp"
+close = "grow"
 
 [accents]
+jelly = 0.35

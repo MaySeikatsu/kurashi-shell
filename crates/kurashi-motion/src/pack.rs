@@ -407,6 +407,8 @@ const BUNDLED: &[(&str, &str)] = &[
         include_str!("../../../motion/hallownest.toml"),
     ),
     ("souls", include_str!("../../../motion/souls.toml")),
+    // S21: the kanso style's own (expand).
+    ("kanso", include_str!("../../../motion/kanso.toml")),
     // K83 §12's new profiles (drafts; W59.9 tunes them and the styles that recommend them).
     ("origami", include_str!("../../../motion/origami.toml")),
     ("sumi", include_str!("../../../motion/sumi.toml")),

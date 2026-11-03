@@ -43,7 +43,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 15] = [
+pub const CORE_SOURCES: [&str; 16] = [
     "lock.faces",
     "actions",
     "modules",
@@ -56,6 +56,7 @@ pub const CORE_SOURCES: [&str; 15] = [
     "sidebar.sections",
     "sidebar.tabs",
     "motion.profiles",
+    "motion.timings",
     "motion.forms",
     "motion.still",
     "desktop.cards",
@@ -873,6 +874,11 @@ fn offers_now(
                 .collect(),
         );
     }
+    // A pack that only times the style's forms (no `[form]`, not still): calm, lively, expressive, a user's curve pack.
+    fn timing_only(p: &kurashi_theme::kurashi_motion::pack::Pack) -> bool {
+        use kurashi_theme::kurashi_motion::pack::Base;
+        p.forms.is_none() && !matches!(p.base, Some(Base::None | Base::Reduced))
+    }
     // K83: the motion profiles are the motion packs (built in and the user's, `$XDG_CONFIG_HOME/kurashi/motion`); the
     // forms are kurashi-motion's forms meta. A form whose frontend has not landed yet is no option (a value naming one is
     // not in effect); a pack built on such forms is offered disabled, with the reason, until they have.
@@ -885,13 +891,28 @@ fn offers_now(
                 .packs
                 .iter()
                 .map(|p| {
-                    let o = Offer::on(&p.id, p.label.clone());
+                    // S21 (the user's three tiers): a pack that names forms (or is still) is a whole profile; one with
+                    // only timing is offered as a timing preset too (`motion.timings`) and grouped so in the gallery.
+                    let group = if timing_only(p) { "timing" } else { "full" };
+                    let o = Offer::on(&p.id, p.label.clone()).in_group(group);
                     if p.available() {
                         o
                     } else {
                         o.unavailable(forms::REASON_UNAVAILABLE)
                     }
                 })
+                .collect(),
+        );
+        offers.insert(
+            "motion.timings".to_string(),
+            std::iter::once(Offer::on("", "config.choice.motion.timing.profile".into()))
+                .chain(
+                    packs
+                        .packs
+                        .iter()
+                        .filter(|p| timing_only(p))
+                        .map(|p| Offer::on(&p.id, p.label.clone())),
+                )
                 .collect(),
         );
         offers.insert(

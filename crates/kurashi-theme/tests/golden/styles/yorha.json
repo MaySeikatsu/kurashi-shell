@@ -369,36 +369,37 @@
     0.15
   ],
   "motion.emphasized_ms": 320,
-  "motion.form.bar.close": "slide",
-  "motion.form.bar.open": "slide",
-  "motion.form.centre.close": "slide",
-  "motion.form.centre.open": "slide",
-  "motion.form.dialog.close": "slide",
-  "motion.form.dialog.open": "slide",
-  "motion.form.dock.close": "slide",
-  "motion.form.dock.open": "slide",
-  "motion.form.island.close": "slide",
-  "motion.form.island.open": "slide",
-  "motion.form.launcher.close": "slide",
-  "motion.form.launcher.open": "slide",
-  "motion.form.menu.close": "slide",
-  "motion.form.menu.open": "slide",
-  "motion.form.osd.close": "slide",
-  "motion.form.osd.open": "slide",
-  "motion.form.panel.close": "slide",
-  "motion.form.panel.open": "slide",
-  "motion.form.peek.close": "slide",
-  "motion.form.peek.open": "slide",
-  "motion.form.sidebar.close": "slide",
-  "motion.form.sidebar.open": "slide",
-  "motion.form.toast.close": "slide",
-  "motion.form.toast.open": "slide",
+  "motion.form.bar.close": "pixelate",
+  "motion.form.bar.open": "pixelate",
+  "motion.form.centre.close": "pixelate",
+  "motion.form.centre.open": "pixelate",
+  "motion.form.dialog.close": "pixelate",
+  "motion.form.dialog.open": "pixelate",
+  "motion.form.dock.close": "pixelate",
+  "motion.form.dock.open": "pixelate",
+  "motion.form.island.close": "pixelate",
+  "motion.form.island.open": "pixelate",
+  "motion.form.launcher.close": "pixelate",
+  "motion.form.launcher.open": "pixelate",
+  "motion.form.menu.close": "pixelate",
+  "motion.form.menu.open": "pixelate",
+  "motion.form.osd.close": "pixelate",
+  "motion.form.osd.open": "pixelate",
+  "motion.form.panel.close": "pixelate",
+  "motion.form.panel.open": "pixelate",
+  "motion.form.peek.close": "pixelate",
+  "motion.form.peek.open": "pixelate",
+  "motion.form.sidebar.close": "pixelate",
+  "motion.form.sidebar.open": "pixelate",
+  "motion.form.toast.close": "pixelate",
+  "motion.form.toast.open": "pixelate",
   "motion.forms": {
     "bleed": {
       "available": true,
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -423,6 +424,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -447,6 +449,7 @@
         "flash"
       ],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -471,6 +474,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -493,6 +497,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.3,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -515,6 +520,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.9,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -537,6 +543,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -559,6 +566,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -583,6 +591,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -607,6 +616,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -631,6 +641,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -655,6 +666,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.5,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -679,6 +691,7 @@
         "flash"
       ],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -701,6 +714,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -723,6 +737,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.2,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -745,6 +760,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -760,6 +776,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -782,6 +799,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.5,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -804,6 +822,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -826,6 +845,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.2,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -850,6 +870,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.3,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -872,6 +893,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -894,6 +916,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -916,6 +939,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.1,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -938,6 +962,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -960,6 +985,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -1038,7 +1064,7 @@
   "motion.spring.squash": 0.0,
   "motion.standard_ms": 220,
   "motion.steps": 4,
-  "motion.style": "slide",
+  "motion.style": "grow",
   "motion.timed.close_curve": [
     0.4,
     0.0,

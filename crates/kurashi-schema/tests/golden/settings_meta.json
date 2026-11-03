@@ -3239,8 +3239,8 @@
       "label": "settings.page.motion",
       "sections": [
         {
-          "id": "profile",
-          "label": "settings.section.profile",
+          "id": "profiles",
+          "label": "settings.section.profiles",
           "rows": [
             {
               "advanced": false,
@@ -3293,6 +3293,35 @@
         {
           "id": "timing",
           "label": "settings.section.timing",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.timings",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.preset.help",
+              "key": "theme.motion.timing.preset",
+              "label": "config.theme.motion.timing.preset.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "advanced_curves",
+          "label": "settings.section.advanced_curves",
           "rows": [
             {
               "advanced": false,
@@ -3477,8 +3506,8 @@
           ]
         },
         {
-          "id": "forms",
-          "label": "settings.section.forms",
+          "id": "animation_style",
+          "label": "settings.section.animation_style",
           "rows": [
             {
               "advanced": false,

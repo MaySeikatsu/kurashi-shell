@@ -164,6 +164,21 @@ pub const LEGACY: [&str; 9] = [
 ];
 
 impl FormMeta {
+    /// How much longer than the profile's curve this form runs (S21, the user: "raindrop or origami animate too fast to
+    /// notice"). A factor on the curve's duration, so the speed setting and the user's own durations still scale it; the
+    /// frontend's form Driver stretches the curve by it and Settings shows the stretched time. A sheet form tells a small
+    /// story (a fold per panel, a bead that gathers, falls and spreads) that a 240 ms slide curve crosses in a few frames.
+    pub fn pace(&self) -> f64 {
+        match self.id {
+            "drop" => 1.9,
+            "genie" | "noren" => 1.5,
+            "fold" | "book" | "fan" | "crumple" => 1.4,
+            "roll" | "dissolve" => 1.3,
+            "pixelate" | "iris" => 1.2,
+            "crt" | "glitch" | "outline" | "stamp" => 1.1,
+            _ => 1.0,
+        }
+    }
     /// Whether it may serve this surface class.
     pub fn serves(&self, surface: &str) -> bool {
         SURFACES
@@ -202,6 +217,7 @@ impl FormMeta {
             "flags": flags,
             "tier": match self.tier { Transform => "transform", Layer => "layer", Mesh => "mesh" },
             "available": self.available,
+            "pace": self.pace(),
         })
     }
 }
@@ -260,6 +276,8 @@ mod tests {
         assert_eq!(m["fold"]["flags"], json!(["vestibular"]));
         assert_eq!(m["crt"]["flags"], json!(["flash"]));
         assert_eq!(m["grow"]["available"], true);
+        assert_eq!(m["grow"]["pace"], 1.0);
+        assert!(m["drop"]["pace"].as_f64().unwrap() > m["fold"]["pace"].as_f64().unwrap());
         assert_eq!(m["grow"]["surfaces"].as_array().unwrap().len(), 12);
     }
 }

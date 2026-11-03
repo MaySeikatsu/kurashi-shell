@@ -463,6 +463,12 @@
 
 # [theme.motion.timing]
 #
+# Timing preset — How the profile's animations are timed: the profile's own, or a preset's
+# curves (calm, lively …) under its forms.
+#   choices: from `motion.timings` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# preset = ""
+#
 # Opening — The curve surfaces open and grow on.
 #   only while theme.motion.profile != "none"
 # open = ""

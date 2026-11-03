@@ -574,17 +574,17 @@ motion_preview() {
   pv_until "s['surface']=='bar' and not s['open'] and s['value']==0 and not s['running']" "Space did not close the bar's card"
   echo "motion P2: the bar by keyboard — Tab, Left, Space opens and closes"
 
-  # P3. ¼×: the stage's curve takes four times as long; the speed setting stays.
+  # P3 (S21). The speed row stands in the stage; speed 0.25 (the shell's setting) makes the stage's curve four times as long.
+  mwait_present preview-speed "P3: no speed row in the preview"
   local ms1; ms1=$(pvs | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["ms"])')
-  Q stage speed 0.25 >/dev/null
-  pv_until "abs(s['ms']-4*$ms1)<1" "¼× did not stretch the curve ($ms1 ms)"
+  K '{"t":"apply","id":"p3","ops":[{"set":"theme.motion.speed","value":0.25}]}' | grep -q applied || fail "motion P3: refused"
+  pv_until "abs(s['ms']-4*$ms1)<2" "speed 0.25 did not stretch the stage's curve ($ms1 ms)"
   Q stage toggle panel >/dev/null
   sleep 0.3
-  pv_until "s['running'] and 0<s['value']<1" "¼× is not under way after 0.3 s"
-  pv_until "s['value']==1 and not s['running']" "¼× did not land"
-  [ "$(val theme.motion.speed)" = 1.0 ] || [ "$(val theme.motion.speed)" = 1 ] || fail "motion P3: the speed setting moved ($(val theme.motion.speed))"
-  Q stage speed 1 >/dev/null
-  echo "motion P3: ¼× runs the opening in $((4 * ms1)) ms instead of $ms1; the speed setting untouched"
+  pv_until "s['running'] and 0<s['value']<1" "speed 0.25 is not under way after 0.3 s"
+  pv_until "s['value']==1 and not s['running']" "speed 0.25 did not land"
+  K '{"t":"apply","id":"p3b","ops":[{"reset":"theme.motion.speed"}]}' | grep -q applied || fail "motion P3: reset refused"
+  echo "motion P3: the preview's speed row runs the opening in $((4 * ms1)) ms at 0.25 instead of $ms1"
 
   # P4. scrubbed frames equal the shell's (a sheet form, then a transform form, then a sheet on a side).
   pv_frame fold panel panel 0.5

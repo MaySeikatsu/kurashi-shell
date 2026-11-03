@@ -1299,7 +1299,10 @@ PanelWindow {
     onReachedChanged: recordSize()
     onSwappingChanged: reached = false
     onGateChanged: reached = false
-    readonly property bool contentWanted: open && shown && !gate && !swapping && viewReady && (reached || near)
+    // S21 (the user): a sheet form folds the card closed WITH its content on the pages, as it unfolded it — the content
+    // stays until the form has landed (the capture is live: a content cut at the close's start folded empty paper).
+    readonly property bool sheetCloses: run.sheet && run.dir === "close" && run.busy && viewReady
+    readonly property bool contentWanted: (open && shown && !gate && !swapping && viewReady && (reached || near)) || sheetCloses
     property real contentP: 0
     onContentWantedChanged: {
         contentP = contentWanted ? 1 : 0

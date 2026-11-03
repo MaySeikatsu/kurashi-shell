@@ -240,3 +240,16 @@ function scrub(env) {
     if (scrubbed >= 0) console.log("motion: scrub " + scrubbed)
     return scrubbed
 }
+
+// A curve run `f` times longer (a form's pace, S21; the Settings preview): a timed curve's duration and a spring's response
+// stretch; spring_q's constants (K42's 16-ms integrator) slow by f² and f, which runs it f times slower.
+function stretch(c, f) {
+    if (!c || !(f > 0) || f === 1) return c
+    var o = Object.assign({}, c)
+    if (c.kind === "spring_q") { o.spring = c.spring / (f * f); o.damping = c.damping / f }
+    else {
+        if (c.ms) o.ms = c.ms * f
+        if (c.kind === "spring") o.response = (c.response || c.ms || 0) * f
+    }
+    return o
+}
