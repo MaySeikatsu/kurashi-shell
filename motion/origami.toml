@@ -1,0 +1,51 @@
+# Origami (kami, K83 D4): cards unfold accordion-wise from their hinge on the bar — first sideways, then down — and refold;
+# sidebars roll out, toasts fall in as a drop and leave crumpled. Paper curves: a soft landing, no overshoot.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "origami"
+base = "expressive"
+
+[timing]
+open = "paper"
+open_ms = 520
+close = "paper"
+close_ms = 420
+fast = "standard"
+fast_ms = 260
+effects = "effects"
+effects_ms = 180
+
+[form]
+open = "fold"
+close = "fold"
+[form.peek]
+open = "grow"
+close = "grow"
+[form.sidebar]
+open = "roll"
+close = "roll"
+[form.toast]
+open = "drop"
+close = "crumple"
+
+[params.fold]
+panels = 0
+axes = 2
+crease = 0.35
+
+# W59.4 drafts (W59.9 tunes them on niri): the sidebar's roll, the toast's crumple; book is offered, not used here.
+[params.roll]
+radius = 18
+variant = "roll"
+
+[params.crumple]
+crumple = 0.8
+
+[params.book]
+spine = "auto"
+
+[accents]
+content = "late"
+stagger_ms = 0
+squash = 0.0
+jelly = 0.0
+shadow = "fade"

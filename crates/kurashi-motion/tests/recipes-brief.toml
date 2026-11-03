@@ -1,0 +1,62 @@
+# ~/.config/kurashi/motion/mine.toml — a motion pack with three recipes (docs/ux/motion-engine.md §5 "Recipes").
+# Its recipes show in every form picker; picking the profile "mine" also uses them as its forms.
+name = "mine"
+label = "Mine"
+description = "Pops in with a tilt; toasts drop in, sidebars slide in through a blur."
+
+[form]
+open = "pop-tilt"
+close = "fade"
+[form.toast]
+open = "drop-squash"
+[form.sidebar]
+open = "slide-blur"
+close = "slide-blur"
+
+# 1. Pop and tilt: grows from 60 % past its full size and tips back level as it settles.
+[recipes.pop-tilt]
+label = "Pop and tilt"
+[[recipes.pop-tilt.track]]
+prop = "scale"
+keys = [[0, 0.6], [0.7, 1.06], [1, 1]]
+curve = "ease-out"
+[[recipes.pop-tilt.track]]
+prop = "rotate_z"
+keys = [[0, -6], [0.7, 1.5], [1, 0]]
+curve = "ease-out"
+[[recipes.pop-tilt.track]]
+prop = "opacity"
+keys = [[0, 0], [0.35, 1]]
+
+# 2. Drop and squash: falls 48 px into place, squashes against its edge and springs back.
+[recipes.drop-squash]
+label = "Drop and squash"
+pivot = "edge"
+[[recipes.drop-squash.track]]
+prop = "translate_along"
+unit = "px"
+keys = [[0, 48], [0.55, 0]]
+curve = "ease-in"
+[[recipes.drop-squash.track]]
+prop = "scale_y"
+keys = [[0, 1.08], [0.55, 1.08], [0.7, 0.86], [0.85, 1.03], [1, 1]]
+curve = "ease-in-out"
+[[recipes.drop-squash.track]]
+prop = "scale_x"
+keys = [[0, 0.95], [0.55, 0.95], [0.7, 1.1], [0.85, 0.98], [1, 1]]
+curve = "ease-in-out"
+[[recipes.drop-squash.track]]
+prop = "opacity"
+keys = [[0, 0], [0.25, 1]]
+
+# 3. Slide with blur: today's slide, seen through a blur that clears before it lands.
+[recipes.slide-blur]
+label = "Slide with blur"
+base = "slide"
+[[recipes.slide-blur.track]]
+prop = "blur"
+keys = [[0, 24], [0.8, 0]]
+curve = "ease-out"
+[[recipes.slide-blur.track]]
+prop = "opacity"
+keys = [[0, 0], [0.5, 1]]

@@ -346,6 +346,14 @@ Singleton {
             out.push({ kind: "unavailable", key: "", text: I18n.tr(p.reason) })
         } else if (p && p.reason === "mods.disabled") {
             out.push({ kind: "mod_off", key: "", text: I18n.tr(p.reason) })
+        } else if (p && p.reason === "settings.inert.motion.surface") {
+            // K83: a form the surface cannot use; the default plays instead. Like an offer that is gone, the row stays
+            // editable, or the form could not be changed back.
+            out.push({ kind: "unavailable", key: "", text: I18n.tr(p.reason) })
+        } else if (p && p.reason && !p.forced_by && I18n.has(p.reason)) {
+            // Any other reason the daemon gives (K83: motion reduced, a profile that does not move): its own words, with
+            // the setting that causes it when it names one (K21).
+            out.push({ kind: "daemon", key: p.inert_by && rowOf(p.inert_by) ? p.inert_by : "", text: I18n.tr(p.reason) })
         }
         for (var i = 0; i < row.couplings.length; i++) {
             var c = row.couplings[i]

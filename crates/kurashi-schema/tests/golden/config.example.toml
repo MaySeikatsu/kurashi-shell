@@ -420,15 +420,242 @@
 
 # [theme.motion]
 #
-# Motion — Character of animations: expressive (surfaces grow out of the edge on timed
-# curves that overshoot a little), calm or lively (springs), or none at all.
-#   choices: "expressive" | "calm" | "lively" | "none" · forced to "none" while
+# Motion profile — How everything moves, in one choice: the curves, the forms surfaces
+# open and close in, and what moves when. A style recommends one; pick another, or change
+# any part below on top of it.
+#   choices: from `motion.profiles` (resolved at runtime) · forced to "reduced" while
 #   a11y.reduce_motion is on
 # profile = "expressive"
 #
 # Animation speed — Multiplies every motion duration's speed (2.0 = twice as fast).
-#   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none" · advanced
+#   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none"
 # speed = 1.0
+#
+# Content — When a surface's content appears as it opens: late (once the surface has
+# nearly reached its size), with it, or row by row in a cascade.
+#   choices: "profile" | "late" | "with" | "cascade"
+# content = "profile"
+#
+# Cascade step — Milliseconds between one row's arrival and the next in a cascade (-1: the
+# profile's).
+#   range: -1..=60 (ms) · advanced
+# stagger_ms = -1
+#
+# Squash and stretch — How much a shape narrows while it moves fast and bulges as it lands
+# (-1: the profile's).
+#   range: -1.0..=0.15, step 0.01 · advanced
+# squash = -1.0
+#
+# Jelly — A wobble after a surface lands, like pudding settling (-1: the profile's; 0:
+# none).
+#   range: -1.0..=1.0, step 0.05
+# jelly = -1.0
+#
+# Shadow while moving — What a surface's shadow does during its motion: carried with the
+# shape, or faded out and back at rest (folding forms shade themselves).
+#   choices: "profile" | "carry" | "fade" · advanced
+# shadow = "profile"
+#
+# Window animations — Give the compositor's window animations the profile's curves (niri).
+# Off: windows move as the compositor says.
+#   choices: "off" | "follow"
+# windows = "off"
+
+# [theme.motion.timing]
+#
+# Opening — The curve surfaces open and grow on.
+#   only while theme.motion.profile != "none"
+# open = ""
+#
+# Closing — The curve surfaces close and fold back on.
+#   only while theme.motion.profile != "none"
+# close = ""
+#
+# Quick moves — The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+#   only while theme.motion.profile != "none"
+# fast = ""
+#
+# Fades — The curve of colour and opacity changes; it should not overshoot.
+#   only while theme.motion.profile != "none"
+# effects = ""
+#
+# Opening duration — Milliseconds (0: the profile's; a spring's duration is its response).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# open_ms = 0
+#
+# Closing duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# close_ms = 0
+#
+# Quick move duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# fast_ms = 0
+#
+# Fade duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# effects_ms = 0
+
+# [theme.motion.form]
+#
+# Opens with — The animation every surface opens with, unless one has its own below.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# open = ""
+#
+# Closes with — The animation every surface closes with, unless one has its own below.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# close = ""
+
+# [theme.motion.form.island]
+#
+# Island follows the default — The island opens and closes its cards the way every surface
+# does. Off: it uses its own animations below. Its faces and hover peeks keep their springs
+# either way.
+#   only while theme.motion.profile != "none"
+# follow = true
+#
+# Island opens with — The island's own opening animation.
+#   choices: from `motion.forms` (resolved at runtime) · only while
+#   theme.motion.form.island.follow == false
+# open = ""
+#
+# Island closes with — The island's own closing animation.
+#   choices: from `motion.forms` (resolved at runtime) · only while
+#   theme.motion.form.island.follow == false
+# close = ""
+
+# [theme.motion.form.panel]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.peek]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.launcher]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.centre]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.toast]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.sidebar]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.dock]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.bar]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.osd]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.menu]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.dialog]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
 
 # [theme.typography]
 #
@@ -632,7 +859,8 @@
 
 # [a11y]
 #
-# Reduce motion — Turns animations off (forces the motion profile to none).
+# Reduce motion — Replaces movement with short fades: nothing slides, grows, folds or
+# flashes (forces the motion profile to reduced).
 # reduce_motion = false
 #
 # Reduce transparency — Makes every surface solid and disables blur.

@@ -234,6 +234,71 @@ Singleton {
         [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1])
     readonly property var fastCurve: tok("motion.timed.fast_curve", [0.42, 1.67, 0.21, 0.9, 1, 1])
     readonly property var effectsCurve: tok("motion.timed.effects_curve", [0.34, 0.8, 0.34, 1, 1, 1])
+    // K83 (W59, docs/ux/motion-engine.md §9): the motion engine's readers, plain lookups of the daemon's
+    // `motion.curve.<role>`, `motion.form.<surface>.<dir>`, `motion.form_params.<form>`, `motion.accent.<name>` and
+    // `motion.forms`. A daemon without them (before W59.1) gets the same values derived from the tokens above, so every
+    // surface moves exactly as before; with them present they are read as they are.
+    // A curve: {kind: "cubic", ms, points} | {kind: "spring", ms, response, bounce} | {kind: "spring_q", ms, spring,
+    // damping} | {kind: "steps", ms, n} | {kind: "none"} (core/motion/curves.js runs them). Roles: open close fast effects.
+    readonly property var motionCurves: ({
+        open: curveTok("open", openMs, openCurve),
+        close: curveTok("close", closeMs, closeCurve),
+        fast: curveTok("fast", fastMs, fastCurve),
+        effects: curveTok("effects", effectsMs, effectsCurve)
+    })
+    function motionCurve(role) { return motionCurves[role] || motionCurves.open }
+    function curveTok(role, ms, points) {
+        var t = tokens["motion.curve." + role]
+        if (t !== undefined && t !== null) return t
+        if (motionKind === "none") return { kind: "none", ms: 0 }
+        // (stepped looks: the daemon's staircase is a bezierCurve list already, run as one)
+        if (timed) return { kind: "cubic", ms: ms, points: points }
+        return { kind: "spring_q", ms: 0, spring: spring, damping: damping }
+    }
+    // The form a surface opens or closes in (`dir` "open" | "close"; surfaces: island panel peek launcher centre toast
+    // sidebar dock bar osd menu dialog): the daemon's resolved one, else the look's `motion.style` everywhere.
+    function motionForm(surface, dir) {
+        var t = tokens["motion.form." + surface + "." + dir]
+        return t !== undefined && t !== null && t !== "" ? t : motionStyle
+    }
+    // A form's parameters ({panels, axes, crease} for fold …; {} for none).
+    readonly property var noParams: ({})
+    function formParams(form) { var t = tokens["motion.form_params." + form]; return t ? t : noParams }
+    // Accents: squash, jelly, overshoot_cap (fractions), stagger_ms, content ("late" | "with" | "cascade"), shadow
+    // ("carry" | "fade"). Derived: K42's squash and soft limit from the spring tokens, today's late content and carried
+    // shadow, no jelly, no stagger.
+    function motionAccent(name) {
+        var t = tokens["motion.accent." + name]
+        if (t !== undefined && t !== null) return t
+        switch (name) {
+        case "squash": return springOn ? tok("motion.spring.squash", Math.max(0, Math.min(0.07, (0.45 - damping) * 0.35))) : 0
+        case "overshoot_cap": return Math.max(0.03, Math.min(0.08, 0.03 + (0.45 - damping) * 0.26))
+        case "content": return "late"
+        case "shadow": return "carry"
+        }
+        return 0
+    }
+    // A form's meta: {family: "shape" | "sheet", surfaces, retarget, overshoot, flags, tier, available} (`motion.forms`);
+    // before W59.1 a table of today's forms as W59.1 publishes them. null: no such form.
+    readonly property var formsMeta: tok("motion.forms", null) || builtinForms
+    function formMeta(form) { var m = formsMeta[form]; return m === undefined ? null : m }
+    readonly property var builtinForms: {
+        var all = ["island", "panel", "peek", "launcher", "centre", "toast", "sidebar", "dock", "bar", "osd", "menu", "dialog"]
+        var f = function (family, tier, flags, overshoot) {
+            return { family: family, surfaces: all, retarget: "morph", overshoot: overshoot, flags: flags, tier: tier, available: true }
+        }
+        return {
+            grow: f("shape", "transform", [], true),
+            slide: f("shape", "transform", [], true),
+            rubber: f("shape", "transform", [], true),
+            zoom: f("shape", "transform", [], false),
+            fade: f("shape", "transform", [], false),
+            flip: f("shape", "transform", [], false),
+            bleed: f("shape", "layer", [], false),
+            stepped: f("shape", "transform", [], false),
+            none: f("shape", "transform", [], false)
+        }
+    }
     // How visible bar content stays while the daemon is away (reconnect veil).
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
     readonly property int longMs: tok("motion.long_ms", 500)

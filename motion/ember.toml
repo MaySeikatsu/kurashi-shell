@@ -1,0 +1,23 @@
+# Ember (an offer for souls and hallownest): cards fade in solemnly and burn away from a glowing edge.
+# A draft (W59.1): its forms landed in W59.8b (fade, dissolve), so it is offered; W59.9 tunes it on niri.
+name = "ember"
+base = "expressive"
+
+[timing]
+open = "standard"
+open_ms = 650
+close = "standard"
+close_ms = 700
+fast = "standard"
+fast_ms = 300
+effects = "effects"
+effects_ms = 300
+
+[form]
+open = "fade"
+close = "dissolve"
+
+[params.dissolve]
+edge = "accent"
+
+[accents]

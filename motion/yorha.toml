@@ -1,0 +1,18 @@
+# YoRHa — Mechanical: panels slide in fast and stop dead, no overshoot.
+# Moved from looks/yorha.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "yorha"
+base = "expressive"
+
+[timing]
+open = "standard"
+open_ms = 240
+close = "cubic-bezier(0.4, 0, 1, 1)"
+close_ms = 180
+fast = "standard"
+fast_ms = 140
+
+[form]
+open = "slide"
+close = "slide"
+
+[accents]

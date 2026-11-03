@@ -1,0 +1,20 @@
+# Fluent (Windows 11) — Motion: flyouts rise from their edge and fade in, decelerating; they leave fast, accelerating.
+# Moved from looks/fluent.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "fluent"
+base = "expressive"
+
+[timing]
+open = "decelerate"
+open_ms = 250
+close = "fluent-exit"
+close_ms = 167
+fast = "decelerate"
+fast_ms = 167
+effects = "decelerate"
+effects_ms = 83
+
+[form]
+open = "slide"
+close = "slide"
+
+[accents]

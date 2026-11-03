@@ -8,7 +8,7 @@ category = "fiction"
 # cues and pointer. Numbers in §9.4.
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "hallownest"
 "theme.motion.speed" = 0.85
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.9
@@ -73,14 +73,6 @@ sounds = "hallownest"
 "start.word" = "menu"
 "start.mark" = "fleur"
 "start.family" = ["Trajan Pro 3", "Trajan Pro", "Cinzel"]
-# Soft fades.
-"motion.style" = "fade"
-"motion.open_ms" = 420
-"motion.close_ms" = 340
-"motion.fast_ms" = 220
-"motion.open_curve" = [0.33, 0.0, 0.2, 1.0]
-"motion.close_curve" = [0.4, 0.0, 0.68, 0.06]
-"motion.fast_curve" = [0.33, 0.0, 0.2, 1.0]
 "cursor" = "hallownest"
 # Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
 "quick.frame" = "flyout"

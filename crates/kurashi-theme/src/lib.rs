@@ -19,6 +19,8 @@ pub mod tokens;
 
 pub use fonts::{FakeFonts, FcList, FontProvider};
 pub use input::*;
+/// The motion engine (K83): the daemon offers its packs and forms from here.
+pub use kurashi_motion;
 pub use palette::{Palette, PaletteSet, bundled, bundled_names};
 pub use tokens::TokenMap;
 
@@ -93,6 +95,8 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
     notes.extend(tn.into_iter().map(|text| Note {
         stage: if text.starts_with("override") {
             "override"
+        } else if text.starts_with("motion") {
+            "motion"
         } else {
             "font"
         },

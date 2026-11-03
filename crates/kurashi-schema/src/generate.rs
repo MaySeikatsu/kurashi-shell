@@ -30,6 +30,8 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Color => "color",
         Ty::Font => "font",
         Ty::Action => "action_binding",
+        // K83: the curve editor (graph, spring, steps, presets, paste).
+        Ty::Curve => "curve",
         // A list of tables with declared fields (K38): the generic records editor.
         Ty::Records => "records",
     }

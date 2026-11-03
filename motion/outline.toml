@@ -1,0 +1,21 @@
+# Outline (an offer for win95): an outline rectangle steps from the pressed button to the card in a few frames, then the
+# card is there at once (Windows 95's zoom rectangle); it closes with a cut.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "outline"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0, 0, 1, 1)"
+open_ms = 120
+fast = "cubic-bezier(0, 0, 1, 1)"
+fast_ms = 100
+
+[form]
+open = "outline"
+close = "none"
+
+[params.outline]
+frames = 6
+
+[accents]
+content = "with"

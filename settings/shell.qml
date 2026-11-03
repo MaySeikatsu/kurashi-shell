@@ -355,6 +355,24 @@ ShellRoot {
             function outputs(): string { return Store.outputNames().join(",") }
             function layoutEdge(): string { return settingsPages.layoutEdge }
             function present(name: string): string { return settingsPages.present(name) ? "yes" : "no" }
+            // Settings › Motion's preview stage (W59.6b, `stage <cmd> <arg>`): `state` (JSON), `toggle <class>`, `play <class> <open|close>`,
+            // `at <class> <p>` (held at p of an opening), `release`, `speed <1|0.5|0.25>`, `compare <1|0>`, `rest`, `card`, `rect`
+            // (the card's rect in the window). "none" off the page.
+            function stage(cmd: string, arg: string): string {
+                const pv = settingsPages.motionPreview()
+                if (!pv) return "none"
+                const a = arg.split(" ")
+                if (cmd === "toggle") pv.toggle(a[0])
+                else if (cmd === "play") pv.play(a[0], a[1] || "open")
+                else if (cmd === "at") { pv.select(a[0]); pv.scrubTo(Number(a[1])) }
+                else if (cmd === "release") pv.letGo(0)
+                else if (cmd === "speed") pv.speed = Number(a[0])
+                else if (cmd === "compare") pv.compare(a[0] === "1")
+                else if (cmd === "rest") pv.rest()
+                else if (cmd === "card") return JSON.stringify(pv.cardRect())
+                else if (cmd === "rect") return JSON.stringify(pv.stageRect())
+                return pv.state()
+            }
         }
 
         // The material (K63; K59, K61): the shell's own Relief (linked from frontend/), under each opaque surface's content —

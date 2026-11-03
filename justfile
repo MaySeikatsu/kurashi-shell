@@ -95,8 +95,11 @@ webdock:
     timeout 900 bash mods/webdock/test/test-dock.sh || status=1
     exit "$status"
 
-# K59: the relief shader is compiled to the .qsb the frontend loads (Qt 6 shader tools, in nix develop).
+# K59: every shader is compiled to the .qsb the frontend loads (Qt 6 shader tools, in nix develop) and committed beside
+# its source. K83: vertex shaders too (the motion forms warp a GridMesh), in any folder under frontend/shaders.
 shaders:
-    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/relief.frag.qsb frontend/shaders/relief.frag
-    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/pen_text.frag.qsb frontend/shaders/pen_text.frag
-    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/sheet_shadow.frag.qsb frontend/shaders/sheet_shadow.frag
+    #!/usr/bin/env bash
+    set -euo pipefail
+    find frontend/shaders \( -name '*.frag' -o -name '*.vert' \) -print0 | sort -z | while IFS= read -r -d '' f; do
+        qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o "$f.qsb" "$f"
+    done

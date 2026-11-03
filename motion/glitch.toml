@@ -1,0 +1,22 @@
+# Glitch (an offer for yorha): cards arrive in offset slices with an RGB split that decays (< 3 Hz, never full-screen)
+# and burn away when they close. The snap curve: harsh, then a long glide.
+# A draft (W59.1): its forms landed in W59.8b (glitch, dissolve), so it is offered; W59.9 tunes it on niri.
+name = "glitch"
+base = "expressive"
+
+[timing]
+open = "snap"
+open_ms = 450
+close = "snap"
+close_ms = 360
+fast = "snap"
+fast_ms = 240
+effects = "effects"
+effects_ms = 160
+
+[form]
+open = "glitch"
+close = "dissolve"
+
+[accents]
+content = "with"

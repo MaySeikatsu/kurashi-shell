@@ -705,7 +705,9 @@ sys.exit(0 if ok else 1)
 PY
 morph_config() { # morph_config <edge> <look> <profile>
   bar_edge "$1" || fail "the bar did not move to $1"
-  K set theme.style="$2" theme.motion.profile="$3" >/dev/null || fail "config $1 $2 $3 was refused"
+  # The slide is what this part measures: kami's own form (origami, K83 D4) opens the column without it (test-motion.sh).
+  K set theme.style="$2" theme.motion.profile="$3" theme.motion.form.sidebar.open=slide \
+    theme.motion.form.sidebar.close=slide >/dev/null || fail "config $1 $2 $3 was refused"
   # A fixed 1.5 s stays (W55 tried a still-screen wait: kami's 40 ms frame then came at rest twice in a row — a profile
   # change draws nothing, and the slide's timing needs the time the new look takes to warm up).
   sleep 1.5

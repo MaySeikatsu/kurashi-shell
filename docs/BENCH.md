@@ -236,7 +236,6 @@ scratch `qs` shim, since the test runs `qs -p` itself — row 462): ok, 270 shot
 eglcore 5.3), Qt (Qml 4.8, Quick 4.3, Gui 2.3, Widgets 2.2 — quickshell links Widgets), the QML GC heap 3.0, Inter.ttc 3.0, and
 fontconfig's serif fallbacks NotoSerif 0.8 and FreeSerif 0.7 (some text asks for a family fontconfig resolves to a serif); the
 user's qt6ct platform theme and fcitx5 input context ~0.5. Not changed.
-||||||| 8598d57b
 ### 2026-10-25 — W42 tiles: one hit area, the Snes frame builds its own part, a tile bench, the bench windows get the tile sheet (machine A, loaded; I211, I199, I192; rows 475–478)
 "HEAD" is `8598d57b` (this branch's start: the daemon, the frontend copied with `git archive`); "W42" the branch's frontend, the same daemon binary (no Rust changed). Release binaries in `$CARGO_TARGET_DIR/release`, sandboxes `w42-tiles-*`. The machine ran at load 5–16 (the user's session and other agents): wall-clock medians moved by ±10–20 % between runs of the same frontend, so every comparison below is a pair or an ABBA run in one invocation. **CPU** per tile or Block (the process's utime + stime over the rounds, `tile.sh` and `block.sh`) moved far less than the wall clock and is the figure to read first.
 

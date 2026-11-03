@@ -31,7 +31,7 @@ merge; D: W59.7 ∥ W59.8). Push `main` before spawning. One `CARGO_TARGET_DIR` 
 | `theme.motion.timing.{open,close,fast,effects}_ms` | u32 0–3000, advanced | 0 = the profile's | `requires = profile != none` |
 | `theme.motion.form.{open,close}` | `FormId` (string, validated against `motion.forms` meta) | `""` | the default for every surface |
 | `theme.motion.form.<surface>.{open,close}` | `FormId` | `""` = `form.{open,close}`, then the profile's | surfaces: `island panel peek launcher centre toast sidebar dock bar osd menu dialog`; a form whose meta does not list the surface is invalid there (diag + reason); every form lists `island` (D3) |
-| `theme.motion.island.follow` | bool | `true` | D3: the island follows `form.{open,close}`; off → `form.island.*` apply (they carry `requires = theme.motion.island.follow == false` and read inert with the reason while following) |
+| `theme.motion.form.island.follow` | bool | `true` | D3: the island follows `form.{open,close}`; off → `form.island.*` apply (they carry `requires = theme.motion.form.island.follow == false` and read inert with the reason while following) |
 | `theme.motion.content` | enum `profile late with cascade` | `profile` | |
 | `theme.motion.stagger_ms` | i32 −1…60 | −1 = the profile's | `requires = content == cascade` (or the profile's cascade) |
 | `theme.motion.squash` | f64 −1, 0…0.15 | −1 | |
@@ -50,6 +50,7 @@ motion.curve.<role>                 role ∈ open close fast effects
     {"kind":"spring","ms":550,"response":550,"bounce":0.45}
     {"kind":"spring_q","ms":0,"spring":4.0,"damping":0.45}      (K42 integrator; calm, lively)
     {"kind":"steps","ms":67,"n":4}
+motion.profile_curve.<role>         same shape: what the profile alone would run on (no user curve/ms) — Settings' "the profile would use …"
 motion.form.<surface>.open|close    "fold"                    (resolved: user surface > user default > pack surface > pack default)
 motion.form_params.<form>           {"panels":3,"axes":2,"crease":0.35}   (only forms in use)
 motion.accent.squash|jelly|overshoot_cap|stagger_ms  numbers;  motion.accent.content "late|with|cascade";  motion.accent.shadow "carry|fade"
@@ -62,6 +63,9 @@ Fixture: the theme golden(s) gain these keys (`fixtures/ipc/server/*theme*`, M3-
 ### Motion pack (`motion/<id>.toml`)
 ```toml
 name = "origami"
+base = "expressive"     # row 641: what today's K42/K74 machinery does under the pack (expressive|calm|lively|none|reduced)
+# Blocks layer (row 641): [timing], [form](+[params]), [accents] are this pack's when present (an empty table = the
+# defaults), else the style's pack's — so expressive/calm/lively/none are timing-only profiles over the style's forms.
 label = "config.choice.motion.origami"        # i18n
 description = "config.choice.motion.origami.desc"
 [timing]            # curve strings (brief §4) and durations
@@ -87,7 +91,7 @@ makes kami recommend `origami`, terminal `phosphor`, and gives the `aqua` pack (
 (D4); washi stays as it is; the rest are offers.
 
 ### Frontend interfaces (W59.2 creates; W59.3–W59.8 use)
-- `Theme.motionCurve(role)`, `Theme.motionForm(surface, dir)`, `Theme.formParams(form)`, `Theme.accent(name)`,
+- `Theme.motionCurve(role)`, `Theme.motionForm(surface, dir)`, `Theme.formParams(form)`, `Theme.motionAccent(name)` (row 651),
   `Theme.formMeta(form)` — plain readers of the tokens above (Theme.qml stays the token gate).
 - `Driver { to; role: "auto"|…; value; velocity; progress; running; direction; function track(p); function release(v);
   function snap(v) }` — FrameAnimation-driven, running only while moving; honours `KURASHI_MOTION_SCRUB`.

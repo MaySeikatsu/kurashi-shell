@@ -1,0 +1,18 @@
+# Hallownest — Soft fades.
+# Moved from looks/hallownest.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "hallownest"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0.33, 0, 0.2, 1)"
+open_ms = 420
+close = "cubic-bezier(0.4, 0, 0.68, 0.06)"
+close_ms = 340
+fast = "cubic-bezier(0.33, 0, 0.2, 1)"
+fast_ms = 220
+
+[form]
+open = "fade"
+close = "fade"
+
+[accents]

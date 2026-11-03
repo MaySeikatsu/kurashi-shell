@@ -183,6 +183,7 @@ fn non_default(m: &KeyMeta) -> Value {
         Ty::Font => json!(["Probe Sans"]),
         Ty::Action => json!("honesty.probe"),
         Ty::Color => json!("#123456"),
+        Ty::Curve => json!("snap"),
         // One row of probe values, one per declared field (K38): the default is an empty list.
         Ty::Records => {
             let spec = c.record.clone().unwrap_or_default();

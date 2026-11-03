@@ -1,0 +1,20 @@
+# Pop (an offer for sekai): cards land like a hanko stamp and wobble a little; they close by shrinking home.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "pop"
+base = "expressive"
+
+[timing]
+open = "fluid"
+close = "emphasized"
+close_ms = 300
+fast = "fluid"
+fast_ms = 350
+effects = "effects"
+effects_ms = 180
+
+[form]
+open = "stamp"
+close = "grow"
+
+[accents]
+jelly = 0.4

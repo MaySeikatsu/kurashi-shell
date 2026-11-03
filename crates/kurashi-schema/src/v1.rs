@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
+use crate::{Color, FontFamilies, KurashiSchema, MotionCurve, Registry, strings};
 
 pub const VERSION: u32 = 7;
 
@@ -1030,28 +1030,194 @@ pub enum Elevation {
     Follow,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-pub enum MotionProfile {
-    /// Expressive
-    Expressive,
-    Calm,
-    Lively,
-    /// Off
-    None,
-}
-
+/// The motion engine's settings (K83, `docs/ux/motion-engine.md`): a motion profile (a motion pack) bundles curves,
+/// forms and choreography; every key below it overrides one part (`""` / `-1` / `profile` = the profile's).
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "motion")]
 pub struct Motion {
-    /// Motion
-    /// Character of animations: expressive (surfaces grow out of the edge on timed curves that overshoot a little),
-    /// calm or lively (springs), or none at all.
-    #[kurashi(default = MotionProfile::Expressive, overridden_by = "a11y.reduce_motion => none")]
-    pub profile: MotionProfile,
+    /// Motion profile
+    /// How everything moves, in one choice: the curves, the forms surfaces open and close in, and what moves when.
+    /// A style recommends one; pick another, or change any part below on top of it.
+    // The ids are motion packs (`motion/*.toml` and the user's); today's expressive, calm, lively and none stay ids.
+    #[kurashi(default = "expressive".to_owned(), choices_from = "motion.profiles", section = "profile",
+              overridden_by = "a11y.reduce_motion => reduced")]
+    pub profile: String,
     /// Animation speed
     /// Multiplies every motion duration's speed (2.0 = twice as fast).
-    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, advanced,
+    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profile",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
+    #[kurashi(nested, section = "timing")]
+    pub timing: MotionTiming,
+    #[kurashi(nested, section = "forms")]
+    pub form: MotionForms,
+    /// Content
+    /// When a surface's content appears as it opens: late (once the surface has nearly reached its size), with it, or
+    /// row by row in a cascade.
+    #[kurashi(default = MotionContent::Profile, section = "choreography")]
+    pub content: MotionContent,
+    /// Cascade step
+    /// Milliseconds between one row's arrival and the next in a cascade (-1: the profile's).
+    #[kurashi(default = -1, range = -1..=60, unit = "ms", section = "choreography", advanced)]
+    pub stagger_ms: i32,
+    /// Squash and stretch
+    /// How much a shape narrows while it moves fast and bulges as it lands (-1: the profile's).
+    #[kurashi(default = -1.0, range = -1.0..=0.15, step = 0.01, section = "choreography", advanced)]
+    pub squash: f64,
+    /// Jelly
+    /// A wobble after a surface lands, like pudding settling (-1: the profile's; 0: none).
+    #[kurashi(default = -1.0, range = -1.0..=1.0, step = 0.05, section = "choreography")]
+    pub jelly: f64,
+    /// Shadow while moving
+    /// What a surface's shadow does during its motion: carried with the shape, or faded out and back at rest (folding
+    /// forms shade themselves).
+    #[kurashi(default = MotionShadow::Profile, section = "choreography", advanced)]
+    pub shadow: MotionShadow,
+    /// Window animations
+    /// Give the compositor's window animations the profile's curves (niri). Off: windows move as the compositor says.
+    #[kurashi(default = MotionWindows::Off, section = "windows")]
+    pub windows: MotionWindows,
+}
+
+/// One curve per role (K83, brief §4): `""` takes the motion profile's.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct MotionTiming {
+    /// Opening
+    /// The curve surfaces open and grow on.
+    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    pub open: MotionCurve,
+    /// Closing
+    /// The curve surfaces close and fold back on.
+    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    pub close: MotionCurve,
+    /// Quick moves
+    /// The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    pub fast: MotionCurve,
+    /// Fades
+    /// The curve of colour and opacity changes; it should not overshoot.
+    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    pub effects: MotionCurve,
+    /// Opening duration
+    /// Milliseconds (0: the profile's; a spring's duration is its response).
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    pub open_ms: u32,
+    /// Closing duration
+    /// Milliseconds (0: the profile's).
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    pub close_ms: u32,
+    /// Quick move duration
+    /// Milliseconds (0: the profile's).
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    pub fast_ms: u32,
+    /// Fade duration
+    /// Milliseconds (0: the profile's).
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    pub effects_ms: u32,
+}
+
+/// The form surfaces open and close in (K83, brief §5–§6): a default for all, then per surface class. `""` = the next
+/// one up: the surface's own → the default here → the profile's surface → the profile's default.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct MotionForms {
+    /// Opens with
+    /// The animation every surface opens with, unless one has its own below.
+    #[kurashi(default = String::new(), choices_from = "motion.forms", requires = "theme.motion.profile != none")]
+    pub open: String,
+    /// Closes with
+    /// The animation every surface closes with, unless one has its own below.
+    #[kurashi(default = String::new(), choices_from = "motion.forms", requires = "theme.motion.profile != none")]
+    pub close: String,
+    #[kurashi(nested)]
+    pub island: IslandForm,
+    #[kurashi(nested)]
+    pub panel: SurfaceForm,
+    #[kurashi(nested)]
+    pub peek: SurfaceForm,
+    #[kurashi(nested)]
+    pub launcher: SurfaceForm,
+    #[kurashi(nested)]
+    pub centre: SurfaceForm,
+    #[kurashi(nested)]
+    pub toast: SurfaceForm,
+    #[kurashi(nested)]
+    pub sidebar: SurfaceForm,
+    #[kurashi(nested)]
+    pub dock: SurfaceForm,
+    #[kurashi(nested)]
+    pub bar: SurfaceForm,
+    #[kurashi(nested)]
+    pub osd: SurfaceForm,
+    #[kurashi(nested)]
+    pub menu: SurfaceForm,
+    #[kurashi(nested)]
+    pub dialog: SurfaceForm,
+}
+
+/// One surface class's forms; `""` follows the default. A form that cannot serve this class is refused by the resolver
+/// with its reason (forms meta, K83).
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct SurfaceForm {
+    /// Opens with
+    /// This surface's own opening animation ("": the default).
+    #[kurashi(default = String::new(), choices_from = "motion.forms", advanced,
+              requires = "theme.motion.profile != none")]
+    pub open: String,
+    /// Closes with
+    /// This surface's own closing animation ("": the default).
+    #[kurashi(default = String::new(), choices_from = "motion.forms", advanced,
+              requires = "theme.motion.profile != none")]
+    pub close: String,
+}
+
+/// The island's forms (K83 D3, the user): it takes every form and follows the default unless it is told not to.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct IslandForm {
+    /// Island follows the default
+    /// The island opens and closes its cards the way every surface does. Off: it uses its own animations below. Its
+    /// faces and hover peeks keep their springs either way.
+    #[kurashi(default = true, requires = "theme.motion.profile != none")]
+    pub follow: bool,
+    /// Island opens with
+    /// The island's own opening animation.
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
+              requires = "theme.motion.form.island.follow == false")]
+    pub open: String,
+    /// Island closes with
+    /// The island's own closing animation.
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
+              requires = "theme.motion.form.island.follow == false")]
+    pub close: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MotionContent {
+    /// From the profile
+    Profile,
+    /// Late
+    Late,
+    /// With the surface
+    With,
+    /// Cascade
+    Cascade,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MotionShadow {
+    /// From the profile
+    Profile,
+    /// Carried
+    Carry,
+    /// Faded
+    Fade,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MotionWindows {
+    /// Off
+    Off,
+    /// Follow the profile
+    Follow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1085,7 +1251,8 @@ pub struct Typography {
 #[kurashi(page = "accessibility", section = "modes")]
 pub struct A11y {
     /// Reduce motion
-    /// Turns animations off (forces the motion profile to none).
+    /// Replaces movement with short fades: nothing slides, grows, folds or flashes (forces the motion profile to
+    /// reduced).
     #[kurashi(default = false)]
     pub reduce_motion: bool,
     /// Reduce transparency

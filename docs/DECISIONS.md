@@ -1164,6 +1164,20 @@ Expressive's spatial/effects spring split (https://m3.material.io/styles/motion/
   sheet-form PSS ≤ +12 MiB, back to baseline within 2 s.
 - **The user's answers (session 19):** D1 reduce motion forces a `reduced` profile of short fades (≤ 150 ms, no movement,
   no flash) instead of cuts. D2 sheet forms keep the hinge joined to the bar. D3 the island takes **every** form and
-  follows the default unless `theme.motion.island.follow` is off, then its own `form.island.*` (the form animates the
+  follows the default unless `theme.motion.form.island.follow` is off, then its own `form.island.*` (the form animates the
   pill → card opening; faces and peeks keep K42's springs). D4 kami → origami, terminal → phosphor (CRT), aqua and
   vibrancy → genie on the dock and toasts; washi unchanged; the other new packs ship as offers.
+- **Not a mod** (user, session 19: "if possible make the advanced motion system a kurashi mod … if the result would be
+  better with direct integration do it like this"): direct integration. Every surface, Settings, reduce motion and the
+  daemon's tokens depend on the engine; as a mod it would be a core dependency that could be switched off, and mods may
+  not change contracts or draw inside core surfaces. Mods can add forms later (I347).
+- **W59.0 as built:** `theme.motion` is its own Settings page (`motion`); the island's switch is
+  `theme.motion.form.island.follow`; value type `curve` (`MotionCurve` leaf, control `curve`) validated by
+  `kurashi_motion::curve::parse` (errors `error.config.curve.*`); choice sources `motion.profiles` and `motion.forms`
+  (W59.0 offers today's ids; W59.1 the packs and the forms meta); `reduced` cuts until W59.1 resolves it.
+- **W59.1 as built (rows 640–646):** every look that carried `[decor] motion.*` (fifteen, washi included) is a pack of
+  its name, bit-exact (the sweep golden: every style × expressive/calm/lively/none unchanged). Packs carry a `base` and
+  their blocks layer over the style's pack, so picking calm on washi still bleeds, as before. Settings stays honest
+  through a daemon inert pass: under `reduced` or a pack that does not move (win95) every other motion row reads inert,
+  and a surface's form that cannot serve it reads inert.
+
