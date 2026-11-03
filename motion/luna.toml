@@ -1,5 +1,5 @@
-# Luna (XP) — Motion: menus, tooltips and balloons fade in ~200 ms; nothing slides or springs.
-# Moved from looks/luna.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Luna — Windows XP: menus slide out of their edge, quickly (S21: the style's own animation; before, short fades).
+# Timing from looks/luna.toml's motion (W53, K80).
 name = "luna"
 base = "expressive"
 
@@ -12,7 +12,7 @@ fast = "ease"
 fast_ms = 150
 
 [form]
-open = "fade"
-close = "fade"
+open = "slide"
+close = "slide"
 
 [accents]

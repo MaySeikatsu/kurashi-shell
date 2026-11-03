@@ -1,0 +1,18 @@
+# Kanso (簡素, simplicity): a panel opens as a plain rectangle growing out of its edge, quietly, and closes back
+# (S21: the style's own animation; before, the expressive default).
+name = "kanso"
+base = "expressive"
+
+[timing]
+open = "emphasized-decelerate"
+open_ms = 360
+close = "standard"
+close_ms = 260
+fast = "standard"
+fast_ms = 200
+
+[form]
+open = "expand"
+close = "expand"
+
+[accents]

@@ -1,5 +1,5 @@
-# Souls — Slow fades: everything dissolves in rather than moving.
-# Moved from looks/souls.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Souls — Solemn: panels kindle in and burn away with glowing edges, slowly (S21: the style's own animation).
+# Timing from looks/souls.toml's motion (W53, K80).
 name = "souls"
 base = "expressive"
 
@@ -12,7 +12,7 @@ fast = "cubic-bezier(0.37, 0, 0.63, 1)"
 fast_ms = 300
 
 [form]
-open = "fade"
-close = "fade"
+open = "dissolve"
+close = "dissolve"
 
 [accents]

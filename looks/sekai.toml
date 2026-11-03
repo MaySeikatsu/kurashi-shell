@@ -6,7 +6,7 @@ category = "inspired"
 # bar (a key in a groove) and the lock (the dot field, the time on keys, the field a long key with its Enter key).
 [recipe]
 "theme.chrome" = "keycap"
-"theme.motion.profile" = "lively"
+"theme.motion.profile" = "pop"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 23

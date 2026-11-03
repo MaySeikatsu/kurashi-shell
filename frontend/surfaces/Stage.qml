@@ -212,6 +212,13 @@ PanelWindow {
     readonly property int frameW: titled ? Math.max(0, Math.round(Theme.decor("border.width", 0))) : 0
     // Maximize = full screen: the largest card the output has room for, under (or over) its bar.
     readonly property bool full: titled && titleDoc.full === true
+    // S21 (the user: the caption's maximize "does not follow the animation style"): growing to full screen moves on the
+    // profile's opening curve and back on its closing one (the card's size, and on a morph the shape with it), instead of
+    // jumping. `resizing` holds while that move runs; minimize closes the card, in its close form, as `ui.close` does.
+    property bool resizing: false
+    // (on a morph the springs already carry the shape on the profile's curves)
+    onFullChanged: if (open && shown && !gate && Theme.springOn && !morphMode) { resizing = true; resizeEnd.restart() }
+    Timer { id: resizeEnd; interval: Math.max(1, stage.full ? Theme.openMs : Theme.closeMs) + 32; onTriggered: stage.resizing = false }
     readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
     readonly property int fullH: screen ? screen.height - Theme.barH - bars.topInset - bars.bottomInset - 3 * Theme.pad : 600
     readonly property string cardTitle: {
@@ -1090,6 +1097,10 @@ PanelWindow {
     // form draws the shape), and once it is in they take over again, so a retarget to another panel still morphs. Folding
     // in a form, they stand at the origin (the shape that is left when the form has gone: the pill).
     readonly property bool formHolds: run.formed && (run.busy || !open)
+    // S21 (the user: "opens fully, then jumps to a smaller width and back"): a form that has landed open hands the card to
+    // the springs AT the card's rest — they stood still at the origin while the form drew it, and would grow it again.
+    // (later: the springs come on in the same change and would restart from the spans they held)
+    onFormHoldsChanged: if (!formHolds && open && run.formed) Qt.callLater(springs.snap)
     MorphSprings {
         id: springs
         on: Theme.springOn && stage.shown && !stage.formHolds
@@ -1299,7 +1310,10 @@ PanelWindow {
     onReachedChanged: recordSize()
     onSwappingChanged: reached = false
     onGateChanged: reached = false
-    readonly property bool contentWanted: open && shown && !gate && !swapping && viewReady && (reached || near)
+    // S21 (the user): a sheet form folds the card closed WITH its content on the pages, as it unfolded it — the content
+    // stays until the form has landed (the capture is live: a content cut at the close's start folded empty paper).
+    readonly property bool sheetCloses: run.sheet && run.dir === "close" && run.busy && viewReady
+    readonly property bool contentWanted: (open && shown && !gate && !swapping && viewReady && (reached || near)) || sheetCloses
     property real contentP: 0
     onContentWantedChanged: {
         contentP = contentWanted ? 1 : 0
@@ -1545,8 +1559,20 @@ PanelWindow {
         // Clipped, so a grown row is revealed by the card's edge rather than drawn over its margin.
         clip: true
         Behavior on height {
-            enabled: stage.open && !stage.gate && stage.viewReady && (stage.morphMode ? stage.reached : stage.p >= 1)
-            NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            enabled: stage.resizing || (stage.open && !stage.gate && stage.viewReady && (stage.morphMode ? stage.reached : stage.p >= 1))
+            NumberAnimation {
+                duration: stage.resizing ? (stage.full ? Theme.openMs : Theme.closeMs) : Theme.stdMs
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: stage.resizing ? (stage.full ? Theme.openCurve : Theme.closeCurve) : Theme.enterCurve
+            }
+        }
+        Behavior on width {
+            enabled: stage.resizing
+            NumberAnimation {
+                duration: stage.full ? Theme.openMs : Theme.closeMs
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: stage.full ? Theme.openCurve : Theme.closeCurve
+            }
         }
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
         // The island's card (W21): the shape draws it; this holds the view where the grown shape will be, fading in after it.

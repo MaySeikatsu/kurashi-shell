@@ -23,6 +23,9 @@ use crate::recipe::{self, Recipe};
 /// profile's".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Axes {
+    /// `theme.motion.timing.preset` (S21): a pack whose timing — its `[timing]` and its base (the spring family) — stands
+    /// in for the profile's, under the per-role keys; `""` = the profile's. The profile's forms and accents stay.
+    pub timing_preset: String,
     /// `theme.motion.timing.{open,close,fast,effects}`.
     pub timing: [String; 4],
     /// `theme.motion.timing.*_ms`.
@@ -46,6 +49,7 @@ pub struct Axes {
 impl Default for Axes {
     fn default() -> Self {
         Axes {
+            timing_preset: String::new(),
             timing: Default::default(),
             timing_ms: [0; 4],
             form: Default::default(),
@@ -156,22 +160,38 @@ pub fn resolve_in(req: &Request, reg: &Registry, speed: f64, chrome: &str) -> Ou
         })
         .or_else(|| reg.find("expressive"))
         .expect("the expressive pack is built in");
+    // S21: a timing preset (a pack named by `theme.motion.timing.preset`) moves the profile's curves and spring family; not
+    // under a profile that does not move (none, reduced), whose stillness is whole.
+    let still = |p: &Pack| matches!(p.base, Some(Base::None | Base::Reduced));
+    let preset = match req.axes.timing_preset.trim() {
+        "" => None,
+        _ if req.reduce_motion || still(top) => None,
+        id => reg.find(id).filter(|p| !still(p)).or_else(|| {
+            notes.push(format!(
+                "motion: timing preset {id} not found (config.diag.motion.missing)"
+            ));
+            None
+        }),
+    };
     // Under the a11y force the base is reduce motion's whatever a user's `reduced.toml` says: its fades stay capped and
     // no vestibular or flashing form gets through.
     let base = if req.reduce_motion {
         Base::Reduced
     } else {
-        top.base.unwrap_or(Base::Expressive)
+        preset.unwrap_or(top).base.unwrap_or(Base::Expressive)
     };
     // Reduce motion is whole: no style's blocks underneath, no user's keys over it.
     let pure = base == Base::Reduced;
     let style = (!pure && req.style_profile != top.id)
         .then(|| reg.find(&req.style_profile))
         .flatten();
-    let timing = top
-        .timing
-        .as_ref()
-        .or(style.and_then(|s| s.timing.as_ref()));
+    let timing = match preset {
+        Some(p) => p.timing.as_ref(),
+        None => top
+            .timing
+            .as_ref()
+            .or(style.and_then(|s| s.timing.as_ref())),
+    };
     let form_pack = if top.forms.is_some() {
         Some(top)
     } else {
@@ -802,6 +822,22 @@ mod tests {
     }
 
     #[test]
+    fn a_timing_preset_moves_the_curves_and_keeps_the_forms() {
+        let mut req = Request::profile("origami");
+        let plain = res(&req);
+        req.axes.timing_preset = "calm".into();
+        let t = res(&req);
+        // origami's forms stay, its paper curves give way to calm's springs
+        assert_eq!(t["motion.form.panel.open"], plain["motion.form.panel.open"]);
+        assert_ne!(t["motion.curve.open"], plain["motion.curve.open"]);
+        assert_eq!(t["motion.curve.open"]["kind"], "spring_q");
+        // a still profile keeps its stillness
+        let mut still = Request::profile("none");
+        still.axes.timing_preset = "lively".into();
+        assert_eq!(res(&still)["motion.curve.open"]["kind"], "none");
+    }
+
+    #[test]
     fn user_axes_override_the_profile() {
         let mut req = Request::profile("expressive");
         req.axes.timing[0] = "spring(400ms, 0.3)".into();
@@ -900,17 +936,21 @@ mod tests {
 
     #[test]
     fn stepped_profiles_quantise_into_steps() {
-        let t = res(&Request::profile("snes"));
+        // (S21: snes resolves out of a mosaic now; the stepped form, on its own over expressive, still quantises)
+        let mut req = Request::profile("expressive");
+        req.axes.form = ("stepped".into(), "stepped".into());
+        let t = res(&req);
         assert_eq!(t["motion.kind"], "stepped");
-        assert_eq!(t["motion.steps"], 1);
-        assert_eq!(
-            t["motion.curve.open"],
-            json!({"kind": "steps", "ms": 67, "n": 4})
-        );
-        assert_eq!(t["motion.form_params.stepped"], json!({"hold": 1}));
+        assert_eq!(t["motion.curve.open"]["kind"], "steps");
+        let n = t["motion.curve.open"]["n"].as_i64().unwrap();
+        assert!(n >= 2, "{n}");
         // Speed changes the number of steps, as before.
-        let fast = resolve_in(&Request::profile("snes"), Registry::bundled(), 2.0, "flat").tokens;
-        assert_eq!(fast["motion.curve.open"]["n"], 2);
+        let fast = resolve_in(&req, Registry::bundled(), 2.0, "flat").tokens;
+        assert!(fast["motion.curve.open"]["n"].as_i64().unwrap() < n);
+        // snes: its own staircase curve under the mosaic
+        let snes = res(&Request::profile("snes"));
+        assert_eq!(snes["motion.form.panel.open"], "pixelate");
+        assert_eq!(snes["motion.curve.open"]["kind"], "steps");
     }
 
     #[test]

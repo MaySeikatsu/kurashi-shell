@@ -332,15 +332,23 @@ peeks keep K42's springs — they are the island's own life, not an opening. A r
 A dedicated page `motion` (generated from the schema, rule 3, with two custom controls), replacing the two motion rows in
 Appearance (which keep a link "Motion…").
 1. **Preview stage** (sticky, top): a miniature bar with buttons for each surface class over a patterned ground; click
-   one (or Space on it) to open its sample card with the current settings; **Slow 1× · ½× · ¼×**, a **scrubber** (drag
-   p 0 → 1 to inspect any frame: the driver's `track`), **Compare** (hold: the previous setting). It plays on change and
-   on demand; it never loops by itself (Ma) and stops while the window is hidden.
-2. **Profile gallery**: a card per motion pack (built-in, style-recommended marked, user packs), each with a still at
-   p = 0.5 and a play-on-hover/focus thumbnail; picking one is a single config op with an undo toast.
-3. **Timing**: speed; one row per role (Opens · Closes · Quick moves · Fades) with the **curve control**.
-4. **Forms**: default open/close, then a table *Surface | Opens | Closes* (rows a form doesn't fit show a reason).
-5. **Choreography & accents**: content (late · with · cascade), stagger, squash, jelly, shadow during motion.
-6. **Accessibility**: reduce-motion state with a link; every row shows the inert reason while it's forced.
+   one (or Space on it) to open its sample card with the current settings; a **scrubber** (drag p 0 → 1 to inspect any
+   frame: the driver's `track`), **Compare** (hold: the previous setting), and the shell's own **Animation speed** row
+   (S21, the user: speed is tried where the forms are tried — it replaced the preview-only ½× · ¼×; provenance, Reset and
+   inert reasons as on any row). It plays on change and on demand; it never loops by itself (Ma) and stops while the
+   window is hidden. Each form runs at its **pace** (forms meta, S21), in the preview as in the shell.
+2. **Profiles** (S21: whole presets only): a card per motion pack that names its forms (built-in, style-recommended
+   marked, user packs) — curves, forms and accents in one pick — each with a still at p = 0.5 and a play-on-hover/focus
+   thumbnail; picking one is a single config op with an undo toast. A timing-only pack (calm, lively, expressive) shows
+   here only while it is the profile in effect.
+3. **Animation style**: default open/close, then a table *Surface | Opens | Closes* (rows a form doesn't fit show a reason).
+4. **Timing** (S21): **Timing preset** — the profile's own, or a timing-only pack's curves and spring family (calm,
+   lively, expressive, a user's curve pack) under the profile's forms (`theme.motion.timing.preset`, offers
+   `motion.timings`).
+5. **Advanced curves** (S21): one row per role (Opens · Closes · Quick moves · Fades) with the **curve control**, and their
+   durations (advanced). They override the preset per role.
+6. **Choreography & accents**: content (late · with · cascade), stagger, squash, jelly, shadow during motion.
+7. **Accessibility**: reduce-motion state with a link; every row shows the inert reason while it's forced.
 
 **Curve control** (new schema control `curve`, leaf `Curve`): a 240 × 240 graph (y −0.5 … 1.5 so overshoot shows) with
 two draggable handles, the reference linear diagonal, a ball racing a linear ghost on play; tabs **Cubic · Spring ·
@@ -398,23 +406,37 @@ textures at device pixels) · pixel looks (stepped curves step the warp too; at 
 - **Pixel-identity of today**: expressive, calm, lively, none and the six looks' motion resolve to the same tokens and
   frames as before (theme goldens unchanged but for the new keys; `test-morph.sh` shots identical).
 
-## 12. Profiles per style (D4)
+## 12. Profiles per style (D4; S21)
 The user chose (session 19): **kami → origami, terminal → phosphor (CRT), aqua and vibrancy → genie on the dock and
-toasts**; washi (the default style) keeps today's motion exactly. The other rows are offers: their packs ship and are
-pickable, but no style recommends them until the user says so in the style review (I336).
-| style | profile | open / close | surfaces worth noting | curve |
-|---|---|---|---|---|
-| kami ✔ | **origami** | fold (2 axes on cards and the island, 1 on peeks) / fold | sidebar `roll`, toast `drop` / `crumple` | paper |
-| washi (default) | today's (bleed / fade) — unchanged; **sumi** (scroll sidebar, ink-drop toasts) ships as an offer | | | |
-| sekai | **pop** | stamp / grow | jelly 0.4 | fluid |
-| glass | **liquid** | liquid / liquid | | fluid |
-| terminal ✔ | **phosphor** | crt / crt | menus `stepped` | steps(6) on menus |
-| aqua, vibrancy ✔ | **aqua** (today's pack + genie) | slide / slide; dock and toasts `genie` | | ease |
-| yorha | **glitch** | glitch / dissolve | | snap |
-| souls, hallownest | **ember** | fade / dissolve | | standard |
-| win95 (+luna?) | **outline** | outline / cut | | — |
-| kawaii | **pudding** | rubber / grow | jelly 0.6 | pudding |
-| fluent, material, snes, ps2 | today's, as packs | | | |
+toasts**; and (session 21) **every style brings its own animation** — the table below, accepted as proposed. A style's
+pack is its look's `theme.motion.profile` (`looks/*.toml`), a pack per look in `motion/`.
+| style | profile | open / close | notes |
+|---|---|---|---|
+| kami | **origami** | fold / fold | sidebar `roll`, toast `drop` / `crumple`; paper curves |
+| washi (default) | washi | bleed / bleed | unchanged; **sumi** (scroll sidebar, ink-drop toasts) ships as an offer |
+| yorha | yorha | **pixelate** / pixelate | mechanical, no overshoot |
+| souls | souls | **dissolve** / dissolve | slow |
+| win95 | win95 | **outline** / outline | linear clock (the 95 zoom rectangle) |
+| snes | snes | **pixelate** / pixelate | `steps(8)`: the console's mosaic |
+| terminal | phosphor | crt / crt | menus `stepped` |
+| aqua | aqua | **genie** / genie | everywhere |
+| vibrancy | vibrancy | zoom / zoom | dock and toasts `genie` |
+| glass | **liquid** | liquid / liquid | |
+| material | material | grow / grow | |
+| kawaii | kawaii | **stamp** / grow | jelly 0.35 |
+| sekai | **pop** | stamp / grow | a key press |
+| hallownest | hallownest | **bleed** / bleed | ink in the void |
+| ps2 | ps2 | **iris** / iris | the glowing orb, slow |
+| kanso | **kanso** (new) | **expand** / expand | plain, quiet |
+| luna | luna | **slide** / slide | |
+| aero | aero | zoom / zoom | |
+| fluent | fluent | slide / slide | |
+
+**Pace (S21).** A sheet form tells a longer story than a slide (a fold per panel, a bead that gathers, falls and
+spreads); at a 240 ms profile curve the user could not see raindrop or origami. Each form has a `pace` in the forms meta
+— a factor on the curve's duration (drop 1.9; genie, noren 1.5; fold, book, fan, crumple 1.4; roll, dissolve 1.3;
+pixelate, iris 1.2; crt, glitch, outline, stamp 1.1; the rest 1) — that the form's Driver and the preview stretch the
+curve by; speed and the user's durations still scale it.
 
 ## 13. Definition of done
 - Schema v8 + migration; every axis in Settings' Motion page with provenance and inert reasons; today's behaviour

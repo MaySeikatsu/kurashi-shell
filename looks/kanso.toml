@@ -5,7 +5,7 @@ category = "modern"
 # a neutral sans. The look every other one is measured against (K53).
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "kanso"
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.85
 "theme.shape.corners" = "rounded"

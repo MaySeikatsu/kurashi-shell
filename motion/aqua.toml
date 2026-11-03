@@ -1,5 +1,5 @@
-# Aqua (Mac OS X 10.2–10.4) — Motion: sheets slide down out of the bar (~250 ms, ease out); menus and panels fade out.
-# Moved from looks/aqua.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Aqua — Mac OS X: panels pour out of the button that opened them and back into it, like the Dock's genie (S21: the
+# style's own animation everywhere). Timing from looks/aqua.toml's motion (W53, K80).
 name = "aqua"
 base = "expressive"
 
@@ -12,8 +12,8 @@ fast = "ease"
 fast_ms = 150
 
 [form]
-open = "slide"
-close = "slide"
+open = "genie"
+close = "genie"
 # K83 D4 (the user): the dock and toasts pour out of and back into their source like the Genie effect.
 [form.dock]
 open = "genie"

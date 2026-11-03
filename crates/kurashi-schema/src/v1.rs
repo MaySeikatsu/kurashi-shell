@@ -1041,18 +1041,19 @@ pub struct Motion {
     /// How everything moves, in one choice: the curves, the forms surfaces open and close in, and what moves when.
     /// A style recommends one; pick another, or change any part below on top of it.
     // The ids are motion packs (`motion/*.toml` and the user's); today's expressive, calm, lively and none stay ids.
-    #[kurashi(default = "expressive".to_owned(), choices_from = "motion.profiles", section = "profile",
+    #[kurashi(default = "expressive".to_owned(), choices_from = "motion.profiles", section = "profiles",
               overridden_by = "a11y.reduce_motion => reduced")]
     pub profile: String,
     /// Animation speed
     /// Multiplies every motion duration's speed (2.0 = twice as fast).
-    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profile",
+    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
+    // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
+    #[kurashi(nested, section = "animation_style")]
+    pub form: MotionForms,
     #[kurashi(nested, section = "timing")]
     pub timing: MotionTiming,
-    #[kurashi(nested, section = "forms")]
-    pub form: MotionForms,
     /// Content
     /// When a surface's content appears as it opens: late (once the surface has nearly reached its size), with it, or
     /// row by row in a cascade.
@@ -1084,37 +1085,46 @@ pub struct Motion {
 /// One curve per role (K83, brief §4): `""` takes the motion profile's.
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct MotionTiming {
+    /// Timing preset
+    /// How the profile's animations are timed: the profile's own, or a preset's curves (calm, lively …) under its forms.
+    // S21 (the user's three tiers): the timing-only packs (`motion.timings`); the curves below override it per role.
+    #[kurashi(default = String::new(), choices_from = "motion.timings", requires = "theme.motion.profile != none")]
+    pub preset: String,
     /// Opening
     /// The curve surfaces open and grow on.
-    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    #[kurashi(default = MotionCurve::profile(), section = "advanced_curves", requires = "theme.motion.profile != none")]
     pub open: MotionCurve,
     /// Closing
     /// The curve surfaces close and fold back on.
-    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    #[kurashi(default = MotionCurve::profile(), section = "advanced_curves", requires = "theme.motion.profile != none")]
     pub close: MotionCurve,
     /// Quick moves
     /// The curve of small, fast moves: hover peeks, menus, a bar sliding in.
-    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    #[kurashi(default = MotionCurve::profile(), section = "advanced_curves", requires = "theme.motion.profile != none")]
     pub fast: MotionCurve,
     /// Fades
     /// The curve of colour and opacity changes; it should not overshoot.
-    #[kurashi(default = MotionCurve::profile(), requires = "theme.motion.profile != none")]
+    #[kurashi(default = MotionCurve::profile(), section = "advanced_curves", requires = "theme.motion.profile != none")]
     pub effects: MotionCurve,
     /// Opening duration
     /// Milliseconds (0: the profile's; a spring's duration is its response).
-    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, section = "advanced_curves",
+              requires = "theme.motion.profile != none")]
     pub open_ms: u32,
     /// Closing duration
     /// Milliseconds (0: the profile's).
-    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, section = "advanced_curves",
+              requires = "theme.motion.profile != none")]
     pub close_ms: u32,
     /// Quick move duration
     /// Milliseconds (0: the profile's).
-    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, section = "advanced_curves",
+              requires = "theme.motion.profile != none")]
     pub fast_ms: u32,
     /// Fade duration
     /// Milliseconds (0: the profile's).
-    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, requires = "theme.motion.profile != none")]
+    #[kurashi(default = 0, range = 0..=3000, unit = "ms", advanced, section = "advanced_curves",
+              requires = "theme.motion.profile != none")]
     pub effects_ms: u32,
 }
 

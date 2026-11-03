@@ -7,6 +7,7 @@ import "../island"
 import "../decor"
 import "../motion"
 import "../../core/motion"
+import "../../core/motion/curves.js" as C
 
 // One surface that grows out of the bar (W34, docs/ux/motion.md "the bar reaches out"): the launcher and the notification
 // centre. The island's own machinery (Stage, W21/K42) — one MorphShape from the island pill's rect (IslandGeom) to the
@@ -114,6 +115,10 @@ Item {
     // K83 (W59.3, as the Stage): while a shape or sheet form moves the card the springs stand where it rests (the form
     // draws the shape) and take over once it is in; folding in a form they stand at the pill.
     readonly property bool formHolds: run.formed && (run.busy || !open)
+    // S21 (the user: "opens fully, then jumps to a smaller width and back"): a form that has landed open hands the card to
+    // the springs AT the card's rest — they stood still at the origin while the form drew it, and would grow it again.
+    // (later: the springs come on in the same change and would restart from the spans they held)
+    onFormHoldsChanged: if (!formHolds && open && run.formed) Qt.callLater(springs.snap)
     MorphSprings {
         id: springs
         on: Theme.springOn && m.shown && m.morph && !m.formHolds
@@ -224,11 +229,22 @@ Item {
     // folding on the close one (K74's enter curve otherwise).
     readonly property bool stepped: Theme.motionKind === "stepped"
     readonly property var enterCurve: ({ kind: "cubic", ms: Theme.stdMs, points: Theme.enterCurve })
+    // S21 (the user: the launcher "flashes" before its animation): sliding in (no morph), a sheet form (genie, fold …) is
+    // the whole reveal — the card's own slide, fade and scale stay out of it, and it runs on the profile's curves at the
+    // form's pace, as every other surface's form does.
+    readonly property bool entranceSheet: !morph && form.family === "sheet"
+    readonly property var sheetCurves: {
+        var c = Theme.motionCurves, mt = Theme.formMeta(form.form), f = mt && mt.pace > 0 ? mt.pace : 1
+        return { open: C.stretch(c.open, f), close: C.stretch(c.close, f) }
+    }
+    // Where the surface was opened from, in this item's frame (the owner's: the start button of a start menu); a sheet form
+    // pours out of it (genie's lamp, drop's well). Empty: none (the morph's own pill is used on a morph).
+    property rect formOrigin: Qt.rect(0, 0, 0, 0)
     Driver {
         id: pDrv
         curves: m.stepped ? ({ open: { kind: "cubic", ms: Theme.openMs, points: Theme.openCurve },
                                close: { kind: "cubic", ms: Theme.closeMs, points: Theme.closeCurve } })
-            : ({ open: m.enterCurve, close: m.enterCurve })
+            : m.entranceSheet ? m.sheetCurves : ({ open: m.enterCurve, close: m.enterCurve })
         keepVelocity: false
         onLanded: if (m.p <= 0 && !m.open) { m.shown = false; m.hidden() }
     }
@@ -312,7 +328,9 @@ Item {
     property bool reached: false
     onNearChanged: if (near && open && shown && !gate) reached = true
     onGateChanged: reached = false
-    readonly property bool contentWanted: morph ? (open && shown && !gate && (reached || near)) : true
+    // S21: a sheet form folds the card closed with its content on the pages (Stage's `sheetCloses`).
+    readonly property bool sheetCloses: run.sheet && run.dir === "close" && run.busy
+    readonly property bool contentWanted: morph ? ((open && shown && !gate && (reached || near)) || sheetCloses) : true
     onContentWantedChanged: contentP = contentWanted ? 1 : 0
     // (a shape form shows the content itself: no fade after it)
     Behavior on contentP {
@@ -493,9 +511,11 @@ Item {
         width: m.cardW
         height: m.cardH
         x: m.morph ? Math.round((m.morphW - width) / 2) : m.shade
-        y: m.morph ? (m.flip ? m.morphH - m.cardTop - height : m.cardTop) : m.shade - (m.formed ? 0 : m.slide * (1 - m.p))
-        opacity: m.morph ? (m.sf ? m.sf.content : m.contentP) : (m.formed ? 1 : Math.min(1, m.p * 1.6))
-        scale: m.morph ? (m.sf ? 1 : 0.98 + 0.02 * m.contentP) : (m.formed ? 1 : m.slideScale + (1 - m.slideScale) * m.p)
+        y: m.morph ? (m.flip ? m.morphH - m.cardTop - height : m.cardTop)
+            : m.shade - (m.formed || m.entranceSheet ? 0 : m.slide * (1 - m.p))
+        opacity: m.morph ? (m.sf ? m.sf.content : m.contentP) : (m.formed || m.entranceSheet ? 1 : Math.min(1, m.p * 1.6))
+        scale: m.morph ? (m.sf ? 1 : 0.98 + 0.02 * m.contentP)
+            : (m.formed || m.entranceSheet ? 1 : m.slideScale + (1 - m.slideScale) * m.p)
         transformOrigin: m.flip ? Item.Bottom : Item.Top
         // K83 (stamp): the card scales with its shape about the bar's edge.
         transform: Scale {
@@ -533,6 +553,8 @@ Item {
                 surface: m.surface
                 progress: m.morph ? 1 : m.p
                 edge: m.flip ? "bottom" : "top"
+                origin: m.formOrigin.width > 0 ? Qt.rect(m.formOrigin.x - card.x, m.formOrigin.y - card.y,
+                    m.formOrigin.width, m.formOrigin.height) : Qt.rect(0, 0, 0, 0)
                 Item {
                     id: inner
                     width: card.width

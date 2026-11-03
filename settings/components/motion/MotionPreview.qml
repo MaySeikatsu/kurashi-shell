@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import "../../core/motion"
+import "../../core/motion/curves.js" as C
 import ".."
 
 // The Motion page's preview stage (W59.6b; brief docs/ux/motion-engine.md §8 item 1, §10, §11): a miniature bar over a
@@ -8,7 +9,8 @@ import ".."
 // closes it again, through the shell's own FormHost and forms (linked from frontend/components/motion, as the recipe list
 // does) on a Driver fed the profile's curves — the frames the shell draws, with the settings in effect now
 // (`Theme.motionForm`, `Theme.motionCurves`, the accents). Under reduce motion that is what runs: short fades.
-//   Speed 1× · ½× · ¼×  stretches this Driver's curves only (never the speed setting);
+//   Animation speed     the shell's own `theme.motion.speed` row (S21, the user: try speeds while trying forms) — the
+//                       stage runs at it as the shell does, each form at its pace (forms meta `pace`);
 //   the scrubber        holds the card at any p (Driver.track); a drag lets go on release (Driver.release), the arrow keys
 //                       hold the frame until Return;
 //   Compare (hold)      plays the motion as it was before the last motion change (a snapshot the stage keeps), and on
@@ -26,6 +28,7 @@ RoundBox {
     border.color: Theme.outline
     Accessible.role: Accessible.Grouping
     Accessible.name: I18n.tr("motion.ui.preview.title")
+    signal openKey(string key)
 
     readonly property var surfaces: ["island", "panel", "peek", "launcher", "centre", "toast", "sidebar", "dock", "bar",
                                      "osd", "menu", "dialog"]
@@ -46,7 +49,6 @@ RoundBox {
     property bool open: false
     // The direction of the last transition played ("open" | "close"): Compare replays it.
     property string lastDir: "open"
-    property real speed: 1
     property bool comparing: false
     readonly property bool reduce: { Store.config; return Store.valueOf("a11y.reduce_motion", "") === true }
 
@@ -113,22 +115,13 @@ RoundBox {
     // The snapshot the stage runs now.
     readonly property var running: pv.comparing && pv.prev ? pv.prev : pv.now
 
-    // The curves at the stage's speed: a timed curve's duration and a spring's response stretch; spring_q's constants
-    // (K42's 16-ms integrator) slow by s² and s, which runs it s times slower.
-    function stretched(c, f) {
-        if (!c || f === 1) return c
-        var o = Object.assign({}, c)
-        if (c.kind === "spring_q") { o.spring = c.spring / (f * f); o.damping = c.damping / f }
-        else {
-            if (c.ms) o.ms = c.ms * f
-            if (c.kind === "spring") o.response = (c.response || c.ms || 0) * f
-        }
-        return o
-    }
+    // The curves the stage runs: the snapshot's (the speed setting is in them), each stretched by the pace of the form the
+    // class moves in that way (S21: the shell's SurfaceForm does the same).
+    function paceOf(f) { var m = f ? Theme.formMeta(f) : null; return m && m.pace > 0 ? m.pace : 1 }
     readonly property var runCurves: {
         var cs = pv.running ? pv.running.curves : Theme.motionCurves
-        var f = 1 / pv.speed, out = {}
-        for (var r in cs) out[r] = pv.stretched(cs[r], f)
+        var f = pv.paceOf(pv.formFor(pv.surface, pv.lastDir)), out = {}
+        for (var r in cs) out[r] = C.stretch(cs[r], f)
         return out
     }
     function formFor(s, dir) { return pv.running ? pv.running.forms[s][dir] : Theme.motionForm(s, dir) }
@@ -314,7 +307,7 @@ RoundBox {
         if (drv.tracking) return I18n.fmt("motion.ui.preview.state.scrub", { surface: name, p: drv.value.toFixed(2) })
         var dir = drv.running ? drv.direction : pv.lastDir
         var form = pv.formFor(pv.surface, dir)
-        var c = pv.running ? pv.running.curves[pv.roleOf(pv.surface) === "fast" ? "fast" : dir] : null
+        var c = pv.running ? C.stretch(pv.running.curves[pv.roleOf(pv.surface) === "fast" ? "fast" : dir], pv.paceOf(form)) : null
         if (form === "none" || (c && c.kind === "none"))
             return I18n.fmt("motion.ui.preview.state.cut", { surface: name })
         var key = "motion.ui.preview.state." + dir + (c && c.ms > 0 && c.kind !== "spring_q" ? "_ms" : "")
@@ -464,8 +457,7 @@ RoundBox {
                             surface: pv.surface
                             progress: drv.value
                             content: pv.running ? pv.running.accents.content : "late"
-                            // (stretched with the stage's curves, so a cascade keeps its spacing at ½× and ¼×)
-                            staggerMs: pv.running ? pv.running.accents.stagger / pv.speed : 0
+                            staggerMs: pv.running ? pv.running.accents.stagger : 0
                             durationMs: pv.runCurves.open ? (pv.runCurves.open.ms || 0) : 0
                         }
                     }
@@ -515,27 +507,10 @@ RoundBox {
                 accessibleName: I18n.tr("motion.ui.preview.replay")
                 onClicked: pv.replay()
             }
-            MotionText {
-                height: Theme.controlH
-                verticalAlignment: Text.AlignVCenter
-                small: true
-                color: Theme.dim
-                text: I18n.tr("motion.ui.preview.speed")
-            }
-            Segmented {
-                id: speedSeg
-                objectName: "preview-speed"
-                choices: [{ value: 1, label: "motion.ui.preview.speed_1" }, { value: 0.5, label: "motion.ui.preview.speed_half" },
-                          { value: 0.25, label: "motion.ui.preview.speed_quarter" }]
-                current: pv.speed
-                cancellable: false
-                onPicked: v => pv.speed = v
-                onPreviewed: v => pv.speed = v
-            }
             Slider {
                 id: scrub
                 objectName: "preview-scrub"
-                width: Math.max(180, Math.min(320, col.width - replayBtn.width - speedSeg.width - compareBtn.width - 140))
+                width: Math.max(180, Math.min(320, col.width - replayBtn.width - compareBtn.width - 3 * Theme.gap))
                 from: 0
                 to: 1
                 step: 0.01
@@ -598,13 +573,19 @@ RoundBox {
                 FocusRing { anchors.fill: parent; shown: compareBtn.activeFocus; corner: compareBtn.radius }
             }
         }
+        // S21: the shell's speed, here where it is tried (the row as everywhere: provenance, Reset, why it is inert).
+        SettingRow {
+            objectName: "preview-speed"
+            width: parent.width
+            rowKey: "theme.motion.speed"
+            divider: false
+            onOpenKey: key => pv.openKey(key)
+        }
         MotionText {
             objectName: "preview-state"
             width: parent.width
             small: true
             text: (pv.comparing ? I18n.tr("motion.ui.preview.comparing") + " " : "") + pv.stateText
-                + (pv.speed < 1 ? " " + I18n.fmt("motion.ui.preview.slowed", { speed: I18n.tr(pv.speed === 0.5
-                    ? "motion.ui.preview.speed_half" : "motion.ui.preview.speed_quarter") }) : "")
         }
         MotionText {
             objectName: "preview-compare-note"
@@ -639,7 +620,7 @@ RoundBox {
         return JSON.stringify({
             surface: pv.surface, open: pv.open, value: Number(drv.value.toFixed(4)), running: drv.running,
             tracking: drv.tracking, form: host.form, family: host.family, dir: host.dir, busy: host.busy,
-            layer: !!(sh && sh.item), shown: pv.shown, speed: pv.speed, comparing: pv.comparing, canCompare: pv.canCompare,
+            layer: !!(sh && sh.item), shown: pv.shown, comparing: pv.comparing, canCompare: pv.canCompare,
             ms: pv.runCurves.open ? pv.runCurves.open.ms : 0, card: [Math.round(place.x + stage.x), Math.round(place.y), place.width, place.height]
         })
     }

@@ -461,40 +461,6 @@
 #   choices: "off" | "follow"
 # windows = "off"
 
-# [theme.motion.timing]
-#
-# Opening — The curve surfaces open and grow on.
-#   only while theme.motion.profile != "none"
-# open = ""
-#
-# Closing — The curve surfaces close and fold back on.
-#   only while theme.motion.profile != "none"
-# close = ""
-#
-# Quick moves — The curve of small, fast moves: hover peeks, menus, a bar sliding in.
-#   only while theme.motion.profile != "none"
-# fast = ""
-#
-# Fades — The curve of colour and opacity changes; it should not overshoot.
-#   only while theme.motion.profile != "none"
-# effects = ""
-#
-# Opening duration — Milliseconds (0: the profile's; a spring's duration is its response).
-#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
-# open_ms = 0
-#
-# Closing duration — Milliseconds (0: the profile's).
-#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
-# close_ms = 0
-#
-# Quick move duration — Milliseconds (0: the profile's).
-#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
-# fast_ms = 0
-#
-# Fade duration — Milliseconds (0: the profile's).
-#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
-# effects_ms = 0
-
 # [theme.motion.form]
 #
 # Opens with — The animation every surface opens with, unless one has its own below.
@@ -656,6 +622,46 @@
 #   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
 #   "none" · advanced
 # close = ""
+
+# [theme.motion.timing]
+#
+# Timing preset — How the profile's animations are timed: the profile's own, or a preset's
+# curves (calm, lively …) under its forms.
+#   choices: from `motion.timings` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# preset = ""
+#
+# Opening — The curve surfaces open and grow on.
+#   only while theme.motion.profile != "none"
+# open = ""
+#
+# Closing — The curve surfaces close and fold back on.
+#   only while theme.motion.profile != "none"
+# close = ""
+#
+# Quick moves — The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+#   only while theme.motion.profile != "none"
+# fast = ""
+#
+# Fades — The curve of colour and opacity changes; it should not overshoot.
+#   only while theme.motion.profile != "none"
+# effects = ""
+#
+# Opening duration — Milliseconds (0: the profile's; a spring's duration is its response).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# open_ms = 0
+#
+# Closing duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# close_ms = 0
+#
+# Quick move duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# fast_ms = 0
+#
+# Fade duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# effects_ms = 0
 
 # [theme.typography]
 #

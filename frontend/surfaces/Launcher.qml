@@ -77,6 +77,7 @@ PanelWindow {
     StartHost { id: dressOf; visible: false; active: has && lp.skin && lp.want }
     readonly property url skinUrl: dressOf.ready ? dressOf.item.menu : ""
     property var startAt: null
+    property var openedFrom: null
     readonly property string skinEdge: startAt && startAt.edge === "top" ? "top"
         : (startAt ? "bottom" : (bars.atTop ? "top" : "bottom"))
     // The band on the menu's side: the dress's skin keeps its own; the launcher's own start menu draws the start button's
@@ -351,6 +352,8 @@ PanelWindow {
         if (want) {
             scr = focusedScreen()
             startAt = skin && scr ? IslandGeom.rectOf(scr.name, "start") : null
+            // (the button it opened from, for a sheet form's origin: the start button, else the launcher's bar module)
+            openedFrom = startAt || (scr ? IslandGeom.rectOf(scr.name, "module:launcher") : null)
             results = []; sel = 0; err = ""; confirmClear = false
             thumbs = ({}); asked = ({})
             // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
@@ -380,6 +383,11 @@ PanelWindow {
         cardH: card.height
         slide: 12
         slideScale: 0.96
+        // S21: a start menu's sheet form pours out of its start button (the window's frame: its margins off the screen).
+        formOrigin: lp.skin && lp.openedFrom && lp.scr ? Qt.rect(lp.openedFrom.x - lp.margins.left,
+            lp.skinEdge === "top" ? lp.openedFrom.y - lp.margins.top
+                : lp.openedFrom.y - (lp.scr.height - lp.margins.bottom - lp.implicitHeight),
+            lp.openedFrom.w, lp.openedFrom.h) : Qt.rect(0, 0, 0, 0)
         onHidden: { lp.results = []; lp.thumbs = ({}) }
 
         // The card's content. In the morph the shape is its chrome; sliding in, it is a Block (K42, K45): a flat panel with a

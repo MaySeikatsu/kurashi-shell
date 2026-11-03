@@ -366,7 +366,6 @@ ShellRoot {
                 else if (cmd === "play") pv.play(a[0], a[1] || "open")
                 else if (cmd === "at") { pv.select(a[0]); pv.scrubTo(Number(a[1])) }
                 else if (cmd === "release") pv.letGo(0)
-                else if (cmd === "speed") pv.speed = Number(a[0])
                 else if (cmd === "compare") pv.compare(a[0] === "1")
                 else if (cmd === "rest") pv.rest()
                 else if (cmd === "card") return JSON.stringify(pv.cardRect())
@@ -635,7 +634,7 @@ ShellRoot {
                                     HoverHandler { id: navHover }
                                     // A Material Symbols icon per core page (none for mods and the views without one).
                                     readonly property string icon: ({
-                                        layout: "toolbar", appearance: "palette", accessibility: "accessibility_new",
+                                        layout: "toolbar", appearance: "palette", accessibility: "accessibility_new", motion: "animation",
                                         island: "toggle_on", notifications: "notifications", launcher: "apps",
                                         clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", keys: "keyboard", "@changed": "history",
                                         "@mods": "extension", "@profiles": "person"

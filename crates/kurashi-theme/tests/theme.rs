@@ -852,6 +852,8 @@ fn motion_styles_curves_and_steps() {
     assert_eq!(k74["motion.kind"], "timed");
     assert_eq!(k74["motion.style"], "grow");
     i.axes.motion = MotionRequest::profile("kawaii");
+    // (S21: kawaii stamps now; the rubber band picked over it)
+    i.axes.motion.axes.form = ("rubber".into(), "rubber".into());
     i.axes.motion.axes.timing[0] = "cubic-bezier(0.2, 0, 0, 1)".into();
     i.axes.motion.axes.timing_ms[0] = 300;
     let t = resolve(&i, &fonts()).unwrap().tokens;
@@ -871,6 +873,9 @@ fn motion_styles_curves_and_steps() {
         k74["motion.timed.close_curve"]
     );
     i.axes.motion = MotionRequest::profile("snes");
+    // (S21: snes resolves out of a mosaic now; its stepped box picked over it, at its own one-frame hold)
+    i.axes.motion.axes.form = ("stepped".into(), "stepped".into());
+    i.axes.motion.axes.timing[0] = "linear".into();
     i.axes.motion.axes.timing_ms[0] = 500;
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["motion.kind"], "stepped");

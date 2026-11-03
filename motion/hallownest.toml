@@ -1,5 +1,5 @@
-# Hallownest — Soft fades.
-# Moved from looks/hallownest.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# Hallownest — ink in the void: cards bleed in like ink and clear, and drift back out (S21: the style's own animation).
+# Timing from looks/hallownest.toml's motion (W53, K80).
 name = "hallownest"
 base = "expressive"
 
@@ -12,7 +12,7 @@ fast = "cubic-bezier(0.33, 0, 0.2, 1)"
 fast_ms = 220
 
 [form]
-open = "fade"
-close = "fade"
+open = "bleed"
+close = "bleed"
 
 [accents]

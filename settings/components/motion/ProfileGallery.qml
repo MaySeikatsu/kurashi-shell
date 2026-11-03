@@ -25,7 +25,9 @@ Column {
     readonly property bool editable: !pg.inert && Store.live
     // The packs that can run, first; the ones that cannot yet (a draft whose forms are not built: `enabled: false` with its
     // reason, W59.1) are folded into one group at the end, so the page stays short. The one in effect is always in front.
-    readonly property var offers: pg.row.choices ?? []
+    // S21 (the user's three tiers): whole profiles only — a pack that only times the forms (group `timing`: calm, lively,
+    // expressive) is a timing preset now (Timing section), shown here only while it is the profile in effect.
+    readonly property var offers: (pg.row.choices ?? []).filter(function (o) { return o.group !== "timing" || o.value === pg.current })
     readonly property var ready: pg.offers.filter(function (o) { return o.enabled !== false || o.value === pg.current })
     readonly property var later: pg.offers.filter(function (o) { return o.enabled === false && o.value !== pg.current })
     property bool laterOpen: false

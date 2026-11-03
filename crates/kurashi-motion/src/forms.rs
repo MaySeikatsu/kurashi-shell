@@ -69,11 +69,6 @@ const fn s(name: &str) -> u16 {
         _ => panic!("unknown surface"),
     }
 }
-/// The cards that open from a bar or the island (a mesh needs room to fold, roll or pour).
-const CARDS: u16 = s("island") | s("panel") | s("launcher") | s("centre") | s("dialog");
-/// The surfaces that draw the shape forms (expand, iris, stamp, outline): the cards, and through a ShapeLayer (or the
-/// peek's morph) the peek, the toasts, the sidebars and the dock (W59.9a).
-const SHAPED: u16 = CARDS | s("peek") | s("toast") | s("sidebar") | s("dock");
 /// The surfaces whose live shape morphs out of its origin — the Stage's island views, panels and peeks, BarMorph's
 /// launcher and centre: what liquid needs (the origin's own rect and radius flow into the card).
 const MORPHS: u16 = s("island") | s("panel") | s("peek") | s("launcher") | s("centre");
@@ -124,39 +119,38 @@ const fn f(
 #[rustfmt::skip]
 pub const FORMS: &[FormMeta] = &[
     //   id          family surfaces                                             retarget overshoot flags       tier       available
-    f("none",     Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
-    f("grow",     Shape, ALL,                                                  Morph,  true,  0,          Transform, true),
-    f("slide",    Shape, ALL,                                                  Morph,  true,  0,          Transform, true),
-    f("zoom",     Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
-    f("fade",     Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
-    f("flip",     Shape, ALL,                                                  Morph,  false, VESTIBULAR, Transform, true),
-    f("bleed",    Shape, ALL,                                                  Morph,  false, 0,          Layer,     true),
-    f("stepped",  Shape, ALL,                                                  Morph,  false, 0,          Transform, true),
-    f("rubber",   Shape, ALL,                                                  Morph,  true,  0,          Transform, true),
-    // W59.3: shape forms — drawn on the cards (the Stage's island views and panels, the launcher, the centre, the polkit
-    // dialog); W59.9a: the peek, the toasts, the sidebars and the dock too. The bar, osd and menu classes do not draw them
-    // (a value naming one there is not in effect, with the reason; row 659). iris, stamp and outline draw through a mask
-    // layer while they move.
-    f("expand",   Shape, SHAPED,                                               Morph,  false, 0,          Transform, true),
-    f("iris",     Shape, SHAPED,                                               Morph,  false, 0,          Layer,     true),
-    f("stamp",    Shape, SHAPED,                                               Morph,  true,  0,          Layer,     true),
-    f("outline",  Shape, SHAPED,                                               Morph,  false, 0,          Layer,     true),
+    f("none",     Shape, ALL,                                                   Morph,  false, 0,          Transform, true),
+    f("grow",     Shape, ALL,                                                   Morph,  true,  0,          Transform, true),
+    f("slide",    Shape, ALL,                                                   Morph,  true,  0,          Transform, true),
+    f("zoom",     Shape, ALL,                                                   Morph,  false, 0,          Transform, true),
+    f("fade",     Shape, ALL,                                                   Morph,  false, 0,          Transform, true),
+    f("flip",     Shape, ALL,                                                   Morph,  false, VESTIBULAR, Transform, true),
+    f("bleed",    Shape, ALL,                                                   Morph,  false, 0,          Layer,     true),
+    f("stepped",  Shape, ALL,                                                   Morph,  false, 0,          Transform, true),
+    f("rubber",   Shape, ALL,                                                   Morph,  true,  0,          Transform, true),
+    // W59.3: shape forms; W59.9a: on the peek, toasts, sidebars and dock; S21 (the user: "all animations for all
+    // components"): every form but liquid serves every class — the dock, the bar's reveal and the web dock host them too.
+    // iris, stamp and outline draw through a mask layer while they move.
+    f("expand",   Shape, ALL,                                                   Morph,  false, 0,          Transform, true),
+    f("iris",     Shape, ALL,                                                   Morph,  false, 0,          Layer,     true),
+    f("stamp",    Shape, ALL,                                                   Morph,  true,  0,          Layer,     true),
+    f("outline",  Shape, ALL,                                                   Morph,  false, 0,          Layer,     true),
     // W59.4: paper.
-    f("fold",     Sheet, CARDS | s("peek") | s("toast") | s("sidebar") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
-    f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      true),
-    f("roll",     Sheet, CARDS | s("sidebar") | s("bar") | s("toast") | s("dock") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
-    f("crumple",  Sheet, CARDS | s("toast") | s("peek"),                       Finish, false, VESTIBULAR, Mesh,      true),
+    f("fold",     Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh, true),
+    f("book",     Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh,      true),
+    f("roll",     Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh, true),
+    f("crumple",  Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh,      true),
     // W59.5. (drop is a sheet form: its ripple refracts the captured card, CONTRACT-CHANGE row 670.)
-    f("genie",    Sheet, CARDS | s("dock") | s("toast") | s("peek") | s("menu"), Finish, false, VESTIBULAR, Mesh,  true),
-    f("crt",      Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     true),
-    f("drop",     Sheet, CARDS | s("toast") | s("peek") | s("osd"),            Finish, false, 0,          Layer,     true),
-    f("liquid",   Shape, MORPHS,                                               Morph,  true,  0,          Transform, true),
+    f("genie",    Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh,  true),
+    f("crt",      Sheet, ALL,                                                   Finish, false, FLASH,      Layer,     true),
+    f("drop",     Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
+    f("liquid",   Shape, MORPHS,                                                Morph,  true,  0,          Transform, true),
     // W59.8: wave 3.
-    f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      true),
-    f("noren",    Sheet, CARDS | s("sidebar") | s("toast"),                    Finish, false, 0,          Mesh,      true),
-    f("pixelate", Sheet, ALL,                                                  Finish, false, 0,          Layer,     true),
-    f("glitch",   Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     true),
-    f("dissolve", Sheet, ALL,                                                  Finish, false, 0,          Layer,     true),
+    f("fan",      Sheet, ALL,                                                   Finish, false, VESTIBULAR, Mesh,      true),
+    f("noren",    Sheet, ALL,                                                   Finish, false, 0,          Mesh,      true),
+    f("pixelate", Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
+    f("glitch",   Sheet, ALL,                                                   Finish, false, FLASH,      Layer,     true),
+    f("dissolve", Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
 ];
 
 /// The form with this id.
@@ -170,6 +164,21 @@ pub const LEGACY: [&str; 9] = [
 ];
 
 impl FormMeta {
+    /// How much longer than the profile's curve this form runs (S21, the user: "raindrop or origami animate too fast to
+    /// notice"). A factor on the curve's duration, so the speed setting and the user's own durations still scale it; the
+    /// frontend's form Driver stretches the curve by it and Settings shows the stretched time. A sheet form tells a small
+    /// story (a fold per panel, a bead that gathers, falls and spreads) that a 240 ms slide curve crosses in a few frames.
+    pub fn pace(&self) -> f64 {
+        match self.id {
+            "drop" => 1.9,
+            "genie" | "noren" => 1.5,
+            "fold" | "book" | "fan" | "crumple" => 1.4,
+            "roll" | "dissolve" => 1.3,
+            "pixelate" | "iris" => 1.2,
+            "crt" | "glitch" | "outline" | "stamp" => 1.1,
+            _ => 1.0,
+        }
+    }
     /// Whether it may serve this surface class.
     pub fn serves(&self, surface: &str) -> bool {
         SURFACES
@@ -208,6 +217,7 @@ impl FormMeta {
             "flags": flags,
             "tier": match self.tier { Transform => "transform", Layer => "layer", Mesh => "mesh" },
             "available": self.available,
+            "pace": self.pace(),
         })
     }
 }
@@ -239,8 +249,8 @@ mod tests {
             assert_eq!(s(name), 1 << i, "{name}");
         }
         assert!(form("fold").unwrap().serves("peek"));
-        assert!(!form("fold").unwrap().serves("bar"));
-        assert!(!form("iris").unwrap().serves("bar"));
+        assert!(form("fold").unwrap().serves("bar"));
+        assert!(!form("liquid").unwrap().serves("bar"));
         assert!(form("roll").unwrap().serves("bar"));
         assert!(!form("grow").unwrap().serves("nowhere"));
     }
@@ -257,6 +267,13 @@ mod tests {
         assert!(FORMS.iter().all(|m| m.available));
         assert!(form("iris").unwrap().serves("toast"));
         assert!(form("expand").unwrap().serves("dock"));
+        // S21: every form but liquid on every class.
+        assert!(
+            FORMS
+                .iter()
+                .filter(|m| m.id != "liquid")
+                .all(|m| m.surfaces().count() == 12)
+        );
         assert!(form("liquid").unwrap().serves("peek"));
         assert!(!form("liquid").unwrap().serves("sidebar"));
         let m = meta();
@@ -264,6 +281,8 @@ mod tests {
         assert_eq!(m["fold"]["flags"], json!(["vestibular"]));
         assert_eq!(m["crt"]["flags"], json!(["flash"]));
         assert_eq!(m["grow"]["available"], true);
+        assert_eq!(m["grow"]["pace"], 1.0);
+        assert!(m["drop"]["pace"].as_f64().unwrap() > m["fold"]["pace"].as_f64().unwrap());
         assert_eq!(m["grow"]["surfaces"].as_array().unwrap().len(), 12);
     }
 }

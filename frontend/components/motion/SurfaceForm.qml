@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import "../../core/motion"
+import "../../core/motion/curves.js" as C
 
 // One surface's form per transition (K83, docs/ux/motion-engine.md §5–§7; W59.3): which form it opens or closes in, and
 // the one progress that form runs on. The surface says what it wants (`want`: open at rest, or gone) and keeps the rest of
@@ -118,8 +119,17 @@ QtObject {
         if (form !== "") { form = ""; makeShape() }
     }
 
+    // S21: the latched form's pace (forms meta, `pace`): a sheet form tells a longer story than the profile's curve allows
+    // — every role's curve runs that much longer while this form runs (the speed setting is already in the curves).
+    readonly property real pace: { var m = form !== "" ? Theme.formMeta(form) : null; return m && m.pace > 0 ? m.pace : 1 }
+    readonly property var pacedCurves: {
+        var c = Theme.motionCurves, f = r.pace
+        if (f === 1) return c
+        return { open: C.stretch(c.open, f), close: C.stretch(c.close, f), fast: C.stretch(c.fast, f),
+                 effects: C.stretch(c.effects, f) }
+    }
     property Driver drv: Driver {
-        curves: Theme.motionCurves
+        curves: r.pacedCurves
         role: r.role
         enabled: r.formed
         keepVelocity: true

@@ -1,5 +1,5 @@
-# PS2 — Slow fades: everything eases in and out over half a second, no overshoot.
-# Moved from looks/ps2.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+# PS2 — the glowing orb: panels open as a circle from where they were pressed, slowly (S21: the style's own animation).
+# Timing from looks/ps2.toml's motion (W53, K80).
 name = "ps2"
 base = "expressive"
 
@@ -14,7 +14,7 @@ effects = "ease-in-out"
 effects_ms = 400
 
 [form]
-open = "fade"
-close = "fade"
+open = "iris"
+close = "iris"
 
 [accents]

@@ -379,28 +379,28 @@
     0.15
   ],
   "motion.emphasized_ms": 320,
-  "motion.form.bar.close": "slide",
-  "motion.form.bar.open": "slide",
-  "motion.form.centre.close": "slide",
-  "motion.form.centre.open": "slide",
-  "motion.form.dialog.close": "slide",
-  "motion.form.dialog.open": "slide",
+  "motion.form.bar.close": "genie",
+  "motion.form.bar.open": "genie",
+  "motion.form.centre.close": "genie",
+  "motion.form.centre.open": "genie",
+  "motion.form.dialog.close": "genie",
+  "motion.form.dialog.open": "genie",
   "motion.form.dock.close": "genie",
   "motion.form.dock.open": "genie",
-  "motion.form.island.close": "slide",
-  "motion.form.island.open": "slide",
-  "motion.form.launcher.close": "slide",
-  "motion.form.launcher.open": "slide",
-  "motion.form.menu.close": "slide",
-  "motion.form.menu.open": "slide",
-  "motion.form.osd.close": "slide",
-  "motion.form.osd.open": "slide",
-  "motion.form.panel.close": "slide",
-  "motion.form.panel.open": "slide",
-  "motion.form.peek.close": "slide",
-  "motion.form.peek.open": "slide",
-  "motion.form.sidebar.close": "slide",
-  "motion.form.sidebar.open": "slide",
+  "motion.form.island.close": "genie",
+  "motion.form.island.open": "genie",
+  "motion.form.launcher.close": "genie",
+  "motion.form.launcher.open": "genie",
+  "motion.form.menu.close": "genie",
+  "motion.form.menu.open": "genie",
+  "motion.form.osd.close": "genie",
+  "motion.form.osd.open": "genie",
+  "motion.form.panel.close": "genie",
+  "motion.form.panel.open": "genie",
+  "motion.form.peek.close": "genie",
+  "motion.form.peek.open": "genie",
+  "motion.form.sidebar.close": "genie",
+  "motion.form.sidebar.open": "genie",
   "motion.form.toast.close": "genie",
   "motion.form.toast.open": "genie",
   "motion.forms": {
@@ -409,6 +409,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -433,12 +434,20 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -450,6 +459,7 @@
         "flash"
       ],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -474,6 +484,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -482,6 +493,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -491,6 +507,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.3,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -513,6 +530,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.9,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -521,7 +539,11 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
+        "dock",
+        "bar",
         "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -531,6 +553,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -541,6 +564,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "transform"
@@ -550,6 +576,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -574,6 +601,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -581,6 +609,11 @@
         "peek",
         "launcher",
         "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -593,6 +626,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -617,6 +651,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.4,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -626,6 +661,9 @@
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -638,6 +676,7 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.5,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -646,7 +685,10 @@
         "launcher",
         "centre",
         "toast",
+        "sidebar",
         "dock",
+        "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -659,6 +701,7 @@
         "flash"
       ],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -681,6 +724,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -703,6 +747,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.2,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -713,6 +758,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -722,6 +770,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -737,6 +786,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -759,14 +809,20 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.5,
       "retarget": "finish",
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "mesh"
@@ -776,6 +832,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.1,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -786,6 +843,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -795,6 +855,7 @@
       "family": "sheet",
       "flags": [],
       "overshoot": false,
+      "pace": 1.2,
       "retarget": "finish",
       "surfaces": [
         "island",
@@ -819,16 +880,19 @@
         "vestibular"
       ],
       "overshoot": false,
+      "pace": 1.3,
       "retarget": "finish",
       "surfaces": [
         "island",
         "panel",
+        "peek",
         "launcher",
         "centre",
         "toast",
         "sidebar",
         "dock",
         "bar",
+        "osd",
         "menu",
         "dialog"
       ],
@@ -839,6 +903,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -861,6 +926,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -883,6 +949,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": true,
+      "pace": 1.1,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -893,6 +960,9 @@
         "toast",
         "sidebar",
         "dock",
+        "bar",
+        "osd",
+        "menu",
         "dialog"
       ],
       "tier": "layer"
@@ -902,6 +972,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -924,6 +995,7 @@
       "family": "shape",
       "flags": [],
       "overshoot": false,
+      "pace": 1.0,
       "retarget": "morph",
       "surfaces": [
         "island",
@@ -1002,7 +1074,7 @@
   "motion.spring.squash": 0.0,
   "motion.standard_ms": 220,
   "motion.steps": 4,
-  "motion.style": "slide",
+  "motion.style": "grow",
   "motion.timed.close_curve": [
     0.42,
     0.0,
