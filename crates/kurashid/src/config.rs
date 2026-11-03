@@ -43,7 +43,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 14] = [
+pub const CORE_SOURCES: [&str; 15] = [
     "lock.faces",
     "actions",
     "modules",
@@ -58,6 +58,7 @@ pub const CORE_SOURCES: [&str; 14] = [
     "motion.profiles",
     "motion.forms",
     "motion.still",
+    "desktop.cards",
 ];
 
 /// The config files' migrations (user file, profiles, managed.toml; `schema_version`).
@@ -793,8 +794,18 @@ fn offers_now(
     mod_faces: &BTreeMap<String, String>,
     mod_panels: &[Offer],
     mod_widgets: &[Offer],
+    mod_desks: &[Offer],
 ) -> BTreeMap<String, Vec<Offer>> {
-    let mut offers = BTreeMap::new();
+    let mut offers: BTreeMap<String, Vec<Offer>> = BTreeMap::new();
+    // The desk's cards for its two columns (`desktop.left`, `desktop.right`): the core ones, then the mods'.
+    offers.insert(
+        "desktop.cards".to_string(),
+        ["clock", "calendar", "media", "weather"]
+            .iter()
+            .map(|c| Offer::on(c, format!("config.desktop.{c}.label")))
+            .chain(mod_desks.iter().cloned())
+            .collect(),
+    );
     // K72: what an edge's zones may list — the core modules, every loaded mod's glance (`widget:`), and `mods` for the
     // enabled mod widgets no zone names.
     offers.insert(
@@ -809,7 +820,7 @@ fn offers_now(
             )))
             .collect(),
     );
-    // W29: the right sidebar's sections and the left sidebar's tabs.
+    // W29: the sidebars' sections, core and the mods' panels.
     offers.insert(
         "sidebar.sections".to_string(),
         SIDEBAR_SECTIONS
@@ -818,7 +829,9 @@ fn offers_now(
             .chain(mod_panels.iter().cloned())
             .collect(),
     );
-    offers.insert("sidebar.tabs".to_string(), mod_panels.to_vec());
+    // Both sidebars offer every section (session 20); `sidebar.tabs` stays, the same list, for configs that name it.
+    let sections = offers["sidebar.sections"].clone();
+    offers.insert("sidebar.tabs".to_string(), sections);
     // W53.0b (K80): the lock faces the package ships, after "follow the style" and "plain".
     offers.insert(
         "lock.faces".to_string(),
@@ -986,6 +999,8 @@ struct ModSettings {
     panels: Vec<String>,
     /// Its glances (`widget:<name>`): modules for the edges' zones (K72).
     widgets: Vec<String>,
+    /// Its desk cards (`desk:<name>`): the desktop's columns (K48).
+    desks: Vec<String>,
 }
 
 impl ModTable {
@@ -1018,6 +1033,14 @@ impl ModTable {
                         _ => None,
                     })
                     .collect();
+                let desks = m
+                    .provides
+                    .iter()
+                    .filter_map(|p| match p {
+                        Provide::Desk(name) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
                 Some(ModSettings {
                     id: m.id.clone(),
                     name: m.name.clone(),
@@ -1027,6 +1050,7 @@ impl ModTable {
                     faces,
                     panels,
                     widgets,
+                    desks,
                 })
             })
             .collect();
@@ -1050,6 +1074,24 @@ impl ModTable {
             .flat_map(|m| {
                 m.panels.iter().map(move |p| Offer {
                     value: format!("mod:{}:{p}", m.id),
+                    label: m.name.clone(),
+                    enabled: m.enabled,
+                    reason: (!m.enabled).then(|| REASON_MOD_DISABLED.to_string()),
+                    group: None,
+                })
+            })
+            .collect()
+    }
+
+    /// Every loaded mod's desk card as `mod:<id>:<name>` (K48), labelled with the mod's name; disabled with the reason
+    /// while the mod is off, like its panels.
+    fn desk_offers(&self) -> Vec<Offer> {
+        self.mods
+            .iter()
+            .filter(|m| m.loaded)
+            .flat_map(|m| {
+                m.desks.iter().map(move |d| Offer {
+                    value: format!("mod:{}:{d}", m.id),
                     label: m.name.clone(),
                     enabled: m.enabled,
                     reason: (!m.enabled).then(|| REASON_MOD_DISABLED.to_string()),
@@ -1481,7 +1523,7 @@ impl ConfigStore {
             opts.migrations = migrations();
         }
         // No mods yet: their face labels follow with `sync_mods`.
-        let offers = offers_now(&hub, &BTreeMap::new(), &[], &[]);
+        let offers = offers_now(&hub, &BTreeMap::new(), &[], &[], &[]);
         let schema = SchemaAdapter {
             core: registry,
             lists: list_keys(registry.version()),
@@ -2003,12 +2045,17 @@ impl ConfigStore {
     /// no patch (hub).
     fn publish_settings(&self) {
         // The mods' face names and panels are read under their own lock first: `offers_now` reads the hub.
-        let (mod_faces, mod_panels, mod_widgets) = {
+        let (mod_faces, mod_panels, mod_widgets, mod_desks) = {
             let cfg = self.cfg.lock().expect("config lock");
             let mods = &cfg.schema().mods;
-            (mods.face_names(), mods.panel_offers(), mods.widget_offers())
+            (
+                mods.face_names(),
+                mods.panel_offers(),
+                mods.widget_offers(),
+                mods.desk_offers(),
+            )
         };
-        let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets);
+        let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets, &mod_desks);
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers
@@ -2738,6 +2785,7 @@ mod tests {
                     faces: Vec::new(),
                     panels: Vec::new(),
                     widgets: Vec::new(),
+                    desks: Vec::new(),
                 }],
             },
             offers: BTreeMap::new(),
@@ -2805,7 +2853,7 @@ mod tests {
             None,
         );
         let mods = BTreeMap::from([("weather".to_string(), "mods.weather.name".to_string())]);
-        let offers = offers_now(&hub, &mods, &[], &[]);
+        let offers = offers_now(&hub, &mods, &[], &[], &[]);
         let faces = &offers["island.faces"];
         let label = |v: &str| faces.iter().find(|o| o.value == v).map(|o| o.label.clone());
         assert_eq!(label("weather").as_deref(), Some("mods.weather.name"));
@@ -2829,7 +2877,7 @@ mod tests {
             reason: Some(REASON_MOD_DISABLED.into()),
             group: None,
         };
-        let offers = offers_now(&hub, &BTreeMap::new(), &[ai, tasks], &[]);
+        let offers = offers_now(&hub, &BTreeMap::new(), &[ai, tasks], &[], &[]);
         let values = |src: &str| {
             offers[src]
                 .iter()
@@ -2849,7 +2897,11 @@ mod tests {
                 "mod:tasks:tasks"
             ]
         );
-        assert_eq!(values("sidebar.tabs"), ["mod:ai:ai", "mod:tasks:tasks"]);
+        assert_eq!(values("sidebar.tabs"), values("sidebar.sections"));
+        assert_eq!(
+            values("desktop.cards"),
+            ["clock", "calendar", "media", "weather"]
+        );
         let ok = |src: &str, v: Value| offered(&offers, src, &v);
         assert_eq!(ok("sidebar.tabs", json!(["mod:ai:ai"])), Some(true));
         assert_eq!(ok("sidebar.tabs", json!(["mod:tasks:tasks"])), Some(false));
@@ -2859,7 +2911,7 @@ mod tests {
             Some(true)
         );
         assert_eq!(
-            offers["sidebar.tabs"][1].json()["reason"],
+            offers["sidebar.tabs"][7].json()["reason"],
             REASON_MOD_DISABLED
         );
     }

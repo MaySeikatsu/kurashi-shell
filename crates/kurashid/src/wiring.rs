@@ -3022,7 +3022,12 @@ pub fn layout_config(val: &dyn Fn(&str) -> Value) -> kurashi_layout::OutputConfi
     };
     let sidebar = |side: &str| SidebarConfig {
         width: num(&format!("sidebar.{side}.width"), 420),
-        visibility: vis(&format!("sidebar.{side}.visibility"), Visibility::Hidden),
+        // Pinned (session 20): open as "always shown" while pinned; the chosen visibility is kept for the unpin.
+        visibility: if flag(&format!("sidebar.{side}.pinned"), false) {
+            Visibility::Always
+        } else {
+            vis(&format!("sidebar.{side}.visibility"), Visibility::Hidden)
+        },
         reserve: res(&format!("sidebar.{side}.reserve")),
         draw: draw(&format!("sidebar.{side}.draw")),
     };

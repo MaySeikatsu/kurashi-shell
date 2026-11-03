@@ -1,7 +1,7 @@
 # Web dock engine and ad blocking — options for later (session 20)
 
 Why this exists: the user wants uBlock Origin in the web dock "mainly for YouTube". The dock renders pages with
-QtWebEngine (K38, K39), and on QtWebEngine 6.11.2 neither uBlock runs (BACKLOG I357, CONTRACT-CHANGE 693). This page
+QtWebEngine (K38, K39), and on QtWebEngine 6.11.2 neither uBlock runs (BACKLOG I373, CONTRACT-CHANGE 693). This page
 keeps every option found so far, so the engine choice can be reconsidered with the evidence in one place. Nothing here
 is decided; it is research for a future K-decision.
 
@@ -74,7 +74,7 @@ Chromium: `--app=URL --user-data-dir=<per-pin profile>`; Firefox/Zen: a dedicate
 
 ### 4. Network-only blocker (dropped for YouTube)
 
-The interceptor alone with a hosts-style list (former BACKLOG I359). Blocks ads and trackers on most sites, does
+The interceptor alone with a hosts-style list (BACKLOG I376, dropped). Blocks ads and trackers on most sites, does
 nothing for YouTube. Kept only as a possible first step of option 3.
 
 ## Next step when this is picked up

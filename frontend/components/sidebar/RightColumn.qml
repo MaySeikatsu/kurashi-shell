@@ -17,6 +17,8 @@ import "../decor" as Decor
 Item {
     id: rc
     property var sections: []
+    // K84: the sidebar whose pin the header carries, when the header tops the column ("" = no pin there).
+    property string pinSide: ""
     property string outName: ""
     // W53.3 (`[decor] centre.form = flyouts`, while the column floats; the window says so): every section is a flyout of
     // its own — the panel's material in the look's radius with its hairline and elevation — 12 px apart and stacked at the
@@ -131,7 +133,7 @@ Item {
             Item { Layout.fillHeight: true; visible: (rc.sections.indexOf("notifications") < 0 && !rc.flyouts) || (rc.flyouts && rc.fromTop) }
         }
     }
-    Component { id: headerC; HeaderSection {} }
+    Component { id: headerC; HeaderSection { pinSide: rc.sections.length > 0 && rc.sections[0] === "header" ? rc.pinSide : "" } }
     Component {
         id: togglesC
         TogglesSection { onPageRequested: (c, from) => rc.openPage(c, from) }

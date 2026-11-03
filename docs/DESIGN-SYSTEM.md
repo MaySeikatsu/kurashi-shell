@@ -284,7 +284,7 @@ default filled in:
 | tray, separators, bar | `tray.sunken` (false), `separator.style` (line · etched · none), `bar.group` (block · none: no raised block round each bar group, one strip — row 596), `tray.fill` (""), `bar.fill` ([]), `bar.edge` (""), `bar.gloss` (0) |
 | Mac eras (W53.4) | `title.min_fill`, `title.max_fill` ("" = warning, success), `pattern.kind` (none · stripes · brushed), `pattern.period` (4), `pattern.strength` (0), `dock.fill` ([]), `dock.radius` (-1), `dock.reflection` (0), `dock.indicator` (dots · dot · triangle), `dock.tiles` (block · none), `button.radius` (-1), `button.gloss` (0), `button.pulse` (0), `button.pulse_ms` (1500), `start.gloss` (0), `menu.gloss` (0), `start.form` (search · menu: the system's menu on an empty start field), `flyout.hang` (false: flyouts and start skins meet their bar square) |
 | focus | `focus.style` (ring · dotted · double · halo), `focus.offset` (0; negative = inside), `focus.width` (1) |
-| start | `start.label` (false), `start.fill` ([]), `start.family` ([]; resolved as `font.start`), `start.size` (0), `start.italic` (false) |
+| start | `start.label` (false), `start.fill` ([]), `start.family` ([]; resolved as `font.start`), `start.size` (0), `start.italic` (false), `start.logo_tint` (none · ink · console: how the launcher button tints the OS logo, I374) |
 | type | `type.pixel` (false), `type.pixel_step` (1) |
 | symbols | `icons.family` ([] = the shell's), `icon.size` (0 = body + 4), `icon.scale` (1), `icon.fill`, `icon.weight` (-1 = the chrome's) |
 | motion | **moved to motion packs (K83)**: a look no longer carries `motion.*`; its style recommends a motion pack (`motion/<id>.toml`, §9) |
@@ -344,6 +344,10 @@ disk two PNGs (rows 280–281: Qt premultiplies textures, so normals cannot shar
 `texture.map` opaque RGB — R, G the surface normal's x, y as `2v − 1` (x right, y down; z = `sqrt(1 − x² − y²)`), B the
 cavity `2v − 1` (−1 crevice, +1 crest); `texture.ink_map` white RGBA with the ink coverage in A (`""` without ink). Flat
 and ink-free = (128, 128, 128) and no ink.
+
+**OS logo (I374, K85):** the theme document carries `os.logo`, the OS's logo icon name (`/etc/os-release` `LOGO`, else
+`<ID>-logo`, "" when neither), read once by kurashid; the launcher button resolves it as an icon when
+`launcher.button_logo = os`.
 
 **Tokens** (`theme` document; all present, `texture.amp` 0 and `texture.map` "" when there is no texture):
 | token | meaning |
