@@ -304,8 +304,9 @@ Scope {
                 surface: "dock"
                 shapes: ["expand", "iris", "stamp", "outline"]
                 want: dock.growing
-                // (a slide still in flight keeps its way: a reversal continues it, as the sidebar's)
-                hold: !formed && dock.slideAmt > 0.001 && dock.slideAmt < 0.999
+                // (a slide still in flight keeps its way: a reversal continues it, as the sidebar's; a scrub's held slide
+                // is not in flight)
+                hold: !formed && (Theme.timed ? dock.glide.running : true) && dock.slideAmt > 0.001 && dock.slideAmt < 0.999
                 fromCx: dock.room + dock.formAlong / 2
                 fromW: dock.formAlong * 0.3
                 fromTop: 0

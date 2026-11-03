@@ -181,8 +181,8 @@ Scope {
         surface: "bar"
         role: "fast"
         shapes: ["expand", "iris", "stamp", "outline"]
-        // (a slide still in flight keeps its way: a reversal continues it)
-        hold: !formed && bar.glide.value > 0.001 && bar.glide.value < 0.999
+        // (a slide still in flight keeps its way: a reversal continues it; a scrub's held slide is not in flight)
+        hold: !formed && bar.glide.running && bar.glide.value > 0.001 && bar.glide.value < 0.999
     }
     // (driven from here, not bound: a bar that is out when it is made stands open — Component.onCompleted below — and
     // does not play its form at start)

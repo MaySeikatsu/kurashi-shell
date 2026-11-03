@@ -10,7 +10,8 @@
 #             layer of that transition is fold's) and the layer is released once it has landed;
 #   ma        per host 20 open/close cycles in its sheet form: every `motion: sheet layer up` has its `released`, no QML
 #             error, and the frontend's USS after the cycles within MH_USS_SLACK MiB of before (the sidebar's 11-MiB leak
-#             of W59.9a is what this catches); the numbers are printed.
+#             of W59.9a is what this catches); the numbers are printed;
+#   idle      per host one open and close in its sheet form, then 0 surface commits in 5 s (WAYLAND_DEBUG).
 # The bar is brought out by `layout.toggle` (visibility `hidden`: the same `wantShown` as a hover's, without the dwell).
 # Shots: frontend/shots/motion-hosts/ (gitignored; read them).
 #   nix develop -c frontend/test-motion-hosts.sh
@@ -105,7 +106,7 @@ crop_of() {
   case $1 in
     dock) echo "$(( OW / 2 - 300 )),$(( OH - 220 )) 600x220" ;;
     bar) echo "0,0 ${OW}x72" ;;
-    webdock) echo "$(( OW - 520 )),0 456x$OH" ;;
+    webdock) echo "$(( OW - 520 )),0 462x$OH" ;;
   esac
 }
 surface_of() { case $1 in webdock) echo panel ;; *) echo "$1" ;; esac; }
@@ -154,8 +155,10 @@ if want landings; then
         put_away "$h"
         stop_fe
       done
+      # (the web dock's phone card shows the time in its status row: a minute may turn between the two shots)
+      slack=${MH_REST_SLACK:-0}; [ "$h" = webdock ] && slack=${MH_REST_SLACK:-300}
       d=$(ae "$h-$f-1" "$h-rest")
-      [ "$d" -le "${MH_REST_SLACK:-0}" ] || fail "$h $f: p = 1 differs from the host at rest in $d px"
+      [ "$d" -le "$slack" ] || fail "$h $f: p = 1 differs from the host at rest in $d px"
       for p in 0.9 0.97; do
         d=$(ae "$h-$f-$p" "$h-$f-1" 6)
         [ "$d" -le "${MH_LANDING_SLACK:-600}" ] || fail "$h $f: p = $p differs from p = 1 in $d px (a seam?)"
@@ -176,12 +179,22 @@ if want reversal && [[ " $HOSTS " == *" dock "* ]]; then
   log=$R/qs-reversal.log
   start_fe "$log"
   off=$(log_size "$log")
-  bring dock on; sleep 0.35; bring dock off
+  # (the first open makes the dock's window: wait for the fold to be drawn, then put it away a moment into it)
+  bring dock on
+  wait_for "$log" 'motion: sheet layer up dock fold' 10 "$off" || fail "reversal: the fold never started"
+  sleep 0.3
+  grep -q 'sheet layer dock fold released' < <(tail -c +"$(( off + 1 ))" "$log") && fail "reversal: the fold landed in 0.3 s (speed not applied?)"
+  bring dock off
   wait_for "$log" 'motion: sheet layer dock fold released' 10 "$off" || fail "reversal: the fold never landed"
   wait_settled 8 0.8 "$(crop_of dock)"
-  if tail -c +"$(( off + 1 ))" "$log" | grep -q 'sheet layer up dock genie'; then
-    fail "reversal: the close mid-way switched to genie (the form in flight must continue)"
-  fi
+  # The fold refolds to its rest (its release is the landing at 0). FormHost then clears its latch, and its Loader makes and
+  # drops the close form's sheet in the same turn (no frame drawn; reported to the lead, W64): a genie line may follow the
+  # fold's release, never come before it.
+  seq=$(tail -c +"$(( off + 1 ))" "$log" | grep -oE 'sheet layer (up )?dock [a-z]+( released)?' | tr '\n' '|')
+  case $seq in
+    "sheet layer up dock fold|sheet layer dock fold released|"*) ;;
+    *) fail "reversal: the close mid-way did not continue the fold ($seq)" ;;
+  esac
   qml_errors "$log"
   stop_fe
   K reset theme.motion.speed >/dev/null 2>&1 || true
@@ -220,6 +233,30 @@ if want ma; then
     put_away "$h"
     stop_fe
   done
+  reset_forms
+fi
+
+# ---- idle: after each host's form has closed, the shell commits nothing (Ma: 0 frames at rest) ----
+if want idle; then
+  echo "== idle"
+  commits() { tail -c +"$(( $1 + 1 ))" "$2" | grep -cE 'wl_surface#[0-9]+\.commit\(' || true; }
+  set_form dock genie; set_form bar fold; set_form panel fold
+  log=$R/qs-idle.log
+  start_fe "$log" WAYLAND_DEBUG=1
+  for h in $HOSTS; do
+    sfc=$(surface_of "$h")
+    off=$(log_size "$log")
+    bring "$h" on; wait_for "$log" "sheet layer $sfc [a-z]+ released" 10 "$off" || fail "idle $h: the open never landed"
+    off=$(log_size "$log")
+    bring "$h" off; wait_for "$log" "sheet layer $sfc [a-z]+ released" 10 "$off" || fail "idle $h: the close never landed"
+    wait_log_quiet "$log" 'wl_surface#[0-9]+\.commit\(' 1 10
+    off=$(log_size "$log"); sleep 5
+    n=$(commits "$off" "$log")
+    [ "$n" = 0 ] || fail "idle $h: $n surface commits in 5 s after the close (idle must be 0 frames)"
+    echo "test-motion-hosts: idle $h: 0 commits in 5 s after its form closed"
+  done
+  qml_errors "$log"
+  stop_fe
   reset_forms
 fi
 echo "test-motion-hosts: ok (shots in $OUT)"

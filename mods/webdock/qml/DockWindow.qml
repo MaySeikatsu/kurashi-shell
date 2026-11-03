@@ -91,7 +91,7 @@ PanelWindow {
         out.push({ kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" }, { kind: "ctl", ctl: "settings" })
         if (JSON.stringify(out) !== JSON.stringify(rowList)) rowList = out
     }
-    Component.onCompleted: refreshRows()
+    Component.onCompleted: { refreshRows(); Qt.callLater(function () { dock.born = true }) }
 
     // ---- what the panel beside the strip shows ----
     readonly property bool viewCard: extended && view !== null
@@ -148,21 +148,25 @@ PanelWindow {
     // panel's FormHost: shape and sheet forms, hinged on the strip's side), else slides on the profile's open and close
     // curves — once the strip is a quarter in, so it follows the strip. Reduced motion (profile none or reduced) fades
     // both over `fadeMs`. The window keeps its size until both have finished. Nothing runs at rest (Ma).
-    readonly property Glide stripGlide: Glide { role: "fast"; to: dock.open ? 1 : 0 }
-    property real stripFade: open ? 1 : 0
+    // (made by the first reveal, the window is open from its start: the strip and the card come in from its first turn
+    // instead of standing there at once)
+    property bool born: false
+    readonly property bool shownNow: born && open
+    readonly property Glide stripGlide: Glide { role: "fast"; to: dock.shownNow ? 1 : 0 }
+    property real stripFade: shownNow ? 1 : 0
     Behavior on stripFade { enabled: dock.reduced; NumberAnimation { duration: dock.fadeMs } }
     readonly property real reveal: reduced ? stripFade : Math.min(1, stripGlide.value)
-    readonly property bool panelGo: panelUp && (reduced || reveal >= 0.25)
+    readonly property bool panelGo: born && panelUp && (reduced || reveal >= 0.25)
     readonly property Glide cardGlide: Glide { to: dock.panelGo ? 1 : 0 }
     readonly property SurfaceForm pRun: SurfaceForm {
         surface: "panel"
         shapes: ["expand", "iris", "stamp", "outline"]
         // (reduced motion keeps its fade: no form; a slide still in flight keeps its way)
         want: dock.panelGo && !dock.reduced
-        hold: !formed && dock.cardGlide.value > 0.001 && dock.cardGlide.value < 0.999
+        hold: !formed && dock.cardGlide.running && dock.cardGlide.value > 0.001 && dock.cardGlide.value < 0.999
     }
     readonly property bool cardFormDraws: pRun.formed && (pRun.busy || pRun.want)
-    property real cardFade: panelUp ? 1 : 0
+    property real cardFade: born && panelUp ? 1 : 0
     Behavior on cardFade { enabled: dock.reduced; NumberAnimation { duration: dock.fadeMs } }
     readonly property real cardReveal: reduced ? cardFade : cardFormDraws ? 1 : cardGlide.value
     readonly property bool surfaceUp: open || reveal > 0.001 || cardReveal > 0.001
@@ -297,39 +301,41 @@ PanelWindow {
                 onTabPressed: if (dock.panelUp && panelLoader.item) panelLoader.item.forceActiveFocus()
             }
         }
-        // The card or the side panel, beside the strip: it follows the strip, in the panel's form or sliding.
-        Box {
-            id: panelBox
+        // K83 (W64): the panel's form host, window-sized (as the dock's and the sidebar's: its layers keep the card's
+        // material registered with the output) — a sheet form captures `panelSrc` (the panel's box of `panelDraw`), hinged
+        // on the strip's side; a shape form draws it through its mask. Its origin is the strip's tile that opened it.
+        FormHost {
+            id: pHost
+            anchors.fill: parent
+            surface: "panel"
             edge: dock.edge
-            surfW: dock.width
-            surfH: dock.height
-            a0: dock.stripPx + (dock.reduced ? 0 : (dock.cardReveal - 1) * dock.panelAcross)
-            a1: a0 + dock.panelAcross
-            l0: dock.panelAlong0
-            l1: dock.panelAlong0 + dock.panelAlong
-            visible: dock.cardReveal > 0.001
-            opacity: dock.reduced ? dock.cardReveal : 1
-            HoverHandler { id: panelHover }
-
-            // K83 (W64): the panel's form host — a sheet form captures `panelSrc` (the card or the side panel), hinged on
-            // the strip's side; a shape form draws it through its mask. Its origin is the strip's tile that opened it.
-            FormHost {
-                id: pHost
+            direction: dock.pRun.dir
+            // (only while the form draws the panel: a form latched by the last transition stays at its rest meanwhile, and
+            // reduce motion fades without one)
+            progress: dock.pRun.sheet && dock.cardFormDraws ? dock.pRun.p : 1
+            visible: !(dock.pRun.sheet && dock.cardFormDraws) || dock.pRun.p > 0
+            source: panelSrc
+            origin: dock.panelOrigin
+            ShapeLayer {
                 anchors.fill: parent
-                surface: "panel"
+                run: dock.pRun
                 edge: dock.edge
-                direction: dock.pRun.dir
-                progress: dock.pRun.sheet ? dock.pRun.p : 1
-                visible: !dock.pRun.sheet || dock.pRun.p > 0
-                source: panelSrc
-                origin: dock.panelOrigin
-                ShapeLayer {
+                Item {
+                    id: panelDraw
                     anchors.fill: parent
-                    run: dock.pRun
-                    edge: dock.edge
-                    Item {
-                        id: panelSrc
-                        anchors.fill: parent
+                    // The card or the side panel, beside the strip: it follows the strip, in the panel's form or sliding.
+                    Box {
+                        id: panelBox
+                        edge: dock.edge
+                        surfW: dock.width
+                        surfH: dock.height
+                        a0: dock.stripPx + (dock.reduced ? 0 : (dock.cardReveal - 1) * dock.panelAcross)
+                        a1: a0 + dock.panelAcross
+                        l0: dock.panelAlong0
+                        l1: dock.panelAlong0 + dock.panelAlong
+                        visible: dock.cardReveal > 0.001
+                        opacity: dock.reduced ? dock.cardReveal : 1
+                        HoverHandler { id: panelHover }
                         Loader {
                             id: panelLoader
                             anchors.fill: parent
@@ -339,6 +345,27 @@ PanelWindow {
                         }
                     }
                 }
+                // While a sheet form warps the panel: the window's drawing in one layer, the panel's box of it the form's
+                // capture — so p = 1 is the rest frame, material and all.
+                SheetRest {
+                    id: pRest
+                    anchors.fill: parent
+                    on: pHost.sheetSolid
+                    draw: panelDraw
+                    body: Qt.rect(Math.round(panelBox.x), Math.round(panelBox.y), Math.round(panelBox.width),
+                        Math.round(panelBox.height))
+                    hingeY: -1e6
+                    k: pHost.sheetFillets
+                }
+                Item {
+                    id: panelSrc
+                    x: pRest.body.x
+                    y: pRest.body.y
+                    width: pRest.body.width
+                    height: pRest.body.height
+                    clip: true
+                    SheetRest.Body { rest: pRest }
+                }
             }
         }
     }
@@ -347,31 +374,33 @@ PanelWindow {
     // The tile the panel opens from (a pin's, or the add control's), taken when it starts to open and kept while it closes.
     property string originKey: ""
     onPanelGoChanged: if (panelGo) originKey = side !== "" ? sideOwner : shownId
-    // Its box in the panel's item px, then in the form's frame (ShapeLayer: x along the edge, y away from the strip's side).
+    // Its box in the window's item px, then in the form's frame (ShapeLayer on the window: x along the edge, y away from the
+    // screen's edge; the panel stands `stripPx` off it, its hinge there).
     readonly property rect panelOrigin: {
-        var dep = [reveal, cardReveal, rowList, panelBox.width, panelBox.height]
+        var dep = [reveal, cardReveal, rowList, width, height]
         var t = originKey !== "" ? stripItem.tileOf(originKey) : null
         if (!t) return Qt.rect(0, 0, 0, 0)
-        var p = t.mapToItem(panelBox, 0, 0)
+        var p = t.mapToItem(pHost, 0, 0)
         return Qt.rect(p.x, p.y, t.width, t.height)
     }
     function frameOf(ix, iy) {
-        if (sideways) return Qt.point(iy, edge === "right" ? panelBox.width - ix : ix)
-        return Qt.point(ix, edge === "bottom" ? panelBox.height - iy : iy)
+        if (sideways) return Qt.point(iy, edge === "right" ? width - ix : ix)
+        return Qt.point(ix, edge === "bottom" ? height - iy : iy)
     }
     readonly property bool hasOrigin: panelOrigin.width > 0
     readonly property point originMid: frameOf(panelOrigin.x + panelOrigin.width / 2, panelOrigin.y + panelOrigin.height / 2)
-    Binding { target: dock.pRun; property: "fromCx"; value: dock.hasOrigin ? dock.originMid.x : dock.panelAlong / 2 }
+    readonly property real panelMid: panelAlong0 + panelAlong / 2
+    Binding { target: dock.pRun; property: "fromCx"; value: dock.hasOrigin ? dock.originMid.x : dock.panelMid }
     Binding { target: dock.pRun; property: "fromW"; value: dock.hasOrigin ? (dock.sideways ? dock.panelOrigin.height : dock.panelOrigin.width) : dock.panelAlong * 0.3 }
-    Binding { target: dock.pRun; property: "fromTop"; value: 0 }
-    Binding { target: dock.pRun; property: "fromFoot"; value: 0 }
+    Binding { target: dock.pRun; property: "fromTop"; value: dock.stripPx }
+    Binding { target: dock.pRun; property: "fromFoot"; value: dock.stripPx }
     Binding { target: dock.pRun; property: "fromR"; value: Theme.rSm }
-    Binding { target: dock.pRun; property: "toCx"; value: dock.panelAlong / 2 }
+    Binding { target: dock.pRun; property: "toCx"; value: dock.panelMid }
     Binding { target: dock.pRun; property: "toW"; value: dock.panelAlong }
-    Binding { target: dock.pRun; property: "toTop"; value: 0 }
-    Binding { target: dock.pRun; property: "toFoot"; value: dock.panelAcross }
+    Binding { target: dock.pRun; property: "toTop"; value: dock.stripPx }
+    Binding { target: dock.pRun; property: "toFoot"; value: dock.stripPx + dock.panelAcross }
     Binding { target: dock.pRun; property: "toR"; value: Theme.rLg }
-    Binding { target: dock.pRun; property: "edgeY"; value: 0 }
+    Binding { target: dock.pRun; property: "edgeY"; value: dock.stripPx }
     // (an iris opens at the tile: its middle, on the strip's side of the hinge)
     Binding { target: dock.pRun; property: "pressX"; value: dock.hasOrigin ? dock.originMid.x : NaN }
     Binding { target: dock.pRun; property: "pressY"; value: dock.hasOrigin ? dock.originMid.y : NaN }
