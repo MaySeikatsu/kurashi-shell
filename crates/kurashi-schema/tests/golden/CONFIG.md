@@ -1577,9 +1577,9 @@ Cards on the desktop under your windows: the clock, the month, what is playing, 
 - type: `bool` · default: `false`
 - per-output
 
-#### `desktop.side` — Side
+#### `desktop.side` — Side for other cards
 
-The screen side the cards stand on.
+The column a card neither list below names stands in. Both columns show at once: put cards on the left and on the right below (or in the desk's edit mode, Alt+Left/Right).
 
 - type: `choice` · default: `"right"`
 - choices: `"left"` | `"right"`
@@ -1616,20 +1616,20 @@ Today's weather, while the weather mod is on and has a place.
 
 #### `desktop.right` — Cards on the right
 
-The cards on the right side from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`. On the side the cards stand on, a card neither side lists comes after the listed ones. The desk's edit mode writes it (K48, K71).
+The cards in the right column, top to bottom: the clock, the month, what plays, the weather and the mods' cards. A card the left column names stands there instead. The desk's edit mode writes it too (K48, K71).
 
 - type: `string_list` · default: `["clock", "calendar", "media", "weather"]`
+- choices: from `desktop.cards` (resolved at runtime)
 - only while `desktop.enabled == true`
-- advanced
 - since schema v3
 
 #### `desktop.left` — Cards on the left
 
-The cards on the left side from top to bottom, named as on the right.
+The cards in the left column, top to bottom; a card named here leaves the right column.
 
 - type: `string_list` · default: `[]`
+- choices: from `desktop.cards` (resolved at runtime)
 - only while `desktop.enabled == true`
-- advanced
 - since schema v3
 
 #### `desktop.hidden` — Hidden cards
@@ -1851,6 +1851,13 @@ Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: 
 - choices: `"always"` | `"hover"` | `"empty_desktop"` | `"hidden"`
 - since schema v3
 
+#### `sidebar.right.pinned` — Pinned
+
+Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
+
+- type: `bool` · default: `false`
+- since schema v7
+
 #### `sidebar.right.reserve` — Keep space
 
 Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps space while it is open on hover.
@@ -1870,12 +1877,12 @@ Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, j
 
 ### Left sidebar
 
-#### `sidebar.left.sections` — Tabs
+#### `sidebar.left.sections` — Sections
 
-The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.
+Top to bottom (or one page each, with pages and tabs): the same sections the right sidebar offers — you and the session, the quick tiles, the levels, notifications, the month, what plays — and the mods' panels (AI chat, tasks, …). A section whose mod is not on is skipped. Empty: no left sidebar.
 
 - type: `string_list` · default: `["mod:ai:ai"]`
-- choices: from `sidebar.tabs` (resolved at runtime)
+- choices: from `sidebar.sections` (resolved at runtime)
 - since schema v3
 
 #### `sidebar.left.mode` — Layout
@@ -1902,6 +1909,13 @@ Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: 
 - choices: `"always"` | `"hover"` | `"empty_desktop"` | `"hidden"`
 - since schema v3
 
+#### `sidebar.left.pinned` — Pinned
+
+Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
+
+- type: `bool` · default: `false`
+- since schema v7
+
 #### `sidebar.left.reserve` — Keep space
 
 Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps space while it is open on hover.
@@ -1921,9 +1935,9 @@ Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, j
 
 ### Sidebar
 
-#### `sidebar.from_bar` — Open from the bar
+#### `sidebar.from_bar` — Quick settings opens the right sidebar
 
-The bar's quick settings button opens the right sidebar instead of the quick settings card (and the bar leaves the right sidebar's own button out).
+The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own buttons stay; put them in the bar or take them out below.
 
 - type: `bool` · default: `false`
 

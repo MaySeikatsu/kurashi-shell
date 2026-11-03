@@ -4813,8 +4813,10 @@
               "type": "bool"
             },
             {
-              "advanced": true,
-              "control": "list",
+              "advanced": false,
+              "choices": [],
+              "choices_from": "desktop.cards",
+              "control": "pick_list",
               "couplings": [
                 {
                   "key": "desktop.enabled",
@@ -4839,8 +4841,10 @@
               "type": "string_list"
             },
             {
-              "advanced": true,
-              "control": "list",
+              "advanced": false,
+              "choices": [],
+              "choices_from": "desktop.cards",
+              "control": "pick_list",
               "couplings": [
                 {
                   "key": "desktop.enabled",
@@ -5561,6 +5565,19 @@
             },
             {
               "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.sidebar.right.pinned.help",
+              "key": "sidebar.right.pinned",
+              "label": "config.sidebar.right.pinned.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.keep_space.auto",
@@ -5634,7 +5651,7 @@
             {
               "advanced": false,
               "choices": [],
-              "choices_from": "sidebar.tabs",
+              "choices_from": "sidebar.sections",
               "control": "pick_list",
               "couplings": [],
               "default": [
@@ -5718,6 +5735,19 @@
               "restart": false,
               "since": 3,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.sidebar.left.pinned.help",
+              "key": "sidebar.left.pinned",
+              "label": "config.sidebar.left.pinned.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             },
             {
               "advanced": false,

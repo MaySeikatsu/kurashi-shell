@@ -34,3 +34,7 @@
 "sidebar.a11y.grip" = "Resize the sidebar"
 "sidebar.resize.hint" = "{w} px. Drag to resize, double-click for the default width; Ctrl+Left or Ctrl+Right while the sidebar has the keyboard."
 "sidebar.resize.forced" = "The width is set by {by}."
+"sidebar.pin" = "Pin open: keep this sidebar open"
+"sidebar.unpin" = "Unpin: back to how it opens"
+"sidebar.in_bar.right" = "Right sidebar button in the bar"
+"sidebar.in_bar.left" = "Left sidebar button in the bar"

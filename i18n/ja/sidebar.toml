@@ -33,3 +33,7 @@
 "sidebar.a11y.grip" = "サイドバーの幅を変える"
 "sidebar.resize.hint" = "{w} px。ドラッグで幅を変え、ダブルクリックで既定の幅に戻します。サイドバーにキーボードがあるときは Ctrl+← / Ctrl+→ でも変えられます。"
 "sidebar.resize.forced" = "幅は {by} が決めています。"
+"sidebar.pin" = "ピン留め：このサイドバーを開いたままにする"
+"sidebar.unpin" = "ピンを外す：元の開き方に戻す"
+"sidebar.in_bar.right" = "右サイドバーのボタンをバーに"
+"sidebar.in_bar.left" = "左サイドバーのボタンをバーに"

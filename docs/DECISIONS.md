@@ -1181,3 +1181,18 @@ Expressive's spatial/effects spring split (https://m3.material.io/styles/motion/
   through a daemon inert pass: under `reduced` or a pack that does not move (win95) every other motion row reads inert,
   and a surface's form that cannot serve it reads inert.
 
+## K84 — Sidebars alike, a pin, bar buttons as switches; the desk's two columns in Settings (session 20, user)
+
+🟢 Both
+sidebars offer every section (core and the mods' panels; `sidebar.left.sections` now names `sidebar.sections`,
+`sidebar.tabs` stays as the same list for old configs): the only differences are the layout (`mode`) and each side's
+defaults — the frontend was already side-agnostic. `sidebar.<side>.pinned` (default off): the daemon lays a pinned
+sidebar out as "always shown" and leaves `visibility` as chosen, so unpinning returns to it (survives restarts, no
+runtime state); a pin button sits in the column's outer top corner over a row of its own. `sidebar.from_bar` keeps its
+key but is "Quick settings opens the right sidebar" and no longer hides the right sidebar's button (it read as "buttons
+in the bar" and took one away); under it, a switch per side is the layout's own state (on = a zone of the bar's edge
+lists `sidebar_<side>`, K71): on adds the module at that end, off removes it. The desk: `desktop.left`/`right` are no
+longer advanced and pick from `desktop.cards` (core cards, then the mods' `desk:` cards); `desktop.side` is "Side for
+other cards". Free placement stays I222. *Why:* the user found the left sidebar poorer than the right, the "Open from
+the bar" switch misleading, wanted a pin and both desk columns from Settings.
+

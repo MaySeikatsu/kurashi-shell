@@ -1369,8 +1369,9 @@ pub struct Desktop {
     /// Cards on the desktop under your windows: the clock, the month, what is playing, the weather.
     #[kurashi(default = false, per_output)]
     pub enabled: bool,
-    /// Side
-    /// The screen side the cards stand on.
+    /// Side for other cards
+    /// The column a card neither list below names stands in. Both columns show at once: put cards on the left and on
+    /// the right below (or in the desk's edit mode, Alt+Left/Right).
     #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
     pub side: Side,
     /// Clock
@@ -1390,15 +1391,15 @@ pub struct Desktop {
     #[kurashi(default = true, requires = "desktop.enabled == true")]
     pub weather: bool,
     /// Cards on the right
-    /// The cards on the right side from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as
-    /// `mod:<id>:<name>`. On the side the cards stand on, a card neither side lists comes after the listed ones. The
-    /// desk's edit mode writes it (K48, K71).
-    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), advanced,
+    /// The cards in the right column, top to bottom: the clock, the month, what plays, the weather and the mods' cards.
+    /// A card the left column names stands there instead. The desk's edit mode writes it too (K48, K71).
+    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), choices_from = "desktop.cards",
               requires = "desktop.enabled == true", since = 3)]
     pub right: Vec<String>,
     /// Cards on the left
-    /// The cards on the left side from top to bottom, named as on the right.
-    #[kurashi(default = strings(&[]), advanced, requires = "desktop.enabled == true", since = 3)]
+    /// The cards in the left column, top to bottom; a card named here leaves the right column.
+    #[kurashi(default = strings(&[]), choices_from = "desktop.cards", requires = "desktop.enabled == true",
+              since = 3)]
     pub left: Vec<String>,
     /// Hidden cards
     /// Cards the desk leaves out, named as on either side. The desk's edit mode writes it.
@@ -1583,7 +1584,8 @@ pub enum SidebarMode {
     Pages,
 }
 
-/// One struct per side (K71): the two differ in their sections' defaults and offers, and in their mode's default.
+/// One struct per side (K71): the two differ only in their sections' defaults and their mode's default; both offer
+/// every section (session 20).
 macro_rules! sidebar_side {
     ($name:ident, $section:literal, $sections:expr, $source:literal, $hidden:literal,
      $sections_label:literal, $sections_help:literal, $mode:expr) => {
@@ -1608,6 +1610,11 @@ macro_rules! sidebar_side {
             /// screen's side. Always shown: pinned open, the windows beside it.
             #[kurashi(default = Visibility::Hidden, since = 3)]
             pub visibility: Visibility,
+            /// Pinned
+            /// Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to
+            /// the visibility above, which pinning leaves as it is.
+            #[kurashi(default = false, since = 7)]
+            pub pinned: bool,
             /// Keep space
             /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps
             /// space while it is open on hover.
@@ -1637,10 +1644,10 @@ sidebar_side!(
     SidebarLeft,
     "left_sidebar",
     ["mod:ai:ai"],
-    "sidebar.tabs",
+    "sidebar.sections",
     "sidebar.left.visibility != hidden",
-    "Tabs",
-    "The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.",
+    "Sections",
+    "Top to bottom (or one page each, with pages and tabs): the same sections the right sidebar offers — you and the session, the quick tiles, the levels, notifications, the month, what plays — and the mods' panels (AI chat, tasks, …). A section whose mod is not on is skipped. Empty: no left sidebar.",
     SidebarMode::Pages
 );
 
@@ -1651,9 +1658,9 @@ pub struct Sidebar {
     pub right: SidebarRight,
     #[kurashi(nested)]
     pub left: SidebarLeft,
-    /// Open from the bar
-    /// The bar's quick settings button opens the right sidebar instead of the quick settings card (and the bar leaves
-    /// the right sidebar's own button out).
+    /// Quick settings opens the right sidebar
+    /// The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own
+    /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false)]
     pub from_bar: bool,
 }

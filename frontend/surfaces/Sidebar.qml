@@ -806,9 +806,20 @@ Scope {
                             Accessible.role: Accessible.Pane
                             Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
 
+                            // The pin (K84): in the header's row when the header tops a one-column sidebar, else in a row
+                            // of its own at the top, in the outer corner.
+                            readonly property bool pinInHeader: sb.mode !== "pages" && sb.sections.length > 0
+                                && sb.sections[0] === "header"
+                            SidebarPin {
+                                id: pinBtn
+                                visible: !content.pinInHeader
+                                sidebarSide: sb.side
+                                anchors.top: parent.top
+                                x: sb.side === "right" ? parent.width - width : 0
+                            }
                             Loader {
                                 id: colLoader
-                                anchors.fill: parent
+                                anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
                                 focus: true
                                 sourceComponent: sb.mode === "pages" ? leftC : rightC
                             }
@@ -925,6 +936,7 @@ Scope {
         id: rightC
         RightColumn {
             sections: sb.sections
+            pinSide: sb.side
             outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : ""
             fromTop: cfg.atTop && !cfg.atBottom
         }
