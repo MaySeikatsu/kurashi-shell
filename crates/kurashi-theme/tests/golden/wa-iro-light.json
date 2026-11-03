@@ -194,6 +194,7 @@
   "decor.start.grid": 0,
   "decor.start.italic": false,
   "decor.start.label": false,
+  "decor.start.logo_tint": "none",
   "decor.start.mark": "none",
   "decor.start.menu": "button",
   "decor.start.size": 0,

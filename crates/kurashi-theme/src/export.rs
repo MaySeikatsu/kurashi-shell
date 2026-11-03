@@ -111,6 +111,16 @@ pub struct Inputs<'a> {
     pub motion_speed: f64,
     /// `$XDG_CONFIG_HOME`, absolute.
     pub config_dir: &'a str,
+    /// `theme.window_frame`: the compositors draw a frame round every window.
+    pub window_frame: bool,
+    /// `theme.inactive_opacity` while `theme.inactive_transparent` is on; `None` leaves each compositor's own.
+    pub inactive_opacity: Option<f64>,
+    /// `theme.window_animations`: the compositors take the shell's motion. Off: each keeps its own.
+    pub animations: bool,
+    /// `theme.window_titlebars`: the compositors that draw titlebars (sway; Hyprland with hyprbars) take the shell's.
+    pub titlebars: bool,
+    /// The palette, for the titlebar lines (they are written whole, so their colours are filled here).
+    pub palette: &'a Palette,
 }
 
 /// The shell's values as templates name them. Typography, shape, motion and material are the tokens in effect (a
@@ -144,8 +154,11 @@ pub fn values(i: &Inputs) -> Values {
     }
     // The shell's outline width; flat chrome draws none, and a 0 px focus ring would hide the focused window, so 2.
     if let Some(o) = num("chrome.outline") {
-        v.insert("shape.border".into(), whole(if o > 0.0 { o } else { 2.0 }));
+        let w = whole(if o > 0.0 { o } else { 2.0 });
+        v.extend(frame_lines(i.window_frame, &w));
+        v.insert("shape.border".into(), w);
     }
+    v.extend(opacity_lines(i.inactive_opacity));
     if let Some(ms) = num("motion.standard_ms") {
         v.insert("motion.ms".into(), whole(ms));
     }
@@ -175,14 +188,148 @@ pub fn values(i: &Inputs) -> Values {
         // K83 (W59.9): `theme.motion.windows = follow` gives the windows the profile's own curves and springs; off (the
         // default) keeps the family's springs as before; no motion is `off` either way.
         let follow = i.tokens.get("motion.windows").and_then(Value::as_str) == Some("follow");
-        let block = match (profile, follow) {
+        let niri_block = match (profile, follow) {
             ("none", _) | (_, false) => niri_animations(profile, i.motion_speed),
             (_, true) => niri_follow(i.tokens, profile, i.motion_speed),
         };
-        v.insert("motion.niri".into(), block);
+        // K49 amendment 2: Hyprland and MangoWM on the continuous curve and the standard duration; every block empty
+        // with `theme.window_animations` off (each compositor keeps its own).
+        let curve = v.get("motion.curve").and_then(|c| {
+            c.strip_prefix("cubic-bezier(")?
+                .strip_suffix(')')
+                .map(|c| c.replace(' ', ""))
+        });
+        let ms = num("motion.standard_ms");
+        let anim = |s: Option<String>| (!i.animations).then(String::new).or(s);
+        let hypr = match (profile, &curve, ms) {
+            ("none", ..) => Some("animations {\n    enabled = false\n}".to_owned()),
+            (_, Some(c), Some(ms)) => Some(hyprland_animations(c, ms)),
+            _ => None,
+        };
+        let mango = match (profile, &curve, ms) {
+            ("none", ..) => Some("animations=0".to_owned()),
+            (_, Some(c), Some(ms)) => Some(mango_animations(c, ms)),
+            _ => None,
+        };
+        for (k, s) in [
+            ("motion.niri", Some(niri_block)),
+            ("motion.hyprland", hypr),
+            ("motion.mango", mango),
+        ] {
+            if let Some(s) = anim(s) {
+                v.insert(k.into(), s);
+            }
+        }
+    }
+    if let (Some(f), Some(size), Some(w)) = (
+        v.get("fonts.family").cloned(),
+        v.get("fonts.size").cloned(),
+        v.get("shape.border").cloned(),
+    ) {
+        let (sway, hypr) = if i.titlebars {
+            (
+                format!(
+                    "default_border normal {w}\ndefault_floating_border normal {w}\nfont pango:{f} {size}\n\
+                     title_align center"
+                ),
+                hyprbars(i.palette, &f, &size),
+            )
+        } else {
+            (String::new(), String::new())
+        };
+        v.insert("titlebar.sway".into(), sway);
+        v.insert("titlebar.hyprland".into(), hypr);
     }
     v.insert("paths.config".into(), i.config_dir.into());
     v
+}
+
+/// Hyprland's `animations {}` on the shell's continuous curve and standard duration (its speed is in 100 ms steps).
+fn hyprland_animations(curve: &str, ms: f64) -> String {
+    let sp = format!("{:.1}", (ms / 100.0).max(0.1));
+    let c = curve.replace(',', ", ");
+    format!(
+        "animations {{\n    enabled = true\n    bezier = kurashi, {c}\n    animation = windows, 1, {sp}, kurashi, popin 90%\n    \
+         animation = fade, 1, {sp}, kurashi\n    animation = workspaces, 1, {sp}, kurashi, slide\n    \
+         animation = layers, 1, {sp}, kurashi, fade\n}}"
+    )
+}
+
+/// MangoWM's animation keys on the shell's continuous curve and standard duration.
+fn mango_animations(curve: &str, ms: f64) -> String {
+    let ms = whole(ms);
+    let mut out = String::from(
+        "animations=1\nanimation_type_open=zoom\nanimation_type_close=zoom\nanimation_fade_in=1\nanimation_fade_out=1",
+    );
+    // (one string: the icon-name scan reads quoted words as Material Symbols names)
+    for k in "open close move tag".split(' ') {
+        out.push_str(&format!(
+            "\nanimation_duration_{k}={ms}\nanimation_curve_{k}={curve}"
+        ));
+    }
+    out
+}
+
+/// Hyprland's titlebars in the shell's colours and font: the hyprbars plugin's block (Hyprland draws none itself).
+fn hyprbars(p: &Palette, family: &str, size: &str) -> String {
+    let c = |r: &str| {
+        role(p, r).map_or_else(String::new, |c| c.hex().trim_start_matches('#').to_owned())
+    };
+    let pt = size.parse::<f64>().map_or(10, |s| s.round() as i64);
+    format!(
+        "plugin {{\n    hyprbars {{\n        bar_height = {h}\n        bar_color = rgb({bg})\n        col.text = rgb({fg})\n        \
+         bar_text_font = {family}\n        bar_text_size = {pt}\n        bar_part_of_window = true\n        \
+         bar_precedence_over_border = true\n        \
+         hyprbars-button = rgb({close}), 14, ×, hyprctl dispatch killactive\n        \
+         hyprbars-button = rgb({max}), 14, □, hyprctl dispatch fullscreen 1\n    }}\n}}",
+        h = pt * 2 + 8,
+        bg = c("surface_container"),
+        fg = c("on_surface"),
+        close = c("error"),
+        max = c("tertiary"),
+    )
+}
+
+/// The compositors' frame lines (`theme.window_frame`): on → each draws its frame at `width`, niri its border in place
+/// of the focus ring; off → empty, so each keeps its own setting and only takes the colours.
+fn frame_lines(on: bool, width: &str) -> Values {
+    let pick = |s: String| if on { s } else { String::new() };
+    Values::from([
+        ("frame.niri.ring".into(), pick("off".into())),
+        ("frame.niri.border".into(), pick("on".into())),
+        (
+            "frame.hyprland".into(),
+            pick(format!("border_size = {width}")),
+        ),
+        ("frame.mango".into(), pick(format!("borderpx={width}"))),
+        (
+            "frame.sway".into(),
+            pick(format!(
+                "default_border pixel {width}\ndefault_floating_border pixel {width}"
+            )),
+        ),
+    ])
+}
+
+/// The compositors' lines for see-through unfocused windows (`theme.inactive_opacity`); none → empty. sway has no
+/// such setting.
+fn opacity_lines(opacity: Option<f64>) -> Values {
+    let o = opacity.map(|o| format!("{:.2}", o.clamp(0.0, 1.0)));
+    let pick = |f: &dyn Fn(&str) -> String| o.as_deref().map(f).unwrap_or_default();
+    Values::from([
+        (
+            "opacity.niri".into(),
+            pick(&|o| format!("window-rule {{\n    match is-focused=false\n    opacity {o}\n}}")),
+        ),
+        (
+            "opacity.hyprland".into(),
+            pick(&|o| format!("inactive_opacity = {o}")),
+        ),
+        (
+            "opacity.mango".into(),
+            pick(&|o| format!("unfocused_opacity={o}")),
+        ),
+    ])
 }
 
 /// A pixel size as points for the apps' font strings (96 dpi), to the half point: 13 px → 10 pt.
@@ -559,6 +706,132 @@ pub const TARGETS: &[Target] = &[
         legacy: None,
         shader: Some(ghostty_shader::PATH),
     },
+    // zellij reads the theme by name from its themes folder.
+    Target {
+        name: "zellij",
+        output: Output::File {
+            template: "zellij.kdl",
+            path: "zellij/themes/kurashi.kdl",
+        },
+        include: Some(("zellij/config.kdl", "theme \"kurashi\"")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // fzf's colours (noren's picker, and every other fzf): an options file fzf reads through FZF_DEFAULT_OPTS_FILE
+    // (fzf 0.47+), set in the shell's config (fish shown; bash/zsh: `export FZF_DEFAULT_OPTS_FILE=…`).
+    Target {
+        name: "fzf",
+        output: Output::File {
+            template: "fzf.opts",
+            path: "kurashi/apps/fzf",
+        },
+        include: Some((
+            "fish/config.fish",
+            "set -gx FZF_DEFAULT_OPTS_FILE {{paths.config}}/kurashi/apps/fzf",
+        )),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "nvim",
+        output: Output::File {
+            template: "nvim.lua",
+            path: "nvim/colors/kurashi.lua",
+        },
+        include: Some(("nvim/init.lua", "vim.cmd.colorscheme(\"kurashi\")")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "helix",
+        output: Output::File {
+            template: "helix.toml",
+            path: "helix/themes/kurashi.toml",
+        },
+        include: Some(("helix/config.toml", "theme = \"kurashi\"")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "zed",
+        output: Output::File {
+            template: "zed.json",
+            path: "zed/themes/kurashi.json",
+        },
+        include: Some(("zed/settings.json", "\"theme\": \"Kurashi\",")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Firefox and Zen read the file from the profile's userChrome.css (`~/` = $HOME, the profile is the user's).
+    Target {
+        name: "firefox",
+        output: Output::File {
+            template: "mozilla.css",
+            path: "kurashi/apps/firefox.css",
+        },
+        include: Some((
+            "mozilla/firefox/<profile>/chrome/userChrome.css",
+            "@import url(\"file://{{paths.config}}/kurashi/apps/firefox.css\");",
+        )),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "zen",
+        output: Output::File {
+            template: "mozilla.css",
+            path: "kurashi/apps/zen.css",
+        },
+        include: Some((
+            "~/.zen/<profile>/chrome/userChrome.css",
+            "@import url(\"file://{{paths.config}}/kurashi/apps/zen.css\");",
+        )),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Vesktop lists the file under Settings → Vencord → Themes; it is enabled there, not in a config line.
+    Target {
+        name: "vesktop",
+        output: Output::File {
+            template: "vesktop.css",
+            path: "vesktop/themes/kurashi.css",
+        },
+        include: None,
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Spotify takes the colours on `spicetify apply` (the user runs it; the shell runs nothing).
+    Target {
+        name: "spicetify",
+        output: Output::File {
+            template: "spicetify.ini",
+            path: "spicetify/Themes/Kurashi/color.ini",
+        },
+        include: None,
+        lines: Some(("spicetify/config-xpui.ini", "lines/spicetify.ini")),
+        legacy: None,
+        shader: None,
+    },
+    // Obsidian reads CSS snippets per vault: the file is linked into a vault's `.obsidian/snippets/` (README).
+    Target {
+        name: "obsidian",
+        output: Output::File {
+            template: "obsidian.css",
+            path: "kurashi/apps/obsidian.css",
+        },
+        include: None,
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
     Target {
         name: "niri",
         output: Output::File {
@@ -568,6 +841,39 @@ pub const TARGETS: &[Target] = &[
         include: Some(("niri/config.kdl", "include \"kurashi.kdl\"")),
         lines: None,
         legacy: Some(("niri/kurashi-colors.kdl", "include \"kurashi-colors.kdl\"")),
+        shader: None,
+    },
+    Target {
+        name: "hyprland",
+        output: Output::File {
+            template: "hyprland.conf",
+            path: "hypr/kurashi.conf",
+        },
+        include: Some(("hypr/hyprland.conf", "source = ~/.config/hypr/kurashi.conf")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "mango",
+        output: Output::File {
+            template: "mango.conf",
+            path: "mango/kurashi.conf",
+        },
+        include: Some(("mango/config.conf", "source=~/.config/mango/kurashi.conf")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    Target {
+        name: "sway",
+        output: Output::File {
+            template: "sway.conf",
+            path: "sway/kurashi.conf",
+        },
+        include: Some(("sway/config", "include ~/.config/sway/kurashi.conf")),
+        lines: None,
+        legacy: None,
         shader: None,
     },
     Target {
@@ -633,6 +939,11 @@ mod tests {
             icon_theme: "Papirus-Dark",
             motion_speed: 1.0,
             config_dir: "/home/u/.config",
+            window_frame: false,
+            inactive_opacity: None,
+            animations: true,
+            titlebars: false,
+            palette: &palette(),
         })
     }
 
@@ -696,6 +1007,11 @@ mod tests {
             icon_theme: "",
             motion_speed: 1.0,
             config_dir: "/c",
+            window_frame: false,
+            inactive_opacity: None,
+            animations: true,
+            titlebars: false,
+            palette: &palette(),
         });
         assert_eq!(v["gsettings.color_scheme"], "default");
         assert_eq!(v["scheme"], "light");

@@ -527,6 +527,61 @@ pub fn legible_amp(want: f64, fg: [f32; 3], grounds: &[[f32; 3]], light: [f32; 3
     amp.max(0.0)
 }
 
+/// The largest alpha up to `want` at which every colour in `fgs` keeps [`TEXT_CONTRAST`] on every ground darkened by it
+/// (black multiplies what lies under it, so a ground's channels become `v · (1 − alpha)`): the black matrix's cap, as
+/// [`legible_amp`] caps the relief.
+fn legible_shade(want: f64, fgs: &[[f32; 3]], grounds: &[[f32; 3]]) -> f64 {
+    use kurashi_theme::color::{Rgb, contrast};
+    let rgb8 = |c: [f32; 3]| {
+        let [r, g, b] = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+        Rgb(r, g, b)
+    };
+    let ok = |alpha: f32| {
+        grounds.iter().all(|g| {
+            let dark = rgb8(g.map(|v| v * (1.0 - alpha)));
+            fgs.iter()
+                .all(|fg| contrast(rgb8(*fg), dark) >= TEXT_CONTRAST)
+        })
+    };
+    let mut alpha = want;
+    while alpha > 0.0 && !ok(alpha as f32) {
+        alpha -= 0.005;
+    }
+    alpha.max(0.0)
+}
+
+/// A material's ink colour from the palette, by its role. The black matrix (`InkRole::Shade`) is black in every scheme.
+fn ink_colour(role: InkRole, t: &Map<String, Value>) -> kurashi_theme::color::Rgb {
+    match role {
+        InkRole::Secondary => rgb(t, "color.secondary"),
+        InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
+        InkRole::Shade => kurashi_theme::color::Rgb(0, 0, 0),
+    }
+}
+
+/// The grounds the shell's body text sits on: the relief's amplitude and the black matrix are capped on these.
+fn text_grounds(t: &Map<String, Value>) -> [[f32; 3]; 3] {
+    [
+        lin(rgb(t, "color.surface")),
+        lin(rgb(t, "color.surface_container")),
+        lin(rgb(t, "color.surface_container_high")),
+    ]
+}
+
+/// The alpha a material's ink takes under this palette. A black matrix darkens the grounds the body text sits on, so it is
+/// capped as the relief's amplitude is (`legible_amp`, the same text colour): the largest alpha up to the material's own at
+/// which `on_surface` keeps [`TEXT_CONTRAST`] on every ground it darkens. Light text on a dark ground gains from the darker
+/// gaps, so the cap bites only on a light ground. Other inks keep their alpha.
+fn ink_cap(m: &kurashi_texture::Material, t: &Map<String, Value>, grounds: &[[f32; 3]]) -> f32 {
+    if m.ink_role != InkRole::Shade {
+        return m.ink_alpha;
+    }
+    let fgs = [lin(rgb(t, "color.on_surface"))];
+    // Rounded down to a thousandth, so the capped value itself stays legible.
+    let cap = legible_shade(f64::from(m.ink_alpha), &fgs, grounds);
+    (((cap * 1000.0) + 1e-6).floor() / 1000.0) as f32
+}
+
 /// Adds the texture and light tokens to a resolved token map; notes for provenance.
 pub fn tokens(
     store: &ConfigStore,
@@ -582,21 +637,14 @@ pub fn tokens(
     };
     let m = kurashi_texture::material(kind);
     let want = f(store, "theme.texture.strength", 0.5) * AMP_FULL * f64::from(lt.dim);
-    let grounds = [
-        lin(rgb(t, "color.surface")),
-        lin(rgb(t, "color.surface_container")),
-        lin(rgb(t, "color.surface_container_high")),
-    ];
+    let grounds = text_grounds(t);
     let amp = legible_amp(want, lin(rgb(t, "color.on_surface")), &grounds, lt.color);
     if amp + 1e-9 < want {
         notes.push(format!(
             "texture: strength capped for legible text ({want:.3} → {amp:.3})"
         ));
     }
-    let ink = match m.ink_role {
-        InkRole::Secondary => rgb(t, "color.secondary"),
-        InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
-    };
+    let ink = ink_colour(m.ink_role, t);
     let tint = b(store, "theme.texture.tint") && m.ink_role != InkRole::None;
     t.insert("texture.map".into(), json!(path.to_string_lossy()));
     let ink_map = kurashi_texture::ink_path(&path);
@@ -618,9 +666,17 @@ pub fn tokens(
     t.insert("texture.gloss".into(), json!(m.gloss));
     t.insert("texture.shininess".into(), json!(m.shininess));
     t.insert("texture.ink".into(), json!(ink.hex()));
+    // W62: a black matrix keeps the body text's contrast on the grounds it darkens, as the relief's amplitude does.
+    let cap = ink_cap(&m, t, &grounds);
+    if tint && cap + 1e-6 < m.ink_alpha {
+        notes.push(format!(
+            "texture: the black matrix capped for legible text ({:.3} → {cap:.3})",
+            m.ink_alpha
+        ));
+    }
     t.insert(
         "texture.ink_alpha".into(),
-        json!(if tint { m.ink_alpha } else { 0.0 }),
+        json!(if tint { cap } else { 0.0 }),
     );
     t.insert("texture.text".into(), json!(b(store, "theme.texture.text")));
     t.insert(
@@ -723,7 +779,8 @@ pub fn wallpaper_shading(
         amp,
         gloss: m.gloss,
         shininess: m.shininess.max(1.0),
-        ink: lin(rgb(tokens, "texture.ink")),
+        // The material's own role colours its ink (a shell kind's role would mis-colour another material's ink, W62).
+        ink: lin(ink_colour(m.ink_role, tokens)),
         ink_alpha: if own {
             if b(store, "theme.texture.tint") && m.ink_role != InkRole::None {
                 m.ink_alpha
@@ -826,6 +883,7 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
     let lt = light(store, chrono::Local::now());
     let base = lin(rgb(t, "color.surface_container_high"));
     let grounds = [base];
+    let text = text_grounds(t);
     let amp = legible_amp(0.12, lin(rgb(t, "color.on_surface")), &grounds, lt.color).max(0.06);
     let tint = b(store, "theme.texture.tint");
     let wrinkles = (f(store, "theme.texture.wrinkles", 0.0) as f32 * 20.0).round() / 20.0;
@@ -835,16 +893,12 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
         .into_iter()
         .map(|kind| {
             let m = kurashi_texture::material(kind);
-            let ink = match m.ink_role {
-                InkRole::Secondary => rgb(t, "color.secondary"),
-                InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
-            };
             let sh = Shading {
                 amp: amp as f32,
                 gloss: m.gloss,
                 shininess: m.shininess,
-                ink: lin(ink),
-                ink_alpha: if tint { m.ink_alpha } else { 0.0 },
+                ink: lin(ink_colour(m.ink_role, t)),
+                ink_alpha: if tint { ink_cap(&m, t, &text) } else { 0.0 },
                 light_dir: lt.dir,
                 light_color: lt.color,
                 lamp: None,
@@ -1181,5 +1235,42 @@ mod tests {
             legible_amp(0.18, [0.5, 0.5, 0.5], &[[0.55, 0.55, 0.55]], [1.0; 3]),
             0.0
         );
+    }
+
+    #[test]
+    fn the_black_matrix_is_capped_where_dark_text_sits_on_light() {
+        use kurashi_theme::color::{Rgb, contrast};
+        let lin8 = |hex: &str| lin(Rgb::parse(hex).unwrap());
+        let to8 = |c: [f32; 3]| {
+            let [r, g, b] = c.map(|v| (v * 255.0).round() as u8);
+            Rgb(r, g, b)
+        };
+        let darkened = |g: [f32; 3], a: f64| to8(g.map(|v| v * (1.0 - a as f32)));
+        // yorha light: the body text colour over the grounds the shell's text sits on (its band is the darkest).
+        let fgs = [lin8("#4e4b42")];
+        let light = [lin8("#d1ccb5"), lin8("#d6d1bb"), lin8("#c4bea6")];
+        let cap = legible_shade(0.25, &fgs, &light);
+        assert!((0.0..0.25).contains(&cap), "light cap {cap}");
+        for fg in fgs {
+            for g in light {
+                assert!(
+                    contrast(to8(fg), darkened(g, cap)) >= TEXT_CONTRAST,
+                    "cap {cap} is not legible"
+                );
+            }
+        }
+        // One step more breaks it on some ground: the cap is the largest, to a step.
+        assert!(
+            fgs.iter().any(|fg| light
+                .iter()
+                .any(|g| contrast(to8(*fg), darkened(*g, cap + 0.01)) < TEXT_CONTRAST)),
+            "the cap {cap} is not the largest"
+        );
+        // yorha dark: light text over darker grounds gains from the darker gaps, so nothing is capped.
+        let dark_fgs = [lin8("#dad5be"), lin8("#b8b29c")];
+        let dark = [lin8("#262520"), lin8("#2b2a24"), lin8("#35332c")];
+        assert_eq!(legible_shade(0.25, &dark_fgs, &dark), 0.25);
+        // The matrix is black in every scheme.
+        assert_eq!(ink_colour(InkRole::Shade, &Map::new()), Rgb(0, 0, 0));
     }
 }

@@ -1,0 +1,48 @@
+/* Written by kurashid from the theme (K49). Do not edit: it is rewritten.
+ * Link it into a vault's snippets and enable it under Settings → Appearance → CSS snippets:
+ *   ln -s ~/.config/kurashi/apps/obsidian.css <vault>/.obsidian/snippets/kurashi.css */
+.theme-dark, .theme-light {
+  --background-primary: {{colors.surface.default.hex}};
+  --background-primary-alt: {{colors.surface_container_low.default.hex}};
+  --background-secondary: {{colors.surface_container_low.default.hex}};
+  --background-secondary-alt: {{colors.surface_container.default.hex}};
+  --background-modifier-border: {{colors.outline_variant.default.hex}};
+  --background-modifier-border-hover: {{colors.outline.default.hex}};
+  --background-modifier-border-focus: {{colors.primary.default.hex}};
+  --background-modifier-hover: {{colors.on_surface.default.hex}}14;
+  --background-modifier-active-hover: {{colors.primary.default.hex}}26;
+  --background-modifier-form-field: {{colors.surface_container.default.hex}};
+  --background-modifier-error: {{colors.error.default.hex}};
+  --background-modifier-success: {{colors.success.default.hex}};
+  --titlebar-background: {{colors.surface_container_low.default.hex}};
+  --titlebar-background-focused: {{colors.surface_container.default.hex}};
+  --ribbon-background: {{colors.surface_container_low.default.hex}};
+  --tab-container-background: {{colors.surface_container_low.default.hex}};
+  --text-normal: {{colors.on_surface.default.hex}};
+  --text-muted: {{colors.on_surface_variant.default.hex}};
+  --text-faint: {{colors.outline.default.hex}};
+  --text-accent: {{colors.primary.default.hex}};
+  --text-accent-hover: {{colors.primary.default.hex}};
+  --text-on-accent: {{colors.on_primary.default.hex}};
+  --text-selection: {{colors.primary.default.hex}}40;
+  --text-error: {{colors.error.default.hex}};
+  --text-success: {{colors.success.default.hex}};
+  --text-warning: {{colors.warning.default.hex}};
+  --interactive-normal: {{colors.surface_container.default.hex}};
+  --interactive-hover: {{colors.surface_container_high.default.hex}};
+  --interactive-accent: {{colors.primary.default.hex}};
+  --interactive-accent-hover: {{colors.primary.default.hex}};
+  --color-accent: {{colors.primary.default.hex}};
+  --color-accent-1: {{colors.primary.default.hex}};
+  --color-accent-2: {{colors.primary.default.hex}};
+  --color-red: {{colors.error.default.hex}};
+  --color-green: {{colors.success.default.hex}};
+  --color-yellow: {{colors.warning.default.hex}};
+  --color-blue: {{colors.secondary.default.hex}};
+  --color-purple: {{colors.tertiary.default.hex}};
+  --link-color: {{colors.primary.default.hex}};
+  --link-external-color: {{colors.secondary.default.hex}};
+  --h1-color: {{colors.on_surface.default.hex}};
+  --h2-color: {{colors.on_surface.default.hex}};
+  --code-background: {{colors.surface_container_low.default.hex}};
+}

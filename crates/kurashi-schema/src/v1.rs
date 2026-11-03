@@ -441,10 +441,37 @@ pub struct Theme {
     #[kurashi(default = false, section = "sounds", since = 7)]
     pub sounds: bool,
     /// Apps that follow
-    /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one
-    /// needs one line in its own config to read the file; Settings shows it.
+    /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, KDE, terminals, editors,
+    /// browsers, Discord, Spotify, Obsidian and the compositors (K49). Each one needs one line in its own config to
+    /// read the file; Settings shows it.
     #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
+    /// Window frames
+    /// The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round every window: the accent round
+    /// the focused one, the outline round the others, as wide as the shell's outline. Off: each keeps its own frame
+    /// setting and only takes the colours.
+    #[kurashi(default = false, section = "colors", since = 7)]
+    pub window_frame: bool,
+    /// See-through unfocused windows
+    /// The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and
+    /// MangoWM; sway has no setting for it). Off: each keeps its own.
+    #[kurashi(default = false, section = "colors", since = 7)]
+    pub inactive_transparent: bool,
+    /// Unfocused opacity
+    #[kurashi(default = 0.9, range = 0.5..=1.0, step = 0.05, requires = "theme.inactive_transparent == true",
+              section = "colors", since = 7)]
+    pub inactive_opacity: f64,
+    /// Window animations
+    /// The compositors that follow open, close and move windows with the shell's motion: niri on its springs,
+    /// Hyprland and MangoWM on its curve and duration (sway has none). Off: each keeps its own.
+    #[kurashi(default = true, section = "colors", since = 7)]
+    pub window_animations: bool,
+    /// Titlebars
+    /// The compositors that draw titlebars give them the shell's colours and font: sway its own, Hyprland through the
+    /// hyprbars plugin (it must be loaded). niri and MangoWM draw none: the apps draw theirs, in the colours GTK and
+    /// Qt follow. Off: each keeps its own.
+    #[kurashi(default = false, section = "colors", since = 7)]
+    pub window_titlebars: bool,
     /// Icons for apps
     /// The icon theme the apps that follow use (GTK, Qt, KDE), written with their colours. "Leave as is" keeps each
     /// app's own choice (I183).
@@ -604,6 +631,8 @@ pub enum TextureKind {
     Paint,
     /// Brush strokes (bristles)
     Brush,
+    /// Display (pixel grid)
+    Display,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1342,8 +1371,9 @@ pub struct Desktop {
     /// Cards on the desktop under your windows: the clock, the month, what is playing, the weather.
     #[kurashi(default = false, per_output)]
     pub enabled: bool,
-    /// Side
-    /// The screen side the cards stand on.
+    /// Side for other cards
+    /// The column a card neither list below names stands in. Both columns show at once: put cards on the left and on
+    /// the right below (or in the desk's edit mode, Alt+Left/Right).
     #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
     pub side: Side,
     /// Clock
@@ -1363,15 +1393,15 @@ pub struct Desktop {
     #[kurashi(default = true, requires = "desktop.enabled == true")]
     pub weather: bool,
     /// Cards on the right
-    /// The cards on the right side from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as
-    /// `mod:<id>:<name>`. On the side the cards stand on, a card neither side lists comes after the listed ones. The
-    /// desk's edit mode writes it (K48, K71).
-    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), advanced,
+    /// The cards in the right column, top to bottom: the clock, the month, what plays, the weather and the mods' cards.
+    /// A card the left column names stands there instead. The desk's edit mode writes it too (K48, K71).
+    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), choices_from = "desktop.cards",
               requires = "desktop.enabled == true", since = 3)]
     pub right: Vec<String>,
     /// Cards on the left
-    /// The cards on the left side from top to bottom, named as on the right.
-    #[kurashi(default = strings(&[]), advanced, requires = "desktop.enabled == true", since = 3)]
+    /// The cards in the left column, top to bottom; a card named here leaves the right column.
+    #[kurashi(default = strings(&[]), choices_from = "desktop.cards", requires = "desktop.enabled == true",
+              since = 3)]
     pub left: Vec<String>,
     /// Hidden cards
     /// Cards the desk leaves out, named as on either side. The desk's edit mode writes it.
@@ -1380,6 +1410,17 @@ pub struct Desktop {
 }
 
 // --- launcher --------------------------------------------------------------------------------
+
+/// What the launcher button shows (I374).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ButtonLogo {
+    /// The look's mark
+    Look,
+    /// The OS logo
+    Os,
+    /// My own image
+    Own,
+}
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "launcher", section = "apps")]
@@ -1396,6 +1437,15 @@ pub struct Launcher {
     /// The address a query is searched at, `{}` standing for the query; empty = no web search row.
     #[kurashi(default = "https://duckduckgo.com/?q={}".to_owned())]
     pub web_search: String,
+    /// Launcher button logo
+    /// What the bar's launcher button shows: the look's own mark (or the plain apps icon), your OS's logo (from
+    /// os-release; a look may tint it, the PS2 look in its four colours), or an image of your own below.
+    #[kurashi(default = ButtonLogo::Look, since = 7)]
+    pub button_logo: ButtonLogo,
+    /// Your image
+    /// A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
+    #[kurashi(default = String::new(), requires = "launcher.button_logo == own", since = 7)]
+    pub button_icon: String,
 }
 
 // --- idle (K47) ------------------------------------------------------------------------------
@@ -1556,7 +1606,8 @@ pub enum SidebarMode {
     Pages,
 }
 
-/// One struct per side (K71): the two differ in their sections' defaults and offers, and in their mode's default.
+/// One struct per side (K71): the two differ only in their sections' defaults and their mode's default; both offer
+/// every section (session 20).
 macro_rules! sidebar_side {
     ($name:ident, $section:literal, $sections:expr, $source:literal, $hidden:literal,
      $sections_label:literal, $sections_help:literal, $mode:expr) => {
@@ -1581,6 +1632,11 @@ macro_rules! sidebar_side {
             /// screen's side. Always shown: pinned open, the windows beside it.
             #[kurashi(default = Visibility::Hidden, since = 3)]
             pub visibility: Visibility,
+            /// Pinned
+            /// Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to
+            /// the visibility above, which pinning leaves as it is.
+            #[kurashi(default = false, since = 7)]
+            pub pinned: bool,
             /// Keep space
             /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps
             /// space while it is open on hover.
@@ -1610,10 +1666,10 @@ sidebar_side!(
     SidebarLeft,
     "left_sidebar",
     ["mod:ai:ai"],
-    "sidebar.tabs",
+    "sidebar.sections",
     "sidebar.left.visibility != hidden",
-    "Tabs",
-    "The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.",
+    "Sections",
+    "Top to bottom (or one page each, with pages and tabs): the same sections the right sidebar offers — you and the session, the quick tiles, the levels, notifications, the month, what plays — and the mods' panels (AI chat, tasks, …). A section whose mod is not on is skipped. Empty: no left sidebar.",
     SidebarMode::Pages
 );
 
@@ -1624,9 +1680,9 @@ pub struct Sidebar {
     pub right: SidebarRight,
     #[kurashi(nested)]
     pub left: SidebarLeft,
-    /// Open from the bar
-    /// The bar's quick settings button opens the right sidebar instead of the quick settings card (and the bar leaves
-    /// the right sidebar's own button out).
+    /// Quick settings opens the right sidebar
+    /// The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own
+    /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false)]
     pub from_bar: bool,
 }

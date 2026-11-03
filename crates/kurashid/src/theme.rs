@@ -471,6 +471,30 @@ fn shadow_tokens(store: &ConfigStore, t: &mut serde_json::Map<String, Value>, in
 
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
+/// The OS's logo as an icon name (I374): `/etc/os-release`'s `LOGO` (freedesktop's key, e.g. `nix-snowflake`), else
+/// `<ID>-logo`; "" when the file names neither. Read once: it changes only with the OS.
+fn os_logo() -> &'static str {
+    static LOGO: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    LOGO.get_or_init(|| {
+        let text = std::fs::read_to_string("/etc/os-release")
+            .or_else(|_| std::fs::read_to_string("/usr/lib/os-release"))
+            .unwrap_or_default();
+        os_logo_of(&text)
+    })
+}
+
+fn os_logo_of(text: &str) -> String {
+    let val = |key: &str| {
+        text.lines()
+            .find_map(|l| l.strip_prefix(key)?.strip_prefix('='))
+            .map(|v| v.trim().trim_matches(['"', '\'']).to_owned())
+            .filter(|v| !v.is_empty())
+    };
+    val("LOGO")
+        .or_else(|| val("ID").map(|id| format!("{id}-logo")))
+        .unwrap_or_default()
+}
+
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
     document_with(store, fonts, previous, None)
 }
@@ -510,6 +534,8 @@ pub fn document_with(
             }
             let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
             shadow_tokens(store, &mut tokens, &input);
+            // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".
+            tokens.insert("os.logo".into(), json!(os_logo()));
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
@@ -751,6 +777,19 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
     }
     let _ = hub.set(DOC, next, None);
     let _ = hub.set(PREVIEWS_DOC, shown, None);
+}
+
+#[cfg(test)]
+mod os_logo_tests {
+    #[test]
+    fn the_logo_comes_from_os_release() {
+        assert_eq!(
+            super::os_logo_of("ID=nixos\nLOGO=\"nix-snowflake\"\n"),
+            "nix-snowflake"
+        );
+        assert_eq!(super::os_logo_of("ID=arch\n"), "arch-logo");
+        assert_eq!(super::os_logo_of("NAME=x\n"), "");
+    }
 }
 
 #[cfg(test)]

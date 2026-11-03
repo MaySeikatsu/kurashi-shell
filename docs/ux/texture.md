@@ -54,6 +54,7 @@ the CPU. Tokens in DESIGN-SYSTEM "Texture and light", PROTOCOL §8.
 | leather | pebbled grain cells, pores, creases | — | medium |
 | wood | growth rings and long pores along the grain | late-wood tone | low |
 | paint | oil paint on canvas: brush strokes with deep bristle grooves (ductus), ridges where a stroke ends, the canvas weave under thin passages | pigment tone | medium |
+| display | a screen's pixel grid: 4 px square cells, 1 px gaps (the black matrix), W62 | black in the gaps (a darkening) | low |
 
 `theme.texture.wrinkles` (0–1) crumples any of them: folds and creases with sharp ridges (crumpled paper, creased
 leather). `strength` (0–1) and `scale` (0.5–3) are the user's. With `tint` off the ink is relief only: rulings, dots
@@ -269,3 +270,81 @@ Idle: 0 frames, 0 wakeups.
 - Settings: new rows, the dial's spotlight pin, light colour swatches, material cards incl. brush, the wallpaper's own
   material cards; Settings as a sheet textured and lit like the shell.
 - BENCH: shadows on/off, spotlight moving, carried slide, pen text layers — idle 0 frames, PSS deltas.
+
+## Display: the screen's pixel grid (W62, session 20)
+
+User (session 20, after the YoRHa wallpaper): a fine, regular lattice of small square cells, so a flat dark surface reads
+as "seen through a screen". It is a cell lattice with dark gaps, not a line grid: `paper_grid` draws rulings on paper,
+`display` is the black matrix of a panel.
+
+### How others do it
+- LCD and CRT **shader presets** in emulators and retro front ends darken the gaps between pixels (the black matrix, the
+  shadow mask) and never tint them. Ours does the same: black gaps, at a fixed alpha, in every scheme.
+- Game **screen-door** overlays dim the whole surface with a regular pattern. We darken only the gaps, so the cells keep
+  the palette's own tone.
+- A whole-output grid pass (a `decoration:screen_shader` on Hyprland, I164) would cover every surface at once; not used,
+  because the material belongs to the shell's own surfaces.
+
+### Model
+`theme.texture.kind = display` (`crates/kurashi-texture/src/display.rs`):
+- A 4 logical px lattice. Each gap is 1 px, centred on 1.5 + 4k, so at 1× a gap is exactly one texel, and the tile's edge
+  (a multiple of 4) falls inside a cell. The gap's coverage is the box filter over its texel: exact at 1×, honest edges at
+  fractional scales. The pattern lives in logical px, so every scale shows the same pattern at a different resolution.
+  The pitch is 4, not 3: the YoRHa reference's gaps are a quarter of its period (6.55 px per period in its capture).
+- Tint on: the gaps are the ink, `InkRole::Shade` = black (`texture.ink` `#000000`) at alpha 0.25, capped for legibility
+  (below). A darkening in every scheme, never a colour. The cells are untouched.
+- Tint off: relief only. The cells stand 0.1 logical px above the gaps, so on a dark ground the grid barely shows. That
+  is the honest result of "no colour".
+- One slow cloud, 0.6 px peak to peak over about 240 px, lies over the sheet (the panel's unevenness). Its gentle slope is
+  the only relief the light's angle moves, so the grid never embosses.
+- Gloss 0.1, shininess 20 (the cells' edges catch the light, as glass does); no shadows.
+
+### Legibility of the black matrix
+The gaps cover 7/16 of the sheet, so black there darkens the ground behind body text. Like the relief's amplitude, its
+alpha is capped: the largest alpha up to 0.25 at which `on_surface` keeps 4.5:1 on each text ground it darkens
+(`ink_cap` in `crates/kurashid/src/texture.rs`; a note when the cap bites). On a dark palette light text gains contrast
+from the darker gaps, so nothing is capped. On a light palette the cap bites. Measured on niri at 1×: yorha dark, gaps
+at 27 against cells at 44 to 46 (about 40 % darker; the reference's gaps are about 55 % darker); yorha light, gaps at
+#C3BEAA against cells at #D7D2BC (about 9 % darker, the cap's limit). A light palette whose text already sits near 4.5:1
+gets little ink; that is the rule working.
+
+### The wallpaper's own material (W62 fix in the same change)
+A wallpaper's own material took its ink colour from the shell's `texture.ink` token, so a material whose role differs
+from the shell's kind was tinted with the shell's role (a black matrix would have come out in the text colour). The bake
+now takes the colour from the material's own role, as the Settings swatches already do. Only own wallpapers whose role
+differs from the shell's change.
+
+### States
+- Tint off: relief only (above). Light palette: the cap, with its note.
+- The other states are those of every kind: none, generating, unsupported, high contrast forces it off, the wallpaper
+  rows inert without the wallpaper scope.
+
+### Keyboard, a11y
+Text contrast is the cap above. High contrast forces textures off (unchanged). Nothing moves, so nothing needs a reduced
+motion path.
+
+### Motion and Ma
+Static: no animation and no new shader (`relief.frag` samples the tile, as for every kind). The tile is made once per
+device scale.
+
+### Multi-output, fit
+- The same physical pattern on every output (logical pitch). The tile is generated at the largest output scale, as every
+  kind.
+- The sheet is carried like any kind; controls and the wallpaper's own row work as they do for every kind.
+
+### Budget
+480 × 480 device px at scale 1 (1 MiB RGBA), the same generator class as the other kinds. Idle 0 frames, 0 wakeups; no
+new GPU cost.
+
+### Definition of done (W62)
+- `display_gaps_sit_on_their_pitch` (`crates/kurashi-texture/tests/materials.rs`): at 1× the gap texels are exactly those
+  at 1 mod 4, at 2× exactly 2 and 3 of every 8. Every kind passes the seam, determinism, range and ink tests with
+  `display` in `Kind::ALL`.
+- `the_black_matrix_is_capped_where_dark_text_sits_on_light` (`crates/kurashid/src/texture.rs`): the cap is the largest
+  alpha that keeps 4.5:1, and nothing is capped on a dark ground.
+- The ghostty recipe for `display` compiles under glslang (`ghostty_shader::every_kind_compiles_and_is_filled`).
+- niri, yorha dark, strength 1, at 1×: the bar and the launcher's search box show the lattice (gaps at 1 mod 4 on both),
+  with a zoomed crop read with `magick … txt:`. Shots stay untracked.
+- For the lead: `styles/yorha.toml` does not pick `display` (the style is light, and a recipe cannot be scheme-conditional;
+  its light palette gets the capped matrix). `docs/ux/terminal-texture.md` lists per-kind ghostty approximations and needs
+  a `display` line.

@@ -655,6 +655,20 @@ placeholder unfilled is never written — the last good file stays (an unfilled 
 whole config). Placeholders beyond colours: `templates/README.md`. *Why:* the user wants every app to follow the shell
 "by default", icons and fonts included, and the compositor to match the shell's shape and motion (I175, I183, I184).
 
+**K49 amendment 2** (session 20, user): more targets — zellij, fzf (noren's picker), Neovim, Helix, Zed, Firefox, Zen, Vesktop (Discord), Spicetify
+(Spotify), Obsidian, and the compositors Hyprland, MangoWM and sway beside niri. Four switches under "Apps that follow"
+reach every compositor that supports them, and each one off leaves the compositor's own setting (the line is empty):
+`theme.window_frame` (border at the shell's outline width, accent/outline; niri: border in place of the focus ring),
+`theme.inactive_transparent` + `theme.inactive_opacity` (niri, Hyprland, MangoWM; sway has none),
+`theme.window_animations` (default on: niri's springs as before; Hyprland/MangoWM on the continuous curve and standard
+duration, not a 1:1 copy; sway has none) and `theme.window_titlebars` (sway's own; Hyprland only through hyprbars;
+niri/MangoWM draw none). An include line may name values (`{{paths.config}}`: Firefox's `@import` needs a file URL)
+and a `~/` include file sits under `$HOME` (Zen's profile). Apps whose reader lives in a per-profile or per-vault
+folder (Firefox, Zen, Obsidian) get our file under `$XDG_CONFIG_HOME/kurashi/apps/`; Vesktop and Obsidian are switched
+on in the app. No reader without editing the app's config or installing something: VSCode, Anki, Steam, Signal,
+Chromium-based browsers (BACKLOG). *Why:* the user wants their daily apps and every compositor kurashi targets to
+follow the shell.
+
 **K64** 🟢 Keyboard shortcuts are config (I72, user session 7 / 13): `keys.*` — one combo per shell action
 (launcher, notification centre, sidebars, quick settings, session menu, lock, Settings, web dock, volume, mute,
 brightness; `""` = none) and `keys.write` (default off). With `write` on, kurashid writes the compositor's binds file
@@ -1166,4 +1180,30 @@ Expressive's spatial/effects spring split (https://m3.material.io/styles/motion/
   their blocks layer over the style's pack, so picking calm on washi still bleeds, as before. Settings stays honest
   through a daemon inert pass: under `reduced` or a pack that does not move (win95) every other motion row reads inert,
   and a surface's form that cannot serve it reads inert.
+
+## K84 — Sidebars alike, a pin, bar buttons as switches; the desk's two columns in Settings (session 20, user)
+
+🟢 Both
+sidebars offer every section (core and the mods' panels; `sidebar.left.sections` now names `sidebar.sections`,
+`sidebar.tabs` stays as the same list for old configs): the only differences are the layout (`mode`) and each side's
+defaults — the frontend was already side-agnostic. `sidebar.<side>.pinned` (default off): the daemon lays a pinned
+sidebar out as "always shown" and leaves `visibility` as chosen, so unpinning returns to it (survives restarts, no
+runtime state); a pin button sits in the column's outer top corner over a row of its own. `sidebar.from_bar` keeps its
+key but is "Quick settings opens the right sidebar" and no longer hides the right sidebar's button (it read as "buttons
+in the bar" and took one away); under it, a switch per side is the layout's own state (on = a zone of the bar's edge
+lists `sidebar_<side>`, K71): on adds the module at that end, off removes it. The desk: `desktop.left`/`right` are no
+longer advanced and pick from `desktop.cards` (core cards, then the mods' `desk:` cards); `desktop.side` is "Side for
+other cards". Free placement stays I222. *Why:* the user found the left sidebar poorer than the right, the "Open from
+the bar" switch misleading, wanted a pin and both desk columns from Settings.
+
+## K85 — The launcher button's logo: the look's mark, the OS logo, or your own image (session 20, user)
+
+🟢 `launcher.button_logo` (look · os · own; default look) in every look, `launcher.button_icon` the image for "own"
+(a path on this machine, never in the repo). "os" draws the OS's logo (theme token `os.logo` from os-release, read once
+by the daemon, rule 1), tinted as the look's `[decor] start.logo_tint` says: none (its own colours), ink, or console (a
+conic sweep of four hard quarters, red · yellow · teal · blue — the PS2 look). The PS2 look gets its own start mark,
+`start/Towers.qml`: four light towers rising on a floor line in those colours (after its boot screen), never Sony's logo,
+letters or controller symbols. *Why:* the user wanted the retro PlayStation logo on the launcher button; it is a
+trademark we cannot ship (BACKLOG I374), so the look ships an original mark and the user can show the OS logo in the
+look's colours or any image of their own.
 

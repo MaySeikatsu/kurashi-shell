@@ -240,6 +240,33 @@ fn tile_files_are_loaded_from_the_cache_once_written() {
     );
 }
 
+/// W62: the display's gaps sit on their pitch. At 1× a texel is exactly a gap or a cell: the gap is the texel at 1 mod 4 on
+/// either axis (its centre is 1.5 logical px into each 4 px pitch). At 2× the gap is 2 texels of every 8, exactly.
+#[test]
+fn display_gaps_sit_on_their_pitch() {
+    let one = generate(&params(Kind::Display, true, 0.0));
+    assert_eq!(one.size, 480);
+    for y in 0..480u32 {
+        for x in 0..480u32 {
+            let on = x % 4 == 1 || y % 4 == 1;
+            let a = one.texel(x, y)[3];
+            assert_eq!(a, if on { 255 } else { 0 }, "display 1× ({x},{y})");
+        }
+    }
+    let two = generate(&Params {
+        device_scale: 2.0,
+        ..params(Kind::Display, true, 0.0)
+    });
+    assert_eq!(two.size, 960);
+    for y in 0..960u32 {
+        for x in 0..960u32 {
+            let on = matches!(x % 8, 2 | 3) || matches!(y % 8, 2 | 3);
+            let a = two.texel(x, y)[3];
+            assert_eq!(a, if on { 255 } else { 0 }, "display 2× ({x},{y})");
+        }
+    }
+}
+
 /// FNV-1a over the tile's bytes: a checksum that does not change between Rust releases, unlike `DefaultHasher`.
 fn fnv1a(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {

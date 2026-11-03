@@ -871,6 +871,7 @@ tab_to() {
     [ "$(Q focused)" = "$want" ] && return 0
     echo tab >&3; sleep 0.25
   done
+  [ "$(Q focused)" = "$want" ] && return 0   # reached on the last press
   fail "keyboard: Tab never reached $want ($(Q focused))"
 }
 # Waits (up to 5 s) for the focus to land on the name given: a move or a save changes the rows first, and the focus follows
@@ -1050,7 +1051,7 @@ fonts0=$(val theme.typography.family)
 first=$(printf '%s' "$fonts0" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0])')
 Q goto appearance
 Q focusList >/dev/null
-tab_to "Remove $first" 120
+tab_to "Remove $first" 200   # past "Apps that follow" (25 apps) and its switches
 kp delete
 [[ "$(Q previewState)" == theme.typography.family=* ]] || fail "font: Delete did not preview ($(Q previewState))"
 shot_now 20c-preview-font
@@ -1072,7 +1073,7 @@ echo "keyboard K12: typed 'palette' (the Style and Look name palettes in their h
 #      (UX brief, settings 1). theme.density is forced by Nix (managed.toml).
 Q goto appearance
 Q focusList >/dev/null
-tab_to "chip:theme.density" 120
+tab_to "chip:theme.density" 200   # past "Apps that follow" and its switches
 shot 23-chip-stack
 echo "keyboard K13: the Nix chip of theme.density shows its layers on focus"
 

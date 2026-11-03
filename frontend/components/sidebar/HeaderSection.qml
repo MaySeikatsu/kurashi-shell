@@ -16,6 +16,8 @@ Item {
     readonly property bool sessionOk: (Store.docs["svc.session"] || ({})).available === true
     readonly property string user: String(Quickshell.env("USER") || "")
     property string errText: ""
+    // The sidebar whose pin this header carries ("" = none: the column has its own pin row, K84).
+    property string pinSide: ""
     Refusal { id: refusal }
     function act(action, args) {
         hd.errText = ""
@@ -85,6 +87,10 @@ Item {
         x: hd.width - width
         anchors.verticalCenter: avatar.verticalCenter
         spacing: Theme.xs
+        SidebarPin {
+            visible: hd.pinSide !== ""
+            sidebarSide: hd.pinSide === "" ? "right" : hd.pinSide
+        }
         KeyButton {
             icon: "settings"
             glyph: "⚙"

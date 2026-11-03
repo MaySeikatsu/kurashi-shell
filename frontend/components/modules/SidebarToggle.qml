@@ -5,14 +5,14 @@ import ".."
 
 // Modules `sidebar_left` and `sidebar_right` (I154; K71 folded `sidebar.bar_buttons` into the zones): the button that
 // opens that side's sidebar on this output (`sidebar.toggle`). The left one is present only while the left sidebar has
-// sections (the daemon refuses it otherwise); the right one not while the quick button already opens the right sidebar
-// (`sidebar.from_bar`).
+// sections (the daemon refuses it otherwise). `sidebar.from_bar` (the quick button opens the right sidebar) no longer
+// hides the right one (session 20: the switch read as "buttons in the bar" and took one away).
 ModuleBase {
     id: m
     property string side: "right"
     S.BarConfig { id: cfg; screen: m.screen }
     readonly property var ui: Store.docs["runtime.ui"] || ({})
-    present: side === "left" ? cfg.leftSidebarTabs : !cfg.sidebarFromBar
+    present: side === "left" ? cfg.leftSidebarTabs : true
     width: b.width
     height: b.height
     slotHeights: [thickness]

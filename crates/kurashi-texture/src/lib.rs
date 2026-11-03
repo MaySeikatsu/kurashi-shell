@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 mod brush;
 mod cracks;
+mod display;
 mod generate;
 mod leather;
 mod metal;
@@ -51,6 +52,8 @@ pub enum Kind {
     Paint,
     /// K61: long, continuous strokes of a hairy brush over the whole sheet.
     Brush,
+    /// W62: a screen's pixel grid, square cells and black gaps (after the YoRHa wallpaper).
+    Display,
 }
 
 /// K61: the pattern of `theme.texture.cracks`.
@@ -81,7 +84,7 @@ impl CrackStyle {
 }
 
 impl Kind {
-    pub const ALL: [Kind; 13] = [
+    pub const ALL: [Kind; 14] = [
         Kind::Paper,
         Kind::PaperDots,
         Kind::PaperLines,
@@ -95,6 +98,7 @@ impl Kind {
         Kind::Wood,
         Kind::Paint,
         Kind::Brush,
+        Kind::Display,
     ];
 
     /// The config value (`paper_dots`); `None` for an unknown name and for `none`.
@@ -117,6 +121,7 @@ impl Kind {
             Kind::Wood => "wood",
             Kind::Paint => "paint",
             Kind::Brush => "brush",
+            Kind::Display => "display",
         }
     }
 }
@@ -130,6 +135,8 @@ pub enum InkRole {
     Secondary,
     /// Print and pigment: the text colour.
     OnSurface,
+    /// W62: a screen's black matrix: black (the same in every scheme), a darkening rather than a colour.
+    Shade,
 }
 
 /// How a kind reflects light, and what its ink is.
@@ -668,6 +675,9 @@ pub fn material(kind: Kind) -> Material {
             shadow: 1.0,
             ..m(0.35, 30.0, InkRole::OnSurface, 0.06)
         },
+        // W62: the black matrix darkens 44 % of the sheet, so its alpha stays modest (text sits on it); the cells' face is
+        // a little glossy, as a glass panel's, which shows only at the cells' edges.
+        Kind::Display => m(0.1, 20.0, InkRole::Shade, 0.25),
     }
 }
 

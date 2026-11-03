@@ -17,6 +17,43 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-03 — session 20 (machine A): app templates, sidebars alike + pin, launcher logo, display texture; web dock ad blocking blocked
+**State:** local `main` holds everything below, **not pushed** (ahead of `origin/main`; the user decides push/PR).
+`just check` and `just suites --changed` green on the final tree. No agent is running; worktrees under
+`.claude/worktrees/` (agent-a5bf…, agent-a1455…, lead-sync) can be removed.
+
+**Lesson:** this session began on a stale local `main` (PR #1, W59, had been merged on GitHub). `git fetch` and compare
+`main...origin/main` at session start; take new BACKLOG/K/CONTRACT-CHANGE ids from `origin/main` (I351–I365 clashed and
+were renumbered).
+
+**Done:**
+- K49 amendment 2: theme export for Neovim, Helix, Zed, Firefox, Zen, Vesktop, Spicetify, Obsidian, zellij, fzf (noren's
+  picker), Hyprland, MangoWM, sway; switches under "Apps that follow": window frame, see-through unfocused windows
+  (+ opacity), window animations (default on), titlebars. Checked by niri validate, Hyprland --verify-config, mango -p,
+  nvim and fzf in a test.
+- K84: both sidebars offer every section; `sidebar.<side>.pinned` (pin in the header row, or its own row); "Quick
+  settings opens the right sidebar" no longer hides a button, plus per-side "button in the bar" switches; desk columns
+  `desktop.left/right` pickable (`desktop.cards`).
+- K85: `launcher.button_logo` (look · os · own) + `launcher.button_icon`; `os.logo` token from os-release;
+  `[decor] start.logo_tint`; PS2 look: original Towers mark, OS logo in four colours. (A Shape gradient draws nothing in
+  the bar window: plain rectangles there.)
+- W62 (Haiku): texture kind `display` (4 px pixel grid, ink capped for 4.5:1).
+- W63 (Haiku): blocked — QtWebEngine 6.11 refuses uBO (MV2) and does not enforce uBO Lite's rules. Options in
+  `docs/ux/webdock-engine.md` (I371): the user favours hosting a real browser (their own engine) in the dock, and
+  shell-hosted app windows in general (I372).
+- `/tmp` cleanup (79 GB of old sandboxes; W59's kept); I375 for removing sandboxes after a passing run.
+
+**Next steps (ordered):**
+1. The user: push / PR `main`.
+2. W60 + I375 (sandbox isolation and cleanup), then upstream's I364/I365.
+3. Prototype I371 option 1 / I372 (a browser or app window placed by niri in a shell surface) — UX brief first.
+4. BACKLOG I366–I384 as prioritised (I379, I382 are small; I384 true pixelation later).
+
+**Open decisions:** CONTRACT-CHANGE 693 (web dock ad blocking: interceptor, re-probe, or drop — superseded by I371);
+I381 (a dark yorha variant taking `display`); upstream rows 690–692 (W59.6b).
+
+---
+
 ## 2026-11-02 — session 19, part 3 (machine A): W59 finished — check + suites green, README previews, PR
 **State:** branch `feat/w59-motion-engine` pushed to origin (112 commits over `main`); the PR to `main` is the user's
 to merge. `just check` green (1339 tests) and `just suites` 13/13 green on 2026-11-02. No agent ran, no worktree is left.
