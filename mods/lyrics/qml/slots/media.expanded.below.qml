@@ -41,6 +41,7 @@ Item {
         // Plain lyrics: four lines tall, scrolled by the user.
         Flickable {
             id: flick
+            KineticWheel { view: flick }
             visible: slot.phase === "plain"
             width: parent.width
             height: visible ? Math.min(plainText.implicitHeight, Math.round(Theme.fs * 1.5) * 4) : 0

@@ -11,9 +11,7 @@ import "../components"
 Flickable {
     id: p
     // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
-    flickDeceleration: 2900
-    maximumFlickVelocity: 7000
-    KineticWheel { flick: p }
+    KineticWheel { view: p }
     QQC.ScrollBar.vertical: PageScrollBar {}
     signal jumpRequested(string targetPage, var row)
 

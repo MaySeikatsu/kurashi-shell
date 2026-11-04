@@ -173,6 +173,7 @@ Item {
         }
         contentItem: ListView {
             id: list
+            KineticWheel { view: list }
             implicitHeight: Math.min(contentHeight, 320)
             clip: true
             model: s.choices

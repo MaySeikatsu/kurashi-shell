@@ -17,6 +17,23 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-04 — session 22 (machine A): kinetic wheel back under Qt 6.12, and on every vertical scroller (B42, I396)
+**State:** branch `feat/s22-kinetic-wheel`, **not pushed** (`git fetch` from this session fails: `Permission denied (publickey)`); the user decides push/PR. Backlog ids were picked from local main, so recheck them against origin.
+
+**Done:**
+- B42: the rebuild of 2026-11-04 (generation 1178) moved the installed shell to Qt 6.12.0 / Quickshell 0.3.2, which report a `pixelDelta` with a wheel notch; `KineticWheel` took that for a touchpad (15 px, no glide). It now reads `ev.phase`. Measured on 6.12 and 6.11: 156 px per notch with a glide, 1:1 for simulated fingers.
+- I396: `KineticWheel` moved to `frontend/components/`, on the launcher (which had no wheel scrolling), wallpaper, Wallhaven, sidebars, notification centre, tasks, AI, lyrics and Settings' dropdowns. Launcher checked on nested niri with Qt 6.12; the others only through the suites.
+- `wl_pointer.py finger`; a wheel step in `settings/test.sh`.
+
+**Next steps (ordered):**
+1. The user feels it on their real mouse; a real touchpad on machine B.
+2. I397: the dev shell is still Qt 6.11.2, so the suites do not run on what the user runs. Bump flake.lock and run the merge set.
+3. Then session 21's list below: the user's motion verdicts, I390, I394, I391, I395, I386–I389, I392, I393.
+
+**Open decisions/risks:** the installed shell needs a rebuild to get this. Any other Qt 6.12 regression would not show in the suites until I397.
+
+---
+
 ## 2026-11-03 — session 21 (machine A): motion polish — every form everywhere, pace, three tiers, a style's own animation (K86, W64)
 **State:** branch `feat/s21-motion-polish` (from `origin/main` after PR #1 and session 20), **not pushed**; the user decides
 push/PR (gh is logged in only as a work account: last time the user opened the PR from the compare URL). `just check`

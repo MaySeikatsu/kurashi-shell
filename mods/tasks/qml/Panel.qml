@@ -268,6 +268,7 @@ Item {
             // The list, in file order, under its sections; it scrolls past ~10 rows.
             Flickable {
                 id: listView
+                KineticWheel { view: listView }
                 visible: !p.failed && p.tasks.length > 0
                 width: parent.width
                 height: Math.min(list.implicitHeight, 420)
@@ -480,6 +481,7 @@ Item {
                 border.color: noteEdit.activeFocus ? Theme.focusRing : Theme.outline
                 Flickable {
                     id: noteFlick
+                    KineticWheel { view: noteFlick }
                     anchors.fill: parent
                     anchors.margins: Theme.pad
                     contentHeight: noteEdit.implicitHeight

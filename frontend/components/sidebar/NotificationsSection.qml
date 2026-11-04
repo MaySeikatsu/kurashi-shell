@@ -152,6 +152,7 @@ Item {
     // The list, scrolled inside the section.
     ListView {
         id: list
+        KineticWheel { view: list }
         y: head.height + Theme.gap
         width: ns.width
         height: Math.max(0, ns.height - y)

@@ -242,6 +242,7 @@ PanelWindow {
             }
             Flickable {
                 id: list
+                KineticWheel { view: list }
                 visible: win.items.length > 0
                 x: Theme.pad
                 y: head.y + head.height + Theme.pad

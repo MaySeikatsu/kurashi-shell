@@ -355,6 +355,8 @@ Item {
                     text: p.tr(p.prov.id === "ollama" ? "mod-ai.error.no_models" : "mod-ai.models.empty")
                 }
                 Flickable {
+                    id: pickFlick
+                    KineticWheel { view: pickFlick }
                     width: parent.width
                     height: Math.min(pickList.implicitHeight, 260)
                     contentHeight: pickList.implicitHeight
@@ -431,6 +433,8 @@ Item {
                 text: p.tr(p.d.saving === false ? "mod-ai.history.off" : "mod-ai.history.empty")
             }
             Flickable {
+                id: histFlick
+                KineticWheel { view: histFlick }
                 visible: p.convs.length > 0
                 width: parent.width
                 height: Math.min(histCol.implicitHeight, 480)
@@ -562,6 +566,7 @@ Item {
             // The conversation; it follows the bottom while the user has not scrolled up.
             Flickable {
                 id: flick
+                KineticWheel { view: flick }
                 visible: p.msgs.length > 0 || !!p.reply
                 width: parent.width
                 height: 460 + p.extra
