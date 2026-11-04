@@ -710,6 +710,16 @@ rehost "$other" "{\"set\":\"settings.window\",\"value\":\"$other\"}"
 if [ "$HOST" = sheet ]; then rehost sheet '{"set":"settings.window","value":"sheet"}'
 else rehost window '{"reset":"settings.window"}'; fi
 echo "host: $HOST; re-hosted to $other and back on the appearance page at scroll $y0"
+# B42: a wheel notch glides (Qt 6.12 reports a pixelDelta with a notch, which must not read as a touchpad's 1:1), and a
+# touchpad's fingers still move the page 1:1.
+Q scroll 0; sleep 0.3
+timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1; sleep 0.7
+[ "$(Q scrollY)" -ge 90 ] || fail "a wheel notch moved the page only $(Q scrollY) px"
+echo "wheel: one notch moved the page $(Q scrollY) px"
+Q scroll 0; sleep 0.3
+timeout 30 python3 -I tools/bench/wl_pointer.py finger 960 500 -60 3; sleep 0.3
+[ "$(Q scrollY)" = 60 ] || fail "60 px of touchpad moved the page $(Q scrollY) px"
+Q scroll 0
 Q goto layout
 
 # 1. a user value: chip "you", with Reset on the same line (bar.height = 40 from config.toml)
@@ -1040,7 +1050,7 @@ Q advanced false
 Q goto appearance
 Q advanced true
 Q focusList >/dev/null
-tab_to "slider:theme.shape.radius"
+tab_to "slider:theme.shape.radius" 120
 radius0=$(val theme.shape.radius)
 kp right
 [[ "$(Q previewState)" == theme.shape.radius=* ]] || fail "radius: Right did not preview ($(Q previewState))"

@@ -66,6 +66,7 @@ Item {
 
     Flickable {
         id: flick
+        KineticWheel { view: flick }
         x: -rc.slide * rc.width
         width: rc.width
         height: rc.height
@@ -177,6 +178,7 @@ Item {
     // The page: the quick card's page component, made while it is shown; a long list scrolls.
     Flickable {
         id: pageFlick
+        KineticWheel { view: pageFlick }
         x: (1 - rc.slide) * rc.width
         width: rc.width
         height: rc.height

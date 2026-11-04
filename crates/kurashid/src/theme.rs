@@ -72,6 +72,55 @@ pub const WALLPAPER_DOC: &str = "mod.wallpaper";
 /// The palette name that takes the colours of the wallpaper picture (K34).
 pub const WALLPAPER_PALETTE: &str = "wallpaper";
 
+/// K87: where dynamic media colour reads the track's colours.
+const MEDIA_DOC: &str = "svc.media";
+/// The cover colours in effect, while the switch is on and a track has them (set by `register`'s follower). A global as
+/// `texture::set_wallpaper` is: every republish path reads it, none has to carry it.
+static MEDIA_COVER: std::sync::Mutex<Option<kurashi_theme::media_tint::Cover>> =
+    std::sync::Mutex::new(None);
+
+fn media_follows(store: &ConfigStore) -> bool {
+    b(store, "theme.colors.media.follow")
+}
+
+/// The contrast the text keeps on the cover's colours: what `theme.colors.contrast` asks of a palette.
+fn media_min_contrast(store: &ConfigStore) -> f64 {
+    match s(store, "theme.colors.contrast").as_str() {
+        "high" => 7.0,
+        "medium" => 5.5,
+        _ => 4.5,
+    }
+}
+
+/// The colours the document `doc` asks for now: a track's, else (the moment before a new track's cover is decoded) the
+/// ones held, so a skip does not flash back to the palette; none without a track.
+fn media_cover_of(
+    doc: &Value,
+    held: Option<kurashi_theme::media_tint::Cover>,
+) -> Option<kurashi_theme::media_tint::Cover> {
+    let track = doc["available"].as_bool() == Some(true)
+        && doc["title"].as_str().is_some_and(|t| !t.is_empty());
+    if !track {
+        return None;
+    }
+    kurashi_theme::media_tint::Cover::from_value(&doc["art_colors"]).or(held)
+}
+
+/// Holds `svc.media` while the switch is on, so its service runs only then (rule 5).
+fn hold_media(hub: &Hub, store: &ConfigStore, held: &mut bool) {
+    let exists = hub.snapshot(MEDIA_DOC).is_ok();
+    if *held && (!exists || hub.subscribers(MEDIA_DOC) == 0) {
+        *held = false;
+    }
+    let want = exists && media_follows(store);
+    if want && !*held {
+        *held = hub.subscribe(MEDIA_DOC).is_ok();
+    } else if !want && *held {
+        hub.unsubscribe(MEDIA_DOC);
+        *held = false;
+    }
+}
+
 /// The picture palette `wallpaper` takes its colours from: the wallpaper mod's `theme.image`, while
 /// the mod is on and has applied a picture with its theme. Only a document with a subscriber counts:
 /// the mod's service fills the hub only then, so an unwatched snapshot may be stale (Shōjiki).
@@ -512,6 +561,42 @@ pub fn document_with(
     match kurashi_theme::resolve(&input, fonts) {
         Ok(out) => {
             let mut tokens = serde_json::Map::from_iter(out.tokens);
+            // K87: over the resolved colours, and before the material and the shadows, whose inks and strengths are worked out
+            // from these colours; the config and the palette stay as the user left them.
+            let cover = if media_follows(store) {
+                *MEDIA_COVER.lock().unwrap_or_else(|e| e.into_inner())
+            } else {
+                None
+            };
+            let mut scheme_effective = scheme_name(input.scheme);
+            let mut scheme_detail = effective_scheme(store, picture).1;
+            if let Some(c) = &cover {
+                use kurashi_theme::media_tint::{Tone, apply};
+                let tone = if s(store, "theme.colors.media.tone") == "keep" {
+                    Tone::Keep
+                } else {
+                    Tone::Cover
+                };
+                let dark = apply(&mut tokens, c, tone, media_min_contrast(store));
+                scheme_effective = if dark { "dark" } else { "light" };
+                scheme_detail = "media";
+            }
+            tokens.insert(
+                "media.tint".into(),
+                json!(cover.as_ref().map(|c| c.key()).unwrap_or_default()),
+            );
+            tokens.insert(
+                "media.blend".into(),
+                json!(if b(store, "a11y.reduce_motion") {
+                    "direct".to_owned()
+                } else {
+                    s(store, "theme.colors.media.blend")
+                }),
+            );
+            tokens.insert(
+                "media.blend_ms".into(),
+                json!(f(store, "theme.colors.media.blend_ms", 1200.0)),
+            );
             // Config-owned sizes the frontend binds as tokens (PROTOCOL §8).
             if let Some(h) = store.get("bar.height", None) {
                 tokens.insert("bar.height".into(), h.value);
@@ -551,6 +636,10 @@ pub fn document_with(
             if waiting {
                 notes.push(json!({"stage": "source", "text": "theme.note.wallpaper_waiting"}));
             }
+            // Shōjiki: the palette's row shows the user's palette, and this says why the colours are not it.
+            if cover.is_some() {
+                notes.push(json!({"stage": "source", "text": "theme.note.media_colors"}));
+            }
             json!({
                 "tokens": tokens,
                 "notes": notes,
@@ -559,8 +648,8 @@ pub fn document_with(
                     "look": s(store, "theme.look"),
                     "palette": s(store, "theme.colors.palette"),
                     "scheme": s(store, "theme.colors.scheme"),
-                    "scheme_effective": scheme_name(input.scheme),
-                    "scheme_detail": effective_scheme(store, picture).1,
+                    "scheme_effective": scheme_effective,
+                    "scheme_detail": scheme_detail,
                     "scheme_before": store.scheme_before(),
                     "texture_before": store.texture_before(),
                     // K59: why the daytime light is where it is (`sun`: the weather mod's place, `day`: a 06:00–18:00
@@ -707,6 +796,52 @@ pub fn register(
     let Ok(rt) = tokio::runtime::Handle::try_current() else {
         return;
     };
+    // K87: dynamic media colour follows `svc.media`. The same stream, its own task: position patches arrive all the time
+    // while a track plays, and only a change of colours republishes; a cover's colours are the theme document only (the
+    // previews stay in the user's palette, nothing else depends on a track).
+    {
+        let (hub, store, fonts) = (hub.clone(), store.clone(), fonts.clone());
+        let mut events = hub.events();
+        rt.spawn(async move {
+            let mut held = false;
+            let mut last = None;
+            loop {
+                hold_media(&hub, &store, &mut held);
+                let doc = hub.snapshot(MEDIA_DOC).map_or(Value::Null, |(_, v)| v);
+                let now = if media_follows(&store) {
+                    media_cover_of(&doc, last)
+                } else {
+                    None
+                };
+                if now != last {
+                    last = now;
+                    *MEDIA_COVER.lock().unwrap_or_else(|e| e.into_inner()) = now;
+                    let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
+                    let pic = wallpaper_picture(&hub);
+                    let next = document_with(&store, fonts.as_ref(), prev.as_ref(), pic.as_deref());
+                    if let Some(tokens) = next.get("tokens").and_then(Value::as_object) {
+                        crate::texture::update_bake(&store, tokens);
+                    }
+                    let _ = hub.set(DOC, next, None);
+                }
+                loop {
+                    match events.recv().await {
+                        Ok(msg) => match msg.as_ref() {
+                            kurashi_ipc::ServerMsg::Snap { doc, .. }
+                            | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                                if doc == MEDIA_DOC || doc == crate::config::DOC =>
+                            {
+                                break;
+                            }
+                            _ => {}
+                        },
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => break,
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+                    }
+                }
+            }
+        });
+    }
     let (hub, store) = (hub.clone(), store.clone());
     let mut events = hub.events();
     rt.spawn(async move {
@@ -918,6 +1053,23 @@ mod tests {
 
     /// K53: applying a style resets the appearance keys the user set and is one undoable change; a look keeps the
     /// style's palette.
+    /// K87: colours while a track has them, held for the moment a skip has none yet, gone with the track.
+    #[test]
+    fn media_colours_follow_the_track_and_hold_through_a_skip() {
+        use kurashi_theme::media_tint::Cover;
+        let colours = json!({"bg": "#224876", "fg": "#d4e3ff", "accent": "#a5c8ff"});
+        let cover = Cover::from_value(&colours);
+        let track = |c: Value| json!({"available": true, "title": "A", "art_colors": c});
+        assert_eq!(media_cover_of(&track(colours.clone()), None), cover);
+        assert_eq!(media_cover_of(&track(Value::Null), cover), cover);
+        assert_eq!(media_cover_of(&track(Value::Null), None), None);
+        assert_eq!(media_cover_of(&json!({"available": false}), cover), None);
+        assert_eq!(
+            media_cover_of(&json!({"available": true, "title": ""}), cover),
+            None
+        );
+    }
+
     /// K55: the modes resolve with their reason; `wallpaper` reads the picture's lightness.
     #[test]
     fn scheme_modes_resolve_with_their_reason() {

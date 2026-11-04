@@ -307,6 +307,7 @@ Item {
 
         GridView {
             id: grid
+            KineticWheel { view: grid }
             anchors.fill: parent
             visible: wh.rows.length > 0
             opacity: wh.busy ? 0.5 : 1

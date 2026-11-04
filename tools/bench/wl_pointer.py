@@ -64,10 +64,12 @@ def command(parts):
             return "sweep", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]), float(parts[5]))
         if len(parts) == 5 and parts[0] == "wheel":
             return "wheel", int(parts[1]), int(parts[2]), (int(parts[3]), float(parts[4]))
+        if len(parts) == 5 and parts[0] == "finger":
+            return "finger", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]))
     except ValueError:
         pass
     die("wl_pointer.py: want 'move <x> <y>', 'click <x> <y> <left|middle|right>' or "
-        "'sweep <x0> <y0> <x1> <y1> <seconds>' or 'wheel <x> <y> <notches> <seconds between>' (negative: down)")
+        "'sweep <x0> <y0> <x1> <y1> <seconds>' or 'wheel <x> <y> <notches> <seconds between>' (negative: down) or 'finger <x> <y> <pixels> <steps>'")
 
 
 class Pointer:
@@ -228,6 +230,23 @@ class Pointer:
             time.sleep(gap)
         self.settle()
 
+    def finger(self, x, y, pixels, steps):
+        # A two-finger touchpad scroll at (x, y): axis_source(finger), per step axis(time, vertical, value), frame, then
+        # axis_stop. Positive pixels scroll up, as `wheel` does; no axis_discrete, as a touchpad sends none.
+        self.motion(x, y)
+        time.sleep(0.2)
+        value = int(-pixels / steps * 256)
+        for _ in range(steps):
+            self.send(self.pointer, 5, struct.pack("<I", 1))
+            self.send(self.pointer, 3, struct.pack("<IIi", ms(), 0, value))
+            self.send(self.pointer, 4)
+            self.roundtrip()
+            time.sleep(0.016)
+        self.send(self.pointer, 5, struct.pack("<I", 1))
+        self.send(self.pointer, 6, struct.pack("<II", ms(), 0))
+        self.send(self.pointer, 4)
+        self.settle()
+
     def perform(self, cmd):
         verb, x, y, rest = cmd
         if verb == "move":
@@ -236,6 +255,8 @@ class Pointer:
             self.sweep(x, y, *rest)
         elif verb == "wheel":
             self.wheel(x, y, *rest)
+        elif verb == "finger":
+            self.finger(x, y, *rest)
         else:
             self.click(x, y, rest)
 

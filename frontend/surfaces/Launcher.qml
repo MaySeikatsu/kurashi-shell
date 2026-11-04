@@ -629,6 +629,7 @@ PanelWindow {
             }
             ListView {
                 id: list
+                KineticWheel { view: list }
                 visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
@@ -1047,6 +1048,7 @@ PanelWindow {
             // The emoji grid (`:`): 8 a row, the selected cell a tonal block; its name under the grid.
             GridView {
                 id: grid
+                KineticWheel { view: grid }
                 visible: lp.mode === "emoji"
                 x: list.x
                 y: list.y

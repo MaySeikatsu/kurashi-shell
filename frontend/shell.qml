@@ -8,6 +8,7 @@ import "surfaces"
 // A single content-sized Stage serves the focused output only (K16).
 ShellRoot {
     id: root
+    ColorBlend {}
 
     // Output whose workspace list holds the focused workspace; first screen as fallback.
     function focusedScreen() {

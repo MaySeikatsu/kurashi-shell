@@ -57,8 +57,22 @@ netcheck_run() {
   (eval "$(env_lines)"; exec timeout 60 python3 -I "$HERE/netcheck.py")
 }
 
+# I375: sandboxes add up (a run of test-peek leaves 1.2 GB; 402 of them filled the disk, session 22). A start clears those
+# untouched for a day that no process has as its runtime dir. KURASHI_SANDBOX_KEEP=1 keeps them.
+prune_old() {
+  [ -z "${KURASHI_SANDBOX_KEEP:-}" ] || return 0
+  local d
+  for d in /tmp/kurashi-sb-*; do
+    [ -d "$d" ] && [ ! -L "$d" ] && [ -O "$d" ] && [ "$d" != "$R" ] || continue
+    [ -n "$(find "$d" -maxdepth 0 -mmin +1440 2>/dev/null)" ] || continue
+    grep -qslaF "XDG_RUNTIME_DIR=$d" /proc/[0-9]*/environ 2>/dev/null && continue
+    rm -rf -- "$d" 2>/dev/null || true
+  done
+}
+
 case $action in
   start)
+    prune_old
     # Fail closed: on any failure print env lines that point clients at a socket that does not
     # exist, so nothing ever falls back to the user's real session.
     fail() {

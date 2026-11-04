@@ -98,6 +98,7 @@ Item {
     // The tab's panel.
     Flickable {
         id: pane
+        KineticWheel { view: pane }
         visible: lc.tab !== null && lc.tab.core !== true
         y: bar.height + (bar.visible ? Theme.pad : 0)
         width: lc.width

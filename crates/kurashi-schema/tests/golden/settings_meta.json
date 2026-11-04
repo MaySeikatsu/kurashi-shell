@@ -999,6 +999,121 @@
             {
               "advanced": false,
               "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.media.follow.help",
+              "key": "theme.colors.media.follow",
+              "label": "config.theme.colors.media.follow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.media_tone.cover",
+                  "value": "cover"
+                },
+                {
+                  "label": "config.choice.media_tone.keep",
+                  "value": "keep"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.media.follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "cover",
+              "help": "config.theme.colors.media.tone.help",
+              "key": "theme.colors.media.tone",
+              "label": "config.theme.colors.media.tone.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.media_blend.fade",
+                  "value": "fade"
+                },
+                {
+                  "label": "config.choice.media_blend.wheel_closest",
+                  "value": "wheel_closest"
+                },
+                {
+                  "label": "config.choice.media_blend.wheel_furthest",
+                  "value": "wheel_furthest"
+                },
+                {
+                  "label": "config.choice.media_blend.direct",
+                  "value": "direct"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.media.follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "fade",
+              "help": "config.theme.colors.media.blend.help",
+              "key": "theme.colors.media.blend",
+              "label": "config.theme.colors.media.blend.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.media.follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                },
+                {
+                  "key": "theme.colors.media.blend",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "direct"
+                }
+              ],
+              "default": 1200,
+              "help": "config.theme.colors.media.blend_ms.help",
+              "key": "theme.colors.media.blend_ms",
+              "label": "config.theme.colors.media.blend_ms.label",
+              "max": 4000,
+              "min": 200,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 100,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
               "couplings": [
                 {
                   "key": "theme.colors.scheme",

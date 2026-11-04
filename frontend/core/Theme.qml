@@ -10,9 +10,11 @@ Singleton {
     readonly property var themeDoc: (Store.docs && Store.docs["theme"]) || Store.theme || null
     readonly property var tokens: (themeDoc && themeDoc.tokens) ? themeDoc.tokens : ({})
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
-    function color(k, d) { return Qt.color(tok(k, d)) }
+    // K87: the colours in between while ColorBlend moves the shell from one track's colours to the next; null at rest.
+    property var liveColors: null
+    function color(k, d) { var o = liveColors; if (o && o[k] !== undefined) return Qt.color(o[k]); return Qt.color(tok(k, d)) }
     // A colour token that may be missing (a palette without it) or "" (a decor role left to the part): `d` stands in.
-    function colorOr(k, d) { var v = tokens[k]; return v === undefined || v === "" ? d : Qt.color(v) }
+    function colorOr(k, d) { var o = liveColors; if (o && o[k] !== undefined) return Qt.color(o[k]); var v = tokens[k]; return v === undefined || v === "" ? d : Qt.color(v) }
     function bezier(k, d) { var c = tok(k, d); return [c[0], c[1], c[2], c[3], 1, 1] }
     // font.families is not exposed to QML Text; pick the CJK family by script.
     function fam(t, f) { if (!f || f.length < 2) return ""; return /[　-ヿ一-鿿]/.test(t || "") ? f[1] : f[0] }
@@ -122,7 +124,7 @@ Singleton {
     // `components/decor/<slot>/<Name>.qml` ("" = the default, today's shell) — and its `[decor]` metrics (numbers,
     // switches, colours, curves; every default is in the theme). Data only: never compared (rule 4).
     function slot(name) { return tok("decor." + name, "") }
-    function decor(key, d) { return tok("decor." + key, d) }
+    function decor(key, d) { var o = liveColors, k = "decor." + key; if (o && o[k] !== undefined) return o[k]; return tok(k, d) }
     // A slot's component name as its file name (kebab-case → PascalCase), "" for none.
     function pascal(n) {
         if (!n) return ""

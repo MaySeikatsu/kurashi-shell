@@ -1028,6 +1028,7 @@ Item {
         // arrived asks for its page.
         GridView {
             id: grid
+            KineticWheel { view: grid }
             anchors.fill: parent
             visible: picker.showGrid
             clip: true
