@@ -1,4 +1,4 @@
-//! Dynamic media colour (K87, `docs/ux/dynamic-media-color.md`): the last stage of the theme. The playing track's cover
+//! Dynamic media colour (K87, `docs/ux/dynamic-media-color.md`): a stage over the resolved colours. The playing track's cover
 //! colours (`svc.media.art_colors`) become the theme's colour roles, and every other colour token follows the role it was
 //! nearest to in the user's theme, so a look's own tokens (`decor.bar.fill`, `tooltip.bg`, …) come along without naming a
 //! look here (rule 4). A stage over the tokens, never over the config: with the switch off the user's theme is what it was.
@@ -53,7 +53,6 @@ const PINNED: &[&str] = &[
     "color.scrim",
     "chrome.soft_color",
     "popup.shadow",
-    "texture.ink",
     "light.color",
 ];
 
@@ -265,7 +264,7 @@ mod tests {
             "color.accent": "#51483f", "color.on_accent": "#d8ccb9", "color.outline": "#7b6d5d",
             "color.outline_variant": "#b4a48e", "color.selected": "#a69987", "color.on_selected": "#333333",
             "color.secondary": "#6f6253", "color.tertiary": "#5b4f43",
-            "color.error": "#9a402c", "color.status.on": "#4c772d", "texture.ink": "#000000",
+            "color.error": "#9a402c", "color.status.on": "#4c772d",
             "decor.bar.fill": ["#d8ccb9"], "decor.title.fill": ["#c7b9a3", "#d3c7b3"], "decor.dock.fill": [],
             "tooltip.bg": "#463f37", "tooltip.fg": "#d8ccb9", "decor.fill.band_top": "", "bar.height": 36,
         });
@@ -299,7 +298,6 @@ mod tests {
         apply(&mut t, &cover(), Tone::Cover, 4.5);
         assert_eq!(t["color.error"], "#9a402c");
         assert_eq!(t["color.status.on"], "#4c772d");
-        assert_eq!(t["texture.ink"], "#000000");
         assert_eq!(t["decor.fill.band_top"], "");
         assert_eq!(t["bar.height"], 36);
     }

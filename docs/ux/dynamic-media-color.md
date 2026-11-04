@@ -22,7 +22,7 @@ readable. Off, everything is as the user left it. A change of track never flashe
   `wheel_furthest` (round the colour wheel, the short or the long way, half as long again), `direct`.
 - **The Now Playing card keeps its behaviour** (user): its own cover colours, changing at once. An option for it: I398.
 - **What takes part:** every colour token, through the daemon, so bar, title bars, decor, Settings and exported apps agree.
-  Meanings stay (error, warning, success, status) and so do the material's inks.
+  Meanings stay (error, warning, success, status). The material's ink and strength are worked out from the new colours, so a paper or a grid stays legible on them.
 - **Honesty (rule 2):** the palette's row keeps showing the user's palette; a theme note says the colours come from the track,
   and the scheme's status line says "Following the track playing now".
 

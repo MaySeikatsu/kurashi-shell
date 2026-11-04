@@ -1229,7 +1229,7 @@ look's colours or any image of their own.
   falls from rest under gravity, squashes and ripples; genie's shadow and fillets follow the pour; maximize/restore of a
   captioned card moves on the profile's curve.
 
-## K87 — Dynamic Media Color: the track's colours as the last stage of the theme (session 22, user)
+## K87 — Dynamic Media Color: the track's colours as a stage over the resolved theme (session 22, user)
 **Decision.** `theme.colors.media.*`: a switch, a tone (`cover`, `keep`) and a change of colour (`fade`, `wheel_closest`,
 `wheel_furthest`, `direct`; `blend_ms`). While on and a track has colours, `kurashi_theme::media_tint` rewrites the resolved
 tokens: the cover's colours become the roles, and every other colour token follows the role it was nearest to in the user's

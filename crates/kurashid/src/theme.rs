@@ -561,32 +561,8 @@ pub fn document_with(
     match kurashi_theme::resolve(&input, fonts) {
         Ok(out) => {
             let mut tokens = serde_json::Map::from_iter(out.tokens);
-            // Config-owned sizes the frontend binds as tokens (PROTOCOL §8).
-            if let Some(h) = store.get("bar.height", None) {
-                tokens.insert("bar.height".into(), h.value);
-            }
-            // K62: the pen — how outlines and (through a layer) text are drawn; values in effect (a11y forces them).
-            tokens.insert("pen.line".into(), json!(s(store, "theme.pen.line")));
-            for k in [
-                "pressure",
-                "breaks",
-                "fade",
-                "wobble",
-                "text_pressure",
-                "text_breaks",
-                "text_fade",
-                "text_wobble",
-            ] {
-                tokens.insert(
-                    format!("pen.{k}"),
-                    json!(f(store, &format!("theme.pen.{k}"), 0.0)),
-                );
-            }
-            let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
-            shadow_tokens(store, &mut tokens, &input);
-            // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".
-            tokens.insert("os.logo".into(), json!(os_logo()));
-            // K87: the last stage, over every colour above; the config and the palette stay as the user left them.
+            // K87: over the resolved colours, and before the material and the shadows, whose inks and strengths are worked out
+            // from these colours; the config and the palette stay as the user left them.
             let cover = if media_follows(store) {
                 *MEDIA_COVER.lock().unwrap_or_else(|e| e.into_inner())
             } else {
@@ -621,6 +597,31 @@ pub fn document_with(
                 "media.blend_ms".into(),
                 json!(f(store, "theme.colors.media.blend_ms", 1200.0)),
             );
+            // Config-owned sizes the frontend binds as tokens (PROTOCOL §8).
+            if let Some(h) = store.get("bar.height", None) {
+                tokens.insert("bar.height".into(), h.value);
+            }
+            // K62: the pen — how outlines and (through a layer) text are drawn; values in effect (a11y forces them).
+            tokens.insert("pen.line".into(), json!(s(store, "theme.pen.line")));
+            for k in [
+                "pressure",
+                "breaks",
+                "fade",
+                "wobble",
+                "text_pressure",
+                "text_breaks",
+                "text_fade",
+                "text_wobble",
+            ] {
+                tokens.insert(
+                    format!("pen.{k}"),
+                    json!(f(store, &format!("theme.pen.{k}"), 0.0)),
+                );
+            }
+            let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
+            shadow_tokens(store, &mut tokens, &input);
+            // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".
+            tokens.insert("os.logo".into(), json!(os_logo()));
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
@@ -818,6 +819,9 @@ pub fn register(
                     let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
                     let pic = wallpaper_picture(&hub);
                     let next = document_with(&store, fonts.as_ref(), prev.as_ref(), pic.as_deref());
+                    if let Some(tokens) = next.get("tokens").and_then(Value::as_object) {
+                        crate::texture::update_bake(&store, tokens);
+                    }
                     let _ = hub.set(DOC, next, None);
                 }
                 loop {

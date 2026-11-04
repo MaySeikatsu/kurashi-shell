@@ -38,7 +38,7 @@ printf 'schema_version = 1\n[idle]\nenabled = false\n[theme]\nstyle = "yorha"\n[
 magick -size 96x96 xc:'#1d4e89' "$R/covers/blue.png"
 magick -size 96x96 xc:'#8c1c3a' "$R/covers/red.png"
 K() { timeout 10 "$W/kurashi" "$@"; }
-PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" > "$R/kurashid.log" 2>&1 & pids+=("$!")
+PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" > "$R/kurashid.log" 2>&1 & daemon_pid=$!; pids+=("$daemon_pid")
 for _ in $(seq 50); do K ping >/dev/null 2>&1 && break; sleep 0.1; done
 K ping >/dev/null 2>&1 || { echo "kurashid did not start"; exit 1; }
 env -u KURASHI_SOCKET qs -p "$ROOT/frontend" > "$R/qs.log" 2>&1 & pids+=("$!")
@@ -63,7 +63,7 @@ base=$(theme)
 surface0=$(tok color.surface)
 bar0=$(bar)
 
-mkfifo "$R/player.in"; "$W/fake_mpris_art" "Track" "Artist" "Album" 300 "file://$R/covers/blue.png" < "$R/player.in" > "$R/player.log" 2>&1 & pids+=("$!")
+mkfifo "$R/player.in"; "$W/fake_mpris_art" "Track" "Artist" "Album" 300 "file://$R/covers/blue.png" < "$R/player.in" > "$R/player.log" 2>&1 & player_pid=$!; pids+=("$player_pid")
 exec 7> "$R/player.in"
 for _ in $(seq 80); do snap svc.media | grep -q art_colors && break; sleep 0.1; done
 sleep 0.5
@@ -107,8 +107,16 @@ K set theme.colors.media.tone=keep >/dev/null; sleep 0.4
 [ "$(app scheme_effective)" = light ]; check $(( $? == 0 )) "keep: stays light"
 K set theme.colors.media.tone=cover >/dev/null; sleep 0.3
 
+# A daemon started with the switch on and a track already playing: the common case after a login.
+tintNow=$(tok media.tint)
+kill "$daemon_pid" 2>/dev/null; wait "$daemon_pid" 2>/dev/null
+for _ in $(seq 30); do K ping >/dev/null 2>&1 || break; sleep 0.1; done
+PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 & daemon_pid=$!; pids+=("$daemon_pid")
+for _ in $(seq 50); do K ping >/dev/null 2>&1 && break; sleep 0.1; done
+wait_tok media.tint "$tintNow" = ; check $(( $? == 0 )) "start: a new daemon with the switch on follows the track playing"
+
 # No track: the palette is back; the switch stays on.
-kill "${pids[-1]}" 2>/dev/null; exec 7>&-; unset 'pids[-1]'
+kill "$player_pid" 2>/dev/null; exec 7>&-
 wait_tok media.tint "" = ; check $(( $? == 0 )) "no track: the palette is back"
 [ "$(tok color.surface)" = "$surface0" ]; check $(( $? == 0 )) "no track: the surface is the palette's"
 
