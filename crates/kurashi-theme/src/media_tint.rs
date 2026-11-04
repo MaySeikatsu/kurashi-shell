@@ -5,7 +5,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::color::{BLACK, Rgb, WHITE, contrast};
+use crate::color::{BLACK, Rgb, WHITE, contrast, linear_of_oklab, oklab_of_linear};
 
 /// The cover's colours as `svc.media.art_colors` carries them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,27 +61,11 @@ fn pinned(key: &str) -> bool {
 }
 
 fn oklab(c: Rgb) -> [f64; 3] {
-    let [r, g, b] = c.to_linear();
-    let l = (0.412_221_47 * r + 0.536_332_54 * g + 0.051_445_99 * b).cbrt();
-    let m = (0.211_903_5 * r + 0.680_699_55 * g + 0.107_396_96 * b).cbrt();
-    let s = (0.088_302_46 * r + 0.281_718_84 * g + 0.629_978_7 * b).cbrt();
-    [
-        0.210_454_26 * l + 0.793_617_8 * m - 0.004_072_05 * s,
-        1.977_998_5 * l - 2.428_592_2 * m + 0.450_593_7 * s,
-        0.025_904_04 * l + 0.782_771_77 * m - 0.808_675_77 * s,
-    ]
+    oklab_of_linear(c.to_linear())
 }
 
-fn from_oklab([ll, a, b]: [f64; 3]) -> Rgb {
-    let l = (ll + 0.396_337_78 * a + 0.215_803_76 * b).powi(3);
-    let m = (ll - 0.105_561_35 * a - 0.063_854_17 * b).powi(3);
-    let s = (ll - 0.089_484_18 * a - 1.291_485_55 * b).powi(3);
-    let clamp = |v: f64| v.clamp(0.0, 1.0);
-    Rgb::from_linear([
-        clamp(4.076_741_66 * l - 3.307_711_59 * m + 0.230_969_93 * s),
-        clamp(-1.268_438 * l + 2.609_757_4 * m - 0.341_319_4 * s),
-        clamp(-0.004_196_09 * l - 0.703_418_61 * m + 1.707_614_7 * s),
-    ])
+fn from_oklab(p: [f64; 3]) -> Rgb {
+    Rgb::from_linear(linear_of_oklab(p).map(|v| v.clamp(0.0, 1.0)))
 }
 
 /// Mix in Oklab, so a blend between two colours does not go muddy.

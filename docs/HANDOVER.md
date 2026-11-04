@@ -17,6 +17,18 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-04 — session 22, later (machine A): Wallpaper Color Grade (K88), Spotify covers (B44)
+**State:** `feat/s22-wallpaper-grade`; the user merges the PR themselves (gh here has only a read-only work account; use the compare URL).
+
+**Live state on machine A:** `kurashi-wallgrade.service`, the prototype, runs from `.claude/worktrees/wallgrade-proto` (a process with a shader on the background layer; `wg stop` ends it). Stop it once the real one is installed, or the two stack. Then remove that worktree, `.claude/worktrees/wallpaper-grade` and `~/.cache/kurashi-agents-target/s22-grade`.
+
+**Next steps (ordered):**
+1. The user merges, rebuilds, runs `wg stop`, turns on Settings › Appearance › Wallpaper Color Grade and judges it (mode, fade) on their wallpaper, with Spotify too.
+2. B43 still red in `just check` (Hyprland 0.57); I397 (dev shell on Qt 6.11); I399 (apps on a recolour per track).
+3. Session 21's list below.
+
+---
+
 ## 2026-11-04 — session 22 (machine A): kinetic wheel back under Qt 6.12 and on every scroller (B42, I396); Dynamic Media Color (K87)
 **State:** `feat/s22-media-theme` (holds `feat/s22-kinetic-wheel`) is pushed; the user opens and merges the PR themselves (gh is logged in only as a work account with read access, so use the compare URL). The user waived B43 for this merge.
 

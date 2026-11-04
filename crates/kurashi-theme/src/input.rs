@@ -46,8 +46,14 @@ impl Wallpaper {
     /// Decode `path` and downscale so the longest side is at most `max_side` (64 is plenty
     /// for colour extraction).
     pub fn load(path: &Path, max_side: u32) -> Result<Wallpaper, ThemeError> {
-        let img =
-            image::open(path).map_err(|e| ThemeError::Image(format!("{}: {e}", path.display())))?;
+        // By the bytes, not the extension: a fetched cover sits in a `.part` file (B44).
+        let err = |e: &dyn std::fmt::Display| ThemeError::Image(format!("{}: {e}", path.display()));
+        let img = image::ImageReader::open(path)
+            .map_err(|e| err(&e))?
+            .with_guessed_format()
+            .map_err(|e| err(&e))?
+            .decode()
+            .map_err(|e| err(&e))?;
         let small = img.thumbnail(max_side, max_side).to_rgba8();
         Ok(Wallpaper {
             width: small.width(),
