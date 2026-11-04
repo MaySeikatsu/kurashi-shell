@@ -1229,3 +1229,17 @@ look's colours or any image of their own.
   falls from rest under gravity, squashes and ripples; genie's shadow and fillets follow the pour; maximize/restore of a
   captioned card moves on the profile's curve.
 
+## K87 — Dynamic Media Color: the track's colours as the last stage of the theme (session 22, user)
+**Decision.** `theme.colors.media.*`: a switch, a tone (`cover`, `keep`) and a change of colour (`fade`, `wheel_closest`,
+`wheel_furthest`, `direct`; `blend_ms`). While on and a track has colours, `kurashi_theme::media_tint` rewrites the resolved
+tokens: the cover's colours become the roles, and every other colour token follows the role it was nearest to in the user's
+theme, lists included. `kurashid` holds `svc.media` only while the switch is on. `ColorBlend.qml` draws the way between two
+sets of tokens through `Theme.liveColors`, only when the token `media.tint` changes; the daemon owns the colours.
+**Why a stage over the tokens, not a palette.** The wallpaper's route (K34) makes muted Material surfaces; the user chose the
+Now Playing card's saturated look on their live shell. Nearest-role keeps rule 4: a custom look's `decor.bar.fill` or inverted
+tooltip comes along with no name in the code (the prototype's first miss was YoRHa's bar, a list read through `Theme.decor`).
+It never touches the config, so off is exact and undo and profiles need no special case.
+**Why the blend in the frontend.** It is drawing, not state (rule 1), and apps cannot blend anyway: they take the landing
+colours once.
+**Evidence.** Prototype, branch `feat/s22-media-theme-proto`; brief `docs/ux/dynamic-media-color.md`.
+

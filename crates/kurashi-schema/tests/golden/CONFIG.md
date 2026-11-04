@@ -387,6 +387,37 @@ The colours lean a little toward the season's own — winter blue, sakura, fresh
 - type: `bool` · default: `false`
 - advanced
 
+#### `theme.colors.media.follow` — Dynamic Media Color
+
+The shell and the apps that follow its theme take the colours of the track playing now. Your palette and light or dark stay as they are: turn this off and they are back.
+
+- type: `bool` · default: `false`
+
+#### `theme.colors.media.tone` — Light or dark
+
+The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept readable either way.
+
+- type: `choice` · default: `"cover"`
+- choices: `"cover"` | `"keep"`
+- only while `theme.colors.media.follow == true`
+
+#### `theme.colors.media.blend` — Change of colour
+
+How the shell goes from one track's colours to the next. Round the colour wheel passes through the colours between them, the short way or the long way.
+
+- type: `choice` · default: `"fade"`
+- choices: `"fade"` | `"wheel_closest"` | `"wheel_furthest"` | `"direct"`
+- only while `theme.colors.media.follow == true`
+
+#### `theme.colors.media.blend_ms` — Length of the change
+
+The colour wheel takes half as long again, as it has further to go.
+
+- type: `int` · default: `1200`
+- range: `200..=4000`, step `100` (ms)
+- only while `theme.colors.media.follow == true`
+- only while `theme.colors.media.blend != "direct"`
+
 #### `theme.colors.oled` — Pure black (OLED)
 
 Pure-black grounds on dark schemes.

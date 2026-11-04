@@ -30,7 +30,7 @@ while [ $# -gt 0 ]; do
 done
 
 # The set the lead runs before a merge (session 16–17); the others run with --all or by name.
-MERGE_SET=(stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings motion recipes)
+MERGE_SET=(stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings motion recipes dynamic-media)
 path_of() {
   case "$1" in
     */*) echo "$1" ;;
@@ -75,6 +75,7 @@ OUT=${KURASHI_SUITES_OUT:-/tmp/kurashi-suites/$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$ROOT/target}
 echo "test-suites: ${#suites[@]} suite(s), $JOBS at a time; logs in $OUT"
+touch "$OUT/.started"
 if ! cargo build -p kurashid -p kurashi -p kurashi-mock > "$OUT/build.log" 2>&1; then
   echo "test-suites: build failed (see $OUT/build.log)"; exit 1
 fi
@@ -115,4 +116,13 @@ done
 } | tee "$OUT/summary.txt"
 bad=0
 for s in "${suites[@]}"; do case "${rc[$s]}" in 0|"0 (alone"*) ;; *) bad=1 ;; esac; done
+# I375: a green run leaves no sandboxes behind (a failed one keeps them for its logs; `sandbox.sh start` clears those after
+# a day). Only dirs this run made, and none a process still has as its runtime dir.
+if [ "$bad" = 0 ]; then
+  for d in /tmp/kurashi-sb-*; do
+    [ -d "$d" ] && [ ! -L "$d" ] && [ -O "$d" ] && [ "$d" -nt "$OUT/.started" ] || continue
+    grep -qslaF "XDG_RUNTIME_DIR=$d" /proc/[0-9]*/environ 2>/dev/null && continue
+    rm -rf -- "$d" 2>/dev/null || true
+  done
+fi
 exit $bad

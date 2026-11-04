@@ -5,3 +5,4 @@ singleton Changes 1.0 Changes.qml
 singleton Light 1.0 Light.qml
 Glide 1.0 Glide.qml
 Watch 1.0 Watch.qml
+ColorBlend 1.0 ColorBlend.qml

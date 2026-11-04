@@ -12,6 +12,7 @@ pub mod color;
 pub mod export;
 pub mod fonts;
 pub mod input;
+pub mod media_tint;
 pub mod palette;
 pub mod season;
 pub mod stages;

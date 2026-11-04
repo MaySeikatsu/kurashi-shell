@@ -19,6 +19,7 @@ import "pages"
 // `mod:<id>` for a mod's page.
 ShellRoot {
     id: root
+    ColorBlend {}
     readonly property bool configIn: Store.config.values !== undefined
     property bool waited: false
     Timer {

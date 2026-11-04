@@ -17,17 +17,22 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-11-04 — session 22 (machine A): kinetic wheel back under Qt 6.12, and on every vertical scroller (B42, I396)
-**State:** branch `feat/s22-kinetic-wheel`, **not pushed** (`git fetch` from this session fails: `Permission denied (publickey)`); the user decides push/PR. Backlog ids were picked from local main, so recheck them against origin.
+## 2026-11-04 — session 22 (machine A): kinetic wheel back under Qt 6.12 and on every scroller (B42, I396); Dynamic Media Color (K87)
+**State:** branches `feat/s22-kinetic-wheel` and `feat/s22-media-theme` (on top of it), **not pushed** (`git fetch` from this session fails: `Permission denied (publickey)`); the user decides push/PR. Backlog ids were picked from local main, so recheck them against origin.
 
 **Done:**
 - B42: the rebuild of 2026-11-04 (generation 1178) moved the installed shell to Qt 6.12.0 / Quickshell 0.3.2, which report a `pixelDelta` with a wheel notch; `KineticWheel` took that for a touchpad (15 px, no glide). It now reads `ev.phase`. Measured on 6.12 and 6.11: 156 px per notch with a glide, 1:1 for simulated fingers.
 - I396: `KineticWheel` moved to `frontend/components/`, on the launcher (which had no wheel scrolling), wallpaper, Wallhaven, sidebars, notification centre, tasks, AI, lyrics and Settings' dropdowns. Launcher checked on nested niri with Qt 6.12; the others only through the suites.
 - `wl_pointer.py finger`; a wheel step in `settings/test.sh`.
 
+- K87 Dynamic Media Color, on `feat/s22-media-theme` (holds the kinetic wheel too): `kurashi_theme::media_tint`, `theme.colors.media.*`, `frontend/core/ColorBlend.qml`, `frontend/test-dynamic-media.sh`. The Now Playing card keeps its behaviour (user).
+- I375: 402 sandboxes (180 GB) filled the disk mid-session and were deleted with the user's yes. A green `just suites` now clears its own; `sandbox.sh start` clears those a day old.
+
+**Live state on machine A:** the user's session may still run the prototype: `kurashi-proto.service` from `.claude/worktrees/media-theme-proto` instead of `kurashi-frontend.service`. `.claude/worktrees/media-theme-proto/mt revert` goes back. That worktree (`feat/s22-media-theme-proto`, uncommitted) and `media-theme` can go once the real one is installed.
+
 **Next steps (ordered):**
-1. The user feels it on their real mouse; a real touchpad on machine B.
-2. I397: the dev shell is still Qt 6.11.2, so the suites do not run on what the user runs. Bump flake.lock and run the merge set.
+1. The user pushes/opens the PR and rebuilds, then stops the prototype. They feel the wheel on their real mouse; a real touchpad on machine B. They judge Dynamic Media Color on their apps (I399) and in `keep`.
+2. B43 (two Hyprland tests fail in `just check`, on code unchanged from main). I397: the dev shell is still Qt 6.11.2, so the suites do not run on what the user runs. Bump flake.lock and run the merge set.
 3. Then session 21's list below: the user's motion verdicts, I390, I394, I391, I395, I386–I389, I392, I393.
 
 **Open decisions/risks:** the installed shell needs a rebuild to get this. Any other Qt 6.12 regression would not show in the suites until I397.

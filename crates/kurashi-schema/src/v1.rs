@@ -538,6 +538,58 @@ pub enum Colorblind {
     Tritanopia,
 }
 
+/// K87: the shell and the apps that follow its theme in the playing track's colours, over the palette; off, the palette
+/// is back as it was.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct MediaColors {
+    /// Dynamic Media Color
+    /// The shell and the apps that follow its theme take the colours of the track playing now. Your palette and light or
+    /// dark stay as they are: turn this off and they are back.
+    #[kurashi(default = false)]
+    pub follow: bool,
+    /// Light or dark
+    /// The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept
+    /// readable either way.
+    #[kurashi(default = MediaTone::Cover, requires = "theme.colors.media.follow == true")]
+    pub tone: MediaTone,
+    /// Change of colour
+    /// How the shell goes from one track's colours to the next. Round the colour wheel passes through the colours between
+    /// them, the short way or the long way.
+    #[kurashi(default = MediaBlend::Fade, requires = "theme.colors.media.follow == true")]
+    pub blend: MediaBlend,
+    /// Length of the change
+    /// The colour wheel takes half as long again, as it has further to go.
+    #[kurashi(
+        default = 1200,
+        range = 200..=4000,
+        step = 100,
+        unit = "ms",
+        requires = "theme.colors.media.follow == true",
+        requires = "theme.colors.media.blend != direct"
+    )]
+    pub blend_ms: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MediaTone {
+    /// The cover's colours
+    Cover,
+    /// My light or dark
+    Keep,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MediaBlend {
+    /// Fade
+    Fade,
+    /// Colour wheel, the short way
+    WheelClosest,
+    /// Colour wheel, the long way
+    WheelFurthest,
+    /// At once
+    Direct,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Colors {
     /// Palette
@@ -563,6 +615,8 @@ pub struct Colors {
     /// solar terms.
     #[kurashi(default = false, advanced)]
     pub season: bool,
+    #[kurashi(nested)]
+    pub media: MediaColors,
     /// Pure black (OLED)
     /// Pure-black grounds on dark schemes.
     #[kurashi(default = false, requires = "theme.colors.scheme != light")]

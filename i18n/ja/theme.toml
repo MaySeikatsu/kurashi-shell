@@ -1,5 +1,6 @@
 # テーマ文書のノート (DESIGN-SYSTEM §2)：いま有効なテーマがなぜそうなっているか。
 "theme.note.wallpaper_waiting" = "壁紙 mod が画像をテーマ付きで適用すると、テーマは壁紙に従います。それまでは既定のパレットが有効です。"
+"theme.note.media_colors" = "再生中の曲の色を使っています（ダイナミックメディアカラー）。曲が止まるかオフにすると、パレットに戻ります。"
 
 # K55：いまライト／ダークのどちらがなぜ有効か（テーマ文書 `appearance.scheme_detail`）と、スタイルの後に戻す操作。
 "theme.scheme.detail.os" = "システムに従う：{scheme}"
@@ -8,6 +9,7 @@
 "theme.scheme.detail.os_unknown_day" = "システムに設定がありません：6時から18時までライト、夜はダーク（天気の場所を設定すると太陽に合わせます）"
 "theme.scheme.detail.wallpaper" = "壁紙の明るさに従う：{scheme}"
 "theme.scheme.detail.wallpaper_waiting" = "壁紙の画像がまだありません（壁紙 mod がテーマ付きで適用します）：それまではダーク"
+"theme.scheme.detail.media" = "再生中の曲に従っています：{scheme}"
 "theme.scheme.style" = "スタイル「{style}」に従う"
 "theme.scheme.back" = "「{mode}」に戻す"
 "theme.texture.back" = "「{material}」に戻す"
