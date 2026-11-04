@@ -590,6 +590,43 @@ pub enum MediaBlend {
     Direct,
 }
 
+/// K88: the wallpaper recoloured to the theme's colours, by a lookup table, whenever the theme changes.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct WallpaperGrade {
+    /// Wallpaper Color Grade
+    /// Recolours the wallpaper to the theme's colours whenever they change, by Dynamic Media Color too. The picture's detail
+    /// stays and the file itself is never changed: turn this off and it is back. Needs the Wallpaper mod.
+    #[kurashi(default = false)]
+    pub enabled: bool,
+    /// How it recolours
+    /// Automatic matches a colourful picture's colours to the theme's, and runs a nearly colourless one through them from
+    /// shadows to highlights.
+    #[kurashi(default = WallpaperGradeMode::Auto, requires = "theme.colors.wallpaper_grade.enabled == true")]
+    pub mode: WallpaperGradeMode,
+    /// Strength
+    /// From the original picture to fully recoloured.
+    #[kurashi(default = 1.0, range = 0.0..=1.0, step = 0.05, requires = "theme.colors.wallpaper_grade.enabled == true")]
+    pub strength: f64,
+    /// Follow the theme's brightness
+    /// Off keeps the picture's own light and dark. Higher lets a dark theme darken the picture and a light one brighten it.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.colors.wallpaper_grade.enabled == true")]
+    pub lightness: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum WallpaperGradeMode {
+    /// Automatic
+    Auto,
+    /// Match the colours
+    Match,
+    /// Colour balance
+    Balance,
+    /// Gradient map
+    Gradient,
+    /// Pull to the palette
+    Palette,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Colors {
     /// Palette
@@ -617,6 +654,8 @@ pub struct Colors {
     pub season: bool,
     #[kurashi(nested)]
     pub media: MediaColors,
+    #[kurashi(nested)]
+    pub wallpaper_grade: WallpaperGrade,
     /// Pure black (OLED)
     /// Pure-black grounds on dark schemes.
     #[kurashi(default = false, requires = "theme.colors.scheme != light")]

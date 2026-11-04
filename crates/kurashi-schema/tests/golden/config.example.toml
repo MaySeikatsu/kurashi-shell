@@ -354,6 +354,28 @@
 #   while theme.colors.media.blend != "direct"
 # blend_ms = 1200
 
+# [theme.colors.wallpaper_grade]
+#
+# Wallpaper Color Grade — Recolours the wallpaper to the theme's colours whenever they
+# change, by Dynamic Media Color too. The picture's detail stays and the file itself is
+# never changed: turn this off and it is back. Needs the Wallpaper mod.
+# enabled = false
+#
+# How it recolours — Automatic matches a colourful picture's colours to the theme's, and
+# runs a nearly colourless one through them from shadows to highlights.
+#   choices: "auto" | "match" | "balance" | "gradient" | "palette" · only while
+#   theme.colors.wallpaper_grade.enabled == true
+# mode = "auto"
+#
+# Strength — From the original picture to fully recoloured.
+#   range: 0.0..=1.0, step 0.05 · only while theme.colors.wallpaper_grade.enabled == true
+# strength = 1.0
+#
+# Follow the theme's brightness — Off keeps the picture's own light and dark. Higher lets
+# a dark theme darken the picture and a light one brighten it.
+#   range: 0.0..=1.0, step 0.05 · only while theme.colors.wallpaper_grade.enabled == true
+# lightness = 0.0
+
 # [theme.shape]
 #
 # Corners — Corner style of bars, popups and the island.

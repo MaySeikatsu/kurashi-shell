@@ -385,7 +385,10 @@ fn art_answer(state: &mut State, url: String, colors: Option<Value>, em: &Emitte
     if state.art_memo.len() >= ART_MEMO_MAX {
         state.art_memo.clear();
     }
-    state.art_memo.insert(url.clone(), colors.clone());
+    // A failure is not remembered (B44): the next time this track shows, its cover is tried again.
+    if colors.is_some() {
+        state.art_memo.insert(url.clone(), colors.clone());
+    }
     if state.art_url.as_deref() != Some(url.as_str()) {
         return;
     }
@@ -889,6 +892,38 @@ pub mod art {
             assert_eq!(file_path("file:///bad%zz"), Some(PathBuf::from("/bad%zz")));
             assert_eq!(file_path("https://i.scdn.co/image/ab67"), None);
             assert_eq!(file_path("file://host/x"), None);
+        }
+
+        /// B44: a fetched cover (Spotify's are all `https`) lands in a `.part` file, and is decoded by its bytes.
+        #[test]
+        fn a_fetched_cover_gets_colours() {
+            let dir = tempfile::tempdir().unwrap();
+            let png = dir.path().join("cover.png");
+            image::RgbaImage::from_fn(40, 40, |x, _| image::Rgba([180, 60 + x as u8, 20, 255]))
+                .save(&png)
+                .unwrap();
+            let body = std::fs::read(&png).unwrap();
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = listener.local_addr().unwrap().port();
+            std::thread::spawn(move || {
+                use std::io::{Read as _, Write as _};
+                let (mut s, _) = listener.accept().unwrap();
+                let mut req = [0u8; 1024];
+                let _ = s.read(&mut req);
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                s.write_all(head.as_bytes()).unwrap();
+                s.write_all(&body).unwrap();
+            });
+            let cfg = ArtConfig {
+                cache: dir.path().join("cache"),
+                fetch: true,
+            };
+            let url = format!("http://127.0.0.1:{port}/image/ab67616d");
+            assert_readable(&resolve(&cfg, &url).expect("a fetched cover has colours"));
+            assert!(cfg.cache.join(format!("{}.json", key(&url))).exists());
         }
 
         #[test]

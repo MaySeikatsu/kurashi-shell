@@ -1243,3 +1243,15 @@ It never touches the config, so off is exact and undo and profiles need no speci
 colours once.
 **Evidence.** Prototype, branch `feat/s22-media-theme-proto`; brief `docs/ux/dynamic-media-color.md`.
 
+## K88 — Wallpaper Color Grade: a baked 3D LUT from the picture's and the theme's palettes (session 22, user)
+**Decision.** `theme.colors.wallpaper_grade.*`: a switch, a mode (`auto`, `match`, `balance`, `gradient`, `palette`), strength and
+lightness. `kurashi_theme::wallpaper_grade` reads the picture's six main colours (median cut in Oklab), pairs them with six
+theme roles by chroma, and builds a 33-point 3D table; `auto` takes a gradient map under a mean chroma of 0.035. The K59 picture
+filter applies it before the relief, at the output's size, cached by everything that changes the bytes. `update_bake` sees every
+published theme, so palette, style and Dynamic Media Color changes all grade the wallpaper, through the backend's fade.
+**Why a bake.** Measured on the prototype's live shader: +93 MiB PSS on one nested output, against the frontend's 150 MiB budget;
+a bake costs nothing between changes. Why picture-aware: a palette-only LUT gives one result for every picture and flattens it;
+pairing keeps the picture's structure (Chang et al. 2015). Palette-only stays as a choice, `palette`.
+**Trade-off.** The wheel blend does not reach the wallpaper: I401 keeps a live shader as an idea.
+**Evidence.** Prototype branch `feat/s22-wallgrade-proto`; brief `docs/ux/wallpaper-color-grade.md`.
+

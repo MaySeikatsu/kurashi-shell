@@ -418,6 +418,36 @@ The colour wheel takes half as long again, as it has further to go.
 - only while `theme.colors.media.follow == true`
 - only while `theme.colors.media.blend != "direct"`
 
+#### `theme.colors.wallpaper_grade.enabled` — Wallpaper Color Grade
+
+Recolours the wallpaper to the theme's colours whenever they change, by Dynamic Media Color too. The picture's detail stays and the file itself is never changed: turn this off and it is back. Needs the Wallpaper mod.
+
+- type: `bool` · default: `false`
+
+#### `theme.colors.wallpaper_grade.mode` — How it recolours
+
+Automatic matches a colourful picture's colours to the theme's, and runs a nearly colourless one through them from shadows to highlights.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"match"` | `"balance"` | `"gradient"` | `"palette"`
+- only while `theme.colors.wallpaper_grade.enabled == true`
+
+#### `theme.colors.wallpaper_grade.strength` — Strength
+
+From the original picture to fully recoloured.
+
+- type: `float` · default: `1.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.colors.wallpaper_grade.enabled == true`
+
+#### `theme.colors.wallpaper_grade.lightness` — Follow the theme's brightness
+
+Off keeps the picture's own light and dark. Higher lets a dark theme darken the picture and a light one brighten it.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.colors.wallpaper_grade.enabled == true`
+
 #### `theme.colors.oled` — Pure black (OLED)
 
 Pure-black grounds on dark schemes.

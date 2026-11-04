@@ -17,6 +17,7 @@ pub mod palette;
 pub mod season;
 pub mod stages;
 pub mod tokens;
+pub mod wallpaper_grade;
 
 pub use fonts::{FakeFonts, FcList, FontProvider};
 pub use input::*;

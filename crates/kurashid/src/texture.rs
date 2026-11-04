@@ -803,15 +803,34 @@ pub fn wallpaper_shading(
     Some((tl, sh, (scale as f32).max(0.1)))
 }
 
-/// Bakes the texture into `picture` for an output of `size` at `scale` (cached by everything that changes the bytes);
-/// the original picture is never written.
+/// K88: the grade the theme asks of the wallpaper; `None` while the switch is off.
+pub fn wallpaper_grade(
+    store: &ConfigStore,
+    tokens: &Map<String, Value>,
+) -> Option<kurashi_theme::wallpaper_grade::Grade> {
+    use kurashi_theme::wallpaper_grade::{Grade, Mode, targets_of};
+    if !b(store, "theme.colors.wallpaper_grade.enabled") {
+        return None;
+    }
+    Some(Grade {
+        mode: Mode::parse(&s(store, "theme.colors.wallpaper_grade.mode")),
+        strength: f(store, "theme.colors.wallpaper_grade.strength", 1.0),
+        lightness: f(store, "theme.colors.wallpaper_grade.lightness", 0.0),
+        targets: targets_of(tokens)?,
+    })
+}
+
+/// The relief to bake in: the tile, its shading, the user's scale.
+type Relief = (Arc<Tile>, Shading, f32);
+
+/// Bakes the grade and the texture into `picture` for an output of `size` at `scale` (cached by everything that changes the
+/// bytes); the original picture is never written.
 pub fn bake_file(
     picture: &Path,
     size: (u32, u32),
     output_scale: f32,
-    tile: &Tile,
-    sh: &Shading,
-    user_scale: f32,
+    relief: Option<&Relief>,
+    grade: Option<&kurashi_theme::wallpaper_grade::Grade>,
 ) -> Result<PathBuf, kurashi_texture::Error> {
     use std::hash::{Hash, Hasher};
     let meta = std::fs::metadata(picture)?;
@@ -820,40 +839,55 @@ pub fn bake_file(
     meta.len().hash(&mut h);
     meta.modified().ok().hash(&mut h);
     size.hash(&mut h);
-    format!(
-        "{output_scale:?}{user_scale:?}{sh:?}{}{}",
-        tile.size,
-        tile.rgba.len()
-    )
-    .hash(&mut h);
-    tile.rgba.iter().step_by(997).for_each(|b| b.hash(&mut h));
+    format!("{output_scale:?}").hash(&mut h);
+    if let Some((tile, sh, user_scale)) = relief {
+        format!("{user_scale:?}{sh:?}{}{}", tile.size, tile.rgba.len()).hash(&mut h);
+        tile.rgba.iter().step_by(997).for_each(|b| b.hash(&mut h));
+    }
+    if let Some(g) = grade {
+        g.key().hash(&mut h);
+    }
     let dir = cache_dir().join("wallpaper");
     let out = dir.join(format!("{:016x}.png", h.finish()));
     if out.is_file() {
+        // Newest first when the cache is trimmed: a track played again keeps its picture.
+        let _ =
+            std::fs::File::open(&out).and_then(|f| f.set_modified(std::time::SystemTime::now()));
         return Ok(out);
     }
     std::fs::create_dir_all(&dir)?;
     let img = image::open(picture)?;
     // Cover the output as awww's default fit does; the bake is at the output's pixels, so the sheet lines up.
-    let filled = img
+    let mut filled = img
         .resize_to_fill(
             size.0.max(1),
             size.1.max(1),
             image::imageops::FilterType::Lanczos3,
         )
         .to_rgba8();
-    let baked = kurashi_texture::bake(&filled, tile, sh, output_scale, user_scale);
+    if let Some(g) = grade {
+        use kurashi_theme::wallpaper_grade::{Lut, THUMB_SIDE};
+        // Colours are read from the whole picture, not the part an output's crop leaves.
+        let thumb = img.thumbnail(THUMB_SIDE, THUMB_SIDE).to_rgba8();
+        Lut::build(g, &thumb).apply(&mut filled);
+    }
+    let baked = match relief {
+        Some((tile, sh, user_scale)) => {
+            kurashi_texture::bake(&filled, tile, sh, output_scale, *user_scale)
+        }
+        None => filled,
+    };
     let tmp = out.with_extension("png.tmp");
     baked.save_with_format(&tmp, image::ImageFormat::Png)?;
     std::fs::rename(&tmp, &out)?;
-    // Keep the cache small: the newest dozen bakes.
+    // Keep the cache small: the newest two dozen bakes, which a few tracks on two outputs fill (K88).
     if let Ok(rd) = std::fs::read_dir(&dir) {
         let mut files: Vec<_> = rd
             .filter_map(Result::ok)
             .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
             .collect();
         files.sort();
-        for (_, p) in files.iter().rev().skip(12) {
+        for (_, p) in files.iter().rev().skip(24) {
             let _ = std::fs::remove_file(p);
         }
     }
@@ -976,16 +1010,26 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
     )
 }
 
-/// What the wallpaper bake uses now; `None` while the wallpaper is not a texture scope (pictures go through unchanged).
-#[derive(Clone)]
+/// What the wallpaper bake uses now: the relief, the grade; both `None` and pictures go through unchanged.
+#[derive(Clone, Default)]
 struct Bake {
-    tile: Arc<Tile>,
-    sh: Shading,
-    scale: f32,
+    relief: Option<Relief>,
+    grade: Option<kurashi_theme::wallpaper_grade::Grade>,
 }
 
-fn bake_state() -> &'static Mutex<Option<Bake>> {
-    static BAKE: OnceLock<Mutex<Option<Bake>>> = OnceLock::new();
+impl Bake {
+    fn same(&self, other: &Self) -> bool {
+        let relief = match (&self.relief, &other.relief) {
+            (None, None) => true,
+            (Some(a), Some(b)) => Arc::ptr_eq(&a.0, &b.0) && a.1 == b.1 && a.2 == b.2,
+            _ => false,
+        };
+        relief && self.grade == other.grade
+    }
+}
+
+fn bake_state() -> &'static Mutex<Bake> {
+    static BAKE: OnceLock<Mutex<Bake>> = OnceLock::new();
     BAKE.get_or_init(Default::default)
 }
 
@@ -997,14 +1041,12 @@ fn bake_tx() -> &'static tokio::sync::watch::Sender<u64> {
 /// Called with every theme the daemon publishes: when what the bake would do changes, the wallpaper mod is told to show
 /// its pictures again (through [`picture_filter`]).
 pub fn update_bake(store: &ConfigStore, tokens: &Map<String, Value>) {
-    let next = wallpaper_shading(store, tokens).map(|(tile, sh, scale)| Bake { tile, sh, scale });
-    let mut cur = bake_state().lock().expect("bake state");
-    let same = match (&*cur, &next) {
-        (None, None) => true,
-        (Some(a), Some(b)) => Arc::ptr_eq(&a.tile, &b.tile) && a.sh == b.sh && a.scale == b.scale,
-        _ => false,
+    let next = Bake {
+        relief: wallpaper_shading(store, tokens),
+        grade: wallpaper_grade(store, tokens),
     };
-    if !same {
+    let mut cur = bake_state().lock().expect("bake state");
+    if !cur.same(&next) {
         *cur = next;
         drop(cur);
         bake_tx().send_modify(|v| *v += 1);
@@ -1015,11 +1057,12 @@ struct Filter;
 
 impl kurashi_mod_api::PictureFilter for Filter {
     fn filter(&self, picture: &Path, size: (u32, u32), scale: f32) -> PathBuf {
-        let Some(b) = bake_state().lock().expect("bake state").clone() else {
+        let b = bake_state().lock().expect("bake state").clone();
+        if b.relief.is_none() && b.grade.is_none() {
             return picture.to_path_buf();
-        };
-        bake_file(picture, size, scale, &b.tile, &b.sh, b.scale).unwrap_or_else(|e| {
-            tracing::warn!(picture = %picture.display(), error = %e, "texture bake failed; the picture is shown as is");
+        }
+        bake_file(picture, size, scale, b.relief.as_ref(), b.grade.as_ref()).unwrap_or_else(|e| {
+            tracing::warn!(picture = %picture.display(), error = %e, "wallpaper bake failed; the picture is shown as is");
             picture.to_path_buf()
         })
     }
