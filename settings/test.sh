@@ -1050,7 +1050,7 @@ Q advanced false
 Q goto appearance
 Q advanced true
 Q focusList >/dev/null
-tab_to "slider:theme.shape.radius"
+tab_to "slider:theme.shape.radius" 120
 radius0=$(val theme.shape.radius)
 kp right
 [[ "$(Q previewState)" == theme.shape.radius=* ]] || fail "radius: Right did not preview ($(Q previewState))"
