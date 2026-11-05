@@ -1070,8 +1070,11 @@ PanelWindow {
     readonly property int slackX: 16 + Theme.softR
         + Math.ceil(card.width * (springs.cap + springs.squash) / 2 + Math.abs(cardOutX + card.width / 2 - originCx) * springs.cap)
     readonly property int slackY: 40
-    readonly property real needL: Math.floor(Math.min(origin.x, cardOutX) - neckR - slackX)
-    readonly property real needR: Math.ceil(Math.max(origin.x + origin.w, cardOutX + card.width) + neckR + slackX)
+    // I386: a card with a title bar can go full screen, so its window takes the output's width from the start. Widening it
+    // then moves the layout at once but the window one configure later: the shape lay outside the window, and the card
+    // vanished for two frames. (Its height grows from a fixed top, which moves nothing.)
+    readonly property real needL: titled ? 0 : Math.floor(Math.min(origin.x, cardOutX) - neckR - slackX)
+    readonly property real needR: titled ? outW : Math.ceil(Math.max(origin.x + origin.w, cardOutX + card.width) + neckR + slackX)
     readonly property real needH: Math.ceil(cardFoot + Theme.shadowDy + slackY)
     property real boxL: 0
     property real boxR: 0

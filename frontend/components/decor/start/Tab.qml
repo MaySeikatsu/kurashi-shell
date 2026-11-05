@@ -76,9 +76,11 @@ StartBase {
         text: st.caps ? st.label.toUpperCase() : st.label
         color: st.ink
         font.family: Theme.tok("font.start", "") || Theme.tok("font.title", "") || Theme.fam(st.label, Theme.families)
-        font.pixelSize: Theme.decor("start.size", 0) > 0 ? Theme.decor("start.size", 0) : Theme.fs
+        // (A property of its own: reading `font` inside a `font.` binding is a loop Qt 6.12 reports.)
+        readonly property real sizePx: Theme.decor("start.size", 0) > 0 ? Theme.decor("start.size", 0) : Theme.fs
+        font.pixelSize: sizePx
         font.weight: Theme.decor("title.weight", 600)
-        font.letterSpacing: st.caps ? Math.round(font.pixelSize * 0.12) : 0
+        font.letterSpacing: st.caps ? Math.round(sizePx * 0.12) : 0
         font.italic: Theme.decor("start.italic", false) === true
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
     }
