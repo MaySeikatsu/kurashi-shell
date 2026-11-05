@@ -393,6 +393,13 @@ The shell and the apps that follow its theme take the colours of the track playi
 
 - type: `bool` · default: `false`
 
+#### `theme.colors.media.apps` — Apps follow too
+
+Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes the track's colours and the apps keep your palette.
+
+- type: `bool` · default: `true`
+- only while `theme.colors.media.follow == true`
+
 #### `theme.colors.media.tone` — Light or dark
 
 The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept readable either way.

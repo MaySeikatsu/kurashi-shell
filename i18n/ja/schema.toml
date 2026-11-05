@@ -113,6 +113,8 @@
 "config.theme.colors.palette.help" = "色だけ：すべての面を塗る役割の色を、ライトとダークの両方で。スタイルが一つ選びます。別のものを選ぶと上書きします（K53）。"
 "config.theme.colors.media.follow.label" = "ダイナミックメディアカラー"
 "config.theme.colors.media.follow.help" = "シェルとテーマに従うアプリが、再生中の曲の色になります。パレットとライト／ダークの設定はそのままで、オフにすると元に戻ります。"
+"config.theme.colors.media.apps.label" = "アプリにも反映"
+"config.theme.colors.media.apps.help" = "アプリは色をなめらかに変えられないため、曲ごとに色が一度に変わり、再読み込みするものもあります。オフにすると、曲の色を使うのはシェルだけになり、アプリはパレットの色のままです。"
 "config.theme.colors.media.tone.label" = "ライト／ダーク"
 "config.theme.colors.media.tone.help" = "「再生中」カードと同じカバーの色か、今のライト／ダークのままカバーの色相にするかを選びます。どちらでも文字は読みやすく保たれます。"
 "config.choice.media_tone.cover" = "カバーの色"

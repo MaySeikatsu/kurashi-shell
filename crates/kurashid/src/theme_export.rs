@@ -465,6 +465,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
             let Ok((_, theme)) = hub.snapshot(crate::theme::DOC) else {
                 return;
             };
+            let theme = crate::theme::for_apps(theme);
             let doc = if targets.is_empty() {
                 desktop.forget();
                 json!({"targets": []})

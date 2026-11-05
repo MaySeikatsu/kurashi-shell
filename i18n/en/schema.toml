@@ -165,6 +165,8 @@
 "config.theme.colors.season.help" = "The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24 solar terms."
 "config.theme.colors.media.follow.label" = "Dynamic Media Color"
 "config.theme.colors.media.follow.help" = "The shell and the apps that follow its theme take the colours of the track playing now. Your palette and light or dark stay as they are: turn this off and they are back."
+"config.theme.colors.media.apps.label" = "Apps follow too"
+"config.theme.colors.media.apps.help" = "Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes the track's colours and the apps keep your palette."
 "config.theme.colors.media.tone.label" = "Light or dark"
 "config.theme.colors.media.tone.help" = "The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept readable either way."
 "config.choice.media_tone.cover" = "The cover's colours"

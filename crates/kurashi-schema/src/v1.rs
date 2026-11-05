@@ -547,6 +547,11 @@ pub struct MediaColors {
     /// dark stay as they are: turn this off and they are back.
     #[kurashi(default = false)]
     pub follow: bool,
+    /// Apps follow too
+    /// Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes
+    /// the track's colours and the apps keep your palette.
+    #[kurashi(default = true, requires = "theme.colors.media.follow == true")]
+    pub apps: bool,
     /// Light or dark
     /// The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept
     /// readable either way.

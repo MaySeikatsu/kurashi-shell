@@ -337,6 +337,12 @@
 # they are back.
 # follow = false
 #
+# Apps follow too — Apps cannot blend, so each track changes their colours at once and
+# some of them reload. Off, only the shell takes the track's colours and the apps keep your
+# palette.
+#   only while theme.colors.media.follow == true
+# apps = true
+#
 # Light or dark — The cover's own colours, as the Now Playing card shows them, or your
 # light or dark in the cover's hue. Text is kept readable either way.
 #   choices: "cover" | "keep" · only while theme.colors.media.follow == true
