@@ -717,12 +717,11 @@ PanelWindow {
                                 anchors.fill: parent
                                 sourceComponent: Item {
                                     anchors.fill: parent
-                                    ShaderEffectSource {
+                                    StillCopy {
                                         id: pictureMask
                                         width: parent.width
                                         height: parent.height
                                         sourceItem: img
-                                        live: false
                                         x: -100000
                                         y: -100000
                                         readonly property var key: [img.status, img.source, img.width, img.height]

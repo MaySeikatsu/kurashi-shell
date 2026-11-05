@@ -832,14 +832,13 @@ PanelWindow {
                 PathSvg { path: peekRelief.on ? peekShape.fillPath : "" }
             }
         }
-        ShaderEffectSource {
+        StillCopy {
             id: peekMask
             x: -100000
             width: parent.width
             height: parent.height
             sourceItem: peekRelief.on ? peekMaskShape : null
             hideSource: true
-            live: false
         }
         Connections {
             target: peekRelief.on ? peekShape : null
@@ -1473,14 +1472,13 @@ PanelWindow {
             }
         }
         // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
-        ShaderEffectSource {
+        StillCopy {
             id: shapeMask
             x: -100000
             width: parent.width
             height: parent.height
             sourceItem: reliefBox.on ? maskShape : null
             hideSource: true
-            live: false
         }
         Connections {
             target: reliefBox.on ? shape : null

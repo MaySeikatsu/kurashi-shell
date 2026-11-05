@@ -858,14 +858,13 @@ Scope {
                     }
                     }
                     // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
-                    ShaderEffectSource {
+                    StillCopy {
                         id: shapeMask
                         x: -100000
                         width: win.boxW
                         height: win.height
                         sourceItem: reliefBox.on ? maskShape : null
                         hideSource: true
-                        live: false
                     }
                     Connections {
                         target: reliefBox.on ? shape : null

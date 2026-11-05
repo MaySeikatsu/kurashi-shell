@@ -175,7 +175,15 @@ Scope {
     // stands at rest and the form draws it (`bRun`: the window's ShapeLayer, or its FormHost `bHost`, hinged on the screen's
     // edge); the slide runs underneath, unseen. `slide` and the other transform forms are today's glide, untouched.
     readonly property bool formDraws: bRun.formed && (bRun.busy || bRun.want)
-    readonly property real shownAmt: formDraws ? 1 : glide.value
+    // I390: under `fade` (reduced motion, K83 D1) the bar stands at rest and only its opacity moves, over a fixed short time:
+    // the profile's curves are cut there, and a zero-length fade is a cut (I99).
+    readonly property bool fades: Theme.motionForm("bar", wantShown ? "open" : "close") === "fade"
+    property real fadeAmt: wantShown ? 1 : 0
+    Behavior on fadeAmt {
+        enabled: bar.fades
+        NumberAnimation { duration: 120 }
+    }
+    readonly property real shownAmt: formDraws ? 1 : (fades ? fadeAmt : glide.value)
     readonly property Glide glide: Glide { to: bar.wantShown ? 1 : 0; damping: Math.max(Theme.damping, 0.6) }
     readonly property SurfaceForm bRun: SurfaceForm {
         surface: "bar"
@@ -492,7 +500,7 @@ Scope {
                 readonly property real restY: bar.edge === "bottom" ? win.height - win.edgeRoom - bar.barH
                     : (bar.edge === "top" ? win.edgeRoom : win.startRoom)
                 // Slid out: past its edge, with its shadow.
-                readonly property real away: Math.max(0, 1 - bar.shownAmt) * (bar.barH + win.edgeRoom + win.awayRoom + 2)
+                readonly property real away: bar.fades ? 0 : Math.max(0, 1 - bar.shownAmt) * (bar.barH + win.edgeRoom + win.awayRoom + 2)
                 // Past rest on an overshooting curve (K74, expressive): the bar's inner edge reaches further in and settles
                 // back — Caelestia's bar widening past its content — while the body stays on its edge (a docked bar only:
                 // a floating pill has no edge to grow from). The strip's fill and rule follow its inner edge.
@@ -503,6 +511,7 @@ Scope {
                 width: bar.vertical ? bar.barH : win.width - win.startRoom - win.endRoom
                 height: bar.vertical ? win.height - win.startRoom - win.endRoom : bar.barH
                 visible: shownNow
+                opacity: bar.fades ? bar.fadeAmt : 1
                 focus: bar.forced
                 Keys.onEscapePressed: bar.putAway()
                 // Brought out by key, it had the keyboard: a click elsewhere takes it, and puts the bar away.

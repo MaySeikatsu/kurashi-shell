@@ -288,7 +288,15 @@ Scope {
             // or its FormHost `dkHost`); the slide runs underneath, unseen, so a form that ends hands back to where the slide is.
             readonly property bool formDraws: dRun.formed && (dRun.busy || dRun.want)
             readonly property real slideAmt: Theme.timed ? glide.value : easedAmt
-            readonly property real shownAmt: formDraws ? 1 : slideAmt
+            // I390: under `fade` (reduced motion, K83 D1) the dock stands at rest and only its opacity moves, over a fixed short
+            // time: the profile's curves are cut there, and a zero-length fade is a cut (I99).
+            readonly property bool fades: Theme.motionForm("dock", wantShown ? "open" : "close") === "fade"
+            property real fadeAmt: wantShown ? 1 : 0
+            Behavior on fadeAmt {
+                enabled: dock.fades
+                NumberAnimation { duration: 120 }
+            }
+            readonly property real shownAmt: formDraws ? 1 : (fades ? fadeAmt : slideAmt)
             // The motion starts on the window's first presented frame after it is mapped (as the sidebar's and the Stage's):
             // started with the map, its first frames ran before the compositor showed the window, and the dock came up
             // nearly out already — a jump (I278).
@@ -449,14 +457,13 @@ Scope {
                                                                  dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0))
                     // The joined shape's mask for its relief, parked outside the window (a texture provider needs its paint
                     // node), as the sidebar's.
-                    ShaderEffectSource {
+                    StillCopy {
                         id: joinedMask
                         x: -100000
                         width: win.width
                         height: win.height
                         sourceItem: joinedRelief.on ? joinedMaskShape : null
                         hideSource: true
-                        live: false
                     }
                     Connections {
                         target: joinedRelief.on ? joinedShape : null
@@ -557,7 +564,7 @@ Scope {
                         x: -clipper.x
                         y: -clipper.y
                         // Slides off its edge by the dock's thickness while hiding (and rides a sliding bar's edge).
-                        readonly property real away: (1 - dock.shownAmt) * (dock.bodyAcross + dock.edgeGap + dock.room)
+                        readonly property real away: dock.fades ? 0 : (1 - dock.shownAmt) * (dock.bodyAcross + dock.edgeGap + dock.room)
                         // How far an overshooting reveal carries the body past its rest (I299): the joined shape's foot
                         // stays on its line meanwhile (the body stretches), so its fillets never lift off the band.
                         readonly property real over: Math.max(0, -away)
@@ -565,7 +572,7 @@ Scope {
                             x: dock.edge === "left" ? -slider.away : (dock.edge === "right" ? slider.away : 0)
                             y: dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0)
                         }
-                        opacity: Store.live ? 1 : Theme.staleOpacity
+                        opacity: (Store.live ? 1 : Theme.staleOpacity) * (dock.fades ? dock.fadeAmt : 1)
                         // K83 (W64, the sidebar's pattern, W59.9a): the dock's form host — a sheet form captures `bodySrc`
                         // (the body's box of `sheetSrc`: fill, material, tiles; the elevation stays out of it, × `sheetShadow`),
                         // hinged on the dock's screen edge; genie pours out of a mouth on that edge (`lamp`).
@@ -858,12 +865,11 @@ Scope {
                                             x: img.x; y: img.y; width: img.width; height: img.height
                                             sourceComponent: Item {
                                                 anchors.fill: parent
-                                                ShaderEffectSource {
+                                                StillCopy {
                                                     id: pictureMask
                                                     width: parent.width
                                                     height: parent.height
                                                     sourceItem: img
-                                                    live: false
                                                     x: -100000
                                                     y: -100000
                                                     readonly property var key: [img.status, img.source, img.width, img.height]

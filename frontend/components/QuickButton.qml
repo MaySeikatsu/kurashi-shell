@@ -76,12 +76,11 @@ Item {
         x: glyph.x; y: glyph.y; width: glyph.width; height: glyph.height
         sourceComponent: Item {
             anchors.fill: parent
-            ShaderEffectSource {
+            StillCopy {
                 id: glyphMask
                 width: parent.width
                 height: parent.height
                 sourceItem: glyph
-                live: false
                 x: -100000
                 y: -100000
                 readonly property var key: [glyph.text, glyph.font.pixelSize, glyph.font.family, glyph.width, glyph.height]
