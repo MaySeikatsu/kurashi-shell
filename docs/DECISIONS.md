@@ -1253,5 +1253,5 @@ published theme, so palette, style and Dynamic Media Color changes all grade the
 a bake costs nothing between changes. Why picture-aware: a palette-only LUT gives one result for every picture and flattens it;
 pairing keeps the picture's structure (Chang et al. 2015). Palette-only stays as a choice, `palette`.
 **Trade-off.** The wheel blend does not reach the wallpaper: I401 keeps a live shader as an idea.
-**Evidence.** Prototype branch `feat/s22-wallgrade-proto`; brief `docs/ux/wallpaper-color-grade.md`.
+**Evidence.** Brief `docs/ux/wallpaper-color-grade.md`. The prototype was never committed and its worktree is gone (session 23).
 

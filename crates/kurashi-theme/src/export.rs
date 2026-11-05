@@ -301,7 +301,7 @@ fn frame_lines(on: bool, width: &str) -> Values {
             "frame.hyprland".into(),
             pick(format!("border_size = {width}")),
         ),
-        ("frame.mango".into(), pick(format!("borderpx={width}"))),
+        ("frame.mango".into(), pick(format!("border_px={width}"))),
         (
             "frame.sway".into(),
             pick(format!(

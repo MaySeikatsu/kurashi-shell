@@ -976,7 +976,7 @@ mod tests {
             );
             assert_eq!(niri.contains("        on\n"), frame, "{niri}");
             assert_eq!(hypr.contains("border_size = 2"), frame, "{hypr}");
-            assert_eq!(mango.contains("borderpx=2"), frame, "{mango}");
+            assert_eq!(mango.contains("border_px=2"), frame, "{mango}");
             assert_eq!(sway.contains("default_border pixel 2"), frame, "{sway}");
             assert_eq!(niri.contains("opacity 0.85"), opacity.is_some(), "{niri}");
             assert_eq!(
@@ -1027,7 +1027,10 @@ mod tests {
             let what =
                 format!("frame {frame}, opacity {opacity:?}, motion {motion}, titlebars {bars}");
             // Without the hyprbars plugin Hyprland refuses its block: checked with the titlebars off.
-            if !bars && tool_ok("Hyprland", "--version") {
+            // A Hyprland that reads `-c` as Lua cannot judge this hyprlang file (B43).
+            if !bars
+                && crate::keys::usable_checker(kurashi_compositor::any::Kind::Hyprland).is_some()
+            {
                 let cfg = home.join("hyprland.conf");
                 std::fs::write(
                     &cfg,

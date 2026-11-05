@@ -536,6 +536,21 @@ fn checkers(kind: Kind) -> &'static [&'static str] {
     }
 }
 
+/// The checker of `kind` on PATH that can judge what we write. Hyprland 0.57 reads `-c` files as Lua while we write
+/// hyprlang (B43), so it would refuse every file and none would be written: it counts as no checker, and the document
+/// says `checked: false`, which is what is true.
+pub fn usable_checker(kind: Kind) -> Option<PathBuf> {
+    let program = checkers(kind).iter().find_map(|n| on_path(n))?;
+    // (A category block: a plain `key = value` line is valid Lua too.)
+    if kind == Kind::Hyprland && !matches!(check(kind, &program, "general {\n}\n"), Some(Ok(()))) {
+        tracing::info!(
+            "keys: this Hyprland does not read hyprlang with -c, the file goes unchecked"
+        );
+        return None;
+    }
+    Some(program)
+}
+
 /// The line that makes the compositor read our file. Sway includes it relative to its config; Hyprland gets the absolute
 /// path, which needs no assumption about where its config looks for `source`.
 fn include_line(kind: Kind, file: &Path) -> String {
@@ -1156,9 +1171,7 @@ impl Keys {
             .store
             .get("keys.write", None)
             .is_some_and(|p| p.value == Value::Bool(true));
-        let checker = self
-            .compositor
-            .and_then(|kind| checkers(kind).iter().find_map(|n| on_path(n)));
+        let checker = self.compositor.and_then(usable_checker);
         let home = config_home();
         let doc = apply(&Run {
             home: &home,
@@ -1334,10 +1347,10 @@ mod tests {
 
     /// The checker of `kind` on PATH, or the test says it skips that part (it never fails on a machine without it).
     fn checker(kind: Kind) -> Option<PathBuf> {
-        let c = checkers(kind).iter().find_map(|n| on_path(n));
+        let c = usable_checker(kind);
         if c.is_none() {
             eprintln!(
-                "SKIPPED: no {} on PATH — the rendered file was not checked",
+                "SKIPPED: no usable {} on PATH — the rendered file was not checked",
                 kind.name()
             );
         }
