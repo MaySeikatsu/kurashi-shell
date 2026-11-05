@@ -187,16 +187,13 @@ PanelWindow {
     property var bridgeSize: null
     readonly property var cachedSize: viewing ? (sizeCache[sizeKey] || bridgeSize) : null
     readonly property bool sizeKnown: viewReady || cachedSize !== null
-    // (Later: the card's size can change inside `cachedSize`'s own evaluation, and writing the cache there is a loop Qt 6.12
-    // reports.)
-    function recordSize() { Qt.callLater(recordSizeNow) }
-    function recordSizeNow() {
+    // (Written in place, with no notify: the size is read at the next open, which `viewing` and `sizeKey` already re-evaluate.
+    // A new object here is a loop through `cachedSize` and the card's size, which Qt 6.12 reports.)
+    function recordSize() {
         if (!viewing || !viewReady || !open || gate || !reached) return
         var c = sizeCache[sizeKey]
         if (c && c.w === card.width && c.h === card.height) return
-        var n = Object.assign({}, sizeCache)
-        n[sizeKey] = { w: card.width, h: card.height }
-        sizeCache = n
+        sizeCache[sizeKey] = { w: card.width, h: card.height }
     }
     readonly property int cardPad: ownChrome ? 0 : Theme.pad + 4
     // ---- W53.0b (K80): the title bar, as the daemon says (`runtime.ui.title`, absent: none — the style draws no title

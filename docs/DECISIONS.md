@@ -1255,3 +1255,13 @@ pairing keeps the picture's structure (Chang et al. 2015). Palette-only stays as
 **Trade-off.** The wheel blend does not reach the wallpaper: I401 keeps a live shader as an idea.
 **Evidence.** Brief `docs/ux/wallpaper-color-grade.md`. The prototype was never committed and its worktree is gone (session 23).
 
+## K89 — A copy that is not live is drawn again when its window maps (session 23, I298)
+**Decision.** Every `ShaderEffectSource` drawn once and left alone is a `StillCopy` (`frontend/components/StillCopy.qml`), which
+redraws when its window maps; `TileSheet` fills its tiles again on a map. New still copies use it.
+**Why.** A window's scene graph starts anew on each map, and a copy that is not live is not drawn again by itself, so it comes back
+empty: the dock lost its material from the next reveal on. A window that never unmaps does not show it, which is why it looked
+driver-specific for a while (I298) when the checks only changed `Sheet`.
+**Trade-off.** One redraw per reveal, and the tiles run live for 250 ms: only while the window is mapped and animating anyway (rule 5).
+**Evidence.** Reproduced on the user's session (GTX 1060, kami and washi; floating, connected and auto dock) and in the sandbox:
+`frontend/test-dock.sh` reveals a papered dock three times and fails on the first reveal without the fix.
+
