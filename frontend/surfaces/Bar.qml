@@ -51,7 +51,7 @@ Scope {
     readonly property var ed: ShellLayout.edgeOf(outName, edge)
     // Plain values (they notify only when they change): every document patch re-reads the layout, and rebuilt lists would
     // remake items — a frame drawn for nothing (Ma).
-    readonly property bool on: ed.bar === true
+    readonly property bool on: ed.bar === true && ShellLayout.settled
     readonly property string visibility: ed.visibility || "always"
     readonly property bool drawFloating: ed.draw === "floating"
     readonly property int inset: Math.max(0, Math.round(ed.inset || 0))
@@ -201,6 +201,16 @@ Scope {
     onWantShownChanged: {
         if (wantShown) everShown = true
         bRun.want = wantShown
+    }
+    // I393: a bar that waited for the layout at start stands in place when it comes, as one made with it does.
+    Connections {
+        target: ShellLayout
+        function onSettledChanged() { Qt.callLater(bar.standAtStart) }
+    }
+    function standAtStart() {
+        if (!wantShown) return
+        glide.snap(1)
+        bRun.standOpen()
     }
     // (Bench only: KURASHI_BAR_DROP=1 makes no window while hidden, the other choice measured.)
     readonly property bool keepWindow: Quickshell.env("KURASHI_BAR_DROP") !== "1"

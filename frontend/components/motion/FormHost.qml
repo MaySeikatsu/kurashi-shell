@@ -43,15 +43,18 @@ Item {
     property string latchedForm: ""
     property string latchedDir: ""
     readonly property string nextDir: direction !== "auto" ? direction : (lastRest >= 1 ? "close" : "open")
-    readonly property string dir: busy && latchedDir !== "" ? latchedDir : nextDir
-    readonly property string form: busy && latchedForm !== "" ? latchedForm : Theme.motionForm(surface, nextDir)
+    readonly property string dir: latchedDir !== "" ? latchedDir : nextDir
+    readonly property string form: latchedForm !== "" ? latchedForm : Theme.motionForm(surface, nextDir)
     readonly property var meta: Theme.formMeta(form)
     readonly property string family: form === "" || form === "none" ? "none" : (meta ? meta.family : "unknown")
     readonly property var params: Theme.formParams(form)
     onBusyChanged: {
         if (busy) { latchedDir = nextDir; latchedForm = Theme.motionForm(surface, latchedDir) }
-        else { lastRest = progress >= 1 ? 1 : 0; latchedForm = ""; latchedDir = "" }
+        else { lastRest = progress >= 1 ? 1 : 0; Qt.callLater(unlatch) }
     }
+    // (I392: after the sheet Loader's `active` has dropped: in the same turn the Loader would make and drop the other
+    // direction's form.)
+    function unlatch() { if (!busy) { latchedForm = ""; latchedDir = "" } }
     // (row 656: a jump straight from one rest to the other — a cut, motion off, a snap — never passes through busy; the
     // next transition must still take the direction away from where it now rests.)
     // (Tested on the value itself: `busy` may not have re-evaluated yet inside this handler.)

@@ -187,7 +187,10 @@ PanelWindow {
     property var bridgeSize: null
     readonly property var cachedSize: viewing ? (sizeCache[sizeKey] || bridgeSize) : null
     readonly property bool sizeKnown: viewReady || cachedSize !== null
-    function recordSize() {
+    // (Later: the card's size can change inside `cachedSize`'s own evaluation, and writing the cache there is a loop Qt 6.12
+    // reports.)
+    function recordSize() { Qt.callLater(recordSizeNow) }
+    function recordSizeNow() {
         if (!viewing || !viewReady || !open || gate || !reached) return
         var c = sizeCache[sizeKey]
         if (c && c.w === card.width && c.h === card.height) return
