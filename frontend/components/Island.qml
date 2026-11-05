@@ -412,7 +412,8 @@ Item {
         width: isl.vertical ? Theme.barH : isl.width
         height: isl.vertical ? isl.height : Theme.barH
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        // (an unbound right click passes on to the module's own menu, I408)
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | (isl.isBound("right") ? Qt.RightButton : 0)
         // A pointer only promises a click when the left click does something (unbound = no pointer).
         cursorShape: isl.isBound("left") ? Qt.PointingHandCursor : Qt.ArrowCursor
         // Hover is an event, not a poll: one dispatch per entry into the island.

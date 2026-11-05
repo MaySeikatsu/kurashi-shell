@@ -222,7 +222,7 @@ PanelWindow {
     readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
     readonly property int fullH: screen ? screen.height - Theme.barH - bars.topInset - bars.bottomInset - 3 * Theme.pad : 600
     readonly property string cardTitle: {
-        if (contentKind === "tray") return trayItem(trayKey).title || I18n.tr("frontend.tray.menu")
+        if (contentKind === "tray") return moduleKey !== "" ? moduleMenu.title : (trayItem(trayKey).title || I18n.tr("frontend.tray.menu"))
         if (contentKind === "quick" || contentKind === "power" || contentKind === "bluetooth") return I18n.tr("layout.module.quick")
         if (contentKind === "mod") return shownPanelMod
         if (contentKind === "session") return I18n.tr("styles.title.session")
@@ -313,8 +313,16 @@ PanelWindow {
     BarConfig { id: bars; screen: stage.screen }
     // A tray menu hangs from the tray's end of the bar: the bar's right end on a top or bottom bar,
     // the bottom end beside a side bar (the tray is the last thing in those columns).
-    readonly property bool aligned: contentKind === "tray"
-    readonly property bool menuBeside: aligned && bars.vertical
+    // (a module's menu, I408, hangs from its module where the bar is a row)
+    readonly property bool aligned: contentKind === "tray" && (!moduleMenuShown || bars.vertical || besideAt !== null)
+    readonly property bool menuBeside: aligned && (bars.vertical || besideAt !== null)
+    // A module on a side edge: the rect it reports (`side:<id>`), and the card stands beside it.
+    readonly property var besideAt: {
+        var rev = IslandGeom.revision
+        if (!moduleMenuShown || !(shown || open)) return null
+        return IslandGeom.rectOf(outName, "side:" + shownTray.substring("module:".length))
+    }
+    readonly property string besideEdge: besideAt !== null && besideAt.edge !== "" ? besideAt.edge : bars.edge
 
     readonly property int slide: 12     // px the card travels while revealing
     // The reveal's progress 0..1 where the card does not grow out of a bar (a side bar, a look whose cards stand apart),
@@ -329,20 +337,22 @@ PanelWindow {
     // W34: while a shape morphs under a top or bottom bar the window is the box round its origin and its card (`boxL`,
     // from the output's left edge), so it is anchored to the left with that margin, as a peek is.
     anchors {
-        top: peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside))
-        bottom: peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : (bars.atBottom || menuBeside))
-        left: peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && bars.edge === "left"))
-        right: peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!bars.vertical || bars.edge === "right"))
+        top: peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null)
+        bottom: peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null))
+        left: peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && besideEdge === "left"))
+        right: peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!menuBeside || besideEdge === "right"))
     }
     margins {
         top: peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
-            : (morphLayout ? 0 : bars.topInset - (hangs ? 4 : 0))
+            : (morphLayout ? 0 : (besideAt !== null
+                ? Math.round(Math.max(Theme.pad, Math.min((stage.screen ? stage.screen.height : 1080) - card.height - Theme.pad, besideAt.y + besideAt.h / 2 - card.height / 2)))
+                : bars.topInset - (hangs ? 4 : 0)))
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
             : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0)))
         left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
-            : (morphLayout ? boxL : (menuBeside ? bars.insetOf(bars.edge) + Theme.barH + Theme.gap : 0))
+            : (morphLayout ? boxL : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
-            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(bars.edge) + Theme.barH + Theme.gap : Theme.pad) : 0))
+            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : Theme.pad) : 0))
     }
     implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width)
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height)
@@ -494,6 +504,11 @@ PanelWindow {
     // ---- Tray item menus (K23). The daemon names the item (runtime.ui.tray); its tree is fetched
     // once per open, as action data, and drawn by TrayMenu. A newer open supersedes an older fetch.
     readonly property string trayKey: trayWanted ? String(ui.tray || "") : ""
+    // I408: `module:<id>` names a module's own menu instead of a tray item: the same panel and TrayMenu, its tree from the
+    // schema (ModuleMenu) rather than from the item.
+    readonly property string moduleKey: trayKey.indexOf("module:") === 0 ? trayKey.substring("module:".length) : ""
+    readonly property bool moduleMenuShown: shownTray.indexOf("module:") === 0
+    ModuleMenu { id: moduleMenu; module: stage.moduleKey; bars: bars }
     property var trayTree: null
     property string trayErr: ""
     property int trayReq: 0
@@ -502,6 +517,8 @@ PanelWindow {
         var req = ++trayReq
         // Closed: the menu folds back with the tree it showed (W34: no "loading" flash while it goes).
         if (trayKey === "") return
+        // (from trayKey itself: `moduleKey` may not have followed it yet when this runs)
+        if (trayKey.indexOf("module:") === 0) { trayMenu.cursor = -1; trayMenu.expanded = ({}); trayTree = null; trayErr = ""; return }
         trayTree = null
         trayErr = ""
         trayMenu.cursor = -1
@@ -982,7 +999,7 @@ PanelWindow {
     readonly property real barInset: morphBar ? morphBar.inset : bars.insetOf(morphEdge)
     // W53.5 (`[decor] surface.join = false`): a look whose cards stand apart from the bar never morphs.
     readonly property bool morphMode: Theme.decor("surface.join", true) !== false
-        && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
+        && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge)) && besideAt === null
         && (headMode || panelKinds.indexOf(contentKind) >= 0 || fromModule)
     readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
@@ -1011,7 +1028,7 @@ PanelWindow {
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
     readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
     readonly property string ownKey: contentKind === "quick" ? "quick"
-        : (contentKind === "tray" ? "tray:" + shownTray
+        : (contentKind === "tray" ? (moduleMenuShown ? shownTray : "tray:" + shownTray)
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none
     // when its cards come out at the centre)
@@ -1121,7 +1138,7 @@ PanelWindow {
     // ShapeLayer instead, in the card's own frame: from the edge it comes from (`slideEdge`), its origin a third of that
     // edge at its middle.
     readonly property bool formWant: open && shown && !gate && (morphMode ? sizeKnown : true)
-    readonly property string slideEdge: menuBeside ? bars.edge : (bars.atBottom ? "bottom" : "top")
+    readonly property string slideEdge: menuBeside ? besideEdge : (bars.atBottom ? "bottom" : "top")
     readonly property bool slideAcross: slideEdge === "left" || slideEdge === "right"
     readonly property real formFrameW: slideAcross ? card.height : card.width
     readonly property real formFrameH: slideAcross ? card.width : card.height
@@ -1756,7 +1773,7 @@ PanelWindow {
                 color: Theme.fg
                 font.pixelSize: Theme.fsTitle
                 font.family: Theme.fam(text, Theme.families)
-                text: stage.trayItem(stage.trayKey).title || I18n.tr("frontend.tray.menu")
+                text: stage.moduleKey !== "" ? moduleMenu.title : (stage.trayItem(stage.trayKey).title || I18n.tr("frontend.tray.menu"))
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -1773,9 +1790,13 @@ PanelWindow {
             TrayMenu {
                 id: trayMenu
                 width: trayCol.width
-                tree: stage.trayTree
+                tree: stage.moduleKey !== "" ? moduleMenu.tree : stage.trayTree
                 errText: stage.trayErr
                 onChosen: item => {
+                    if (stage.moduleKey !== "") {
+                        if (moduleMenu.choose(item)) Store.act("ui.close")
+                        return
+                    }
                     Store.act("tray.menu_event", {id: stage.trayKey, item: item})
                     Store.act("ui.close")
                 }

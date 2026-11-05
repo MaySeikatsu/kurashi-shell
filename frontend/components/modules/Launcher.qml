@@ -41,7 +41,10 @@ ModuleBase {
     height: face.height
     slotHeights: [thickness]
     a11yName: I18n.tr("layout.module.launcher")
-    function activate() { Store.act("launcher.toggle") }
+    function activate() {
+        IslandGeom.noteOpener(m.output, IslandGeom.rectOf(m.output, "start") || IslandGeom.rectOf(m.output, "module:launcher"))
+        Store.act("launcher.toggle")
+    }
     function geo() { return [["launcher", m]] }
     AnchorReport { target: m; key: "start"; output: m.output; enabled: m.anchored }
 

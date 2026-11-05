@@ -76,6 +76,17 @@ the user's config file is the source), Klipper's QR codes.
   `>` stays short. Enter closes the launcher first (Settings is its own window), then sends `settings.open {page}`; a
   page Settings lacks is refused with `error.settings.unknown_page`.
 
+## Where it opens (I407, session 23)
+`launcher.place`, also in the launcher module's right-click menu (`docs/ux/module-menu.md`):
+- **Where it was opened** (default): at what was clicked (the bar's launcher or start button, the dock's launcher tile; beside
+  it on a side edge), and in the middle of the screen when opened by its key. A key and a click both send `launcher.toggle`:
+  the click notes its place first (`IslandGeom.noteOpener`), view geometry like K82's press note.
+- **Middle of the screen**: always. **Out of the island**: W34's morph, what every look but the start-menu ones did before.
+- **A fixed place**: `launcher.place_x`, `launcher.place_y`, 0–100 % of the room the card leaves.
+
+A card on the output keeps its top as the rows come and go: "the middle" centres the card at its tallest. The output is the
+clicked one, else the focused one. Hanging it in a sidebar is I409.
+
 ## States
 - **cliphist missing**: a note row "Clipboard history needs cliphist (…)"; pins still listed above it.
 - **empty history**: "The clipboard history is empty" (no clear row); with pins, only the pins.

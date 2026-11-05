@@ -159,6 +159,13 @@ Scope {
                     if (err) dock.flash(key, I18n.tr("dock.error.launch"))
                 })
             }
+            // I407: the launcher tile says where the launcher was opened from (the place on the output).
+            function noteOpener(it) {
+                var win = it.Window.window ? it.QsWindow.window : null
+                var o = win ? Light.originOf(win) : Qt.point(0, 0)
+                var p = it.mapToItem(null, 0, 0)
+                IslandGeom.noteOpener(dk.modelData.name, { x: o.x + p.x, y: o.y + p.y, w: it.width, h: it.height, edge: dock.edge })
+            }
             function activate(g) {
                 if (!g) return
                 if (menuOpen) { menuKey = ""; return }
@@ -996,7 +1003,10 @@ Scope {
                                         id: tap
                                         enabled: !cell.isSep
                                         acceptedButtons: Qt.LeftButton
-                                        onTapped: dock.activate(cell.g)
+                                        onTapped: {
+                                            if (cell.g && cell.g.key === "+") dock.noteOpener(tile)
+                                            dock.activate(cell.g)
+                                        }
                                     }
                                     // Drag a pinned tile along the dock to reorder the pins (DMS); only among the pins.
                                     DragHandler {

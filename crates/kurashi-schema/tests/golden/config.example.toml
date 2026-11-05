@@ -1004,6 +1004,20 @@
 
 # [launcher]
 #
+# Opens — Where it was opened: at the button you clicked, and in the middle of the screen
+# when opened by its key. Out of the island: it grows from the bar's island. A fixed place:
+# where the two sliders below put it.
+#   choices: "opened" | "centre" | "island" | "fixed" · since schema v7
+# place = "opened"
+#
+# Across — How far across the screen it stands: 0 at the left edge, 100 at the right.
+#   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
+# place_x = 50
+#
+# Down — How far down the screen it stands: 0 at the top edge, 100 at the bottom.
+#   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
+# place_y = 50
+#
 # Terminal command — Prefix for apps that need a terminal, e.g. foot -e.
 #   restart required
 # terminal = ["foot", "-e"]
@@ -1026,6 +1040,31 @@
 # stays on this machine.
 #   only while launcher.button_logo == "own" · since schema v7
 # button_icon = ""
+
+# [modules.workspaces]
+#
+# Show empty workspaces — Off: only the workspaces with windows and the one you are on.
+#   since schema v7
+# empty = true
+#
+# Marks
+#   choices: "look" | "numbers" | "dots" · since schema v7
+# marks = "look"
+#
+# Scroll to switch — The mouse wheel over the workspaces moves to the next or the previous
+# one.
+#   since schema v7
+# scroll = false
+
+# [modules.windows]
+#
+# Most windows shown — The rest go under "+N". 0: as many as the bar has room for.
+#   range: 0..=24, step 1 · since schema v7
+# max = 0
+#
+# Middle click closes
+#   since schema v7
+# middle_close = true
 
 # [clock]
 #

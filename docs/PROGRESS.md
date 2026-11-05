@@ -327,3 +327,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S23.3 | `theme.colors.media.apps`: Dynamic Media Color for the shell alone (I399) | ✅ functional · 🟡 UX (user to judge) | feat/s23-quick-wins |
 | S23.4 | Reduced motion fades the dock and bar (I390); maximize keeps the card (I386); a hidden bar stays hidden at start (I393); form latch (I392); Qt 6.12 binding loops | ✅ functional · 🟡 UX (user to judge) | feat/s23-quick-wins |
 | S23.5 | Suites outside the merge set (I395): peek, pen, morph green; texture and webdock test-dock still have open checks (I403–I405) | 🟡 | feat/s23-quick-wins |
+| S23.6 | `launcher.place`: by key in the middle, by click at the button, or the island, or a fixed place (I407); every bar and frame module's right-click menu with its own options; options for the workspaces and the window list (I408, K90) | ✅ functional · 🟡 UX (user to judge on their session; the island's menu open) |

@@ -184,7 +184,8 @@ frames_total=0; morph_cpu=0
 if want real "$PHASES"; then
   echo "== phase real: kurashid"
   rm -rf "$R/xdg"; mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-  : > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  # (the launcher's morph out of the island is what this phase measures, I407)
+  printf 'launcher.place = "island"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
   : > "$R/server.log"
   env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
       PULSE_SERVER="unix:$R/no-pulse/native" PULSE_RUNTIME_PATH="$R/no-pulse" \

@@ -13,7 +13,7 @@ use syn::{
 };
 
 const FIELD_ATTRS: &str = "default, range, step, unit, choices, choices_from, label, help, page, section, \
-    per_output, requires, capability, overridden_by, restart, advanced, hidden, since, nested";
+    per_output, requires, capability, overridden_by, module, restart, advanced, hidden, since, nested";
 const CONTAINER_ATTRS: &str = "page, section, input_slots";
 const SLOTS: &[&str] = &[
     "left",
@@ -80,6 +80,7 @@ struct FieldAttrs {
     requires: Vec<(String, bool, String)>,
     capability: Vec<LitStr>,
     overridden_by: Vec<OverriddenBy>,
+    module: Vec<LitStr>,
     since: Option<LitInt>,
     /// Span of every attribute that only makes sense on a leaf (for the `nested` check).
     leaf_only: Vec<(proc_macro2::Span, &'static str)>,
@@ -215,6 +216,10 @@ fn parse_field_attrs(attrs: &[Attribute]) -> syn::Result<FieldAttrs> {
                         ));
                     }
                     a.capability.push(lit);
+                }
+                "module" => {
+                    leaf_only(&mut a, "module");
+                    a.module.push(meta.value()?.parse()?);
                 }
                 "requires" => {
                     leaf_only(&mut a, "requires");
@@ -550,6 +555,9 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
         }
         for cap in &a.capability {
             body.push(quote!(__m.couplings.push(::kurashi_schema::__private::capability(#cap));));
+        }
+        for module in &a.module {
+            body.push(quote!(__m.modules.push(#module.to_owned());));
         }
         for (key, forces, except) in &a.overridden_by {
             let forces = match forces {

@@ -122,6 +122,9 @@ fn row(m: &KeyMeta) -> Value {
     r.insert("per_output".into(), json!(m.flags.per_output));
     r.insert("restart".into(), json!(m.flags.restart));
     r.insert("advanced".into(), json!(m.flags.advanced));
+    if !m.modules.is_empty() {
+        r.insert("modules".into(), json!(m.modules));
+    }
     r.insert("since".into(), json!(m.since));
     let couplings: Vec<Value> = m
         .couplings

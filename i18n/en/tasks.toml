@@ -10,6 +10,7 @@
 "tasks.menu.focus" = "Focus"
 "tasks.menu.move" = "Move to workspace {n}"
 "tasks.menu.close" = "Close window"
+"tasks.menu.options" = "Window list options…"
 "tasks.peek.untitled" = "Untitled window"
 "tasks.peek.loading" = "…"
 "tasks.peek.move" = "Move to workspace {n}"
