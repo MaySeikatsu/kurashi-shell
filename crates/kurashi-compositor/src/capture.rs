@@ -163,11 +163,14 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for State {
     }
 }
 
-/// Where red, green and blue lie in a pixel's four bytes (the wire's formats are little-endian words).
-fn order_of(f: wl_shm::Format) -> Option<[usize; 3]> {
+/// Where red, green and blue lie in a pixel's bytes, and how many bytes it has (the wire's formats are little-endian words;
+/// sway offers `Bgr888`, three bytes a pixel, niri a word).
+fn order_of(f: wl_shm::Format) -> Option<([usize; 3], usize)> {
     match f {
-        wl_shm::Format::Xrgb8888 | wl_shm::Format::Argb8888 => Some([2, 1, 0]),
-        wl_shm::Format::Xbgr8888 | wl_shm::Format::Abgr8888 => Some([0, 1, 2]),
+        wl_shm::Format::Xrgb8888 | wl_shm::Format::Argb8888 => Some(([2, 1, 0], 4)),
+        wl_shm::Format::Xbgr8888 | wl_shm::Format::Abgr8888 => Some(([0, 1, 2], 4)),
+        wl_shm::Format::Bgr888 => Some(([0, 1, 2], 3)),
+        wl_shm::Format::Rgb888 => Some(([2, 1, 0], 3)),
         _ => None,
     }
 }
@@ -225,7 +228,7 @@ pub fn capture_output(display: &str, name: &str, dir: &std::path::Path) -> Resul
     let Some((format, width, height, stride)) = state.buffer else {
         return Err(unavailable("no buffer the shell can read".into()));
     };
-    let order = order_of(format).expect("only readable formats are kept");
+    let (order, bytes) = order_of(format).expect("only readable formats are kept");
     let len = stride * height;
     // An unlinked file in tmpfs: the compositor maps it, the shell reads it back without a mapping of its own.
     let file_path = dir.join(format!("kurashi-still-{}", std::process::id()));
@@ -281,7 +284,7 @@ pub fn capture_output(display: &str, name: &str, dir: &std::path::Path) -> Resul
             if state.flipped {
                 v = bh - 1 - v;
             }
-            let px = &raw[v * stride as usize + u * 4..][..4];
+            let px = &raw[v * stride as usize + u * bytes..][..bytes];
             rgbx.extend_from_slice(&[px[order[0]], px[order[1]], px[order[2]], 255]);
         }
     }
@@ -329,6 +332,13 @@ mod tests {
     use wl_output::Transform as T;
 
     /// Every transform maps an output of 4 × 2 onto its framebuffer one to one; the upright and the mirrored ones as drawn.
+    #[test]
+    fn the_formats_sway_and_niri_offer_are_read() {
+        assert_eq!(order_of(wl_shm::Format::Xrgb8888), Some(([2, 1, 0], 4)));
+        assert_eq!(order_of(wl_shm::Format::Bgr888), Some(([0, 1, 2], 3)));
+        assert_eq!(order_of(wl_shm::Format::Xrgb2101010), None);
+    }
+
     #[test]
     fn a_framebuffer_is_read_the_way_up_the_output_is_seen() {
         for t in [

@@ -80,7 +80,12 @@ Column {
 
     // ---- a workspace ----
     readonly property var space: kind === "workspace" ? ((doc.workspaces || ({}))[itemId] || ({})) : ({})
-    readonly property var order: Array.isArray(space.windows) ? space.windows.filter(function (id) { return pv.winOf(id) !== null }) : []
+    // The windows in the compositor's column order; one that does not tell it (sway, Hyprland): as `svc.workspaces` lists them.
+    readonly property var order: {
+        var listed = Array.isArray(space.windows) ? space.windows.filter(function (id) { return pv.winOf(id) !== null }) : []
+        if (kind !== "workspace" || listed.length > 0) return listed
+        return windows.filter(function (w) { return w.workspace === pv.itemId }).map(function (w) { return w.id })
+    }
     readonly property var still: space.still && space.still.path ? space.still : null
     readonly property bool allSeen: {
         if (order.length === 0) return false

@@ -4291,13 +4291,7 @@
               "restart": false,
               "since": 1,
               "type": "string"
-            }
-          ]
-        },
-        {
-          "id": "windows",
-          "label": "settings.section.windows",
-          "rows": [
+            },
             {
               "advanced": false,
               "choices": [],
@@ -4343,33 +4337,6 @@
               "restart": false,
               "since": 1,
               "type": "string"
-            },
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.motion_windows.off",
-                  "value": "off"
-                },
-                {
-                  "label": "config.choice.motion_windows.follow",
-                  "value": "follow"
-                },
-                {
-                  "label": "config.choice.motion_windows.forms",
-                  "value": "forms"
-                }
-              ],
-              "control": "select",
-              "couplings": [],
-              "default": "off",
-              "help": "config.theme.motion.windows.help",
-              "key": "theme.motion.windows",
-              "label": "config.theme.motion.windows.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "choice"
             }
           ]
         },
@@ -4693,6 +4660,39 @@
               "help": "config.theme.motion.shadow.help",
               "key": "theme.motion.shadow",
               "label": "config.theme.motion.shadow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "windows",
+          "label": "settings.section.windows",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.motion_windows.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.motion_windows.follow",
+                  "value": "follow"
+                },
+                {
+                  "label": "config.choice.motion_windows.forms",
+                  "value": "forms"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "off",
+              "help": "config.theme.motion.windows.help",
+              "key": "theme.motion.windows",
+              "label": "config.theme.motion.windows.label",
               "per_output": false,
               "restart": false,
               "since": 1,

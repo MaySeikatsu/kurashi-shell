@@ -1389,8 +1389,6 @@ This surface's own closing animation ("": the default).
 - only while `theme.motion.profile != "none"`
 - advanced
 
-### Windows
-
 #### `theme.motion.form.window.open` — Windows open with
 
 The animation a window opens with. Follows the style's unless you pick one here.
@@ -1406,13 +1404,6 @@ The animation a window closes with. Follows the style's unless you pick one here
 - type: `string` · default: `""`
 - choices: from `motion.forms` (resolved at runtime)
 - only while `theme.motion.windows == "forms"`
-
-#### `theme.motion.windows` — Window animations
-
-Give the compositor's window animations the profile's curves (niri). With its animations, windows also open and close the way the shell's surfaces do, through niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows move as the compositor says.
-
-- type: `choice` · default: `"off"`
-- choices: `"off"` | `"follow"` | `"forms"`
 
 ### Timing
 
@@ -1529,6 +1520,15 @@ What a surface's shadow does during its motion: carried with the shape, or faded
 - type: `choice` · default: `"profile"`
 - choices: `"profile"` | `"carry"` | `"fade"`
 - advanced
+
+### Windows
+
+#### `theme.motion.windows` — Window animations
+
+Give the compositor's window animations the profile's curves (niri). With its animations, windows also open and close the way the shell's surfaces do, through niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows move as the compositor says.
+
+- type: `choice` · default: `"off"`
+- choices: `"off"` | `"follow"` | `"forms"`
 
 ## Accessibility
 

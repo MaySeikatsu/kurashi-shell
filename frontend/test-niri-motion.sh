@@ -27,6 +27,9 @@ conf() { # conf <windows> [profile] [open] [close] [extra toml]
     [ -n "${2:-}" ] && printf 'profile = "%s"\n' "$2"
     printf '\n[theme.motion.form.window]\nopen = "%s"\nclose = "%s"\n' "${3:-}" "${4:-}"
     printf '%b' "${5:-}"
+    # (no previews here: niri nested in a window stops redrawing after any screencopy until something damages it, grim's too,
+    # so a still mid-animation would freeze the animation under test. niri on a TTY redraws from its vblank.)
+    printf '\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n'
   } > "$CFG"
 }
 conf forms origami
@@ -110,23 +113,46 @@ until_kdl 'ks_along' "the slow fold"
 until_kdl 'duration-ms 4200' "the slow fold's duration"
 sleep 0.5
 "$SB" spawn foot -a kstest sh -c 'printf "kurashi"; sleep 100'
-sleep 1.6
-shot fold-mid
-top=$(px "$OUT/fold-mid.png" 960 60); foot=$(px "$OUT/fold-mid.png" 960 950)
+# As soon as the window's top stands (it takes 4.2 s to land), its foot must still be empty: a fold's panels come down in turn.
+stood=
+for _ in $(seq 60); do
+  shot fold-mid
+  bg "$(px "$OUT/fold-mid.png" 960 60)" || { stood=1; break; }
+  sleep 0.1
+done
+[ -n "$stood" ] || fail "fold: the window's top never came"
+foot=$(px "$OUT/fold-mid.png" 960 950)
 bg "$foot" || fail "fold mid-way: the window's foot is not empty ($foot)"
-sleep 4
+rest=
+for _ in $(seq 100); do
+  shot rest
+  bg "$(px "$OUT/rest.png" 960 950)" || { rest=1; break; }
+  sleep 0.2
+done
+[ -n "$rest" ] || fail "the fold never landed"
+sleep 1
 shot rest
-foot=$(px "$OUT/rest.png" 960 950); bg "$foot" && fail "at rest the window has no foot ($foot)"
 corner=$(px "$OUT/rest.png" 500 60); bg "$corner" && fail "at rest the window has no corner ($corner)"
+closed_at=$(date +%s%N)
 "$SB" niri action close-window > /dev/null 2>&1
-sleep 1.9
-shot iris-mid
-corner=$(px "$OUT/iris-mid.png" 500 60); mid=$(px "$OUT/iris-mid.png" 960 540)
-bg "$corner" || fail "iris mid-way: the corner still stands ($corner)"
+# The iris closes from the corners: when a corner has gone (3.6 s in all), the middle must still stand.
+gone=
+for _ in $(seq 60); do
+  shot iris-mid
+  bg "$(px "$OUT/iris-mid.png" 500 60)" && { gone=1; break; }
+  sleep 0.1
+done
+[ -n "$gone" ] || fail "iris: the corner never went"
+mid=$(px "$OUT/iris-mid.png" 960 540)
 bg "$mid" && fail "iris mid-way: the middle is gone ($mid)"
-sleep 3
-shot gone
-mid=$(px "$OUT/gone.png" 960 540); bg "$mid" || fail "the window never left ($mid)"
+left=
+for _ in $(seq 150); do
+  shot gone
+  bg "$(px "$OUT/gone.png" 960 540)" && { left=1; break; }
+  sleep 0.2
+done
+[ -n "$left" ] || fail "the window never left ($(px "$OUT/gone.png" 960 540); windows: $("$SB" niri --json windows | cut -c1-200))"
 echo "drawn: fold's top before its foot, iris's middle after its corners, whole at rest"
+echo "drawn: the close took $(( ($(date +%s%N) - closed_at) / 1000000 )) ms (the form's own 3600)"
 [ "$(errs)" = 0 ] || fail "niri warned about a shader"
 echo "test-niri-motion: OK"

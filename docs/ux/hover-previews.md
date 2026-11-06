@@ -29,6 +29,8 @@ Only while a module with previews on is out (`Watch` on `svc.previews`: the serv
 and when the pointer reaches the bar (`preview.refresh`). At most one round per 1.5 s. No timer runs between changes. Skipped while locked, in the
 overview, or with a card, the launcher or a peek over the windows. The picture is what the workspace last looked like when it was on screen and settled.
 
+Nested niri (the test platform) stops redrawing after any screencopy until something damages it, `grim` included; on a TTY niri's redraws come from the vblank. The first thing to check on a real session: a window animation running when a round lands (it should not stop).
+
 ## Privacy
 Pictures are files in `$XDG_RUNTIME_DIR/kurashi-previews` (tmpfs, 0700), scaled down (480 × 300 a window, 640 × 360 a workspace), gone with the window, the
 last subscriber or the session. They never reach disk or the document's other readers beyond their paths. A window under niri's `block-out-from` comes out

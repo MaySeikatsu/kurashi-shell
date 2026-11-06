@@ -1275,12 +1275,12 @@ pub struct MotionForms {
 pub struct WindowForm {
     /// Windows open with
     /// The animation a window opens with. Follows the style's unless you pick one here.
-    #[kurashi(default = String::new(), choices_from = "motion.forms", section = "windows",
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
               requires = "theme.motion.windows == forms")]
     pub open: String,
     /// Windows close with
     /// The animation a window closes with. Follows the style's unless you pick one here.
-    #[kurashi(default = String::new(), choices_from = "motion.forms", section = "windows",
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
               requires = "theme.motion.windows == forms")]
     pub close: String,
 }
