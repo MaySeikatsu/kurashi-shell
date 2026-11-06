@@ -62,6 +62,10 @@ def command(parts):
             return "click", int(parts[1]), int(parts[2]), parts[3]
         if len(parts) == 6 and parts[0] == "sweep":
             return "sweep", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]), float(parts[5]))
+        if len(parts) >= 4 and parts[0] == "draw":
+            # "draw x0,y0 x1,y1 …": press at the first point, through the others, release (a drawn stroke)
+            pts = [tuple(int(v) for v in q.split(",")) for q in parts[1:]]
+            return "draw", pts[0][0], pts[0][1], pts[1:]
         if len(parts) == 5 and parts[0] == "wheel":
             return "wheel", int(parts[1]), int(parts[2]), (int(parts[3]), float(parts[4]))
         if len(parts) == 5 and parts[0] == "finger":
@@ -205,6 +209,19 @@ class Pointer:
         self.send(self.pointer, 4)
         self.settle()
 
+    def draw(self, x, y, points):
+        self.motion(x, y)
+        time.sleep(0.2)
+        self.send(self.pointer, 2, struct.pack("<III", ms(), BUTTONS["left"], 1))
+        self.send(self.pointer, 4)
+        time.sleep(0.03)
+        for qx, qy in points:
+            self.motion(qx, qy)
+            time.sleep(0.03)
+        self.send(self.pointer, 2, struct.pack("<III", ms(), BUTTONS["left"], 0))
+        self.send(self.pointer, 4)
+        self.settle()
+
     def sweep(self, x0, y0, x1, y1, seconds):
         # Motion events about every 16 ms from (x0, y0) to (x1, y1), so the last one lands after `seconds`. No settle
         # between events (a move waits 0.5 s), so the frontend gets a pointer that really travels.
@@ -251,6 +268,8 @@ class Pointer:
         verb, x, y, rest = cmd
         if verb == "move":
             self.move(x, y)
+        elif verb == "draw":
+            self.draw(x, y, rest)
         elif verb == "sweep":
             self.sweep(x, y, *rest)
         elif verb == "wheel":

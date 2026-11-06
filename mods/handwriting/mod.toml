@@ -1,0 +1,15 @@
+id = "handwriting"
+name = "Handwriting"
+description = "mods.handwriting.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# Make your own font by drawing it (K94, I415, docs/ux/handwriting.md). The panel asks for letters one at a time, in a box with the letter's
+# shadow and lines for where it sits. The crate keeps the strokes and makes one font per version; Font Mix mixes the versions.
+provides = [
+    "service:handwriting",
+    "action:handwriting.*",
+    "panel:handwriting",
+]
+capabilities = ["fs:fonts"]
+cost = "low"
