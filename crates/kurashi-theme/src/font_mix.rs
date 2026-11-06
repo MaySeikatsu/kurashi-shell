@@ -131,7 +131,9 @@ fn outline(s: &Src<'_>, g: GlyphId) -> BezPath {
 /// The height of a font's own "x", in its units: what its letters look like, whatever its tables say.
 fn x_height(font: &FontRef<'_>) -> Option<f64> {
     // (a font of someone's own handwriting may not have its "x" yet)
-    let g = ['x', 'z', 'n', 'o', 'a', 'e'].iter().find_map(|c| font.charmap().map(*c))?;
+    let g = ['x', 'z', 'n', 'o', 'a', 'e']
+        .iter()
+        .find_map(|c| font.charmap().map(*c))?;
     let o = font.outline_glyphs().get(g)?;
     let mut pen = Pen {
         path: BezPath::new(),
