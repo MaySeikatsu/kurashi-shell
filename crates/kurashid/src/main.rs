@@ -57,6 +57,7 @@ async fn run() -> anyhow::Result<()> {
     kurashid::config::set_action_registry(actions.clone());
     // W26 (ARCHITECTURE §7): the adapter for this session — `KURASHI_COMPOSITOR`, else `NIRI_SOCKET`,
     // `HYPRLAND_INSTANCE_SIGNATURE`, `SWAYSOCK`. Without one the document stays empty rather than pretending (Shōjiki).
+    kurashid::font_mix::register_actions(&mut actions);
     let compositor = kurashi_compositor::any::detect();
     match &compositor {
         Some(target) => {

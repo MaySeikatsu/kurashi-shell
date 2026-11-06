@@ -45,6 +45,7 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
         Box::new(kurashi_mod_calendar::CalendarMod::new()),
         Box::new(kurashi_mod_ai::AiMod::new()),
         Box::new(kurashi_mod_timer::TimerMod::new()),
+        Box::new(kurashi_mod_handwriting::HandwritingMod::new()),
     ];
     #[cfg(feature = "test-mods")]
     let mods = mods

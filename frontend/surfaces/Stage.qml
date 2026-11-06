@@ -266,12 +266,13 @@ PanelWindow {
         }
     }
     // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
-    // takes it within 360..720 px and the output's width; the panel gets the card's content width.
+    // takes it within 360..1100 px and the output's width (the handwriting mod's drawing board is the wide one); the panel
+    // gets the card's content width.
     readonly property var modPanel: contentKind === "mod" && view.item ? view.item.item : null
     readonly property int modCardWidth: {
         var want = modPanel && modPanel.cardWidth > 0 ? modPanel.cardWidth : 360
         var room = screen ? screen.width - 2 * Theme.pad : 720
-        return Math.max(360, Math.min(want, 720, room))
+        return Math.max(360, Math.min(want, 1100, room))
     }
     // W53.5: the width the view asks its card for (`cardWant`, ≥ 0), e.g. the calendar's grid in a wide pixel face.
     readonly property int viewWant: view.item && view.item.cardWant !== undefined ? view.item.cardWant : 0

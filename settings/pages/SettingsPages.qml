@@ -69,7 +69,7 @@ Flickable {
     property string layoutEdge: "top"
     // Related pages (UX brief, settings 7): the pages whose settings act on this one's, when they exist.
     readonly property var relatedPages: {
-        var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility", "motion"],
+        var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility", "motion", "fonts"], fonts: ["appearance", "accessibility"],
                   accessibility: ["appearance", "motion"], layout: ["dock", "sidebar"], dock: ["layout"], sidebar: ["layout"],
                   motion: ["appearance", "accessibility"] }
         var ps = p.structure
@@ -94,7 +94,7 @@ Flickable {
         pen: "ink_pen", settings_app: "web_asset", shortcuts: "keyboard",
         "motion.profiles": "animation", "motion.timing": "speed", "motion.animation_style": "category",
         "motion.advanced_curves": "tune", "motion.choreography": "stack",
-        "motion.windows": "web_asset"
+        "motion.windows": "web_asset", typography: "text_fields", font_mix: "draw"
     })
     function sectionIcon(pageId, id) {
         return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
@@ -448,6 +448,13 @@ Flickable {
             visible: !p.searching && p.modId !== ""
             modId: p.modId
             onPageRequested: id => p.pageRequested(id)
+        }
+        // Settings › Fonts: the comparison of the mix on top (K93). Only on that page.
+        Loader {
+            width: col.width
+            active: !p.searching && p.pageId === "fonts"
+            visible: active
+            sourceComponent: FontMixPreview {}
         }
         // Settings › Motion: the preview stage on top and the reduce-motion line under it (W59.6). Only on that page. The
         // stage is sticky (brief §8 item 1): scrolled past, it stays at the page's top over the rows (W59.6b).

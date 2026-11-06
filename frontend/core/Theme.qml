@@ -1,10 +1,12 @@
 pragma Singleton
+import QtQml
 import QtQuick
 import Quickshell
 
 // The only reader of `theme.tokens` (rule 4). Components ask for tokens by name and never branch
 // on theme/profile names. Fallbacks only cover a daemon that has not delivered the theme yet.
 Singleton {
+    id: root_
     // The one Theme of the shell and of Settings (session 17: Settings links this file into its core/): the shell's Store
     // keeps the theme in `docs`, Settings' Store in `theme`.
     readonly property var themeDoc: (Store.docs && Store.docs["theme"]) || Store.theme || null
@@ -19,7 +21,15 @@ Singleton {
     // font.families is not exposed to QML Text; pick the CJK family by script.
     function fam(t, f) { if (!f || f.length < 2) return ""; return /[　-ヿ一-鿿]/.test(t || "") ? f[1] : f[0] }
 
-    readonly property var families: [tok("font.family", "Inter"), tok("font.family_jp", "Noto Sans CJK JP")]
+    // K93: the font mix is one generated font (`font.mix.file`): every Text takes it as the family, nothing else knows.
+    readonly property string mixFile: tok("font.mix.file", "")
+    property Instantiator mixLoader: Instantiator {
+        model: root_.mixFile !== "" ? 1 : 0
+        delegate: FontLoader { source: "file://" + root_.mixFile }
+    }
+    readonly property var mixFont: mixLoader.object
+    readonly property bool mixOn: !!mixFont && mixFont.status === FontLoader.Ready
+    readonly property var families: [mixOn ? mixFont.name : tok("font.family", "Inter"), tok("font.family_jp", "Noto Sans CJK JP")]
     readonly property color fg: color("color.on_surface", "#e9e4d8")
     readonly property color dim: color("color.on_surface_variant", "#b9b2a6")
     readonly property color accent: color("color.accent", "#c9404b")

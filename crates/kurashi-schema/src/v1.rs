@@ -428,7 +428,7 @@ pub struct Theme {
     /// Scales spacing and control sizes everywhere.
     #[kurashi(default = Density::Regular, section = "layout")]
     pub density: Density,
-    #[kurashi(nested, section = "typography")]
+    #[kurashi(nested, page = "fonts", section = "typography")]
     pub typography: Typography,
     #[kurashi(nested, section = "texture")]
     pub texture: Texture,
@@ -1362,6 +1362,8 @@ pub enum Density {
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Typography {
+    #[kurashi(nested, section = "font_mix")]
+    pub mix: FontMix,
     /// Font family
     /// Fallback chain; the first installed family wins (resolved via fontconfig).
     #[kurashi(default = FontFamilies::of(&["Inter", "Noto Sans CJK JP", "sans-serif"]))]
@@ -1376,6 +1378,35 @@ pub struct Typography {
     #[kurashi(default = 1.0, range = 0.75..=2.0, step = 0.05,
               overridden_by = "a11y.large_text => 1.25")]
     pub scale: f64,
+}
+
+/// A mix of fonts per letter, so that text looks less even, as handwriting does (I176, K93, `docs/ux/fonts.md`).
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct FontMix {
+    /// Font mix
+    /// Mixes several fonts letter by letter, so text looks less regular, as handwriting does. Handwriting takes shipped fonts;
+    /// Custom takes yours. It works with any fonts; the first gives the sizes. Digits and other scripts stay as they are.
+    #[kurashi(default = FontMixPreset::Off, since = 7)]
+    pub preset: FontMixPreset,
+    /// How many fonts
+    /// How many of the fonts to mix, from the first. Two is the quietest.
+    #[kurashi(default = 3, range = 2..=8, step = 1, requires = "theme.typography.mix.preset != off", since = 7)]
+    pub count: u32,
+    /// Fonts to mix
+    /// The fonts, in order. Any installed font, your own too.
+    #[kurashi(default = strings(&["Kalam", "Patrick Hand", "Handlee"]), choices_from = "fonts.installed",
+              requires = "theme.typography.mix.preset == custom", since = 7)]
+    pub fonts: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum FontMixPreset {
+    /// Off
+    Off,
+    /// Handwriting
+    Handwriting,
+    /// Custom
+    Custom,
 }
 
 // --- accessibility -------------------------------------------------------------------------------

@@ -30,7 +30,7 @@ while [ $# -gt 0 ]; do
 done
 
 # The set the lead runs before a merge (session 16–17); the others run with --all or by name.
-MERGE_SET=(stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings motion recipes dynamic-media wallpaper-grade module-menu niri-motion previews)
+MERGE_SET=(stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings motion recipes dynamic-media wallpaper-grade module-menu niri-motion previews font-mix mods/handwriting/test-handwriting.sh)
 path_of() {
   case "$1" in
     */*) echo "$1" ;;

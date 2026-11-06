@@ -34,7 +34,9 @@ vec4 ks_form(vec2 uv, vec2 size, float p, float opening) {
     if (pos.y < -4.0) return vec4(0.0);
 
     // Along: the panel under this row, from the top.
-    float y = 0.0, z = 0.0, d = -1.0, zz = 0.0, kf = 0.0;
+    // (past every panel: far outside the 4 px a border may reach, so it is no sample at all. A nearby value here painted the
+    // window's border and shadow over everything niri draws the shader on.)
+    float y = 0.0, z = 0.0, d = -1000000.0, zz = 0.0, kf = 0.0;
     for (int i = 0; i < 5; i++) {
         float k = float(i);
         if (k >= nd) break;
@@ -59,7 +61,7 @@ vec4 ks_form(vec2 uv, vec2 size, float p, float opening) {
     float x = eye + (pos.x - eye) * (KS_FOCAL - zz) / KS_FOCAL;
 
     // Across: outward from the panel that stays, each side its own way.
-    float a = -1.0, nx = 0.0, turn = 0.0;
+    float a = -1000000.0, nx = 0.0, turn = 0.0;
     float left = j0 * la, right = (j0 + 1.0) * la;
     if (x >= left - 4.0 && x <= right + 4.0 && !(x < left && j0 > 0.0) && !(x > right && j0 < na - 1.0)) {
         a = x;
