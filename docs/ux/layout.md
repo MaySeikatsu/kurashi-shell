@@ -100,3 +100,11 @@ schema v3 + migration (K71), `runtime.layout` (PROTOCOL §3.1), actions `layout.
 ## Later
 Several bars on one edge · per-edge bar thickness · KDE's "de-float when a window touches" · drag a bar to another
 edge in an edit mode (the redesign menu, K72) — BACKLOG rows.
+
+## Merging at corners (session 24, I428, K98)
+User, session 24: a menu or launcher opened near a corner in dynamic "should connect to its neighbour bar/frame fluently", with Caelestia's popout beside ours. Dynamic already joined a card to the bar through the Stage's neck fillets; a card near the output's side kept clear of the band instead, and a launcher at its button floated with a gap.
+- **What**: in dynamic, the Stage's cards under a widget, and a module's menu or tray menu, merge with what stands beside them when they come within two fillets and a pad of it (`mergeRoom`): flush on the band, a side bar or the screen's edge; no fillet to the bar on that side; a concave fillet from their foot into the neighbour. The launcher opened at a button stands on its bar the same way (`JoinedCard`, ColumnShape's one sheet with its material), on all four edges. A look's own start menu stays its own. Floating and connected are as they were.
+- **Caelestia** (`modules/drawers/`, `BlobGroup` smooth-min, read 2026-11-06): panels are blobs of one sheet, so all of this is one union. Ours are separate windows: same picture, by paths. Not taken: the full-screen shader and window.
+- **Shape's moves**: the flush holds while the card's side reaches the neighbour; the foot's fillet grows with the card. Motion lands on it; a sheet form still warps the card alone. Reduce motion: cut, same result.
+- **States**: bars on any edge; hidden bar: its band or the screen's edge. Multi-output: per output layout. The keyboard is unchanged: nothing moves focus. Translucent looks: the fill overlaps the band by the outline's width.
+- **Not taken yet**: the quick panel's phone frame keeps its card. `frontend/test-popover-joins.sh` reads the joins by pixels.

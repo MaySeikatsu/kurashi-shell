@@ -11,6 +11,11 @@ function band(lay, e) { var f = lay ? lay.frame : null; return f && f.on && f.ba
 // PROTOCOL §3.1, rows 481 a, 510) — any visibility but hidden (a hover bar's place stays the band's; a hidden bar is not
 // the band: it comes out over it, and the frame draws that edge's strip). The layout then says `band.<e>` 0 and, while
 // the frame reserves, `holder: "bar"`.
+// I428: how far the window cut into the sheet stands off the output's edge `e`: the band, and a bar shown on that edge.
+function holeSide(lay, e, barH) {
+    var ed = edgeOf(lay, e)
+    return band(lay, e) + (ed.bar === true && ed.visibility !== "hidden" ? Math.max(0, ed.inset || 0) + barH : 0)
+}
 function docked(lay, e) {
     var ed = edgeOf(lay, e), f = (lay && lay.frame) || {}
     return f.on === true && ed.bar === true && ed.draw !== "floating" && ed.visibility !== "hidden"

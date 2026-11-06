@@ -71,6 +71,15 @@ Shape {
     property color headFill: fill
     property real fade: 1
 
+    // I428, dynamic: a neighbour along the shape's side (the frame's band, a side bar), in this item's px; the sentinels mean
+    // none. Hanging from a strip, a card that reaches it merges: no fillet to the bar on that side (the hole's corner is gone)
+    // and its foot joins the neighbour by a concave fillet, so bar, card and band read as one sheet.
+    property real edgeL: -1e6
+    property real edgeR: 1e6
+    readonly property bool flushL: !joined && headless && edgeL > -1e5 && x0 <= edgeL + 0.75
+    readonly property bool flushR: !joined && headless && edgeR < 1e5 && x1 >= edgeR - 0.75
+    // The foot's fillet into the neighbour: as the neck, while the card has grown enough for one.
+    readonly property real footN: Math.max(0, Math.min(neck * neckScale * stretch, (y1 - edgeY) / 2))
     readonly property real x1: x0 + w
     readonly property real y1: y0 + h
     // The neck forms once the bottom has room below the bar's edge for the fillet and the bottom corners.
@@ -172,19 +181,46 @@ Shape {
         var dd = Math.min(d, ow), E = edgeY + dy, rnd = n > 0.5
         var X0 = x0 + d, X1 = x1 - d, Y1 = y1 - d + dy, b = Math.max(0, rb - d)
         var yF = rnd ? E + n : E - dd, yN = yF + (d - dd)
+        var fn = footN, yFoot = y1 + dy + fn
         var s = ""
         if (!back) {
-            s += rnd ? arc(n + dd, 0, x1 - dd, E + n) : " L " + f(x1 - dd) + " " + f(E - dd)
-            s += " L " + f(X1) + " " + f(yN) + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1)
-            s += " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b) + " L " + f(X0) + " " + f(yN) + " L " + f(x0 + dd) + " " + f(yF)
-            s += rnd ? arc(n + dd, 0, x0 - n, E - dd) : " L " + f(x0) + " " + f(E - dd)
+            if (flushR) {
+                // (starts at the neighbour: `hangStartR`; down its edge, the foot's fillet concentric with the outside one)
+                s += arc(fn + dd, 0, x1 - fn, Y1)
+            } else {
+                s += rnd ? arc(n + dd, 0, x1 - dd, E + n) : " L " + f(x1 - dd) + " " + f(E - dd)
+                s += " L " + f(X1) + " " + f(yN) + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1)
+            }
+            if (flushL) {
+                s += " L " + f(x0 + fn) + " " + f(Y1) + arc(fn + dd, 0, x0 - dd, yFoot)
+            } else {
+                s += " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b) + " L " + f(X0) + " " + f(yN) + " L " + f(x0 + dd) + " " + f(yF)
+                s += rnd ? arc(n + dd, 0, x0 - n, E - dd) : " L " + f(x0) + " " + f(E - dd)
+            }
         } else {
-            s += rnd ? arc(n + dd, 1, x0 + dd, E + n) : " L " + f(x0 + dd) + " " + f(E - dd)
-            s += " L " + f(X0) + " " + f(yN) + " L " + f(X0) + " " + f(Y1 - b) + arc(b, 0, X0 + b, Y1)
-            s += " L " + f(X1 - b) + " " + f(Y1) + arc(b, 0, X1, Y1 - b) + " L " + f(X1) + " " + f(yN) + " L " + f(x1 - dd) + " " + f(yF)
-            s += rnd ? arc(n + dd, 1, x1 + n, E - dd) : " L " + f(x1) + " " + f(E - dd)
+            if (flushL) {
+                s += arc(fn + dd, 1, x0 + fn, Y1)
+            } else {
+                s += rnd ? arc(n + dd, 1, x0 + dd, E + n) : " L " + f(x0 + dd) + " " + f(E - dd)
+                s += " L " + f(X0) + " " + f(yN) + " L " + f(X0) + " " + f(Y1 - b) + arc(b, 0, X0 + b, Y1)
+            }
+            if (flushR) {
+                s += " L " + f(x1 - fn) + " " + f(Y1) + arc(fn + dd, 1, x1 + dd, yFoot)
+            } else {
+                s += " L " + f(X1 - b) + " " + f(Y1) + arc(b, 0, X1, Y1 - b) + " L " + f(X1) + " " + f(yN) + " L " + f(x1 - dd) + " " + f(yF)
+                s += rnd ? arc(n + dd, 1, x1 + n, E - dd) : " L " + f(x1) + " " + f(E - dd)
+            }
         }
         return s
+    }
+    // Where the contour starts and ends at inset `d`: a fillet's tip on the bar's edge, or, merged, at the foot on the neighbour.
+    function hangStartR(d, dy) {
+        var dd = Math.min(d, ow)
+        return flushR ? " " + f(x1 + dd) + " " + f(y1 + dy + footN) : " " + f(x1 + n) + " " + f(edgeY + dy - dd)
+    }
+    function hangStartL(d, dy) {
+        var dd = Math.min(d, ow)
+        return flushL ? " " + f(x0 - dd) + " " + f(y1 + dy + footN) : " " + f(x0 - n) + " " + f(edgeY + dy - dd)
     }
     // The whole hanging shape inset by `d` (the fill, and the bands while the head still has its outline): the head inside
     // the bar (inset by d·(1 − opened)), along the rule's top to the right fillet, round the card, back to the head.
@@ -204,7 +240,8 @@ Shape {
     function hangFill(d, dy) {
         if (x1 - x0 - 2 * d < 1) return ""
         var E = edgeY + dy, dd = Math.min(d, ow)
-        return "M " + f(x0 - n) + " " + f(E - ow) + " L " + f(x1 + n) + " " + f(E - ow) + " L " + f(x1 + n) + " " + f(E - dd)
+        var xL = flushL ? x0 - dd : x0 - n, xR = flushR ? x1 + dd : x1 + n
+        return "M " + f(xL) + " " + f(E - ow) + " L " + f(xR) + " " + f(E - ow) + " L" + hangStartR(d, dy)
             + hangContour(d, dy, false) + " Z"
     }
     // W34, headless and joined: the neck's half width, centre and fillets (0 half width: no neck, the body is free).
@@ -257,8 +294,8 @@ Shape {
         if (joined && headless) return budHn > 0 ? budPath(a, 0, edgeY) + " " + budPath(b, 0, edgeY) : path(a, 0) + " " + path(b, 0)
         if (!hangs || opened < 1) return path(a, 0) + " " + path(b, 0)
         if (x1 - x0 - 2 * b < 1) return ""
-        return "M " + f(x1 + n) + " " + f(edgeY - Math.min(a, ow)) + hangContour(a, 0, false)
-            + " L " + f(x0 - n) + " " + f(edgeY - Math.min(b, ow)) + hangContour(b, 0, true) + " Z"
+        return "M" + hangStartR(a, 0) + hangContour(a, 0, false)
+            + " L" + hangStartL(b, 0) + hangContour(b, 0, true) + " Z"
     }
     // The bar and the shape are two surfaces whose frames are not presented together: an opening that followed the card
     // frame by frame lagged it (a growing card's fillet stood off the rule's end, a shrinking one left the rule under the
@@ -311,7 +348,7 @@ Shape {
         } else if (joined) {
             add(joinedPath(c, 0), ow)
         } else if (headless) {
-            if (hangs) add("M " + f(x1 + n) + " " + f(edgeY - c) + hangContour(c, 0, false), ow, false)
+            if (hangs) add("M" + hangStartR(c, 0) + hangContour(c, 0, false), ow, false)
         } else if (!hangs) {
             add(stripPath(c, true, 0), ow)
             if (ruledStrip) add("M 0 " + f(edgeY - c) + " L " + f(width) + " " + f(edgeY - c), ow, false)

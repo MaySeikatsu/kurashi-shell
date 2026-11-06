@@ -1327,3 +1327,9 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 24, with Caelestia's screenshot beside ours. Caelestia's sheet shadow has offset 0 (`modules/drawers/ContentWindow.qml`), so it falls inward evenly: I read the user's "inwards" as that, not an inset drawn on the sheet itself. To confirm with the user.
 **Trade-off.** The strips' room grows from 25 to 29 px at strength 1; the shadow darkens a window's edge a little more than K78's short reach.
 **Evidence.** `frontend/test-sheet-shadow.sh`; `docs/ux/shadows.md`.
+
+## K98 — What opens at a bar in dynamic stands on it, and merges near a corner (session 24, I428)
+**Decision.** In `draw = dynamic`, a Stage card under a widget and a launcher at its button merge with a neighbour along their side when there is no room for a fillet: flush, no fillet to the bar there, a concave fillet from the foot into the neighbour. MorphShape gets `edgeL` and `edgeR`; `JoinedCard` wraps ColumnShape for the launcher, its material with it. Amends session 15's "a card keeps clear of the bands" for dynamic alone.
+**Why.** User, session 24, with Caelestia's popout: "it should connect to its neighbour bar/frame fluently". Caelestia unions blobs in one window (`modules/drawers/Panels.qml`, K71's "not taken"); separate windows with paths give the same picture at 0 frames idle.
+**Trade-off.** Under a translucent material the fill overlaps a band by the outline's width. The launcher's slide lets its fillets move with it for the entrance.
+**Evidence.** `frontend/test-popover-joins.sh`; `docs/ux/layout.md`.
