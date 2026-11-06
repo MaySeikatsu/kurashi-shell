@@ -232,8 +232,10 @@ pub struct Globals {
     pub reveal_delay_ms: u32,
     /// Token `space.sm`.
     pub gap: u32,
-    /// Token `radius.lg`.
+    /// Token `radius.join` (K96): dynamic's fillets, the corners of what stands joined.
     pub join_radius: u32,
+    /// Token `radius.frame` (K96): the inner corners of a frame.
+    pub frame_radius: u32,
     /// `theme.shape.screen_corners_follow`: the screen's corners take `join_radius`.
     pub screen_follow: bool,
     /// `theme.shape.screen_corners`, the screen's corners while they do not follow.
@@ -298,6 +300,8 @@ pub struct Frame {
     pub on: bool,
     pub thickness: u32,
     pub radius: u32,
+    /// The screen's outer corners on this output (K96).
+    pub screen_radius: u32,
     pub reserve: bool,
     pub band: PerEdge,
 }
@@ -560,32 +564,41 @@ fn reserve_reason(v: Visibility) -> Option<&'static str> {
     (v == Visibility::Hidden).then_some(REASON_RESERVE_HIDDEN)
 }
 
-/// The corners of the window cut into the shell's sheet (K74): the one radius `R` (`radius.lg`), less the frame's
-/// thickness on a framed output — the inner curve of a band `thickness` wide round a corner of radius `R` — so the
-/// frame's inner corners, every dynamic join and the corners of what stands on the band are one radius, concentric
-/// with the screen's corner and the look's panels.
+/// The corners of the window cut into the shell's sheet (K96): the radius you see, as a window's and a widget's, not the
+/// radius less the band: a band as thick as the radius left no corner at all. The join's on an output with no frame.
 fn hole_radius(cfg: &OutputConfig, g: &Globals) -> u32 {
     if cfg.frame.enabled {
-        g.join_radius.saturating_sub(cfg.frame.thickness)
+        g.frame_radius
     } else {
         g.join_radius
     }
 }
 
-/// The screen's outer corners (K74): the radius itself by default — the frame's band runs round them and its inner
-/// corner is the hole's radius, so screen, band and hole are concentric —, else `theme.shape.screen_corners`.
+/// The screen's outer corners with no frame in question (the document's top level).
 fn screen_radius(g: &Globals) -> u32 {
     if g.screen_follow {
-        g.join_radius
+        g.frame_radius
     } else {
         g.screen_corners
     }
 }
 
-/// The radius of a join: dynamic's fillet (the hole's radius), connected's straight corner; floating has no join.
-fn join_radius(draw: Draw, cfg: &OutputConfig, g: &Globals) -> u32 {
-    if draw == Draw::Dynamic {
+/// The screen's outer corners on one output (K96): the hole's radius plus the band, so the band keeps one width round the
+/// corner, else `theme.shape.screen_corners`. A square hole stays square: a corner the look has squared.
+fn output_screen_radius(cfg: &OutputConfig, g: &Globals) -> u32 {
+    if !g.screen_follow {
+        g.screen_corners
+    } else if cfg.frame.enabled && g.frame_radius > 0 {
+        g.frame_radius + cfg.frame.thickness
+    } else {
         hole_radius(cfg, g)
+    }
+}
+
+/// The radius of a join: dynamic's fillet, connected's straight corner; floating has no join.
+fn join_radius(draw: Draw, g: &Globals) -> u32 {
+    if draw == Draw::Dynamic {
+        g.join_radius
     } else {
         0
     }
@@ -662,7 +675,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
                 meets(de)
             }
         }),
-        radius: join_radius(dock_draw, cfg, g),
+        radius: join_radius(dock_draw, g),
     };
 
     // A floating top/bottom bar that is not hidden: a sidebar ends a gap before it in every draw mode (I253, user
@@ -721,7 +734,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
                 start: top_meets,
                 end: bottom_meets,
             }),
-            radius: join_radius(draw, cfg, g),
+            radius: join_radius(draw, g),
         }
     };
     let sidebars = Sidebars {
@@ -841,6 +854,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             on: cfg.frame.enabled,
             thickness: cfg.frame.thickness,
             radius: hole_radius(cfg, g),
+            screen_radius: output_screen_radius(cfg, g),
             reserve: cfg.frame.reserve,
             band: PerEdge::of(band),
         },

@@ -15,7 +15,7 @@ DockBase {
     readonly property var fills: Theme.decor("dock.fill", [])
     readonly property color upper: fills.length > 0 ? fills[0] : Theme.container
     readonly property color foot: fills.length > 1 ? fills[1] : upper
-    readonly property real r: Theme.decor("dock.radius", -1) >= 0 ? Theme.decor("dock.radius", -1) : Theme.rLg + 4
+    readonly property real r: Theme.decor("dock.radius", -1) >= 0 ? Theme.decor("dock.radius", -1) : Theme.rDock
     readonly property real themeA: Theme.tok("color.surface_alpha", 1)
     readonly property real a: themeA >= 0.999 ? 0.62 : themeA
     readonly property real refl: Theme.decor("dock.reflection", 0)

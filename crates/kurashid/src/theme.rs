@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use kurashi_theme::{
     Axes, Colorblind, ContrastLevel, Density, FontProvider, Material, MotionRequest, Scheme, Shape,
-    Source, ThemeInput,
+    Source, SurfaceRadii, ThemeInput,
 };
 use serde_json::{Value, json};
 
@@ -29,6 +29,12 @@ pub(crate) fn s(store: &ConfigStore, key: &str) -> String {
         .and_then(|p| p.value.as_str().map(String::from))
         .unwrap_or_default()
 }
+/// A surface's own corner radius (K96): `None` while it is Auto (below 0, the schema's default).
+fn own_radius(store: &ConfigStore, key: &str) -> Option<f64> {
+    let v = f(store, key, -1.0);
+    (v >= 0.0).then_some(v)
+}
+
 pub(crate) fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
     store
         .get(key, None)
@@ -255,6 +261,13 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Shape::Rounded,
         },
         radius: f(store, "theme.shape.radius", 18.0),
+        radius_of: SurfaceRadii {
+            frame: own_radius(store, "theme.shape.radius_frame"),
+            joins: own_radius(store, "theme.shape.radius_joins"),
+            windows: own_radius(store, "theme.shape.radius_windows"),
+            widgets: own_radius(store, "theme.shape.radius_widgets"),
+            dock: own_radius(store, "theme.shape.radius_dock"),
+        },
         squircle: f(store, "theme.shape.squircle", 0.77),
         material: if s(store, "theme.material.kind") == "solid" {
             Material::Solid

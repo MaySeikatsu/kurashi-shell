@@ -389,6 +389,7 @@ Item {
             step: r.row.step ?? 0
             integer: r.row.type === "int"
             unit: r.row.unit ?? ""
+            restWord: (r.row.min ?? 0) === -1 ? I18n.tr("settings.slider.auto") : ""
             enabled: r.editable
             onCommitted: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)

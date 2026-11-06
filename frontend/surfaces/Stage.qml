@@ -1036,7 +1036,7 @@ PanelWindow {
     readonly property bool joined: Theme.groups && lifted
     // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
-    readonly property real neckR: joined ? 0 : Theme.rLg
+    readonly property real neckR: joined ? 0 : Theme.rJoin
 
     // The origin (out x, width; `e`: the line the shape hangs from, local). A widget's drawn square is 3 px in from its
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
@@ -1471,7 +1471,7 @@ PanelWindow {
             hw: stage.pillW
             hh: stage.pillH
             hr: stage.pillR
-            neckF: Theme.rLg / 2
+            neckF: Theme.rJoin
             neckCx: stage.neckCx
             attach: stage.neckAttach
             neckScale: stage.sf ? 1 : springs.neckScale

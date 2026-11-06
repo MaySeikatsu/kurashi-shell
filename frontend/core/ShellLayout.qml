@@ -18,6 +18,11 @@ QtObject {
     // The screen's outer corners (K74): the radius while `theme.shape.screen_corners_follow`, else their own size. 0 until
     // the document says (no corner drawn that is not in effect).
     readonly property int screenRadius: doc.screen_radius !== undefined ? Math.max(0, Math.round(doc.screen_radius)) : 0
+    // K96: the screen's outer corners on one output (the frame's radius plus its band; the document's value on an older one).
+    function screenRadiusOf(name) {
+        var f = of(name).frame
+        return f && f.screen_radius !== undefined ? Math.max(0, Math.round(f.screen_radius)) : screenRadius
+    }
     readonly property int revealDelay: doc.reveal_delay_ms !== undefined ? doc.reveal_delay_ms : 250
 
     readonly property var fallback: ({

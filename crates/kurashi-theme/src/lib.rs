@@ -153,6 +153,11 @@ pub fn preview(
                 }
             }
             "theme.shape.radius" => input.axes.radius = f,
+            "theme.shape.radius_frame" => input.axes.radius_of.frame = (f >= 0.0).then_some(f),
+            "theme.shape.radius_joins" => input.axes.radius_of.joins = (f >= 0.0).then_some(f),
+            "theme.shape.radius_windows" => input.axes.radius_of.windows = (f >= 0.0).then_some(f),
+            "theme.shape.radius_widgets" => input.axes.radius_of.widgets = (f >= 0.0).then_some(f),
+            "theme.shape.radius_dock" => input.axes.radius_of.dock = (f >= 0.0).then_some(f),
             "theme.colors.ink" if s != "palette" => input.ink = Ink::Named(s.into()),
             "theme.typography.family_jp" => {
                 input.axes.font_chain_jp = v

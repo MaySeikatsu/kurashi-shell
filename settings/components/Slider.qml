@@ -12,6 +12,8 @@ Item {
     property real step: 0
     property bool integer: false
     property string unit: ""
+    // The word for the slider's lowest value where that value means "not set" (a −1 in the schema): "Auto".
+    property string restWord: ""
     property bool enabled: true
     property string label: ""
     signal committed(real value)
@@ -104,7 +106,7 @@ Item {
         color: Theme.fg
         font.pixelSize: Theme.fs
         font.family: Theme.fam(text, Theme.families)
-        text: s.shown.toFixed(s.decimals) + (s.unit ? " " + s.unit : "")
+        text: s.restWord !== "" && s.shown <= s.from ? s.restWord : s.shown.toFixed(s.decimals) + (s.unit ? " " + s.unit : "")
     }
     MouseArea {
         // The track is 4 px tall; the hit area spans the control height and 6 px past both ends.

@@ -18,7 +18,7 @@ Scope {
 
     // (`runtime.layout`'s `screen_radius`: the corner radius while they follow it, K74, else theme.shape.screen_corners)
     Watch { doc: "runtime.layout" }
-    readonly property int radius: ShellLayout.screenRadius
+    readonly property int radius: ShellLayout.screenRadiusOf(modelData ? modelData.name : "")
 
     // One fillet: black from the corner to the arc, drawn for the top-left corner and turned for the others.
     component Corner: PanelWindow {
