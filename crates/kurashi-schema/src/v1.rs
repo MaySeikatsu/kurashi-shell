@@ -1147,10 +1147,16 @@ pub struct Material {
     /// and soft looks, off for flat and line ones. Follow the light: they fall away from it, longer when it stands low.
     #[kurashi(default = Elevation::Auto, since = 7, overridden_by = "a11y.high_contrast => off")]
     pub elevation: Elevation,
+    /// Frame and panel shadows
+    /// What the frame, the bars, the sidebars and the dock cast onto what lies beside them. Automatic: as Elevation.
+    /// Follow the light, or Static along the shadow direction. Inward: evenly all round into the window cut into the
+    /// frame, with no direction. Off: none.
+    #[kurashi(default = SheetShadow::Auto, overridden_by = "a11y.high_contrast => off")]
+    pub sheet_shadow: SheetShadow,
     /// Elevation strength
-    /// How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have
-    /// their own strength above).
-    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, since = 7, requires = "theme.material.elevation != off")]
+    /// How deep the surfaces' shadows are, the frame's and the panels' too: 0 none, 1 the look's own, 2 twice as far and
+    /// dark (the blocks' shadows have their own strength above).
+    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, since = 7)]
     pub elevation_strength: f64,
     /// Elevation follows the pointer
     /// While the light follows the pointer or the spotlight aims at it, the surfaces' shadows turn away from it too,
@@ -1162,6 +1168,21 @@ pub struct Material {
         overridden_by = "a11y.reduce_motion => false"
     )]
     pub elevation_pointer: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "sheet_shadow")]
+pub enum SheetShadow {
+    /// Automatic
+    Auto,
+    /// Follow the light
+    Follow,
+    /// Static
+    Static,
+    /// Inward
+    Inward,
+    /// Off
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

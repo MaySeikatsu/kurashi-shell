@@ -470,6 +470,12 @@ pub fn build(
         _ => "off",
     };
     t.insert("elevation.mode".into(), json!(elevation));
+    // The sheet's own (the frame, bars, sidebars, dock): the elevation's, unless told otherwise.
+    let sheet = match axes.sheet_shadow.as_str() {
+        m @ ("off" | "static" | "follow" | "inward") => m,
+        _ => elevation,
+    };
+    t.insert("elevation.sheet".into(), json!(sheet));
     t.insert("elevation.strength".into(), json!(axes.elevation_strength));
     t.insert(
         "elevation.pointer".into(),

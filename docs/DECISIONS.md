@@ -1321,3 +1321,9 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 24: "THEY SHOULD MATCH". Under washi (radius 9, band 10) K74 gave the frame's corner 0, the windows 9, widgets 13, a card's fillet 4.5. Caelestia's `border.rounding` is the hole's own radius.
 **Trade-off.** A framed screen's outer corner grows with the band, past what a panel's physical corner may be. Screen corners keep their own setting for that.
 **Evidence.** `frontend/test-corners.sh`; `docs/ux/corners.md`.
+
+## K97 — The sheet casts as the rest of the shell does; Inward as Caelestia's (session 24, I427)
+**Decision.** Amends K78 decision 4. `theme.material.sheet_shadow` (auto, follow, static, inward, off; tokens `elevation.sheet`, `elevation.sheet_dir`) rules the frame, bars, sidebars and dock. The band keeps a key layer and adds a faint one all round; a joined dock casts, cut along the edge it stands on. Inward: one even layer with no direction.
+**Why.** User, session 24, with Caelestia's screenshot beside ours. Caelestia's sheet shadow has offset 0 (`modules/drawers/ContentWindow.qml`), so it falls inward evenly: I read the user's "inwards" as that, not an inset drawn on the sheet itself. To confirm with the user.
+**Trade-off.** The strips' room grows from 25 to 29 px at strength 1; the shadow darkens a window's edge a little more than K78's short reach.
+**Evidence.** `frontend/test-sheet-shadow.sh`; `docs/ux/shadows.md`.

@@ -338,3 +338,12 @@ wallpaper; the pointer lamp only on the output under the pointer, the others at 
 5. **Defaults:** soft and keycap looks ship with elevation Static; flat and line looks Off (one switch away).
 6. **Controls:** separate strengths for block shadows (K67) and elevation, plus mode and direction; levels per surface
    role from the decor pack.
+
+## The sheet's own shadow (session 24, I427, K97)
+User, session 24: the frame, bars, sidebars and dock "don't really seem to cast a shadow"; they should follow the shell's shadow system, with options for static, off or inward "just like in Caelestia". What it was: K78's decision 4 gave the band a key layer alone, 4 px, so one side only and faint; a joined dock cast nothing at all.
+**Caelestia** (`modules/drawers/ContentWindow.qml`, read 2026-11-06): one `MultiEffect` shadow over the whole sheet: offset 0, `blurMax` 15, the palette's shadow at 0.7: an even, directionless shadow all round into the hole, and round each panel. That is what **Inward** means here; drawing inside the sheet itself is not what it does.
+- `theme.material.sheet_shadow`: **Automatic** (as Elevation), **Follow the light**, **Static** (the shadow direction), **Inward**, **Off**. Forced off under high contrast with Elevation. Elevation strength scales it, so that row is no longer inert while Elevation is off.
+- **Who**: the frame's band and docked bars (`SheetShadow`), floating bars, sidebars, the dock, floating or joined (`Elevation` with `sheet`, cut along what they join). Cards and popups stay Elevation's.
+- **The band**: a key layer (6 px, softness 10, 0.36) and a faint all-round one (softness 18, 0.22); Inward: all-round only (0.6). Two analytic layers, one pass each, painted once: 0 frames at rest. Reach 29 px at strength 1 (was 25) on the strips' inner side, outside input and blur.
+- **States**: as the elevation table. The dock's window keeps its room in every mode that casts, joined too. Under a translucent material the hole's shadow is still inside the hole only.
+- **Done when**: `frontend/test-sheet-shadow.sh` reads each mode at the hole's four edges: off 0, static falling down, inward even; a joined dock shot under each. **Not done**: the budget's PSS for the wider strips, unmeasured.

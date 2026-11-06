@@ -258,6 +258,7 @@
   "decor.workspace.mark": "own",
   "elevation.mode": "static",
   "elevation.pointer": false,
+  "elevation.sheet": "static",
   "elevation.strength": 1.0,
   "focus.ring": "#e2457f",
   "font.family": "Noto Sans CJK JP",

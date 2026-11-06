@@ -755,13 +755,20 @@ Smooth drop shadows under the shell's surfaces — sidebars, the dock, cards, th
 - forced to `"off"` while `a11y.high_contrast` is on
 - since schema v7
 
+#### `theme.material.sheet_shadow` — Frame and panel shadows
+
+What the frame, the bars, the sidebars and the dock cast onto what lies beside them. Automatic: as Elevation. Follow the light, or Static along the shadow direction. Inward: evenly all round into the window cut into the frame, with no direction. Off: none.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"follow"` | `"static"` | `"inward"` | `"off"`
+- forced to `"off"` while `a11y.high_contrast` is on
+
 #### `theme.material.elevation_strength` — Elevation strength
 
-How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own strength above).
+How deep the surfaces' shadows are, the frame's and the panels' too: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own strength above).
 
 - type: `float` · default: `1.0`
 - range: `0.0..=2.0`, step `0.05`
-- only while `theme.material.elevation != "off"`
 - since schema v7
 
 #### `theme.material.elevation_pointer` — Elevation follows the pointer
