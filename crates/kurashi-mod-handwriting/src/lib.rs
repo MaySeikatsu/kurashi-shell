@@ -85,8 +85,6 @@ impl NativeMod for HandwritingMod {
                 ctx.action($id, $label, move |$args: Value| {
                     let s = s.clone();
                     async move {
-                        let parsed = (|| -> Result<_, ActionError> { Ok($args) })()?;
-                        let $args = parsed;
                         s.with(|$st| $body)
                     }
                 })?;
