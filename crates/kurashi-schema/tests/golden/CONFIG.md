@@ -355,6 +355,13 @@ The mouse wheel over the workspaces moves to the next or the previous one.
 - type: `bool` · default: `false`
 - since schema v7
 
+#### `modules.workspaces.previews` — Hover previews
+
+Resting on a workspace shows what it held when you last saw it. The pictures stay in memory, for this session.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ### Windows
 
 #### `modules.windows.max` — Most windows shown
@@ -366,6 +373,13 @@ The rest go under "+N". 0: as many as the bar has room for.
 - since schema v7
 
 #### `modules.windows.middle_close` — Middle click closes
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `modules.windows.previews` — Hover previews
+
+Resting on a window shows it as you last saw it, with its title. The pictures stay in memory, for this session.
 
 - type: `bool` · default: `true`
 - since schema v7

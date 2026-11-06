@@ -292,6 +292,37 @@ pub async fn focused_output_at(path: &Path) -> Result<Option<String>> {
     }
 }
 
+/// Every window's place in niri's layout, on its own request connection (I284; `locate` reads where it stands from a still).
+pub async fn window_geoms_at(path: &Path) -> Result<Vec<crate::locate::WindowGeom>> {
+    let active: Vec<u64> = match request(path, Request::Workspaces).await? {
+        Response::Workspaces(list) => list.iter().filter_map(|w| w.active_window_id).collect(),
+        other => return Err(Error::Protocol(format!("unexpected reply {other:?}"))),
+    };
+    match request(path, Request::Windows).await? {
+        Response::Windows(list) => Ok(list
+            .into_iter()
+            .map(|w| crate::locate::WindowGeom {
+                id: w.id,
+                active: active.contains(&w.id),
+                workspace: w.workspace_id,
+                column: if w.is_floating {
+                    None
+                } else {
+                    w.layout.pos_in_scrolling_layout
+                },
+                tile: w.layout.tile_size,
+                window: (
+                    f64::from(w.layout.window_size.0),
+                    f64::from(w.layout.window_size.1),
+                ),
+                offset_in_tile: w.layout.window_offset_in_tile,
+                floating_at: w.layout.tile_pos_in_workspace_view,
+            })
+            .collect()),
+        other => Err(Error::Protocol(format!("unexpected reply {other:?}"))),
+    }
+}
+
 struct Inner {
     path: PathBuf,
     state: Mutex<NiriState>,

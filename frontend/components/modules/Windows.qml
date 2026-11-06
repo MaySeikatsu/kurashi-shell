@@ -21,6 +21,10 @@ ModuleBase {
     // I408: its own options (`modules.windows.*`, its right-click menu).
     S.BarConfig { id: cfg; screen: null }
     readonly property int most: Number(cfg.valueOf("modules.windows.max", 0))
+    // I284: last-seen stills while this module is out and its previews are on; the pointer's arrival keeps what is on screen.
+    readonly property bool previews: cfg.valueOf("modules.windows.previews", true) === true
+    Watch { doc: "svc.previews"; active: m.live && m.previews }
+    HoverHandler { onHoveredChanged: if (hovered && m.previews) Store.act("preview.refresh", { output: m.output }) }
     // The room the host leaves it, along its edge (px); the list fits as many buttons as it holds.
     property real room: 1e6
     present: tasks.length > 0
@@ -42,6 +46,7 @@ ModuleBase {
             return m.most > 0 ? Math.min(fits, m.most) : fits
         }
         middleCloses: cfg.valueOf("modules.windows.middle_close", true) === true
+        previews: m.previews
         pillAt: function (sx, sy) { return m.link ? m.link.pillAt(sx, sy, Theme.gap / 2 + 1) : null }
         pillBoxes: function () { return m.link ? m.link.boxes() : [] }
         onDragWsChanged: if (m.link) m.link.dragWs = dragWs

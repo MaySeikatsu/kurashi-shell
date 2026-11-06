@@ -104,6 +104,10 @@ impl State {
             ),
             ("svc.clock", documents::clock(documents::now(fixed_time))),
             (
+                "svc.previews",
+                json!({"available": false, "windows": {}, "workspaces": {}}),
+            ),
+            (
                 "svc.notifications",
                 documents::notes_doc(&notes, false, None),
             ),
@@ -384,6 +388,8 @@ impl State {
                     );
                 }
             }
+            // (no compositor to capture: `svc.previews` says so)
+            "preview.refresh" => {}
             "island.pin" => {
                 let now = self.data("runtime.island.main");
                 let was = now["pinned"].as_bool().unwrap_or(false);

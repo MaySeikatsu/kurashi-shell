@@ -1635,6 +1635,10 @@ pub struct WorkspacesModule {
     /// The mouse wheel over the workspaces moves to the next or the previous one.
     #[kurashi(default = false, module = "workspaces", since = 7)]
     pub scroll: bool,
+    /// Hover previews
+    /// Resting on a workspace shows what it held when you last saw it. The pictures stay in memory, for this session.
+    #[kurashi(default = true, module = "workspaces", since = 7)]
+    pub previews: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -1647,6 +1651,10 @@ pub struct WindowsModule {
     /// Middle click closes
     #[kurashi(default = true, module = "windows", since = 7)]
     pub middle_close: bool,
+    /// Hover previews
+    /// Resting on a window shows it as you last saw it, with its title. The pictures stay in memory, for this session.
+    #[kurashi(default = true, module = "windows", since = 7)]
+    pub previews: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]

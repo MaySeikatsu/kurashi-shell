@@ -69,6 +69,14 @@ async fn run() -> anyhow::Result<()> {
                 json!({"outputs": {}}),
                 Some(provider),
             );
+            // I284, I285: last-seen stills, while a module with previews on subscribes.
+            let previews = kurashid::previews::PreviewsProvider::new(target.clone());
+            previews.register_actions(&mut actions);
+            hub.register(
+                kurashid::previews::DOC,
+                json!({"available": false, "windows": {}, "workspaces": {}}),
+                Some(previews),
+            );
         }
         None => {
             tracing::warn!(
@@ -76,6 +84,11 @@ async fn run() -> anyhow::Result<()> {
                  KURASHI_COMPOSITOR=none): svc.workspaces stays empty"
             );
             hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
+            hub.register(
+                kurashid::previews::DOC,
+                json!({"available": false, "windows": {}, "workspaces": {}}),
+                None,
+            );
         }
     }
     // K47 (W23-system): keyboard layouts from the compositor's stream, its one-shot actions (screenshots, screens off)

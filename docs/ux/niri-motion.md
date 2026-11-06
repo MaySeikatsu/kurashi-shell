@@ -14,7 +14,7 @@ by the shell".
   port of the shell's own form, and a paste could not follow the style.
 - **Burn-My-Windows** (GNOME): an effect per window event, in its own settings. Effects do not follow a theme.
 - **Hyprland** (`animations`), **KDE** (window effects), **macOS** (genie/scale): a fixed list of effects, none tied to the shell's motion.
-- **Caelestia, end-4, DankMaterialShell, Noctalia**: set compositor curves at most. None carries the shell's forms over.
+- Quickshell shells (Caelestia, end-4, DankMaterialShell, Noctalia) were not checked for this brief: their animations are their own surfaces', as far as the earlier motion brief found.
 
 ## What niri can carry
 `custom-shader` on `window-open`, `window-close` and `window-resize`: fragment stage only, GLSL ES 1.00 after niri's prelude, over

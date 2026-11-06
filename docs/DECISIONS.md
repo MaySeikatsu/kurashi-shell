@@ -1290,3 +1290,10 @@ forms are run backwards per pixel, since niri has a fragment stage only. Opt-in.
 **Trade-off.** niri states custom shaders have no compatibility guarantee, and a refused one only logs a warning the daemon cannot see. So it is opt-in, the help says it,
 and the suite compiles every form in niri. A window hangs from its own top edge (I412). A user's recipe has no shader.
 **Evidence.** `frontend/test-niri-motion.sh`; `niri_forms` tests through glslang; contact sheets of every form at four progress values on nested niri on the GTX 1060 (NVIDIA's compiler).
+
+## K92 — Hover previews are last-seen stills, cropped by reading the layout from the picture (session 23, I284, I285)
+**Decision.** `svc.previews`, refcounted: while a module with previews on subscribes, kurashid takes a `wlr-screencopy` still of an output once it settled after a change, and when the pointer reaches the bar. The workspace keeps it; each window it shows wholly keeps its crop. The Stage's peek shows them (`window:<id>`, `workspace:<id>`). `docs/ux/hover-previews.md`.
+**Why.** User, session 23: a last-seen capture is fine. niri's `screenshot-window` always overwrites the clipboard (measured), and 26.04 has no window capture protocol. A per-window PipeWire cast was the live alternative, not tried: heavier, and it would light screen-share indicators.
+**Trade-off.** niri does not say where a tiled window stands: `tile_pos_in_workspace_view` is `None` for them (`src/layout/tile.rs`, set only in `floating.rs`). So `locate` infers scroll and gap from the still's edges, and gives no crop rather than a doubtful one. It can be fooled only by edges that repeat the whole pattern exactly, and a window behind a floating one shows what covered it. When niri tells the position, the inference can go.
+**Evidence.** `frontend/test-previews.sh`: known colours in each crop's corners and middle on nested niri, the clipboard untouched, nothing left when off. `kurashi_compositor::locate` unit tests.
+

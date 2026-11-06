@@ -18,6 +18,7 @@ pub mod keys;
 pub mod lock;
 pub mod native;
 pub mod os_scheme;
+pub mod previews;
 pub mod server;
 pub mod services;
 pub mod sound;

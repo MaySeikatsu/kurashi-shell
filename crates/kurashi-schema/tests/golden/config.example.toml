@@ -1071,6 +1071,11 @@
 # one.
 #   since schema v7
 # scroll = false
+#
+# Hover previews — Resting on a workspace shows what it held when you last saw it. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
 
 # [modules.windows]
 #
@@ -1081,6 +1086,11 @@
 # Middle click closes
 #   since schema v7
 # middle_close = true
+#
+# Hover previews — Resting on a window shows it as you last saw it, with its title. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
 
 # [clock]
 #

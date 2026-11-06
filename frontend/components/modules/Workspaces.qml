@@ -17,6 +17,10 @@ ModuleBase {
     readonly property bool showEmpty: cfg.valueOf("modules.workspaces.empty", true) === true
     readonly property string marks: String(cfg.valueOf("modules.workspaces.marks", "look"))
     readonly property bool scrolls: cfg.valueOf("modules.workspaces.scroll", false) === true
+    // I285: last-seen stills while this module is out and its previews are on; the pointer's arrival keeps what is on screen.
+    readonly property bool previews: cfg.valueOf("modules.workspaces.previews", true) === true
+    Watch { doc: "svc.previews"; active: m.live && m.previews }
+    HoverHandler { onHoveredChanged: if (hovered && m.previews) Store.act("preview.refresh", { output: m.output }) }
     readonly property var allPills: {
         var o = doc.outputs || {}
         return o[m.output] || o["*"] || []
@@ -73,6 +77,7 @@ ModuleBase {
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
             }
             TapHandler { margin: 4; onTapped: Store.act("workspace.focus", { id: modelData.id }) }
+            PreviewSource { source: "workspace:" + modelData.id; output: m.output; enabled_: m.previews && !modelData.focused && m.dragWs < 0 }
             // A window dragged over this workspace (W36): a ring round the dot.
             Rectangle {
                 visible: m.dragWs === modelData.id
@@ -119,6 +124,7 @@ ModuleBase {
                 text: kp.modelData.idx ?? ""
             }
             TapHandler { id: wsTap; onTapped: Store.act("workspace.focus", {id: kp.modelData.id}) }
+            PreviewSource { source: "workspace:" + kp.modelData.id; output: m.output; enabled_: m.previews && !kp.modelData.focused && m.dragWs < 0 }
             // A window dragged over this workspace (W36): a ring round the key.
             Rectangle {
                 visible: m.dragWs === kp.modelData.id
@@ -165,6 +171,7 @@ ModuleBase {
             }
             HoverHandler { id: navHover }
             TapHandler { id: navTap; onTapped: Store.act("workspace.focus", {id: np.modelData.id}) }
+            PreviewSource { source: "workspace:" + np.modelData.id; output: m.output; enabled_: m.previews && !np.modelData.focused && m.dragWs < 0 }
             // A window dragged over this workspace (W36): a ring round the item.
             Rectangle {
                 visible: m.dragWs === np.modelData.id
@@ -183,6 +190,7 @@ ModuleBase {
             required property var modelData
             width: m.thickness
             height: modelData.focused ? 24 : 8
+            PreviewSource { source: "workspace:" + modelData.id; output: m.output; enabled_: m.previews && !modelData.focused && m.dragWs < 0 }
             Rectangle {
                 anchors.centerIn: parent
                 width: modelData.focused ? 10 : 8

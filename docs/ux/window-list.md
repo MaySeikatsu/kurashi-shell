@@ -24,7 +24,7 @@ attention — and silent while nothing changes.
 - **HyprPanel**: a "taskbar" per workspace in the workspace module, icons from a mapping table, no title.
 
 **Taken:** KDE's flash-then-steady urgency (here a short hop, then a steady mark), DMS's middle-click close and icon
-chain (plus StartupWMClass), KDE's drag onto the pager, the title in a hover peek (no thumbnails: they need screencopy per
+chain (plus StartupWMClass), KDE's drag onto the pager, the title in a hover peek (no thumbnails then, K92 has them since: they need screencopy per
 window). **Not taken:** titles in the bar (they churn: a browser retitles on every page), grouping by app (the dock does
 that), middle-click = new window (Windows; the dock has New window).
 
@@ -39,6 +39,7 @@ that), middle-click = new window (Windows; the dock has New window).
   (`window.move`; the chip under the pointer is ringed while dragging; the view follows the window, as niri's bind does).
   Right-click opens a menu: the title, "Focus", "Move to workspace N" for each other workspace of the output,
   "Close window".
+- **Preview (K92, `docs/ux/hover-previews.md`)**: with `modules.windows.previews` on (the default) a rest shows the Stage's peek, the window as last seen with its title and app. The peek below is what remains with it off, and the drag's.
 - Peek: after 400 ms of rest the window's title (fetched then with `window.title`; never in the document) and the app's
   name, in a small card beside the button (below a top bar, above a bottom one, beside a side bar), click-through. While
   dragging, the peek says "Move to workspace N".

@@ -896,6 +896,22 @@
               "restart": false,
               "since": 7,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.modules.workspaces.previews.help",
+              "key": "modules.workspaces.previews",
+              "label": "config.modules.workspaces.previews.label",
+              "modules": [
+                "workspaces"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         },
@@ -929,6 +945,22 @@
               "default": true,
               "key": "modules.windows.middle_close",
               "label": "config.modules.windows.middle_close.label",
+              "modules": [
+                "windows"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.modules.windows.previews.help",
+              "key": "modules.windows.previews",
+              "label": "config.modules.windows.previews.label",
               "modules": [
                 "windows"
               ],
