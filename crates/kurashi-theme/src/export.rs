@@ -187,10 +187,13 @@ pub fn values(i: &Inputs) -> Values {
     if let Some(profile) = niri_family(i.tokens) {
         // K83 (W59.9): `theme.motion.windows = follow` gives the windows the profile's own curves and springs; off (the
         // default) keeps the family's springs as before; no motion is `off` either way.
-        let follow = i.tokens.get("motion.windows").and_then(Value::as_str) == Some("follow");
-        let niri_block = match (profile, follow) {
-            ("none", _) | (_, false) => niri_animations(profile, i.motion_speed),
-            (_, true) => niri_follow(i.tokens, profile, i.motion_speed),
+        // K91: `forms` also gives them the forms the surfaces move in, as niri's custom shaders.
+        let windows = i.tokens.get("motion.windows").and_then(Value::as_str);
+        let niri_block = match (profile, windows) {
+            ("none", _) => niri_animations(profile, i.motion_speed),
+            (_, Some("follow")) => niri_follow(i.tokens, profile, i.motion_speed, false),
+            (_, Some("forms")) => niri_follow(i.tokens, profile, i.motion_speed, true),
+            _ => niri_animations(profile, i.motion_speed),
         };
         // K49 amendment 2: Hyprland and MangoWM on the continuous curve and the standard duration; every block empty
         // with `theme.window_animations` off (each compositor keeps its own).
@@ -383,8 +386,15 @@ fn niri_family(t: &serde_json::Map<String, Value>) -> Option<&str> {
 /// curve and close on the close curve, the view and workspaces move on the open curve, moving and resizing windows on
 /// the fast one. A single cubic is niri's `curve "cubic-bezier"` over its duration; a spring maps 1:1 (mass 1:
 /// `stiffness = (2π / response)²`, `damping-ratio = 1 − bounce`, or `1 / (1 + bounce)` when overdamped); K42's springs
-/// (`spring_q`), multi-segment cubics and steps have no niri form and take the family's spring.
-fn niri_follow(t: &serde_json::Map<String, Value>, family: &str, speed: f64) -> String {
+/// (`spring_q`), multi-segment cubics and steps have no niri form and take the family's spring. With `forms` (K91) a window
+/// opens and closes in its form (`motion.form.window.*`): the form's pace stretches the curve as in the shell, what niri has
+/// no curve for runs in the shader on a linear clock, `none` is niri's `off`, and a recipe keeps niri's own on the curve.
+fn niri_follow(
+    t: &serde_json::Map<String, Value>,
+    family: &str,
+    speed: f64,
+    forms: bool,
+) -> String {
     let fallback = |name: &str| {
         let b = niri_animations(family, speed);
         b.lines()
@@ -393,7 +403,7 @@ fn niri_follow(t: &serde_json::Map<String, Value>, family: &str, speed: f64) -> 
             .map(|l| l.trim().to_owned())
             .unwrap_or_default()
     };
-    let body = |name: &str, role: &str| -> String {
+    let body = |name: &str, role: &str, pace: f64| -> String {
         let c = t.get(&format!("motion.curve.{role}"));
         let kind = c
             .and_then(|c| c.get("kind"))
@@ -402,7 +412,14 @@ fn niri_follow(t: &serde_json::Map<String, Value>, family: &str, speed: f64) -> 
         let ms = c
             .and_then(|c| c.get("ms"))
             .and_then(Value::as_f64)
-            .unwrap_or(0.0);
+            .unwrap_or(0.0)
+            * pace;
+        if pace_linear(forms, name, c) && ms > 0.0 {
+            return format!(
+                "duration-ms {}\n        curve \"linear\"",
+                ms.round() as i64
+            );
+        }
         match kind {
             "cubic" => {
                 let pts: Vec<f64> = c
@@ -429,6 +446,11 @@ fn niri_follow(t: &serde_json::Map<String, Value>, family: &str, speed: f64) -> 
                     .and_then(|c| c.get("response"))
                     .and_then(Value::as_f64)
                     .unwrap_or(ms)
+                    * if c.and_then(|c| c.get("response")).is_some() {
+                        pace
+                    } else {
+                        1.0
+                    }
                     / 1000.0;
                 let b = c
                     .and_then(|c| c.get("bounce"))
@@ -451,13 +473,46 @@ fn niri_follow(t: &serde_json::Map<String, Value>, family: &str, speed: f64) -> 
             "window-close" => "close",
             _ => "fast",
         };
+        // K91: the window's own form on open and close.
+        let form = (forms && matches!(name, "window-open" | "window-close"))
+            .then(|| {
+                let dir = if name == "window-open" {
+                    "open"
+                } else {
+                    "close"
+                };
+                t.get(&format!("motion.form.window.{dir}"))
+                    .and_then(Value::as_str)
+            })
+            .flatten();
+        if form == Some("none") {
+            out.push_str(&format!("    {name} {{\n        off\n    }}\n"));
+            continue;
+        }
+        let pace = form
+            .and_then(kurashi_motion::forms::form)
+            .map_or(1.0, |m| m.pace());
+        let curve = t.get(&format!("motion.curve.{role}"));
+        let shader =
+            form.and_then(|f| crate::niri_forms::shader(t, f, name == "window-open", curve));
         out.push_str(&format!(
-            "    {name} {{\n        {}\n    }}\n",
-            body(name, role)
+            "    {name} {{\n        {}\n",
+            body(name, role, pace)
         ));
+        if let Some(s) = shader {
+            out.push_str(&format!("        custom-shader r\"\n{s}\"\n"));
+        }
+        out.push_str("    }\n");
     }
     out.push('}');
     out
+}
+
+/// K91: a window's open or close whose curve niri cannot say: the shader keeps that curve on a linear clock.
+fn pace_linear(forms: bool, name: &str, curve: Option<&Value>) -> bool {
+    forms
+        && matches!(name, "window-open" | "window-close")
+        && crate::niri_forms::needs_linear(curve)
 }
 
 /// niri's `animations` block for a motion profile (W34): calm settles without a bounce, lively overshoots a little,
@@ -1053,7 +1108,7 @@ mod tests {
         };
         let t = toks("follow");
         let fam = niri_family(t.as_object().unwrap()).unwrap();
-        let b = niri_follow(t.as_object().unwrap(), fam, 1.0);
+        let b = niri_follow(t.as_object().unwrap(), fam, 1.0, false);
         assert!(b.contains("window-open {\n        duration-ms 500\n        curve \"cubic-bezier\" 0.38 1.21 0.22 1\n"), "{b}");
         // spring(550 ms, 0.45): stiffness (2π / 0.55)² ≈ 131, ratio 0.55.
         assert!(
@@ -1066,6 +1121,53 @@ mod tests {
         assert!(
             b.contains("window-movement {\n        spring damping-ratio=0.85 stiffness=900"),
             "{b}"
+        );
+    }
+
+    /// `theme.motion.windows = forms` (K91): open and close carry the window's form as a custom shader, on the form's
+    /// pace; the view, moves and resizes keep their curves; `none` is `off`; a recipe has the curve alone.
+    #[test]
+    fn niri_carries_the_forms_when_asked() {
+        let toks = |open: &str, close: &str| {
+            serde_json::json!({
+                "motion.kind": "timed", "motion.spring.on": true, "motion.spring.damping": 0.45,
+                "motion.windows": "forms",
+                "motion.form.window.open": open, "motion.form.window.close": close,
+                "motion.curve.open": {"kind": "cubic", "ms": 500, "points": [0.38, 1.21, 0.22, 1.0, 1.0, 1.0]},
+                "motion.curve.close": {"kind": "spring", "ms": 400, "response": 400, "bounce": 0.0},
+                "motion.curve.fast": {"kind": "steps", "ms": 200, "n": 4},
+            })
+        };
+        let t = toks("fold", "drop");
+        let t = t.as_object().unwrap();
+        let b = niri_follow(t, "expressive", 1.0, true);
+        // fold's pace 1.4 over 500 ms, drop's 1.9 over a 400 ms response (0.76 s: (2π / 0.76)² ≈ 68).
+        assert!(
+            b.contains("window-open {\n        duration-ms 700\n"),
+            "{b}"
+        );
+        assert!(
+            b.contains("window-close {\n        spring damping-ratio=1.00 stiffness=68 "),
+            "{b}"
+        );
+        assert_eq!(b.matches("custom-shader r\"").count(), 2, "{b}");
+        assert!(
+            b.contains("vec4 open_color") && b.contains("vec4 close_color"),
+            "{b}"
+        );
+        assert!(!b.contains("window-resize {\n        custom-shader"), "{b}");
+        // niri's curves stay for what has no form: steps have no niri form there (the family's spring)
+        assert!(b.contains("window-movement {\n        spring"), "{b}");
+        let t = toks("none", "my-recipe");
+        let b = niri_follow(t.as_object().unwrap(), "expressive", 1.0, true);
+        assert!(b.contains("window-open {\n        off\n"), "{b}");
+        assert!(b.contains("window-close {\n        spring"), "{b}");
+        assert!(!b.contains("custom-shader"), "{b}");
+        // `follow` stays curves alone
+        let t = toks("fold", "drop");
+        assert!(
+            !niri_follow(t.as_object().unwrap(), "expressive", 1.0, false)
+                .contains("custom-shader")
         );
     }
 

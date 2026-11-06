@@ -474,3 +474,5 @@ layer over the style's pack. Precedence: default < the style's pack < the user's
 reduce motion (the `reduced` pack: fades ≤ 150 ms, no vestibular or flash forms). Rows that a pack does not move read
 inert with their reason (Shōjiki). Frontend: `core/motion/{curves.js,Driver.qml}`, `components/motion/{FormHost,
 SurfaceForm,ShapeForm,SheetForm,Accents,Stagger}.qml` and `forms/`; scrub any frame with `KURASHI_MOTION_SCRUB=<p>`.
+**On niri's windows** (K91, `docs/ux/niri-motion.md`): `theme.motion.windows = forms` exports the `window` class's form as custom shaders
+(`crates/kurashi-theme/src/niri_forms/`). A new form needs its port there: a test refuses a form without one.

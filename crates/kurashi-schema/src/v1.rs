@@ -1177,7 +1177,9 @@ pub struct Motion {
     #[kurashi(default = MotionShadow::Profile, section = "choreography", advanced)]
     pub shadow: MotionShadow,
     /// Window animations
-    /// Give the compositor's window animations the profile's curves (niri). Off: windows move as the compositor says.
+    /// Give the compositor's window animations the profile's curves (niri). With its animations, windows also open and
+    /// close the way the shell's surfaces do, through niri's custom shaders; niri keeps its own if a later version refuses
+    /// one. Off: windows move as the compositor says.
     #[kurashi(default = MotionWindows::Off, section = "windows")]
     pub windows: MotionWindows,
 }
@@ -1264,6 +1266,23 @@ pub struct MotionForms {
     pub menu: SurfaceForm,
     #[kurashi(nested)]
     pub dialog: SurfaceForm,
+    #[kurashi(nested)]
+    pub window: WindowForm,
+}
+
+/// The compositor's windows (K91, `docs/ux/niri-motion.md`): the form they open and close in; `""` follows the default.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct WindowForm {
+    /// Windows open with
+    /// The animation a window opens with. Follows the style's unless you pick one here.
+    #[kurashi(default = String::new(), choices_from = "motion.forms", section = "windows",
+              requires = "theme.motion.windows == forms")]
+    pub open: String,
+    /// Windows close with
+    /// The animation a window closes with. Follows the style's unless you pick one here.
+    #[kurashi(default = String::new(), choices_from = "motion.forms", section = "windows",
+              requires = "theme.motion.windows == forms")]
+    pub close: String,
 }
 
 /// One surface class's forms; `""` follows the default. A form that cannot serve this class is refused by the resolver
@@ -1330,6 +1349,8 @@ pub enum MotionWindows {
     Off,
     /// Follow the profile
     Follow,
+    /// Follow the profile, with its animations
+    Forms,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

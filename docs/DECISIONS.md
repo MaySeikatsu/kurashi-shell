@@ -1278,3 +1278,15 @@ point, the island or a fixed place. Prototyped in QML against a hand table first
 **Trade-off.** A launcher opened by key no longer grows out of the island by default on looks that did (W34): that morph is now
 `launcher.place = island`. The island keeps its bound right click (pin), so its menu needs that unbound: open, I408.
 **Evidence.** `frontend/test-module-menu.sh`; reviewed on nested niri on kami and aqua, on top, bottom and left bars.
+
+## K91 — The shell's forms on niri's windows, as generated custom shaders (session 23, I410)
+**Decision.** `theme.motion.windows` gains `forms`: kurashid writes the window's form into `kurashi.kdl` as `custom-shader` blocks on `window-open` and
+`window-close`. `window` is a thirteenth surface class (`motion.form.window.*`, `theme.motion.form.window.*`, a pack's `[form.window]`), so it resolves
+as the others do. Every form has a GLSL ES 1.00 port in `crates/kurashi-theme/src/niri_forms/`, with the theme and the form's parameters as constants. Mesh
+forms are run backwards per pixel, since niri has a fragment stage only. Opt-in. `docs/ux/niri-motion.md`.
+**Why.** User, session 23: "the animations should represent the same style selected by the shell". The repos they pointed at
+([nirimation](https://github.com/Xansidev/nirimation), [niri-animation-collection](https://github.com/jgarza9788/niri-animation-collection),
+[liixini/shaders](https://github.com/liixini/shaders); all MIT) proved the hook carries such effects; they are fixed pastes, so nothing is copied: the forms are the shell's.
+**Trade-off.** niri states custom shaders have no compatibility guarantee, and a refused one only logs a warning the daemon cannot see. So it is opt-in, the help says it,
+and the suite compiles every form in niri. A window hangs from its own top edge (I412). A user's recipe has no shader.
+**Evidence.** `frontend/test-niri-motion.sh`; `niri_forms` tests through glslang; contact sheets of every form at four progress values on nested niri on the GTX 1060 (NVIDIA's compiler).

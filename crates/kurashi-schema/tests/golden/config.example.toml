@@ -509,8 +509,10 @@
 # shadow = "profile"
 #
 # Window animations — Give the compositor's window animations the profile's curves (niri).
-# Off: windows move as the compositor says.
-#   choices: "off" | "follow"
+# With its animations, windows also open and close the way the shell's surfaces do, through
+# niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows
+# move as the compositor says.
+#   choices: "off" | "follow" | "forms"
 # windows = "off"
 
 # [theme.motion.form]
@@ -673,6 +675,20 @@
 # Closes with — This surface's own closing animation ("": the default).
 #   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
 #   "none" · advanced
+# close = ""
+
+# [theme.motion.form.window]
+#
+# Windows open with — The animation a window opens with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
+# open = ""
+#
+# Windows close with — The animation a window closes with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
 # close = ""
 
 # [theme.motion.timing]

@@ -13,6 +13,7 @@ pub mod export;
 pub mod fonts;
 pub mod input;
 pub mod media_tint;
+pub mod niri_forms;
 pub mod palette;
 pub mod season;
 pub mod stages;

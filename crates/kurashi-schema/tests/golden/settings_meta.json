@@ -4263,6 +4263,85 @@
           ]
         },
         {
+          "id": "windows",
+          "label": "settings.section.windows",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.windows",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "forms"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.window.open.help",
+              "key": "theme.motion.form.window.open",
+              "label": "config.theme.motion.form.window.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.windows",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "forms"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.window.close.help",
+              "key": "theme.motion.form.window.close",
+              "label": "config.theme.motion.form.window.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.motion_windows.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.motion_windows.follow",
+                  "value": "follow"
+                },
+                {
+                  "label": "config.choice.motion_windows.forms",
+                  "value": "forms"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "off",
+              "help": "config.theme.motion.windows.help",
+              "key": "theme.motion.windows",
+              "label": "config.theme.motion.windows.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            }
+          ]
+        },
+        {
           "id": "timing",
           "label": "settings.section.timing",
           "rows": [
@@ -4582,35 +4661,6 @@
               "help": "config.theme.motion.shadow.help",
               "key": "theme.motion.shadow",
               "label": "config.theme.motion.shadow.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "choice"
-            }
-          ]
-        },
-        {
-          "id": "windows",
-          "label": "settings.section.windows",
-          "rows": [
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.motion_windows.off",
-                  "value": "off"
-                },
-                {
-                  "label": "config.choice.motion_windows.follow",
-                  "value": "follow"
-                }
-              ],
-              "control": "select",
-              "couplings": [],
-              "default": "off",
-              "help": "config.theme.motion.windows.help",
-              "key": "theme.motion.windows",
-              "label": "config.theme.motion.windows.label",
               "per_output": false,
               "restart": false,
               "since": 1,
