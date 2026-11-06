@@ -117,7 +117,12 @@ pub fn outline(strokes: &Strokes, pen: f64) -> Option<(BezPath, f64, f64)> {
             continue;
         }
         let path = smooth(&points);
-        let out = stroke(path.elements().iter().copied(), &style, &StrokeOpts::default(), TOLERANCE);
+        let out = stroke(
+            path.elements().iter().copied(),
+            &style,
+            &StrokeOpts::default(),
+            TOLERANCE,
+        );
         all.extend(out.elements().iter().copied());
     }
     if all.elements().is_empty() {
@@ -140,23 +145,42 @@ mod tests {
     #[test]
     fn a_tap_is_a_dot_the_pens_width() {
         let (p, x0, x1) = outline(&vec![vec![[100.0, 200.0]]], 60.0).unwrap();
-        assert!((x0 - 70.0).abs() < 1.0 && (x1 - 130.0).abs() < 1.0, "{x0} {x1}");
-        assert!(p.elements().iter().all(|e| !matches!(e, PathEl::CurveTo(..))));
+        assert!(
+            (x0 - 70.0).abs() < 1.0 && (x1 - 130.0).abs() < 1.0,
+            "{x0} {x1}"
+        );
+        assert!(
+            p.elements()
+                .iter()
+                .all(|e| !matches!(e, PathEl::CurveTo(..)))
+        );
     }
 
     #[test]
     fn a_stroke_is_as_wide_as_it_was_drawn_and_all_quadratic() {
-        let s = vec![vec![[0.0, 0.0], [100.0, 100.0], [200.0, 0.0], [300.0, 100.0]]];
+        let s = vec![vec![
+            [0.0, 0.0],
+            [100.0, 100.0],
+            [200.0, 0.0],
+            [300.0, 100.0],
+        ]];
         let (p, x0, x1) = outline(&s, 40.0).unwrap();
         assert!((x0 + 20.0).abs() < 2.0, "{x0}");
         assert!((x1 - 320.0).abs() < 2.0, "{x1}");
-        assert!(p.elements().iter().all(|e| !matches!(e, PathEl::CurveTo(..))));
+        assert!(
+            p.elements()
+                .iter()
+                .all(|e| !matches!(e, PathEl::CurveTo(..)))
+        );
         assert!(matches!(p.elements().last(), Some(PathEl::ClosePath)));
     }
 
     #[test]
     fn points_on_top_of_each_other_are_thinned_but_the_last_stays() {
-        let t = thin(&[[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [10.0, 0.0], [10.5, 0.0]], 2.0);
+        let t = thin(
+            &[[0.0, 0.0], [0.5, 0.0], [1.0, 0.0], [10.0, 0.0], [10.5, 0.0]],
+            2.0,
+        );
         assert_eq!(t, vec![[0.0, 0.0], [10.0, 0.0], [10.5, 0.0]]);
     }
 }

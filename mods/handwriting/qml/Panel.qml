@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.core
 import qs.components
 
@@ -18,6 +19,14 @@ Item {
     implicitHeight: col.implicitHeight
     property real fillHeight: 0
     property var placement: null
+    // (test only, as the sidebar's and launcher's logs: where a drawn stroke goes)
+    readonly property bool logOn: Quickshell.env("KURASHI_HANDWRITING_LOG") === "1"
+    function logPlace(name, item) {
+        if (!logOn) return
+        var q = item.mapToItem(null, 0, 0)
+        console.log("handwriting-place " + name + " " + Math.round(q.x) + " " + Math.round(q.y) + " " + Math.round(item.width) + " " + Math.round(item.height))
+    }
+    function logAll() { logPlace("panel", p); logPlace("box", box); logPlace("save", saveBtn); logPlace("retry", retryBtn); logPlace("make", makeBtn); logPlace("create", createBtn); logPlace("name", nameField) }
 
     readonly property var d: Store.docs["mod.handwriting"] || ({})
     readonly property var fonts: d.fonts || []
@@ -51,6 +60,7 @@ Item {
             p.made = []
             p.goFirstEmpty()
             keyCatcher.forceActiveFocus()
+            Qt.callLater(p.logAll)
         })
     }
     function goFirstEmpty() {
@@ -309,8 +319,9 @@ Item {
                         Row {
                             spacing: Theme.gap
                             Btn { objectName: "handwriting-cancel"; label: I18n.tr("mod-handwriting.cancel"); onClicked: p.fontId = "" }
-                            Btn { objectName: "handwriting-retry"; label: I18n.tr("mod-handwriting.retry"); onClicked: box.clear() }
+                            Btn { id: retryBtn; objectName: "handwriting-retry"; label: I18n.tr("mod-handwriting.retry"); onClicked: box.clear() }
                             Btn {
+                                id: saveBtn
                                 objectName: "handwriting-save"
                                 primary: true
                                 label: I18n.tr("mod-handwriting.save_next")
@@ -351,6 +362,7 @@ Item {
                         Row {
                             spacing: Theme.gap
                             Btn {
+                                id: makeBtn
                                 objectName: "handwriting-make"
                                 primary: p.complete
                                 enabled_: p.doneHere > 0
@@ -370,5 +382,5 @@ Item {
             }
         }
     }
-    Component.onCompleted: if (p.fonts.length === 0) nameField.forceActiveFocus()
+    Component.onCompleted: { if (p.fonts.length === 0) nameField.forceActiveFocus(); Qt.callLater(p.logAll) }
 }

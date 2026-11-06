@@ -62,7 +62,7 @@ def command(parts):
             return "click", int(parts[1]), int(parts[2]), parts[3]
         if len(parts) == 6 and parts[0] == "sweep":
             return "sweep", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]), float(parts[5]))
-        if len(parts) >= 4 and parts[0] == "draw":
+        if len(parts) >= 3 and parts[0] == "draw":
             # "draw x0,y0 x1,y1 …": press at the first point, through the others, release (a drawn stroke)
             pts = [tuple(int(v) for v in q.split(",")) for q in parts[1:]]
             return "draw", pts[0][0], pts[0][1], pts[1:]

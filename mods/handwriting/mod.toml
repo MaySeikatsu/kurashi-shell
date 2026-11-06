@@ -11,5 +11,5 @@ provides = [
     "action:handwriting.*",
     "panel:handwriting",
 ]
-capabilities = ["fs:fonts"]
+capabilities = ["fs:scoped", "exec:fc-cache"]
 cost = "low"

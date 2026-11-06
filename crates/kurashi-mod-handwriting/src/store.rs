@@ -11,7 +11,8 @@ use crate::font;
 use crate::glyph::Strokes;
 
 /// What the sequence asks for, in order: capitals, small letters, digits, then the marks a text needs. A mark left out falls back.
-pub const CHARSET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-()&/+=@#%*";
+pub const CHARSET: &str =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-()&/+=@#%*";
 pub const DEFAULT_PEN: f64 = 56.0;
 pub const MAX_VERSIONS: u32 = 8;
 
@@ -35,7 +36,13 @@ pub struct Store {
 fn slug(name: &str) -> String {
     let s: String = name
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     let s = s.trim_matches('-').to_owned();
     if s.is_empty() { "hand".into() } else { s }
@@ -55,7 +62,9 @@ impl Store {
         if let Ok(rd) = std::fs::read_dir(&data) {
             for e in rd.flatten() {
                 let p = e.path();
-                let Some(id) = p.file_stem().and_then(|s| s.to_str()).map(String::from) else { continue };
+                let Some(id) = p.file_stem().and_then(|s| s.to_str()).map(String::from) else {
+                    continue;
+                };
                 if p.extension().is_some_and(|x| x == "json")
                     && let Ok(text) = std::fs::read_to_string(&p)
                     && let Ok(f) = serde_json::from_str::<Font>(&text)
@@ -64,7 +73,11 @@ impl Store {
                 }
             }
         }
-        Store { data, fonts_dir, fonts }
+        Store {
+            data,
+            fonts_dir,
+            fonts,
+        }
     }
 
     fn save(&self, id: &str) -> Result<(), String> {
@@ -88,21 +101,32 @@ impl Store {
             id = format!("{base}-{n}");
             n += 1;
         }
-        self.fonts.insert(id.clone(), Font {
-            name: name.to_owned(),
-            pen: DEFAULT_PEN,
-            versions: 3,
-            glyphs: BTreeMap::new(),
-        });
+        self.fonts.insert(
+            id.clone(),
+            Font {
+                name: name.to_owned(),
+                pen: DEFAULT_PEN,
+                versions: 3,
+                glyphs: BTreeMap::new(),
+            },
+        );
         self.save(&id)?;
         Ok(id)
     }
 
     pub fn font_mut(&mut self, id: &str) -> Result<&mut Font, String> {
-        self.fonts.get_mut(id).ok_or_else(|| "handwriting.error.no_font".to_owned())
+        self.fonts
+            .get_mut(id)
+            .ok_or_else(|| "handwriting.error.no_font".to_owned())
     }
 
-    pub fn save_glyph(&mut self, id: &str, version: u32, c: char, strokes: Strokes) -> Result<(), String> {
+    pub fn save_glyph(
+        &mut self,
+        id: &str,
+        version: u32,
+        c: char,
+        strokes: Strokes,
+    ) -> Result<(), String> {
         let f = self.font_mut(id)?;
         if version < 1 || version > f.versions {
             return Err("handwriting.error.version".into());
@@ -137,32 +161,48 @@ impl Store {
     }
 
     fn file_of(&self, id: &str, version: u32) -> PathBuf {
-        self.fonts_dir.join(format!("kurashi-hand-{id}-{version}.ttf"))
+        self.fonts_dir
+            .join(format!("kurashi-hand-{id}-{version}.ttf"))
     }
 
     /// The name a version's font goes by. One version takes the font's name alone.
     pub fn family_of(f: &Font, version: u32) -> String {
-        if f.versions <= 1 { f.name.clone() } else { format!("{} {version}", f.name) }
+        if f.versions <= 1 {
+            f.name.clone()
+        } else {
+            format!("{} {version}", f.name)
+        }
     }
 
-    /// Makes the font of each version. A letter a version has not drawn takes the first version that has: every version covers what any does,
-    /// so a person can draw the whole set once and only the letters they care for again. Returns the families made.
+    /// Makes the font of each version with something drawn in it (a version with nothing would only copy another). A letter a version
+    /// has not drawn takes the first version that has: every version covers what any does, so a person can draw the whole set once and only
+    /// the letters they care for again. Returns the families made.
     pub fn make(&self, id: &str) -> Result<Vec<String>, String> {
         let f = self.fonts.get(id).ok_or("handwriting.error.no_font")?;
         let mut made = Vec::new();
         std::fs::create_dir_all(&self.fonts_dir).map_err(|e| e.to_string())?;
-        for k in 1..=f.versions {
+        let has = |k: u32| {
+            let prefix = format!("{k}:");
+            f.glyphs.keys().any(|g| g.starts_with(&prefix))
+        };
+        for k in 1..=MAX_VERSIONS {
+            if k > f.versions || !has(k) {
+                let _ = std::fs::remove_file(self.file_of(id, k));
+            }
+        }
+        for k in (1..=f.versions).filter(|k| has(*k)) {
             let mut letters: BTreeMap<char, &Strokes> = BTreeMap::new();
             for c in CHARSET.chars() {
                 let own = f.glyphs.get(&format!("{k}:{c}"));
-                let any = own.or_else(|| (1..=f.versions).find_map(|v| f.glyphs.get(&format!("{v}:{c}"))));
+                let any = own
+                    .or_else(|| (1..=f.versions).find_map(|v| f.glyphs.get(&format!("{v}:{c}"))));
                 if let Some(s) = any {
                     letters.insert(c, s);
                 }
             }
             let family = Self::family_of(f, k);
             let Some(bytes) = font::build(&letters, f.pen, &family)? else {
-                return Err("handwriting.error.empty".into());
+                continue;
             };
             let file = self.file_of(id, k);
             let tmp = file.with_extension("tmp");
@@ -170,9 +210,8 @@ impl Store {
             std::fs::rename(&tmp, &file).map_err(|e| e.to_string())?;
             made.push(family);
         }
-        // (fewer versions than before: their files go)
-        for k in f.versions + 1..=MAX_VERSIONS {
-            let _ = std::fs::remove_file(self.file_of(id, k));
+        if made.is_empty() {
+            return Err("handwriting.error.empty".into());
         }
         refresh_fontconfig(&self.fonts_dir);
         Ok(made)
@@ -265,8 +304,10 @@ mod tests {
         let id = s.create("H").unwrap();
         s.save_glyph(&id, 1, 'A', line()).unwrap();
         s.save_glyph(&id, 1, 'x', line()).unwrap();
-        s.save_glyph(&id, 2, 'A', vec![vec![[0.0, 0.0], [400.0, 700.0]]]).unwrap();
+        s.save_glyph(&id, 2, 'A', vec![vec![[0.0, 0.0], [400.0, 700.0]]])
+            .unwrap();
         s.set_versions(&id, 2).unwrap();
+        s.save_glyph(&id, 1, 'A', line()).unwrap();
         let made = s.make(&id).unwrap();
         assert_eq!(made, vec!["H 1", "H 2"]);
         let two = std::fs::read(d.path().join("fonts/kurashi-hand-h-2.ttf")).unwrap();
@@ -293,7 +334,8 @@ mod tests {
         assert!(d["fonts"][0].get("glyphs").is_none());
         assert_eq!(d["fonts"][0]["families"], json!([]));
         s.make(&id).unwrap();
-        assert_eq!(s.document()["fonts"][0]["families"], json!(["H 1", "H 2", "H 3"]));
+        // (only what has something drawn: versions 2 and 3 are still empty)
+        assert_eq!(s.document()["fonts"][0]["families"], json!(["H 1"]));
     }
 
     #[test]

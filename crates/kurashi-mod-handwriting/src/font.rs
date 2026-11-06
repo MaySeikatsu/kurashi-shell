@@ -28,23 +28,38 @@ pub const DESCENT: i16 = -300;
 const SPACE: u16 = 300;
 
 /// The font of these letters, or `None` with none drawn.
-pub fn build(letters: &BTreeMap<char, &Strokes>, pen: f64, family: &str) -> Result<Option<Vec<u8>>, String> {
+pub fn build(
+    letters: &BTreeMap<char, &Strokes>,
+    pen: f64,
+    family: &str,
+) -> Result<Option<Vec<u8>>, String> {
     let err = |e: &dyn std::fmt::Debug| format!("{e:?}");
     let mut glyf = GlyfLocaBuilder::new();
-    let mut metrics = vec![LongMetric { advance: 500, side_bearing: 0 }];
+    let mut metrics = vec![LongMetric {
+        advance: 500,
+        side_bearing: 0,
+    }];
     glyf.add_glyph(&Glyph::Empty).map_err(|e| err(&e))?;
-    metrics.push(LongMetric { advance: SPACE, side_bearing: 0 });
+    metrics.push(LongMetric {
+        advance: SPACE,
+        side_bearing: 0,
+    });
     glyf.add_glyph(&Glyph::Empty).map_err(|e| err(&e))?;
     let mut cmap: Vec<(char, GlyphId)> = vec![(' ', GlyphId::new(1))];
     let (mut bbox, mut points, mut contours) = ((0i16, 0i16, 0i16, 0i16), 0u16, 0u16);
     let mut drawn = 0;
     for (&c, strokes) in letters {
-        let Some((path, x0, x1)) = outline(strokes, pen) else { continue };
+        let Some((path, x0, x1)) = outline(strokes, pen) else {
+            continue;
+        };
         // To start at its bearing, wherever in the box it was drawn across.
         let shift = kurbo::Affine::translate((BEARING - x0, 0.0));
         let moved: BezPath = shift * path;
         let g = SimpleGlyph::from_bezpath(&moved).map_err(|e| format!("{c}: {e:?}"))?;
-        let g = SimpleGlyph { overlaps: true, ..g };
+        let g = SimpleGlyph {
+            overlaps: true,
+            ..g
+        };
         bbox = (
             bbox.0.min(g.bbox.x_min),
             bbox.1.min(g.bbox.y_min),
@@ -184,7 +199,11 @@ mod tests {
         assert_eq!(adv(' '), f32::from(SPACE));
         // not drawn: not in the font, so the toolkit falls back for it
         assert!(f.charmap().map('c').is_none());
-        let name = f.localized_strings(skrifa::string::StringId::FAMILY_NAME).english_or_first().unwrap().to_string();
+        let name = f
+            .localized_strings(skrifa::string::StringId::FAMILY_NAME)
+            .english_or_first()
+            .unwrap()
+            .to_string();
         assert_eq!(name, "My Hand");
     }
 
