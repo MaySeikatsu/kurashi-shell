@@ -1045,8 +1045,8 @@ pub struct Shape {
     #[kurashi(default = Corners::Rounded)]
     pub corners: Corners,
     /// Screen corners follow the radius
-    /// The screen's corners take the corner radius, so the frame, the bars and the panels sit concentric in them (a
-    /// square look leaves them square). Off: they take their own size below.
+    /// The screen's corners follow the frame's: its corner radius plus its thickness on a framed screen, so the band keeps
+    /// one width round the corner (a square look leaves them square). Off: they take their own size below.
     #[kurashi(default = true, since = 5)]
     pub screen_corners_follow: bool,
     /// Screen corners
@@ -1054,11 +1054,33 @@ pub struct Shape {
     #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px", requires = "theme.shape.screen_corners_follow == false")]
     pub screen_corners: u32,
     /// Corner radius
-    /// The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and
-    /// smaller parts take steps of it; the frame's inner corners and the joins of the bar, the dock and the sidebars take
-    /// it less the frame's thickness, so curves that sit inside one another stay concentric.
+    /// The one radius every corner follows (K74, K96): panels, cards, the island's views, the frame, merging corners,
+    /// windows, the dock and desktop widgets, so they match; buttons, toggles and smaller parts take steps of it. A
+    /// surface below can take its own.
     #[kurashi(default = 18, range = 0..=48, step = 1, unit = "px", requires = "theme.shape.corners != none", since = 4)]
     pub radius: u32,
+    /// Frame corners
+    /// The corners of the window cut into the frame. The screen's outer corners go with them, this much plus the
+    /// frame's thickness. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_frame: i32,
+    /// Merging corners
+    /// The concave corners where a surface merges into a bar or the frame: the dock, the sidebars, the island, menus.
+    /// Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_joins: i32,
+    /// Window corners
+    /// The corners of the compositor's windows (niri, Hyprland, MangoWM; sway has none). Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_windows: i32,
+    /// Desktop widget corners
+    /// The corners of the widgets on the desktop. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_widgets: i32,
+    /// Dock corners
+    /// The dock's own corners, floating or joined. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_dock: i32,
     /// Squircle curve
     /// How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly square.
     // I300. Step 0.01, not 0.05: the default 0.77 is today's curve (k 0.88 in corner.js) and is off a 0.05 grid.

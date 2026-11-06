@@ -435,7 +435,7 @@ Scope {
                     sh: bar.scr ? bar.scr.height : 0
                     r: bar.frameRadius
                     ow: Theme.frameOutlineW
-                    cr: ShellLayout.screenRadius
+                    cr: ShellLayout.screenRadiusOf(bar.scr ? bar.scr.name : "")
                     seed: bar.edge === "top" ? 0xF2A1 : 0xF2A2
                     fills: win.pieces ? win.pieces.fills : []
                     fillets: win.pieces ? win.pieces.fillets : []

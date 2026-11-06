@@ -124,7 +124,7 @@ Scope {
                 toW: dlgShape.width
                 toTop: 0
                 toFoot: dlgShape.height - Theme.shadowDy
-                toR: Theme.rLg + 4
+                toR: Theme.rLg
                 edgeY: 0
             }
             Component.onCompleted: { enter.to = 1; dlgForm.want = true; field.forceActiveFocus(); pickCurrentUser() }
@@ -226,13 +226,13 @@ Scope {
                 Elevation {
                     anchors.fill: parent
                     anchors.bottomMargin: Theme.shadowDy
-                    radius: Theme.rLg + 4
+                    radius: Theme.rLg
                     level: 4
                 }
                 Block {
                     id: blk
                     anchors.fill: parent
-                    radius: Theme.rLg + 4
+                    radius: Theme.rLg
                     fill: Theme.panel
                     flatBorder: Theme.outline
                 }

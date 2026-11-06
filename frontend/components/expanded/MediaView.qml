@@ -121,7 +121,7 @@ Item {
             width: view.width
             height: heroRow.implicitHeight + 2 * inset
             readonly property real inset: view.tinted ? Theme.pad : 0
-            radius: Theme.rLg + 4
+            radius: Theme.rLg
             color: view.tinted ? view.artColors.bg : "transparent"
             Behavior on color { enabled: Theme.springOn && view.visible; ColorAnimation { duration: 320 } }
             Row {

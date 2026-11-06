@@ -462,13 +462,13 @@ PanelWindow {
                 visible: !morph.morph
                 anchors.fill: parent
                 anchors.bottomMargin: Theme.shadowDy
-                radius: Theme.rLg + 4
+                radius: Theme.rLg
                 level: 4
             }
             Block {
                 visible: !morph.morph && !skinPart.ready
                 anchors.fill: parent
-                radius: Theme.rLg + 4
+                radius: Theme.rLg
                 fill: Theme.panel
                 flatBorder: Theme.outline
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).

@@ -594,7 +594,7 @@ Corner style of bars, popups and the island.
 
 #### `theme.shape.screen_corners_follow` — Screen corners follow the radius
 
-The screen's corners take the corner radius, so the frame, the bars and the panels sit concentric in them (a square look leaves them square). Off: they take their own size below.
+The screen's corners follow the frame's: its corner radius plus its thickness on a framed screen, so the band keeps one width round the corner (a square look leaves them square). Off: they take their own size below.
 
 - type: `bool` · default: `true`
 - since schema v5
@@ -609,12 +609,52 @@ Rounds the corners of every screen by this many pixels (0 = square, as the panel
 
 #### `theme.shape.radius` — Corner radius
 
-The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and smaller parts take steps of it; the frame's inner corners and the joins of the bar, the dock and the sidebars take it less the frame's thickness, so curves that sit inside one another stay concentric.
+The one radius every corner follows (K74, K96): panels, cards, the island's views, the frame, merging corners, windows, the dock and desktop widgets, so they match; buttons, toggles and smaller parts take steps of it. A surface below can take its own.
 
 - type: `int` · default: `18`
 - range: `0..=48`, step `1` (px)
 - only while `theme.shape.corners != "none"`
 - since schema v4
+
+#### `theme.shape.radius_frame` — Frame corners
+
+The corners of the window cut into the frame. The screen's outer corners go with them, this much plus the frame's thickness. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_joins` — Merging corners
+
+The concave corners where a surface merges into a bar or the frame: the dock, the sidebars, the island, menus. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_windows` — Window corners
+
+The corners of the compositor's windows (niri, Hyprland, MangoWM; sway has none). Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_widgets` — Desktop widget corners
+
+The corners of the widgets on the desktop. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_dock` — Dock corners
+
+The dock's own corners, floating or joined. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
 
 #### `theme.shape.squircle` — Squircle curve
 

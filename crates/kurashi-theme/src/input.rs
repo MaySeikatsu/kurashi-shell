@@ -150,11 +150,23 @@ pub enum Density {
     Airy,
 }
 
+/// `theme.shape.radius_<surface>` (K96): `None` is Auto, the one radius.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SurfaceRadii {
+    pub frame: Option<f64>,
+    pub joins: Option<f64>,
+    pub windows: Option<f64>,
+    pub widgets: Option<f64>,
+    pub dock: Option<f64>,
+}
+
 #[derive(Clone, Debug)]
 pub struct Axes {
     pub shape: Shape,
     /// The one corner radius (K74), px.
     pub radius: f64,
+    /// A surface's own corner radius (K96): frame, joins, windows, widgets, dock. `None` follows `radius`.
+    pub radius_of: SurfaceRadii,
     /// `theme.shape.squircle` (I300): 0 nearly round … 1 nearly square; the `shape.squircle_k` token.
     pub squircle: f64,
     pub material: Material,
@@ -183,6 +195,7 @@ impl Default for Axes {
         Axes {
             shape: Shape::Rounded,
             radius: 18.0,
+            radius_of: SurfaceRadii::default(),
             squircle: 0.77,
             material: Material::Translucent,
             opacity: 0.82,

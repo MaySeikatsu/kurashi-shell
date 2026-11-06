@@ -1316,3 +1316,8 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 23: the forms on windows should be the shell's. A recipe is declarative, so no port by hand is needed and a test need not refuse one. The same frame math keeps it the same motion.
 **Trade-off.** No origin in a shader (the top edge's middle); blur is a 16-sample disc per base call; the clip keeps the shadow only while that clip is at rest; a large turn or translate is cut at niri's 500 px.
 **Evidence.** `niri_forms` tests compile every prop and every kind of curve on every base through glslang; `frontend/test-niri-motion.sh` compiles the brief's recipes in niri and reads pixels of a slow wipe and shrink; a contact sheet on nested niri.
+## K96 — The radius you set is the radius you see; a surface can take its own (session 24, I426)
+**Decision.** Amends K74. `frame.radius` is the frame's radius, no longer it less the thickness; the screen's outer corner is it plus the band (`frame.screen_radius`, per output), so they stay concentric the other way round. `rLg + 4` and `rLg / 2` go: `radius.frame`, `radius.join`, `radius.window`, `radius.widget`, `radius.dock` are `radius.lg` unless `theme.shape.radius_<surface>` gives one its own (−1: Auto).
+**Why.** User, session 24: "THEY SHOULD MATCH". Under washi (radius 9, band 10) K74 gave the frame's corner 0, the windows 9, widgets 13, a card's fillet 4.5. Caelestia's `border.rounding` is the hole's own radius.
+**Trade-off.** A framed screen's outer corner grows with the band, past what a panel's physical corner may be. Screen corners keep their own setting for that.
+**Evidence.** `frontend/test-corners.sh`; `docs/ux/corners.md`.

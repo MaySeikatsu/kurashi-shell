@@ -151,7 +151,8 @@ pub fn values(i: &Inputs) -> Values {
         }
         .into(),
     );
-    if let Some(r) = num("radius.lg") {
+    // The windows' corners (K96): their own token, else the panels'.
+    if let Some(r) = num("radius.window").or_else(|| num("radius.lg")) {
         v.insert("shape.radius".into(), whole(r));
     }
     // The shell's outline width; flat chrome draws none, and a 0 px focus ring would hide the focused window, so 2.
