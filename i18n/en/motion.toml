@@ -138,6 +138,7 @@
 "motion.ui.preview.title" = "Preview"
 "motion.ui.preview.help" = "Open a sample of each kind of surface with the settings below. It plays once when you change one, and when you ask — never by itself."
 "motion.ui.preview.classes" = "Sample surfaces"
+"motion.ui.preview.class.window" = "Compositor windows"
 "motion.ui.preview.class.island" = "Island"
 "motion.ui.preview.class.panel" = "Panel"
 "motion.ui.preview.class.peek" = "Peek"

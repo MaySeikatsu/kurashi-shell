@@ -42,6 +42,8 @@ the window's texture and 500 px round it. So:
 - **Export.** Through the theme pipeline, in `kurashi.kdl`, included after the user's own `animations` block. Colours, light,
   radius and form parameters arrive as constants, so a dissolve burns in the palette's ember.
 
+- **Choosing by hand.** Settings › Motion's table of surfaces has a row for compositor windows, open and close, inert with its reason and a link until Window animations carries the animations (K93's PR; before it the rows were filtered out of the page).
+
 ## States
 - Off, or Follow: no shader written.
 - Reduce motion, profile none: niri's `animations { off }`. Flash and vestibular forms are already resolved away by the daemon.

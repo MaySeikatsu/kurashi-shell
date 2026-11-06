@@ -23,8 +23,7 @@ Singleton {
 
     // K93: the font mix is one generated font (`font.mix.file`): every Text takes it as the family, nothing else knows.
     readonly property string mixFile: tok("font.mix.file", "")
-    Instantiator {
-        id: mixLoader
+    property Instantiator mixLoader: Instantiator {
         model: root_.mixFile !== "" ? 1 : 0
         delegate: FontLoader { source: "file://" + root_.mixFile }
     }

@@ -138,6 +138,7 @@
 "motion.ui.preview.title" = "プレビュー"
 "motion.ui.preview.help" = "下の設定で、面の種類ごとのサンプルを開けます。設定を変えたときと、頼んだときに一度だけ再生し、勝手には動きません。"
 "motion.ui.preview.classes" = "サンプルの面"
+"motion.ui.preview.class.window" = "コンポジターのウィンドウ"
 "motion.ui.preview.class.island" = "アイランド"
 "motion.ui.preview.class.panel" = "パネル"
 "motion.ui.preview.class.peek" = "ピーク"

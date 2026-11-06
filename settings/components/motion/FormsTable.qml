@@ -14,7 +14,7 @@ Column {
     spacing: 0
 
     readonly property var surfaces: ["island", "panel", "peek", "launcher", "centre", "toast", "sidebar", "dock", "bar",
-                                     "osd", "menu", "dialog"]
+                                     "osd", "menu", "dialog", "window"]
     readonly property real nameW: Math.min(200, Math.max(120, width * 0.24))
     // Cells as wide as a dropdown wants (a wide window leaves the rest empty, not a gap between the columns).
     readonly property real cellW: Math.min(400, (width - nameW - 2 * Theme.gap) / 2)

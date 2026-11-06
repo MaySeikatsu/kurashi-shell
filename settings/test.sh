@@ -1148,7 +1148,7 @@ Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
 # W59.0 added the motion page (K83); media sorts before it by name.
-want="mods.demo-blur,layout,appearance,mods.media,motion,accessibility,island,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
+want="mods.demo-blur,layout,appearance,mods.media,motion,fonts,accessibility,island,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto layout
