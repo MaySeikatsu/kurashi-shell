@@ -848,8 +848,7 @@ PY
   # Ma: an open sidebar at rest commits no frame.
   morph_frontend WAYLAND_DEBUG=1
   open_rest right
-  # (3 s: a module in the sidebar starts `svc.previews`, whose first round comes 1.2 to 1.5 s later and is no part of the rest)
-  sleep 3
+  sleep 1
   s=$(stat -c %s "$R/qs.log"); sleep 5
   # The sidebar's own surface (the bar's clock flips once a minute, which a 5 s window may catch: not the sidebar's).
   SBS=$(grep -oE 'get_layer_surface\(new id zwlr_layer_surface_v1#[0-9]+, wl_surface#[0-9]+, [^"]*"kurashi-sidebar"' "$R/qs.log" \

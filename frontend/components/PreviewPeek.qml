@@ -17,7 +17,7 @@ Column {
 
     readonly property string kind: source.split(":")[0]
     readonly property int itemId: Number(source.split(":")[1] || -1)
-    readonly property var doc: Store.docs["svc.previews"] || ({})
+    readonly property var doc: Store.quiet["svc.previews"] || ({})
     readonly property var ws: Store.docs["svc.workspaces"] || ({})
     readonly property var windows: Array.isArray(ws.windows) ? ws.windows : []
 

@@ -37,7 +37,7 @@ previews = $1
 TOML
 }
 conf true
-"$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
+WAYLAND_DEBUG=1 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
 . "$OUT/niri-env.sh"
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 K() { timeout 10 "$BIN/kurashi" "$@"; }
@@ -113,6 +113,20 @@ while read -r id app; do
 done < <(win_ids)
 [ "$checked" -ge 2 ] || fail "only $checked windows had a picture"
 echo "crops: $checked windows, each its own picture"
+
+# --- at rest: a round draws nothing of the shell's (the document stays out of Store.docs; K92) ---
+"$SB" move 900 700 > /dev/null
+sleep 2.5
+qs_log=$XDG_RUNTIME_DIR/qs.log
+mark=$(stat -c %s "$qs_log")
+before=$(pic_of "$(win_ids | awk 'NR==1{print $1}')")
+"$SB" act act preview.refresh > /dev/null
+for _ in $(seq 40); do [ "$(pic_of "$(win_ids | awk 'NR==1{print $1}')")" != "$before" ] && break; sleep 0.2; done
+[ "$(pic_of "$(win_ids | awk 'NR==1{print $1}')")" != "$before" ] || fail "preview.refresh made no new picture"
+sleep 1
+n=$(tail -c +"$((mark + 1))" "$qs_log" | grep -c 'wl_surface#[0-9]*\.commit(' || true)
+[ "$n" = 0 ] || fail "a round made the shell draw: $n commits"
+echo "at rest: a round makes the shell commit nothing"
 
 # --- quiet ---
 [ "$(wl-paste --no-newline 2>/dev/null)" = "kept by the test" ] || fail "the clipboard changed: $(wl-paste 2>&1 | head -c 80)"
