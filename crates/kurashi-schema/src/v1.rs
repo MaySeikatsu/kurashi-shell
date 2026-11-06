@@ -37,6 +37,8 @@ pub struct Config {
     #[kurashi(nested)]
     pub launcher: Launcher,
     #[kurashi(nested)]
+    pub modules: Modules,
+    #[kurashi(nested)]
     pub clock: Clock,
     #[kurashi(nested)]
     pub desktop: Desktop,
@@ -547,6 +549,11 @@ pub struct MediaColors {
     /// dark stay as they are: turn this off and they are back.
     #[kurashi(default = false)]
     pub follow: bool,
+    /// Apps follow too
+    /// Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes
+    /// the track's colours and the apps keep your palette.
+    #[kurashi(default = true, requires = "theme.colors.media.follow == true")]
+    pub apps: bool,
     /// Light or dark
     /// The cover's own colours, as the Now Playing card shows them, or your light or dark in the cover's hue. Text is kept
     /// readable either way.
@@ -1400,20 +1407,20 @@ pub struct IslandInstance {
     pub faces: Vec<String>,
     /// Default face
     /// Face shown when nothing more relevant is happening.
-    #[kurashi(default = "clock".to_owned(), choices_from = "island.faces")]
+    #[kurashi(default = "clock".to_owned(), choices_from = "island.faces", module = "island")]
     pub default: String,
     /// Transient duration
     /// How long a transient face (volume, brightness, notification) stays before falling back.
-    #[kurashi(default = 5, range = 1..=60, unit = "s")]
+    #[kurashi(default = 5, range = 1..=60, unit = "s", module = "island")]
     pub ttl: u32,
     /// System events
     /// Volume, brightness, power and Bluetooth changes show on the island for a moment. Off, the island does not
     /// listen to them at all.
-    #[kurashi(default = true)]
+    #[kurashi(default = true, module = "island")]
     pub system_events: bool,
     /// Draw mode
     /// How the island meets the bar or the edge it grows out of. Automatic follows the layout's draw mode (K71).
-    #[kurashi(default = DrawChoice::Auto, since = 3)]
+    #[kurashi(default = DrawChoice::Auto, module = "island", since = 3)]
     pub draw: DrawChoice,
 }
 
@@ -1451,11 +1458,11 @@ pub enum WeekStart {
 pub struct Clock {
     /// First day of the week
     /// The calendar's first column; automatic follows the language (Sunday for Japanese, Monday otherwise).
-    #[kurashi(default = WeekStart::Auto)]
+    #[kurashi(default = WeekStart::Auto, module = "clock")]
     pub week_start: WeekStart,
     /// Week numbers
     /// Show ISO week numbers beside the calendar's rows.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "clock")]
     pub week_numbers: bool,
 }
 
@@ -1525,9 +1532,37 @@ pub enum ButtonLogo {
     Own,
 }
 
+/// Where the launcher opens (I407, docs/ux/launcher.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum LauncherPlace {
+    /// Where it was opened
+    Opened,
+    /// Middle of the screen
+    Centre,
+    /// Out of the island
+    Island,
+    /// A fixed place
+    Fixed,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "launcher", section = "apps")]
 pub struct Launcher {
+    /// Opens
+    /// Where it was opened: at the button you clicked, and in the middle of the screen when opened by its key. Out of
+    /// the island: it grows from the bar's island. A fixed place: where the two sliders below put it.
+    #[kurashi(default = LauncherPlace::Opened, module = "launcher", since = 7)]
+    pub place: LauncherPlace,
+    /// Across
+    /// How far across the screen it stands: 0 at the left edge, 100 at the right.
+    #[kurashi(default = 50, range = 0..=100, step = 5, unit = "%", requires = "launcher.place == fixed",
+              module = "launcher", since = 7)]
+    pub place_x: u32,
+    /// Down
+    /// How far down the screen it stands: 0 at the top edge, 100 at the bottom.
+    #[kurashi(default = 50, range = 0..=100, step = 5, unit = "%", requires = "launcher.place == fixed",
+              module = "launcher", since = 7)]
+    pub place_y: u32,
     /// Terminal command
     /// Prefix for apps that need a terminal, e.g. foot -e.
     #[kurashi(default = strings(&["foot", "-e"]), restart)]
@@ -1543,12 +1578,62 @@ pub struct Launcher {
     /// Launcher button logo
     /// What the bar's launcher button shows: the look's own mark (or the plain apps icon), your OS's logo (from
     /// os-release; a look may tint it, the PS2 look in its four colours), or an image of your own below.
-    #[kurashi(default = ButtonLogo::Look, since = 7)]
+    #[kurashi(default = ButtonLogo::Look, module = "launcher", since = 7)]
     pub button_logo: ButtonLogo,
     /// Your image
     /// A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
     #[kurashi(default = String::new(), requires = "launcher.button_logo == own", since = 7)]
     pub button_icon: String,
+}
+
+// --- bar modules' own options (I408, docs/ux/module-menu.md) ---------------------------------------
+
+/// What marks a workspace in the bar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum WorkspaceMarks {
+    /// As the look draws them
+    Look,
+    /// Numbers
+    Numbers,
+    /// Dots
+    Dots,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(section = "workspaces")]
+pub struct WorkspacesModule {
+    /// Show empty workspaces
+    /// Off: only the workspaces with windows and the one you are on.
+    #[kurashi(default = true, module = "workspaces", since = 7)]
+    pub empty: bool,
+    /// Marks
+    #[kurashi(default = WorkspaceMarks::Look, module = "workspaces", since = 7)]
+    pub marks: WorkspaceMarks,
+    /// Scroll to switch
+    /// The mouse wheel over the workspaces moves to the next or the previous one.
+    #[kurashi(default = false, module = "workspaces", since = 7)]
+    pub scroll: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(section = "windows")]
+pub struct WindowsModule {
+    /// Most windows shown
+    /// The rest go under "+N". 0: as many as the bar has room for.
+    #[kurashi(default = 0, range = 0..=24, step = 1, module = "windows", since = 7)]
+    pub max: u32,
+    /// Middle click closes
+    #[kurashi(default = true, module = "windows", since = 7)]
+    pub middle_close: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout")]
+pub struct Modules {
+    #[kurashi(nested)]
+    pub workspaces: WorkspacesModule,
+    #[kurashi(nested)]
+    pub windows: WindowsModule,
 }
 
 // --- idle (K47) ------------------------------------------------------------------------------
@@ -1641,7 +1726,7 @@ pub struct Recorder {
     pub directory: String,
     /// Record sound
     /// The desktop's sound goes into the recording.
-    #[kurashi(default = true)]
+    #[kurashi(default = true, module = "recorder")]
     pub audio: bool,
     /// Recorder
     /// The program that records; automatic takes the first one installed.
@@ -1712,7 +1797,7 @@ pub enum SidebarMode {
 /// One struct per side (K71): the two differ only in their sections' defaults and their mode's default; both offer
 /// every section (session 20).
 macro_rules! sidebar_side {
-    ($name:ident, $section:literal, $sections:expr, $source:literal, $hidden:literal,
+    ($name:ident, $section:literal, $module:literal, $sections:expr, $source:literal, $hidden:literal,
      $sections_label:literal, $sections_help:literal, $mode:expr) => {
         #[derive(Debug, Clone, PartialEq, KurashiSchema)]
         #[kurashi(section = $section)]
@@ -1724,7 +1809,7 @@ macro_rules! sidebar_side {
             /// Layout
             /// One column: every section stacked, scrolled together. Pages with tabs: one section at a time, the tabs
             /// above it.
-            #[kurashi(default = $mode, since = 5)]
+            #[kurashi(default = $mode, module = $module, since = 5)]
             pub mode: SidebarMode,
             /// Width
             /// Drag the sidebar's inner edge to change it.
@@ -1733,12 +1818,12 @@ macro_rules! sidebar_side {
             /// Visibility
             /// Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: rest the pointer on the
             /// screen's side. Always shown: pinned open, the windows beside it.
-            #[kurashi(default = Visibility::Hidden, since = 3)]
+            #[kurashi(default = Visibility::Hidden, module = $module, since = 3)]
             pub visibility: Visibility,
             /// Pinned
             /// Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to
             /// the visibility above, which pinning leaves as it is.
-            #[kurashi(default = false, since = 7)]
+            #[kurashi(default = false, module = $module, since = 7)]
             pub pinned: bool,
             /// Keep space
             /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps
@@ -1749,7 +1834,7 @@ macro_rules! sidebar_side {
             /// Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, joined to the bar by
             /// rounded fillets. Floating: a gap away from every edge, every corner rounded, with the look's shadow.
             /// Automatic follows the layout's draw mode.
-            #[kurashi(default = DrawChoice::Auto, since = 3)]
+            #[kurashi(default = DrawChoice::Auto, module = $module, since = 3)]
             pub draw: DrawChoice,
         }
     };
@@ -1758,6 +1843,7 @@ macro_rules! sidebar_side {
 sidebar_side!(
     SidebarRight,
     "right_sidebar",
+    "sidebar_right",
     ["header", "toggles", "sliders", "notifications", "calendar"],
     "sidebar.sections",
     "sidebar.right.visibility != hidden",
@@ -1768,6 +1854,7 @@ sidebar_side!(
 sidebar_side!(
     SidebarLeft,
     "left_sidebar",
+    "sidebar_left",
     ["mod:ai:ai"],
     "sidebar.sections",
     "sidebar.left.visibility != hidden",
@@ -1786,7 +1873,7 @@ pub struct Sidebar {
     /// Quick settings opens the right sidebar
     /// The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own
     /// buttons stay; put them in the bar or take them out below.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
 }
 

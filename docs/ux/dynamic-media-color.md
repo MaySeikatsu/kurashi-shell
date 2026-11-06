@@ -23,6 +23,8 @@ readable. Off, everything is as the user left it. A change of track never flashe
 - **The Now Playing card keeps its behaviour** (user): its own cover colours, changing at once. An option for it: I398.
 - **What takes part:** every colour token, through the daemon, so bar, title bars, decor, Settings and exported apps agree.
   Meanings stay (error, warning, success, status). The material's ink and strength are worked out from the new colours, so a paper or a grid stays legible on them.
+- **Apps (I399):** `theme.colors.media.apps`, on by default. Apps cannot blend and some reload, so off leaves them on the user's
+  palette and writes nothing per track, while the shell still follows.
 - **Honesty (rule 2):** the palette's row keeps showing the user's palette; a theme note says the colours come from the track,
   and the scheme's status line says "Following the track playing now".
 

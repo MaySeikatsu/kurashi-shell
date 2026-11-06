@@ -121,6 +121,15 @@ Item {
         }
     }
 
+    // A window's scene graph starts anew each time it is mapped, and the copies above are not live: without a new fill the
+    // second reveal has no tile and the surface loses its material (I298; seen on the dock).
+    Connections {
+        target: sheet.Window.window
+        function onVisibleChanged() {
+            if (sheet.Window.window.visible) sheet.fill()
+        }
+    }
+
     Component.onCompleted: {
         console.log("texture: tile sheet made")
         fill()

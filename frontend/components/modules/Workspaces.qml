@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import ".."
+import "../../surfaces" as S
 
 // Module `workspaces`: this output's workspaces (svc.workspaces `outputs`, or the "*" list for every output). In a row:
 // flat chrome a dot each, the focused one a wider accent bar; chromes with groups a small numbered key — focused lit in
@@ -11,10 +12,17 @@ ModuleBase {
     id: m
     Watch { doc: "svc.workspaces"; active: m.live }
     readonly property var doc: Store.docs["svc.workspaces"] || ({})
-    readonly property var pills: {
+    // I408: its own options (`modules.workspaces.*`, its right-click menu).
+    S.BarConfig { id: cfg; screen: null }
+    readonly property bool showEmpty: cfg.valueOf("modules.workspaces.empty", true) === true
+    readonly property string marks: String(cfg.valueOf("modules.workspaces.marks", "look"))
+    readonly property bool scrolls: cfg.valueOf("modules.workspaces.scroll", false) === true
+    readonly property var allPills: {
         var o = doc.outputs || {}
         return o[m.output] || o["*"] || []
     }
+    readonly property var pills: showEmpty ? allPills
+        : allPills.filter(function (p) { return p.focused || p.occupied })
     readonly property int dragWs: m.link ? m.link.dragWs : -1
     implicitWidth: vertical ? col.implicitWidth : row.implicitWidth
     implicitHeight: vertical ? col.implicitHeight : row.implicitHeight
@@ -28,6 +36,26 @@ ModuleBase {
         m.link.chips = a
     }
     function geo() { return [["workspaces", m]] }
+
+    // The next workspace along the list; a notch at a time, a touchpad's small steps adding up to one.
+    property real wheelSum: 0
+    function scrollBy(steps) {
+        var at = -1
+        for (var i = 0; i < pills.length; i++) if (pills[i].focused) at = i
+        var to = Math.max(0, Math.min(pills.length - 1, at + steps))
+        if (at >= 0 && to !== at) Store.act("workspace.focus", { id: pills[to].id })
+    }
+    WheelHandler {
+        enabled: m.scrolls
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: function (ev) {
+            m.wheelSum += ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x
+            var steps = m.wheelSum > 0 ? Math.floor(m.wheelSum / 120) : Math.ceil(m.wheelSum / 120)
+            if (steps === 0) return
+            m.wheelSum -= steps * 120
+            m.scrollBy(-steps)
+        }
+    }
 
     Component {
         id: dotPill
@@ -44,6 +72,7 @@ ModuleBase {
                 enabled: m.live
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
             }
+            TapHandler { margin: 4; onTapped: Store.act("workspace.focus", { id: modelData.id }) }
             // A window dragged over this workspace (W36): a ring round the dot.
             Rectangle {
                 visible: m.dragWs === modelData.id
@@ -180,11 +209,12 @@ ModuleBase {
     Row {
         id: row
         visible: !m.vertical
-        spacing: m.navMark ? 2 : (Theme.groups ? Theme.xs + 1 : Theme.gap)
+        spacing: m.marks === "look" && m.navMark ? 2 : ((m.marks === "look" ? Theme.groups : m.marks === "numbers") ? Theme.xs + 1 : Theme.gap)
         Repeater {
             id: repH
             model: m.vertical ? [] : m.pills
-            delegate: m.navMark ? navPill : (Theme.groups ? keyPill : dotPill)
+            delegate: m.marks === "dots" ? dotPill : m.marks === "numbers" ? keyPill
+                : (m.navMark ? navPill : (Theme.groups ? keyPill : dotPill))
             onItemAdded: Qt.callLater(m.publish, repH)
             onItemRemoved: Qt.callLater(m.publish, repH)
         }

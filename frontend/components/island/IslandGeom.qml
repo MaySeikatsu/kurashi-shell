@@ -126,6 +126,15 @@ Singleton {
     // W59.9a (row 658): and where in the module it was pressed (`fx`, `fy`: fractions of its box; 0.5, 0.5 for a key), so
     // a form that starts at the press (iris, drop's bead) starts there — `pressOf` gives it on the output.
     property var lastPress: ({ output: "", mid: "", t: 0, fx: 0.5, fy: 0.5 })
+    // I407: a click that opens the launcher says where it came from, a key says nothing (both send `launcher.toggle`). The
+    // reader takes it when the daemon answers; an old note (the click was refused) counts for nothing.
+    property var opener: null
+    function noteOpener(output, rect) { opener = rect ? { output: output, rect: rect, t: Date.now() } : null }
+    function takeOpener() {
+        var o = opener
+        opener = null
+        return o && Date.now() - o.t < 1500 ? o : null
+    }
     function notePress(output, mid, fx, fy) {
         lastPress = { output: output, mid: mid, t: Date.now(),
                       fx: fx === undefined || isNaN(fx) ? 0.5 : Math.max(0, Math.min(1, fx)),

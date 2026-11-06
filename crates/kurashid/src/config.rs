@@ -2338,7 +2338,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(&no_name)?;
+                let name = name.ok_or_else(no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -2356,7 +2356,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(&no_name)?;
+                let name = name.ok_or_else(no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -2380,7 +2380,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(&no_name)?;
+                let name = name.ok_or_else(no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -2400,7 +2400,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, _) = args(&v);
-                let name = name.ok_or_else(&no_name)?;
+                let name = name.ok_or_else(no_name)?;
                 let path = absolute_path(&v)?;
                 let exported = me
                     .cfg

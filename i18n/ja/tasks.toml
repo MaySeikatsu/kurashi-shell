@@ -10,6 +10,7 @@
 "tasks.menu.focus" = "フォーカス"
 "tasks.menu.move" = "ワークスペース {n} へ移動"
 "tasks.menu.close" = "ウィンドウを閉じる"
+"tasks.menu.options" = "ウィンドウ一覧の設定…"
 "tasks.peek.untitled" = "無題のウィンドウ"
 "tasks.peek.loading" = "…"
 "tasks.peek.move" = "ワークスペース {n} へ移動"

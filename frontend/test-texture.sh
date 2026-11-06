@@ -406,11 +406,24 @@ def main():
         w, h = img[0], img[1]
         cx = w // 2
         # The bar's edge: the first wallpaper row far from the card; the card's sides on a row below the bar.
-        edge = next(y for y in range(h) if px(img, 40, y)[:3] == WALL)
-        row = edge + 120
+        wall = next(y for y in range(h) if px(img, 40, y)[:3] == WALL)
+        row = wall + 120
+        # The surfaces cast shadows (K78), so the wallpaper starts past them: the shape's own edges are where its fill starts,
+        # coming in from there. The fill is the card's most common colour; the bar's edge, where the bar's fill ends.
         xl = next(x for x in range(cx, 0, -1) if px(img, x, row)[:3] == WALL) + 1
         xr = next(x for x in range(cx, w) if px(img, x, row)[:3] == WALL) - 1
-        yb = next(y for y in range(edge + 10, h) if px(img, cx, y)[:3] == WALL) - 1
+        yb = next(y for y in range(wall + 10, h) if px(img, cx, y)[:3] == WALL) - 1
+        counts = {}
+        for y in range(wall + 10, yb, 3):
+            for x in range(xl, xr, 3):
+                c = px(img, x, y)[:3]
+                counts[c] = counts.get(c, 0) + 1
+        fill = max(counts, key=counts.get)
+        xl = next(x for x in range(xl, cx) if px(img, x, row)[:3] == fill)
+        xr = next(x for x in range(xr, cx, -1) if px(img, x, row)[:3] == fill)
+        yb = next(y for y in range(yb, wall, -1) if px(img, cx, y)[:3] == fill)
+        barfill = px(img, 600, 2)[:3]
+        edge = next(y for y in range(2, wall + 1) if px(img, 600, y)[:3] != barfill)
         print("centre", cx - 30, (edge + yb) // 2 - 30, cx + 30, (edge + yb) // 2 + 30)
         print("corner-bl", xl, yb - 14, xl + 14, yb)
         print("corner-br", xr - 14, yb - 14, xr, yb)
@@ -650,7 +663,8 @@ cp "$OUT/k61-rest.png" "$W32/spotlight-rest.png"
 "${TEX[@]}" pick "$TMP/notex-dark-bar.png" 1560 4 2200 30 30 >> "$TMP/dark-points.txt" || true
 "${TEX[@]}" check "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$OUT/k61-rest.png" "$TMP/notex-dark-bar.png" \
   "$TMP/dark-points.txt" 1.5 || fail "k61: the relief is not shade_at (depth, shadows, lit, spotlight, light colour)"
-"${TEX[@]}" meanerr "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$TMP/notex-dark-bar.png" "$OUT/k61-rest.png" 0 0 1000 33 \
+# (Past the bar's first modules: their elevation (K78) is not the relief's formula.)
+"${TEX[@]}" meanerr "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$TMP/notex-dark-bar.png" "$OUT/k61-rest.png" 130 0 1000 33 \
   || fail "k61: the bar's relief does not match shade_at"
 say "the spotlight: the beam follows the pointer and glides back to the middle"
 PTR_FIFO=$TMP/pointer-spot.fifo
@@ -667,6 +681,8 @@ shot k61-spot-b 1.5
 cp "$OUT/k61-spot-b.png" "$W32/spotlight-b.png"
 echo "move 1280 900" >&3
 shot k61-spot-back 1.8
+# With cursor sessions (W58, K79; sway has them) the beam stays on the pointer over windows too: no glide back to check.
+EVERYWHERE=$(timeout 10 "$W_DIR/kurashi" sub svc.pointer --count 0 --json 2>/dev/null | jq -r '.data.available // false' || echo false)
 exec 3>&-
 wait "$PTR_PID" 2>/dev/null || true
 stop_session
@@ -675,7 +691,11 @@ awk -v d="$D" 'BEGIN { exit !(d > 0.05) }' || fail "spotlight: the beam does not
 D=$("${TEX[@]}" diff "$OUT/k61-spot-a.png" "$OUT/k61-spot-b.png" 0 0 2559 33)
 awk -v d="$D" 'BEGIN { exit !(d > 0.05) }' || fail "spotlight: two pointer places light the bar alike ($D)"
 D=$("${TEX[@]}" diff "$OUT/k61-rest.png" "$OUT/k61-spot-back.png" 0 0 1000 33)
-awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "spotlight: the beam did not glide back to the middle ($D)"
+if [ "$EVERYWHERE" = true ]; then
+  say "spotlight: the pointer is known everywhere here, the beam stays on it"
+else
+  awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "spotlight: the beam did not glide back to the middle ($D)"
+fi
 
 # ---- 4c. K61: the carried sheet — a sidebar held mid-slide carries its material; at rest it is the continuous sheet ----
 # The right sidebar (420 px, flush) held at half its slide (KURASHI_SIDEBAR_HOLD is the slide's progress since W44: the

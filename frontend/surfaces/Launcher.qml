@@ -23,7 +23,7 @@ import "../components/decor"
 // the island's MorphShape, two springs, the liquid neck at the bar's edge, the pill's face in its head) and folds back
 // into it; the card then hangs under the bar's centre and the window covers the bar's strip above it (margin 0, the
 // shape's box; K16: its size only, never the output's). Without one (a side bar, no bar) it stays centred on the output
-// and slides in, as before.
+// and slides in, as before. I407: that is one of its places (`launcher.place`), see `place` below.
 PanelWindow {
     id: lp
 
@@ -78,8 +78,46 @@ PanelWindow {
     readonly property url skinUrl: dressOf.ready ? dressOf.item.menu : ""
     property var startAt: null
     property var openedFrom: null
-    readonly property string skinEdge: startAt && startAt.edge === "top" ? "top"
-        : (startAt ? "bottom" : (bars.atTop ? "top" : "bottom"))
+    // I407 (`launcher.place`, docs/ux/launcher.md "Where it opens"), latched on open: `at` hangs it from what was clicked
+    // (`startAt`), `island` grows it out of the pill, `centre` and `fixed` stand it on the output. `opened` asks for `at` on
+    // a click and `centre` on a key; only a click says where it came from (IslandGeom.noteOpener).
+    readonly property string placeCfg: String(bars.valueOf("launcher.place", "opened"))
+    property string place: "centre"
+    function placeFor(rect) {
+        if (placeCfg === "opened") return rect ? "at" : "centre"
+        if (placeCfg === "island") return bars.atTop || bars.atBottom ? "island" : "centre"
+        return placeCfg === "fixed" ? "fixed" : "centre"
+    }
+    readonly property string atEdge: place === "at" && startAt ? String(startAt.edge || "top") : ""
+    readonly property string skinEdge: atEdge === "bottom" || (place === "island" && bars.atBottom) ? "bottom" : "top"
+    readonly property real scrW: scr ? scr.width : 1920
+    readonly property real scrH: scr ? scr.height : 1080
+    // The card at its tallest: one that stands on the output keeps its top while the rows come and go.
+    readonly property real tallH: card.height - listH + Math.max(listH, maxListH) + 2 * morph.shade
+    readonly property real fixedX: Number(bars.valueOf("launcher.place_x", 50)) / 100
+    readonly property real fixedY: Number(bars.valueOf("launcher.place_y", 50)) / 100
+    // The window's top and left on the output, for `at` beside a side bar and for the places on the output.
+    readonly property real standX: {
+        var room = Math.max(0, scrW - implicitWidth)
+        if (place === "fixed") return Math.round(room * fixedX)
+        if (place !== "at" || !startAt) return Math.round(room / 2)
+        if (atEdge === "left") return Math.round(startAt.x + startAt.w + hangGap - morph.shade)
+        if (atEdge === "right") return Math.round(startAt.x - hangGap - implicitWidth + morph.shade)
+        if (Theme.decor("start.menu", "button") === "center") return Math.round(room / 2)
+        // A start menu's corner stands at its button; another card is centred under what opened it.
+        var x = skin ? startAt.x - morph.shade : startAt.x + (startAt.w - implicitWidth) / 2
+        return Math.round(Math.max(Math.max(0, Theme.gap - morph.shade), Math.min(room, x)))
+    }
+    readonly property real standY: {
+        var room = Math.max(0, scrH - tallH)
+        if (place === "fixed") return Math.round(room * fixedY)
+        if (place === "island") return Math.max(0, (bars.atBottom ? 0 : bars.topInset) - morph.shade)
+        if (place !== "at" || !startAt) return Math.round(room / 2)
+        if (atEdge === "left" || atEdge === "right") return Math.round(Math.max(0, Math.min(room, startAt.y - morph.shade)))
+        return Math.max(0, startAt.y + startAt.h + hangGap - morph.shade)
+    }
+    // Under a bar with the shape out the compositor centres the window on the bar; every other place sets the corner.
+    readonly property bool hangsOnBar: place === "island" && morph.layout
     // The band on the menu's side: the dress's skin keeps its own; the launcher's own start menu draws the start button's
     // label up a band in the caption's fill where the look shows that label (98's banner) — data only, rule 4.
     readonly property bool ownBanner: skin && !skinPart.ready && Theme.decor("start.label", false) === true
@@ -201,6 +239,19 @@ PanelWindow {
         default: return rowH
         }
     }
+    // Test only (KURASHI_LAUNCHER_LOG=1): where it stands once open. Without the variable: no timer, no log.
+    readonly property bool placeLog: Quickshell.env("KURASHI_LAUNCHER_LOG") === "1"
+    Timer {
+        id: placeLogTimer
+        interval: 500
+        onTriggered: console.log("launcher-place " + lp.place + " " + lp.scrW + " " + lp.scrH + " " + lp.margins.left + " " + lp.margins.top
+            + " " + lp.implicitWidth + " " + lp.implicitHeight + " " + lp.footAnchored)
+    }
+    function screenNamed(name) {
+        var s = Quickshell.screens
+        for (var i = 0; i < s.length; i++) if (s[i].name === name) return s[i]
+        return null
+    }
     function focusedScreen() {
         var o = (Store.docs["svc.workspaces"] && Store.docs["svc.workspaces"].outputs) || {}
         var s = Quickshell.screens
@@ -307,22 +358,20 @@ PanelWindow {
     screen: scr
     BarConfig { id: bars; screen: lp.scr }
     // While the shape is out under a top or bottom bar, one vertical edge anchored (the compositor centres the surface
-    // horizontally, so the shape's box is centred on the bar); none otherwise (idle, or no such bar): centred on the output.
-    // The start menu: its corner at the start button (the window's shade round the card counted), off its bar.
+    // horizontally, so the shape's box is centred on the bar). Every other place: its corner on the output (I407), the
+    // window's shade round the card counted; under a bottom bar it is the foot that stays.
+    readonly property bool footAnchored: atEdge === "bottom" || (place === "island" && bars.atBottom)
     anchors {
-        top: skin ? skinEdge === "top" : morph.layout && !bars.atBottom
-        bottom: skin ? skinEdge !== "top" : morph.layout && bars.atBottom
-        left: skin
+        top: !footAnchored
+        bottom: footAnchored
+        left: !hangsOnBar
     }
-    // (`[decor] start.menu = center`, W53.3: the menu stands centred over the output, as 11's Start over its centred taskbar.)
-    margins.left: skin ? Math.max(0, Math.min((scr ? scr.width : 1920) - implicitWidth,
-        Theme.decor("start.menu", "button") === "center" ? Math.round(((scr ? scr.width : 1920) - implicitWidth) / 2)
-            : (startAt ? startAt.x : Theme.pad) - morph.shade)) : 0
     // (W53.4: a start menu that hangs from its bar, `[decor] flyout.hang` — Mac OS X's menus — meets it, no gap)
     readonly property int hangGap: Theme.decor("flyout.hang", false) === true ? 0 : Theme.gap
-    margins.top: skin && skinEdge === "top" ? Math.max(0, (startAt ? startAt.y + startAt.h + hangGap : bars.topInset) - morph.shade) : 0
-    margins.bottom: skin && skinEdge !== "top"
-        ? Math.max(0, (startAt && scr ? scr.height - startAt.y + hangGap : bars.bottomInset) - morph.shade) : 0
+    margins.left: hangsOnBar ? 0 : standX
+    margins.top: hangsOnBar || footAnchored ? 0 : standY
+    margins.bottom: hangsOnBar || !footAnchored ? 0
+        : Math.max(0, (startAt ? scrH - startAt.y + hangGap : bars.bottomInset) - morph.shade)
     implicitWidth: morph.width
     implicitHeight: morph.height
     exclusionMode: ExclusionMode.Ignore
@@ -350,10 +399,13 @@ PanelWindow {
 
     onWantChanged: {
         if (want) {
-            scr = focusedScreen()
-            startAt = skin && scr ? IslandGeom.rectOf(scr.name, "start") : null
-            // (the button it opened from, for a sheet form's origin: the start button, else the launcher's bar module)
-            openedFrom = startAt || (scr ? IslandGeom.rectOf(scr.name, "module:launcher") : null)
+            // (a click names its output and its place; a key opens on the focused output)
+            var by = IslandGeom.takeOpener()
+            scr = by ? (screenNamed(by.output) || focusedScreen()) : focusedScreen()
+            place = placeFor(by ? by.rect : null)
+            startAt = place === "at" ? by.rect : null
+            openedFrom = startAt
+            if (placeLog) placeLogTimer.restart()
             results = []; sel = 0; err = ""; confirmClear = false
             thumbs = ({}); asked = ({})
             // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
@@ -376,16 +428,16 @@ PanelWindow {
         id: morph
         surface: "launcher"
         outName: lp.scr ? lp.scr.name : ""
-        onBar: !lp.skin && (bars.atTop || bars.atBottom)
-        flip: lp.skin ? lp.skinEdge !== "top" : bars.atBottom
+        onBar: lp.place === "island"
+        flip: lp.skinEdge !== "top"
         open: lp.want
         cardW: card.width
         cardH: card.height
         slide: 12
         slideScale: 0.96
         // S21: a start menu's sheet form pours out of its start button (the window's frame: its margins off the screen).
-        formOrigin: lp.skin && lp.openedFrom && lp.scr ? Qt.rect(lp.openedFrom.x - lp.margins.left,
-            lp.skinEdge === "top" ? lp.openedFrom.y - lp.margins.top
+        formOrigin: lp.place === "at" && lp.openedFrom && lp.scr ? Qt.rect(lp.openedFrom.x - lp.margins.left,
+            !lp.footAnchored ? lp.openedFrom.y - lp.margins.top
                 : lp.openedFrom.y - (lp.scr.height - lp.margins.bottom - lp.implicitHeight),
             lp.openedFrom.w, lp.openedFrom.h) : Qt.rect(0, 0, 0, 0)
         onHidden: { lp.results = []; lp.thumbs = ({}) }
@@ -717,12 +769,11 @@ PanelWindow {
                                 anchors.fill: parent
                                 sourceComponent: Item {
                                     anchors.fill: parent
-                                    ShaderEffectSource {
+                                    StillCopy {
                                         id: pictureMask
                                         width: parent.width
                                         height: parent.height
                                         sourceItem: img
-                                        live: false
                                         x: -100000
                                         y: -100000
                                         readonly property var key: [img.status, img.source, img.width, img.height]

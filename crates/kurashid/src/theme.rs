@@ -79,6 +79,30 @@ const MEDIA_DOC: &str = "svc.media";
 static MEDIA_COVER: std::sync::Mutex<Option<kurashi_theme::media_tint::Cover>> =
     std::sync::Mutex::new(None);
 
+/// The colours and scheme under the track's, kept while the apps stay out of it (`theme.colors.media.apps` off): what
+/// [`for_apps`] hands the exports. A global for the same reason as [`MEDIA_COVER`].
+static APP_COLOURS: std::sync::Mutex<Option<(serde_json::Map<String, Value>, String)>> =
+    std::sync::Mutex::new(None);
+
+/// The theme document as the apps should see it: the document itself, unless they stay out of the track's colours.
+pub fn for_apps(theme: Value) -> Value {
+    let kept = APP_COLOURS.lock().unwrap_or_else(|e| e.into_inner());
+    match kept.as_ref() {
+        Some((tokens, scheme)) => with_colours(theme, tokens, scheme),
+        None => theme,
+    }
+}
+
+fn with_colours(mut theme: Value, tokens: &serde_json::Map<String, Value>, scheme: &str) -> Value {
+    if let Some(t) = theme["tokens"].as_object_mut() {
+        for (k, v) in tokens {
+            t.insert(k.clone(), v.clone());
+        }
+    }
+    theme["appearance"]["scheme_effective"] = json!(scheme);
+    theme
+}
+
 fn media_follows(store: &ConfigStore) -> bool {
     b(store, "theme.colors.media.follow")
 }
@@ -570,6 +594,9 @@ pub fn document_with(
             };
             let mut scheme_effective = scheme_name(input.scheme);
             let mut scheme_detail = effective_scheme(store, picture).1;
+            *APP_COLOURS.lock().unwrap_or_else(|e| e.into_inner()) = (cover.is_some()
+                && !b(store, "theme.colors.media.apps"))
+            .then(|| (tokens.clone(), scheme_effective.to_string()));
             if let Some(c) = &cover {
                 use kurashi_theme::media_tint::{Tone, apply};
                 let tone = if s(store, "theme.colors.media.tone") == "keep" {
@@ -1053,6 +1080,21 @@ mod tests {
 
     /// K53: applying a style resets the appearance keys the user set and is one undoable change; a look keeps the
     /// style's palette.
+    /// I399: with the apps out of the track's colours they get the kept colours and scheme; other tokens stay.
+    #[test]
+    fn apps_out_of_the_track_keep_their_colours_and_scheme() {
+        let doc = json!({
+            "tokens": {"color.surface": "#224876", "shape.radius": 8},
+            "appearance": {"scheme_effective": "dark", "scheme": "light"},
+        });
+        let mut kept = serde_json::Map::new();
+        kept.insert("color.surface".into(), json!("#f4f0ea"));
+        let out = with_colours(doc, &kept, "light");
+        assert_eq!(out["tokens"]["color.surface"], "#f4f0ea");
+        assert_eq!(out["tokens"]["shape.radius"], 8);
+        assert_eq!(out["appearance"]["scheme_effective"], "light");
+    }
+
     /// K87: colours while a track has them, held for the moment a skip has none yet, gone with the track.
     #[test]
     fn media_colours_follow_the_track_and_hold_through_a_skip() {

@@ -655,6 +655,24 @@ print(len({p[k:k + 3] for k in range(0, len(p) - 2, 3)}))' "$W/row.ppm"; }
       timeout 20 grim -s 2 -g "$(( SW / 2 - 200 )),$(( SH - 120 )) 400x120" "$POUT/$where-$draw.png" && echo "shot $POUT/$where-$draw.png"
     done
   done
+  # I298: the material outlives the reveals. Each reveal maps the window anew and its scene graph starts over; the tile
+  # and mask are copies that are not live, so without a new draw the second reveal came up flat.
+  K set edges.bottom.bar=false 'dock.draw="floating"' >/dev/null || fail "paper reveals: the setup was refused"
+  wait_geom "draw floating "
+  K set 'dock.visibility="hover"' >/dev/null || fail "dock.visibility = hover refused"
+  for round in 1 2 3; do
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    wait_until 3 eval '[ "$(band_ink $(( SH - 120 )))" -lt 50 ]' || fail "paper reveal $round: the dock did not hide"
+    ptr move $(( SW / 2 )) $(( SH - 1 ))
+    wait_until 3 eval '[ "$(band_ink $(( SH - 120 )))" -gt 500 ]' || fail "paper reveal $round: the dock did not come out"
+    wait_settled 1.2 0.4 "0,$(( SH - 240 )) ${SW}x240"
+    inset=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.inset')
+    IFS=, read -r BX BY BW BH <<< "$(geomf body)"
+    WW=$(geomf win); left=$(( (SW - WW) / 2 + BX ))
+    n=$(colours $(( left + 24 )) $(( SH - inset - BH + 4 )) $(( BW - 48 )))
+    [ "$n" -ge 6 ] && echo "ok: paper reveal $round: the dock's body carries the relief ($n colours)" \
+      || fail "paper reveal $round: the dock's body is flat ($n colours): the material was lost (I298)"
+  done
   qml_errors
   stop_phase
   rm -f "$XDG_CONFIG_HOME/kurashi/config.toml"

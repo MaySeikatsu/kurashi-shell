@@ -321,14 +321,13 @@ Item {
             active: Theme.texShell && fil.r > 0
             sourceComponent: Item {
                 Quarter { id: white; r: fil.r }
-                ShaderEffectSource {
+                StillCopy {
                     id: src
                     x: -100000
                     width: fil.r
                     height: fil.r
                     sourceItem: white
                     hideSource: true
-                    live: false
                     Component.onCompleted: scheduleUpdate()
                 }
                 Relief { anchors.fill: parent; mask: src }

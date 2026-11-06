@@ -83,9 +83,11 @@ TitleBase {
             color: cap.ink
             elide: Text.ElideRight
             font.family: Theme.tok("font.title", "") || Theme.fam(cap.title, Theme.families)
-            font.pixelSize: Theme.decor("title.size", 0) > 0 ? Theme.decor("title.size", 0) : Theme.fs
+            // (A property of its own: reading `font` inside a `font.` binding is a loop Qt 6.12 reports.)
+            readonly property real sizePx: Theme.decor("title.size", 0) > 0 ? Theme.decor("title.size", 0) : Theme.fs
+            font.pixelSize: sizePx
             font.weight: Theme.decor("title.weight", 700)
-            font.letterSpacing: cap.caps ? Math.round(font.pixelSize * 0.12) : 0
+            font.letterSpacing: cap.caps ? Math.round(sizePx * 0.12) : 0
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         }
     }

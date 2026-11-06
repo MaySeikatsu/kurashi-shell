@@ -1,0 +1,149 @@
+import QtQuick
+import Quickshell
+import "../core"
+
+// What a module's right-click menu lists (I408, docs/ux/module-menu.md): the settings the schema gives the module
+// (`#[kurashi(module = "<id>")]`; a mod's whole page), as a tree TrayMenu draws, the same card and keys as a tray item's menu. A pure view of `schema.settings` and `config`: a toggle
+// is a check mark, a choice or a range a submenu of radio rows; a row the daemon holds inert stays visible, greyed, with its
+// reason under it (Shōjiki). Choosing a row sends an apply; the document's answer redraws the tree. Ma: the schema
+// document is watched only while the menu is open.
+Scope {
+    id: mm
+    // The module's id in its zone (`clock`, `mod:weather:bar`), "" while no menu is open.
+    property string module: ""
+    // BarConfig of the output the menu is on: the value in effect there, an output's own entry first.
+    property var bars: null
+    readonly property bool active: module !== ""
+    readonly property string modId: module.indexOf("mod:") === 0 ? module.split(":")[1] : ""
+
+    Watch { doc: "schema.settings"; active: mm.active }
+    readonly property var schema: active ? Store.docs["schema.settings"] : null
+
+    // The rows of this module, in the schema's order.
+    readonly property var rows: {
+        var out = [], s = schema
+        if (!s || !s.pages) return out
+        for (var i = 0; i < s.pages.length; i++) {
+            var p = s.pages[i]
+            var whole = modId !== "" && p.mod === modId
+            for (var j = 0; j < p.sections.length; j++) {
+                var rs = p.sections[j].rows
+                for (var k = 0; k < rs.length; k++)
+                    if ((whole || (rs[k].modules || []).indexOf(module) >= 0) && drawable(rs[k])) out.push(rs[k])
+            }
+        }
+        return out
+    }
+    readonly property string title: {
+        if (!active) return ""
+        var s = schema
+        if (modId !== "" && s && s.pages)
+            for (var i = 0; i < s.pages.length; i++)
+                if (s.pages[i].mod === modId) return I18n.tr(s.pages[i].label)
+        return modId !== "" ? modId : I18n.tr("layout.module." + module)
+    }
+    function drawable(r) {
+        if (r.advanced === true) return false
+        return r.control === "toggle" || r.control === "slider" || (r.control === "select" && !!r.choices)
+    }
+
+    // A menu id for every row and choice, stable across redraws (TrayMenu keeps an open submenu by id).
+    readonly property int settingsId: 999999
+    function idOf(rowIndex, choice) { return 1 + rowIndex * 100 + choice }
+    function stepsOf(r, now) {
+        var n = Math.round((r.max - r.min) / r.step)
+        var out = []
+        if (n <= 8) { for (var i = 0; i <= n; i++) out.push(r.min + i * r.step) }
+        else {
+            for (var j = 0; j <= 4; j++) out.push(r.min + Math.round(j * n / 4) * r.step)
+            if (out.indexOf(now) < 0) { out.push(now); out.sort(function (a, b) { return a - b }) }
+        }
+        return out
+    }
+    function withUnit(r, v) { return String(v) + (r.unit ? " " + r.unit : "") }
+    // Why a row does nothing now. A setting another one holds names it, with the value it needs where one does.
+    function inertWhy(r, p) {
+        if (!p) return ""
+        if (!p.forced_by && p.reason !== "settings.inert.requires") return ""
+        var by = p.inert_by && rowOf(p.inert_by)
+        if (!by) return I18n.tr("frontend.module.held")
+        var text = I18n.tr(by.label), cs = r.couplings || []
+        for (var i = 0; i < cs.length; i++) {
+            if (cs[i].key !== p.inert_by || cs[i].kind !== "requires" || cs[i].op !== "eq") continue
+            var ch = by.choices || []
+            for (var j = 0; j < ch.length; j++) if (ch[j].value === cs[i].value) text += ": " + I18n.tr(ch[j].label)
+        }
+        return I18n.tr("frontend.module.needs").replace("{key}", text)
+    }
+    function rowOf(key) {
+        var s = schema
+        for (var i = 0; s && i < s.pages.length; i++)
+            for (var j = 0; j < s.pages[i].sections.length; j++) {
+                var rs = s.pages[i].sections[j].rows
+                for (var k = 0; k < rs.length; k++) if (rs[k].key === key) return rs[k]
+            }
+        return null
+    }
+    // Each entry carries what it does (`act`: `{key, value}` to set, or `{open: true}` for Settings); TrayMenu ignores it.
+    readonly property var tree: {
+        var kids = []
+        var list = rows
+        for (var i = 0; i < list.length; i++) {
+            var r = list[i], p = bars ? bars.entry(r.key) : null
+            var now = p && p.value !== undefined ? p.value : r.default
+            var why = inertWhy(r, p)
+            var live = why === ""
+            var id = idOf(i, 0)
+            if (r.control === "toggle") {
+                kids.push({ id: id, label: I18n.tr(r.label), toggle: "checkmark", checked: now === true, enabled: live,
+                            act: { key: r.key, value: now !== true } })
+            } else {
+                var opts = r.control === "slider"
+                    ? stepsOf(r, now).map(function (v) { return { value: v, label: mm.withUnit(r, v) } })
+                    : r.choices.map(function (c) { return { value: c.value, label: I18n.tr(c.label) } })
+                var shown = String(now)
+                var ch = []
+                for (var j = 0; j < opts.length; j++) {
+                    var cid = idOf(i, j + 1)
+                    if (opts[j].value === now) shown = opts[j].label
+                    ch.push({ id: cid, label: opts[j].label, toggle: "radio", checked: opts[j].value === now, enabled: live,
+                              act: { key: r.key, value: opts[j].value } })
+                }
+                kids.push({ id: id, label: I18n.tr(r.label) + ": " + shown, enabled: live, children: ch })
+            }
+            // (once for a run of rows held for the one reason)
+            var nextP = i + 1 < list.length && bars ? bars.entry(list[i + 1].key) : null
+            if (!live && inertWhy(list[i + 1] || {}, nextP) !== why) kids.push({ id: id + 50, label: why, enabled: false })
+        }
+        if (list.length === 0 && schema) kids.push({ id: 999998, label: I18n.tr("frontend.module.none"), enabled: false })
+        if (kids.length > 0) kids.push({ id: 999997, separator: true })
+        kids.push({ id: settingsId, label: I18n.tr("frontend.module.settings"), act: { open: true } })
+        return { children: kids }
+    }
+    // Chooses a row; returns true when the menu is done (Settings opened), false when it stays for the next change.
+    function find(id, list) {
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === id) return list[i].act || null
+            var hit = list[i].children ? find(id, list[i].children) : null
+            if (hit) return hit
+        }
+        return null
+    }
+    function choose(id) {
+        var a = find(id, tree.children)
+        if (!a) return false
+        if (a.open) {
+            var list = rows
+            if (modId !== "") Store.act("settings.open", { page: "mod:" + modId })
+            else if (list.length > 0) Store.act("settings.open", { key: list[0].key })
+            else Store.act("settings.open", { page: "layout" })
+            return true
+        }
+        var op = { set: a.key, value: a.value }
+        // An output's own entry is what stands there: change that one.
+        var c = bars ? bars.config : null, out = bars ? bars.outName : ""
+        if (out !== "" && c && c.outputs && c.outputs[out] && c.outputs[out][a.key] !== undefined) op.output = out
+        Store.apply([op])
+        return false
+    }
+}

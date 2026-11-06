@@ -455,14 +455,13 @@ Item {
                 PathSvg { path: reliefBox.on ? shape.fillPath : "" }
             }
         }
-        ShaderEffectSource {
+        StillCopy {
             id: shapeMask
             x: -100000
             width: parent.width
             height: parent.height
             sourceItem: reliefBox.on ? maskShape : null
             hideSource: true
-            live: false
         }
         Connections {
             target: reliefBox.on ? shape : null

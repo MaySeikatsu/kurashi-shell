@@ -51,6 +51,19 @@ Item {
     Keys.onReturnPressed: activate()
     Keys.onEnterPressed: activate()
     Keys.onSpacePressed: activate()
+    // I408 (docs/ux/module-menu.md): a right click, or the Menu key on its tab stop, opens the module's own menu in the
+    // Stage, unless the module answers it itself (a tray icon's menu, a window's menu, a mod's own): a child that takes the
+    // button keeps the event from reaching this handler.
+    function openMenu() {
+        Isl.IslandGeom.notePress(output, mid)
+        Store.act("tray.menu.open", { id: "module:" + mid })
+    }
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        enabled: host.present && host.mid !== ""
+        onTapped: host.openMenu()
+    }
+    Keys.onMenuPressed: openMenu()
     C.FocusRing {
         anchors.fill: parent
         anchors.margins: 1
@@ -66,6 +79,13 @@ Item {
         key: host.mid !== "" ? "module:" + host.mid : ""
         output: host.output
         enabled: !host.vertical && host.present
+    }
+    // (on a side edge its menu stands beside it, I408: a key of its own, a card still comes out as it did there)
+    Isl.AnchorReport {
+        target: host
+        key: host.mid !== "" ? "side:" + host.mid : ""
+        output: host.output
+        enabled: host.vertical && host.present
     }
     PointHandler {
         acceptedButtons: Qt.AllButtons

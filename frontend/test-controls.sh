@@ -462,7 +462,8 @@ session() {  # session NAME FRONTEND TEXTURE(yes|no) CONFIG...: leaves the sessi
   export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state XDG_DATA_HOME=$R/xdg/data \
     XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-  printf '%s\n' "$@" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  # (the launcher's crops stand under the island, I407)
+  { printf 'launcher.place = "island"\n'; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   QS_LOG=$R/qs.log
   : > "$R/server.log"
   : > "$QS_LOG"

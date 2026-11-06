@@ -24,6 +24,7 @@
 //! - `capability = "<name>"` — inert/forced off when the compositor lacks it. Repeatable.
 //! - `overridden_by = "<bool key>"` or `"<bool key> => <value>"` — forced (to `value`) while
 //!   that key is true, e.g. a11y modes. Repeatable.
+//! - `module = "clock"` — the bar module whose right-click menu offers the key (repeatable, I408)
 //! - `restart`, `advanced`, `hidden` — flags (hidden: valid config, not shown in settings).
 //! - `since = <n>` — schema version that introduced the key (default 1).
 //! - `nested` — the field is itself a `KurashiSchema` struct (a sub-table).

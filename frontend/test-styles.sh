@@ -32,7 +32,7 @@ cleanup() { "$SB" stop >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 CONF=$(mktemp -d)/config.toml
-printf '%s\n' 'theme.style = "kanso"' '[a11y]' 'reduce_motion = true' '[idle]' 'enabled = false' > "$CONF"
+printf '%s\n' 'theme.style = "kanso"' 'launcher.place = "island"' '[a11y]' 'reduce_motion = true' '[idle]' 'enabled = false' > "$CONF"
 "$SB" start "$CONF" ${STYLES_WALLPAPER:-} >/dev/null || fail "the niri sandbox did not start"
 for _ in $(seq 50); do K ping && break; sleep 0.2; done
 K ping || fail "kurashid did not answer (see $R/kurashid.log)"

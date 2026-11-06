@@ -8,6 +8,11 @@ import QtQuick
 // document the schema defaults: one dynamic top bar, no frame.
 QtObject {
     readonly property var doc: Store.docs["runtime.layout"] || ({})
+    // I393: whether the layout is the daemon's, or the daemon has had its moment: a surface the user hid must not show on
+    // the fallback at every start. With no daemon the fallback stands after a second (a bar to say so).
+    property bool waited: false
+    readonly property bool settled: waited || Store.docs["runtime.layout"] !== undefined
+    readonly property Timer waitTimer: Timer { interval: 1000; running: true; onTriggered: waited = true }
     readonly property int gap: doc.gap !== undefined ? doc.gap : 8
     readonly property int joinRadius: doc.join_radius !== undefined ? doc.join_radius : 16
     // The screen's outer corners (K74): the radius while `theme.shape.screen_corners_follow`, else their own size. 0 until

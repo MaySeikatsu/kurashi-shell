@@ -186,7 +186,8 @@ start_all() { # start_all <decor> [config line ...]
   fill_history
   niri_fixture
   if [ -n "${PRE_START:-}" ]; then "$PRE_START"; fi
-  { printf 'theme.style = "%s"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  # (it hangs from the island here: W34's morph; where else it opens is test-module-menu's)
+  { printf 'theme.style = "%s"\nlauncher.place = "island"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env PATH="$FAKE:$PATH" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &

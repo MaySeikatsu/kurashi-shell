@@ -21,6 +21,7 @@ Item {
     property var pills: []
     // How many buttons fit; past that the last slot is "+N".
     property int maxCount: 12
+    property bool middleCloses: true
     // The bar is shown: the hop runs only then.
     property bool live: true
     // The bar's hit test for a drag: a scene point → the workspace under it ({id, idx, …}) or null.
@@ -168,6 +169,7 @@ Item {
     property string menuError: ""
     property string menuTitle: ""
     property int menuCurrent: 0
+    signal moduleMenu()
     readonly property bool menuOpen: menuId !== -1
     function closeMenu() { menuId = -1; menuError = "" }
     function openMenu(t, id) {
@@ -204,6 +206,8 @@ Item {
                      run: (function (ws) { return function () { tl.run("window.move", { id: w.id, workspace: ws }) } })(p.id) })
         }
         r.push({ text: I18n.tr("tasks.menu.close"), on: true, run: function () { tl.run("window.close", { id: w.id }) } })
+        // The list's own options (I408): a right click here is the window's, so its module menu opens from here.
+        r.push({ text: I18n.tr("tasks.menu.options"), on: true, run: function () { tl.closeMenu(); tl.moduleMenu() } })
         return r
     }
     // A window that went away closes its menu.
@@ -319,10 +323,13 @@ Item {
                 }
                 TapHandler {
                     acceptedButtons: Qt.MiddleButton
+                    enabled: tl.middleCloses
                     onTapped: tl.closeWin(task.modelData)
                 }
                 TapHandler {
                     acceptedButtons: Qt.RightButton
+                    // (holds the press, so the module's own menu under it, I408, does not open as well)
+                    gesturePolicy: TapHandler.WithinBounds
                     onTapped: tl.openMenu(task, task.modelData)
                 }
                 DragHandler {

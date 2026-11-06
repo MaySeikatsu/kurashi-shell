@@ -1253,5 +1253,28 @@ published theme, so palette, style and Dynamic Media Color changes all grade the
 a bake costs nothing between changes. Why picture-aware: a palette-only LUT gives one result for every picture and flattens it;
 pairing keeps the picture's structure (Chang et al. 2015). Palette-only stays as a choice, `palette`.
 **Trade-off.** The wheel blend does not reach the wallpaper: I401 keeps a live shader as an idea.
-**Evidence.** Prototype branch `feat/s22-wallgrade-proto`; brief `docs/ux/wallpaper-color-grade.md`.
+**Evidence.** Brief `docs/ux/wallpaper-color-grade.md`. The prototype was never committed and its worktree is gone (session 23).
 
+## K89 — A copy that is not live is drawn again when its window maps (session 23, I298)
+**Decision.** Every `ShaderEffectSource` drawn once and left alone is a `StillCopy` (`frontend/components/StillCopy.qml`), which
+redraws when its window maps; `TileSheet` fills its tiles again on a map. New still copies use it.
+**Why.** A window's scene graph starts anew on each map, and a copy that is not live is not drawn again by itself, so it comes back
+empty: the dock lost its material from the next reveal on. A window that never unmaps does not show it, which is why it looked
+driver-specific for a while (I298) when the checks only changed `Sheet`.
+**Trade-off.** One redraw per reveal, and the tiles run live for 250 ms: only while the window is mapped and animating anyway (rule 5).
+**Evidence.** Reproduced on the user's session (GTX 1060, kami and washi; floating, connected and auto dock) and in the sandbox:
+`frontend/test-dock.sh` reveals a papered dock three times and fails on the first reveal without the fix.
+
+## K90 — A module's options live in its right-click menu, named by the schema; the launcher places itself (session 23, I407, I408)
+**Decision.** (1) A bar key says which module offers it: `#[kurashi(module = "<id>")]`, in `schema.settings` as the row's
+optional `modules` (additive). A module's right click opens `module:<id>` in the Stage's `tray` panel, through
+`tray.menu.open` as it stands, so the daemon has no new state and the one-panel rule holds; `TrayMenu` draws a tree built
+from the schema and the config. (2) `launcher.place` = opened (default), centre, island, fixed. A key and a click both send a bare
+`launcher.toggle`; the click notes its place in the frontend first (`IslandGeom.noteOpener`), view geometry as K82's press
+note is, so the action's shape stays. (3) `modules.workspaces.*`, `modules.windows.*`: the first options of their own.
+**Why.** User, session 23: a menu "similar to" a tray item's that "should also expose configuration options for that specific
+module", on every module on a bar or frame; a start menu "centered in middle" when opened by key, adjustable to the click
+point, the island or a fixed place. Prototyped in QML against a hand table first, then the table became the attribute.
+**Trade-off.** A launcher opened by key no longer grows out of the island by default on looks that did (W34): that morph is now
+`launcher.place = island`. The island keeps its bound right click (pin), so its menu needs that unbound: open, I408.
+**Evidence.** `frontend/test-module-menu.sh`; reviewed on nested niri on kami and aqua, on top, bottom and left bars.

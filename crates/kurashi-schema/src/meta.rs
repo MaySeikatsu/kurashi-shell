@@ -192,6 +192,8 @@ pub struct KeyMeta {
     pub section: String,
     pub flags: Flags,
     pub couplings: Vec<Coupling>,
+    /// The bar modules whose right-click menu offers this key (I408).
+    pub modules: Vec<String>,
     /// Schema version that introduced the key.
     pub since: u32,
     pub text: Text,
@@ -212,6 +214,7 @@ impl KeyMeta {
             constraints: Constraints::default(),
             flags: Flags::default(),
             couplings: Vec::new(),
+            modules: Vec::new(),
             since: 1,
             text: Text::default(),
             key,

@@ -333,6 +333,43 @@ The modules at the end of the edge (the right, or the bottom of a side edge), in
 - per-output
 - since schema v3
 
+### Workspaces
+
+#### `modules.workspaces.empty` — Show empty workspaces
+
+Off: only the workspaces with windows and the one you are on.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `modules.workspaces.marks` — Marks
+
+- type: `choice` · default: `"look"`
+- choices: `"look"` | `"numbers"` | `"dots"`
+- since schema v7
+
+#### `modules.workspaces.scroll` — Scroll to switch
+
+The mouse wheel over the workspaces moves to the next or the previous one.
+
+- type: `bool` · default: `false`
+- since schema v7
+
+### Windows
+
+#### `modules.windows.max` — Most windows shown
+
+The rest go under "+N". 0: as many as the bar has room for.
+
+- type: `int` · default: `0`
+- range: `0..=24`, step `1`
+- since schema v7
+
+#### `modules.windows.middle_close` — Middle click closes
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ## Appearance
 
 ### Colors
@@ -392,6 +429,13 @@ The colours lean a little toward the season's own — winter blue, sakura, fresh
 The shell and the apps that follow its theme take the colours of the track playing now. Your palette and light or dark stay as they are: turn this off and they are back.
 
 - type: `bool` · default: `false`
+
+#### `theme.colors.media.apps` — Apps follow too
+
+Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes the track's colours and the apps keep your palette.
+
+- type: `bool` · default: `true`
+- only while `theme.colors.media.follow == true`
 
 #### `theme.colors.media.tone` — Light or dark
 
@@ -1615,6 +1659,32 @@ How many notifications are kept.
 ## Launcher
 
 ### Apps
+
+#### `launcher.place` — Opens
+
+Where it was opened: at the button you clicked, and in the middle of the screen when opened by its key. Out of the island: it grows from the bar's island. A fixed place: where the two sliders below put it.
+
+- type: `choice` · default: `"opened"`
+- choices: `"opened"` | `"centre"` | `"island"` | `"fixed"`
+- since schema v7
+
+#### `launcher.place_x` — Across
+
+How far across the screen it stands: 0 at the left edge, 100 at the right.
+
+- type: `int` · default: `50`
+- range: `0..=100`, step `5` (%)
+- only while `launcher.place == "fixed"`
+- since schema v7
+
+#### `launcher.place_y` — Down
+
+How far down the screen it stands: 0 at the top edge, 100 at the bottom.
+
+- type: `int` · default: `50`
+- range: `0..=100`, step `5` (%)
+- only while `launcher.place == "fixed"`
+- since schema v7
 
 #### `launcher.terminal` — Terminal command
 
