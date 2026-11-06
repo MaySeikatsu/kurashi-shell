@@ -17,6 +17,19 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-06 — session 23, end (machine A): handwriting prototype (I415, K94), and what is next
+**State.** Three stacked branches. `feat/s23-niri-motion` is PR #6. `feat/s23-font-mix` sits on it, `feat/s23-handwriting-mod` on that; each is its own PR, and the user merges. If a lower one changes, rebase the ones above.
+**Built here.** `mods/handwriting`, `crates/kurashi-mod-handwriting`, `docs/ux/handwriting.md`, `mods/handwriting/test-handwriting.sh`. Off by default; enable it on the Mods page. Open with `kurashi act mod.panel.open '{"id":"handwriting","panel":"handwriting"}'`.
+**Not verified.** A real pen; a whole alphabet drawn by a person; the panel on the user's session.
+**Next steps, in order.**
+1. I418: shaders generated from a user's recipes for niri's windows (`crates/kurashi-motion/src/recipe.rs` has the tracks; `crates/kurashi-theme/src/niri_forms.rs` the frame). The user wants it if it is quick.
+2. I423: the window frame colour setting.
+3. I420: terminals, with the `theme.texture.terminals` switch.
+4. I422: Zen. Ask the user about their profile once it is ready to test; never hardcode one.
+5. I421, I419 afterwards.
+6. Sandboxes: delete `/tmp/kurashi-sb-*` with no live process (the user agreed), and the build dirs under `~/.cache/kurashi-agents-target/`.
+**Risks.** Do not edit `frontend/` or `settings/` in a tree whose suites are running: the frontend reloads itself on a change and a suite fails for no reason. Nested niri stops redrawing after a screencopy: turn previews off in a visual check with animations.
+
 ## 2026-11-06 — session 23, the font mix (machine A): I176, K93
 **State.** `feat/s23-font-mix`, stacked on `feat/s23-niri-motion` (PR #6). Not pushed: the user decides. The worktree it was built in lived in the session's scratchpad and goes with it.
 **Built.** `theme.typography.mix.{preset,count,fonts}`. kurashid builds one font holding the chosen fonts' letters (`kurashi_theme::font_mix`, cache `kurashi/fonts/mix-<hash>.ttf`), `calt` moves on a font per letter and starts over per word, and `Theme.families` takes it through a `FontLoader`: no text component changed. New page Fonts, with the comparison card on top. Patrick Hand, Handlee, Gochi Hand in `nix/handwriting-fonts.nix`. Brief `docs/ux/fonts.md`. The plugin idea is I415.
