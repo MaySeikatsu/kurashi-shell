@@ -731,6 +731,23 @@
 #   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
 # effects_ms = 0
 
+# [theme.typography.mix]
+#
+# Font mix — Mixes several fonts letter by letter, so text looks less regular, as
+# handwriting does. Handwriting takes shipped fonts; Custom takes yours. It works with any
+# fonts; the first gives the sizes. Digits and other scripts stay as they are.
+#   choices: "off" | "handwriting" | "custom" · since schema v7
+# preset = "off"
+#
+# How many fonts — How many of the fonts to mix, from the first. Two is the quietest.
+#   range: 2..=8, step 1 · only while theme.typography.mix.preset != "off" · since schema v7
+# count = 3
+#
+# Fonts to mix — The fonts, in order. Any installed font, your own too.
+#   choices: from `fonts.installed` (resolved at runtime) · only while
+#   theme.typography.mix.preset == "custom" · since schema v7
+# fonts = ["Kalam", "Patrick Hand", "Handlee"]
+
 # [theme.typography]
 #
 # Font family — Fallback chain; the first installed family wins (resolved via fontconfig).

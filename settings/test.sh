@@ -1062,7 +1062,7 @@ echo "keyboard K10: Right previewed the radius; Put back restored $radius0"
 # K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
 fonts0=$(val theme.typography.family)
 first=$(printf '%s' "$fonts0" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0])')
-Q goto appearance
+Q goto fonts
 Q focusList >/dev/null
 tab_to "Remove $first" 200   # past "Apps that follow" (25 apps) and its switches
 kp delete
@@ -1071,6 +1071,14 @@ shot_now 20c-preview-font
 Q putBack
 [ "$(val theme.typography.family)" = "$fonts0" ] || fail "font: Put back did not restore the chain ($(val theme.typography.family))"
 echo "keyboard K11: Delete on a font family previewed the chain; Put back restored it"
+
+# K12. Settings › Fonts (K93): the mix's comparison on top; it draws nothing at rest.
+Q goto fonts
+for _ in $(seq 50); do [ "$(Q present font-mix-preview)" = yes ] && break; sleep 0.1; done
+[ "$(Q present font-mix-preview)" = yes ] || fail "fonts: no comparison on the page"
+sleep 1; f1=$(Q frames); sleep 3; f2=$(Q frames)
+[ "$f1" = "$f2" ] || fail "fonts: the page drew $((f2 - f1)) frames in 3 s at rest"
+echo "keyboard K12: Fonts has its comparison, 0 frames at rest"
 
 # K12. search by keyboard (UX brief, settings 4): typing starts the search, Return lands on the first hit, and the row
 #      flashes; the shot is taken at once, inside the flash.

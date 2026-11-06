@@ -14,6 +14,12 @@ thiserror.workspace = true
 toml = "0.8"
 material-colors = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
+write-fonts = "0.55.0"
+skrifa = "0.49.0"
+kurbo = "0.13"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+harfrust = "0.15.0"
