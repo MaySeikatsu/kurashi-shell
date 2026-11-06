@@ -689,6 +689,43 @@ pub struct Target {
 }
 
 /// Written in place of a superseded file (see [`Target::legacy`]). Comments only: an empty include is valid for niri.
+/// How a terminal target takes the shell's material (I420, K99).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminalWay {
+    /// A shader that keeps off the text: Ghostty.
+    Shader,
+    /// A tile in a repeat: the picture's path under the config home.
+    Tile(&'static str),
+    /// No way but colours.
+    Colours,
+}
+
+/// The way of the target named `name`, if it is a terminal.
+pub fn terminal_way(name: &str) -> Option<TerminalWay> {
+    Some(match name {
+        "ghostty" => TerminalWay::Shader,
+        "kitty" => TerminalWay::Tile("kitty/kurashi-tile.png"),
+        "wezterm" => TerminalWay::Tile("wezterm/kurashi-tile.png"),
+        "rio" | "foot" | "alacritty" | "ratty" => TerminalWay::Colours,
+        _ => return None,
+    })
+}
+
+/// The `{{terminal.image}}` value of target `name` for its picture at `path` (absolute, device px across for a tile): what
+/// names it in that terminal. `None`: no picture, each says so in its own way.
+pub fn terminal_image(name: &str, picture: Option<(&str, u32)>) -> String {
+    match (name, picture) {
+        ("kitty", Some((path, _))) => format!(
+            "background_image {path}\nbackground_image_layout tiled\nbackground_image_linear no\nbackground_tint 0"
+        ),
+        ("wezterm", Some((path, px))) => format!(
+            "{{ {{ source = {{ File = '{path}' }}, repeat_x = 'Repeat', repeat_y = 'Repeat', width = {px}, height = {px}, }} }}"
+        ),
+        ("wezterm", None) => "nil".into(),
+        _ => String::new(),
+    }
+}
+
 pub const LEGACY_STUB: &str = "// Superseded (K49, W34): the shell's niri settings are in kurashi.kdl now. Replace the\n// include line that names this file with `include \"kurashi.kdl\"`.\n";
 
 /// The targets, in the order Settings lists them.
@@ -783,6 +820,42 @@ pub const TARGETS: &[Target] = &[
             "alacritty/alacritty.toml",
             "general.import = [\"~/.config/alacritty/kurashi-colors.toml\"]",
         )),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // WezTerm reads Lua: a module beside its config, with the colours and the picture (K99).
+    Target {
+        name: "wezterm",
+        output: Output::File {
+            template: "wezterm.lua",
+            path: "wezterm/kurashi.lua",
+        },
+        include: Some(("wezterm/wezterm.lua", "require('kurashi').apply(config)")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Rio's theme file holds colours. Its `window.background-image` is not used: on 0.5.28 it draws over the text (K99).
+    Target {
+        name: "rio",
+        output: Output::File {
+            template: "rio.toml",
+            path: "rio/themes/kurashi.toml",
+        },
+        include: Some(("rio/config.toml", "theme = \"kurashi\"")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Ratty has one config and no include (`theme_export.rs` keeps its file, or says why it cannot).
+    Target {
+        name: "ratty",
+        output: Output::File {
+            template: "ratty.toml",
+            path: "ratty/kurashi-theme.toml",
+        },
+        include: None,
         lines: None,
         legacy: None,
         shader: None,

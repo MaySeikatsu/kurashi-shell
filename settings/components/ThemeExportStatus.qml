@@ -92,6 +92,32 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: ex.appName(t.modelData.name)
             }
+            // A terminal: what it takes of the material, honestly (K99).
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                readonly property var mat: t.modelData.material
+                visible: !!mat
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: !mat ? "" : I18n.tr("theme.export.material." + (mat.how === "off" ? "off_" + mat.why : mat.how))
+            }
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                visible: !!t.modelData.own_config
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.fg
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("theme.export.material.ratty_own")
+            }
             // The desktop settings: what they are, what was set, what was in effect already.
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

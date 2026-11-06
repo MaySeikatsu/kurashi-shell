@@ -605,6 +605,8 @@
 "config.theme.texture.kind.help" = "シェルをつくる素材の凹凸──紙、布、石、金属、革、木、筆跡の残る油絵の具。下の光で陰影がつき、素材そのものの色はつきません（K59）。"
 "config.theme.texture.scope.label" = "適用先"
 "config.theme.texture.scope.help" = "シェルの面、壁紙（画像に焼き込み）、その両方、またはアプリも含めたすべての上のオーバーレイ。最後のものは全画面のレイヤーを使い、スクリーンショットにも写り、全画面アプリの最速の表示経路を使えなくします。"
+"config.theme.texture.terminals.label" = "ターミナルにも"
+"config.theme.texture.terminals.help" = "書き出し先のターミナルも質感を使います。文字を避けるシェーダーがあるターミナルはそれで（Ghostty）、なければ薄い背景画像で（Kitty、WezTerm）。Alacritty、Foot、Rio、Ratty は色だけです。オフ：どのターミナルも色だけになります。"
 "config.theme.texture.strength.label" = "強さ"
 "config.theme.texture.strength.help" = "凹凸の見え方の強さ。1を超えると強めです。文字の下では読みやすさを保つ分に抑えます。"
 "config.theme.texture.scale.label" = "大きさ"

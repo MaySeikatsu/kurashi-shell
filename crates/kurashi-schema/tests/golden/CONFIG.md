@@ -808,6 +808,13 @@ The shell's surfaces, the wallpaper (baked into the picture), both, or an overla
 - choices: `"shell"` | `"wallpaper"` | `"shell_wallpaper"` | `"everything"`
 - only while `theme.texture.kind != "none"`
 
+#### `theme.texture.terminals` — Terminals too
+
+The terminals among the apps that follow take the material: as a shader that keeps off the text where the terminal has one (Ghostty), else as a faint background picture (Kitty, WezTerm). Alacritty, Foot, Rio and Ratty can only take colours. Off: every terminal has colours alone.
+
+- type: `bool` · default: `true`
+- only while `theme.texture.kind != "none"`
+
 #### `theme.texture.strength` — Strength
 
 How strongly the relief reads; past 1 it is strong. Under text it is capped so text stays legible.
