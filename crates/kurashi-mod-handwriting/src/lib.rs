@@ -84,9 +84,7 @@ impl NativeMod for HandwritingMod {
                 let s = shared.clone();
                 ctx.action($id, $label, move |$args: Value| {
                     let s = s.clone();
-                    async move {
-                        s.with(|$st| $body)
-                    }
+                    async move { s.with(|$st| $body) }
                 })?;
             }};
         }
