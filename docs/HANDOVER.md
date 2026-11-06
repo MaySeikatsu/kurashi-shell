@@ -18,8 +18,8 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-11-06 — session 23, later (machine A): launcher placement (I407), module menus (I408, K90)
-**State.** Branch `feat/s23-placement-menus`, on top of `feat/s23-quick-wins`, committed locally and **not pushed**; neither is
-merged. The merge of `feat/s23-quick-wins` still waits for the user's waiver of `island-join` (I406).
+**State.** Merged to `main` with `feat/s23-quick-wins` (2026-11-06). The user waived `island-join` for this merge (I406: it fails under
+load and passes alone). `just check` green on the merged tree.
 **Built.** `launcher.place` (opened, centre, island, fixed; by key in the middle, by click at the button). Every module on a bar or
 frame opens its own menu on a right click, from `#[kurashi(module = "<id>")]`, in the Stage's `tray` panel (`module:<id>`).
 New options `modules.workspaces.{empty,marks,scroll}`, `modules.windows.{max,middle_close}`. Briefs `docs/ux/module-menu.md`,
