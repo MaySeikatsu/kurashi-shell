@@ -1494,6 +1494,45 @@
             },
             {
               "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.window_frame_color.accent",
+                  "value": "accent"
+                },
+                {
+                  "label": "config.choice.window_frame_color.shell_outline",
+                  "value": "shell_outline"
+                },
+                {
+                  "label": "config.choice.window_frame_color.secondary",
+                  "value": "secondary"
+                },
+                {
+                  "label": "config.choice.window_frame_color.tertiary",
+                  "value": "tertiary"
+                },
+                {
+                  "label": "config.choice.window_frame_color.outline",
+                  "value": "outline"
+                },
+                {
+                  "label": "config.choice.window_frame_color.on_surface",
+                  "value": "on_surface"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "accent",
+              "help": "config.theme.window_frame_color.help",
+              "key": "theme.window_frame_color",
+              "label": "config.theme.window_frame_color.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
               "control": "toggle",
               "couplings": [],
               "default": false,

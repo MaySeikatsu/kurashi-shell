@@ -454,6 +454,12 @@ pub struct Theme {
     /// setting and only takes the colours.
     #[kurashi(default = false, section = "colors", since = 7)]
     pub window_frame: bool,
+    /// Window frame colour
+    /// The colour round the focused window, on the compositors that follow (niri, Hyprland, MangoWM, sway): the accent,
+    /// the shell's outline ink, so that frames and the shell's outlines are one colour, or a colour of the palette. Unfocused
+    /// windows keep the outline; a window asking for attention keeps the error colour.
+    #[kurashi(default = WindowFrameColor::Accent, section = "colors")]
+    pub window_frame_color: WindowFrameColor,
     /// See-through unfocused windows
     /// The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and
     /// MangoWM; sway has no setting for it). Off: each keeps its own.
@@ -492,6 +498,23 @@ pub enum Chrome {
     Line,
     /// Bevel
     Bevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "window_frame_color")]
+pub enum WindowFrameColor {
+    /// Accent
+    Accent,
+    /// Shell outline
+    ShellOutline,
+    /// Secondary
+    Secondary,
+    /// Tertiary
+    Tertiary,
+    /// Outline
+    Outline,
+    /// Text
+    OnSurface,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
