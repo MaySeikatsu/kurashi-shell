@@ -80,6 +80,73 @@ fn write_if_changed(path: &Path, text: &str) -> std::io::Result<bool> {
     Ok(true)
 }
 
+/// [`write_if_changed`] for a picture: encoded and swapped in whole, so a terminal never reads half of one.
+fn write_png(path: &Path, img: &image::RgbaImage) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("kurashi-tmp");
+    img.save_with_format(&tmp, image::ImageFormat::Png)
+        .map_err(std::io::Error::other)?;
+    std::fs::rename(&tmp, path)
+}
+
+/// What a terminal's picture is baked from (K99): the shell's tile, at a fraction of its relief, over the surface colour.
+#[derive(Clone)]
+pub struct TerminalRelief {
+    pub tile: std::sync::Arc<kurashi_texture::Tile>,
+    pub shading: kurashi_texture::Shading,
+    pub scale: f32,
+    /// The terminal's background: `color.surface`, 0…1.
+    pub surface: [f32; 3],
+}
+
+/// Baked and written, unless the same parameters made this path before (a theme change re-exports every target; a repaint of
+/// a tile costs noticeable time). Returns the size across a tile in device px, as the terminal must be told.
+fn bake_terminal_image(dest: &Path, r: &TerminalRelief) -> std::io::Result<u32> {
+    use std::collections::HashMap;
+    use std::hash::{Hash, Hasher};
+    use std::sync::{Mutex, OnceLock};
+    static MADE: OnceLock<Mutex<HashMap<PathBuf, u64>>> = OnceLock::new();
+    let px = (r.tile.logical * r.scale).round().max(1.0) as u32;
+    let (w, h) = (px, px);
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    format!("{:?}{:?}{} {w}x{h}", r.shading, r.surface, r.scale).hash(&mut hash);
+    r.tile
+        .rgba
+        .iter()
+        .step_by(997)
+        .for_each(|b| b.hash(&mut hash));
+    let key = hash.finish();
+    let made = MADE.get_or_init(|| Mutex::new(HashMap::new()));
+    if made.lock().expect("terminal images").get(dest) == Some(&key) && dest.is_file() {
+        return Ok(px);
+    }
+    let ground = image::Rgba([
+        (r.surface[0] * 255.0).round() as u8,
+        (r.surface[1] * 255.0).round() as u8,
+        (r.surface[2] * 255.0).round() as u8,
+        255,
+    ]);
+    let img = kurashi_texture::bake(
+        &image::RgbaImage::from_pixel(w, h, ground),
+        &r.tile,
+        &r.shading,
+        1.0,
+        r.scale,
+    );
+    write_png(dest, &img)?;
+    made.lock()
+        .expect("terminal images")
+        .insert(dest.to_path_buf(), key);
+    Ok(px)
+}
+
+/// Whether Ratty's one config is the shell's to write: absent, or written by it before.
+fn ratty_config_is_ours(path: &Path) -> bool {
+    std::fs::read_to_string(path).map_or(true, |t| t.starts_with("# Written by kurashid"))
+}
+
 /// Whether an INI file holds `e`: the key and the value under the entry's section, spacing aside.
 fn has_entry(text: &str, e: &Entry) -> bool {
     let mut section = String::new();
@@ -233,6 +300,8 @@ pub struct Run<'a> {
     pub desktop: &'a Desktop,
     /// The material's tile parameters (`theme.texture.kind`, …) for a target's generated shader (ghostty, W37).
     pub material: &'a ghostty_shader::Material,
+    /// What the terminals' pictures bake from, or why there are none (`switch`, `kind`, `scope`, `pending`).
+    pub terminal: &'a Result<TerminalRelief, &'static str>,
 }
 
 /// Renders and applies every chosen target; returns the `svc.theme_export` document.
@@ -299,14 +368,65 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
     let mut entry = json!({"name": t.name});
     let mut unknown = BTreeSet::new();
     let mut own;
-    let values = match t.shader {
-        Some(rel) => {
+    // How this terminal takes the material, and what Settings says about it (K99, CONTRACT-CHANGE row 401).
+    let way = export::terminal_way(t.name);
+    let why_off = |why: &str| json!({"how": "off", "why": why});
+    let mut material = None;
+    let mut image_lines = None;
+    match way {
+        Some(export::TerminalWay::Colours) => material = Some(json!({"how": "colours"})),
+        Some(export::TerminalWay::Tile(rel)) => {
+            let dest = run.home.join(rel);
+            let picture = match run.terminal {
+                Ok(r) => match bake_terminal_image(&dest, r) {
+                    Ok(px) => {
+                        material = Some(json!({"how": "image", "path": dest.to_string_lossy()}));
+                        Some((dest.to_string_lossy().into_owned(), px))
+                    }
+                    Err(e) => {
+                        tracing::warn!(target = %t.name, error = %e, "terminal picture not written");
+                        material = Some(why_off("write"));
+                        None
+                    }
+                },
+                Err(why) => {
+                    material = Some(why_off(why));
+                    None
+                }
+            };
+            image_lines = Some(export::terminal_image(
+                t.name,
+                picture.as_ref().map(|(p, px)| (p.as_str(), *px)),
+            ));
+        }
+        Some(export::TerminalWay::Shader) | None => {}
+    }
+    let values = match (t.shader, image_lines) {
+        (Some(rel), _) => {
             own = values.clone();
             shader(run, rel, &mut own);
+            material = Some(
+                if own
+                    .get(ghostty_shader::PLACEHOLDER)
+                    .is_some_and(|l| !l.is_empty())
+                {
+                    json!({"how": "shader"})
+                } else {
+                    why_off(run.terminal.as_ref().err().copied().unwrap_or("kind"))
+                },
+            );
             &own
         }
-        None => values,
+        (None, Some(lines)) => {
+            own = values.clone();
+            own.insert("terminal.image".into(), lines);
+            &own
+        }
+        (None, None) => values,
     };
+    if let Some(m) = material {
+        entry["material"] = m;
+    }
     match &t.output {
         Output::File { template, path } => {
             let dest = match path.strip_prefix("@data/") {
@@ -325,6 +445,17 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
                     if held {
                         entry["error"] = json!("theme.export.unfilled");
                     } else {
+                        // Ratty has one config and no include: the shell keeps it while it is the shell's.
+                        if t.name == "ratty" {
+                            let config = run.home.join("ratty/ratty.toml");
+                            if ratty_config_is_ours(&config) {
+                                if let Err(e) = write_if_changed(&config, &rendered) {
+                                    tracing::warn!(error = %e, "ratty config not written");
+                                }
+                            } else {
+                                entry["own_config"] = json!({"file": config.to_string_lossy()});
+                            }
+                        }
                         match write_if_changed(&dest, &rendered) {
                             Ok(changed) => entry["written"] = json!(changed),
                             Err(e) => {
@@ -444,6 +575,10 @@ fn material_of(store: &ConfigStore) -> ghostty_shader::Material {
             .unwrap_or(0.0)
     };
     ghostty_shader::Material {
+        terminals_off: store
+            .get("theme.texture.terminals", None)
+            .and_then(|p| p.value.as_bool())
+            == Some(false),
         kind: text("theme.texture.kind"),
         wrinkles: num("theme.texture.wrinkles"),
         cracks: num("theme.texture.cracks"),
@@ -518,6 +653,12 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     titlebars: flag("theme.window_titlebars"),
                     desktop: &desktop,
                     material: &material,
+                    terminal: &crate::texture::terminal_relief(
+                        &store,
+                        theme["tokens"]
+                            .as_object()
+                            .unwrap_or(&serde_json::Map::new()),
+                    ),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -619,6 +760,7 @@ mod tests {
             titlebars: false,
             desktop,
             material,
+            terminal: &Err("kind"),
         })
     }
 
@@ -968,6 +1110,7 @@ mod tests {
                 titlebars: bars,
                 desktop: &desktop,
                 material: &ghostty_shader::Material::default(),
+                terminal: &Err("kind"),
             });
             for name in APPS {
                 let e = entry(&doc, name);

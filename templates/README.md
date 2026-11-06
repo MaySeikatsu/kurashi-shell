@@ -26,6 +26,7 @@ so matugen templates work unchanged), and:
 | `{{opacity.niri}}`, `{{opacity.hyprland}}`, `{{opacity.mango}}` | `theme.inactive_transparent` on: unfocused windows at `theme.inactive_opacity` (niri: a `window-rule` on `is-focused=false`); off: empty |
 | `{{titlebar.sway}}`, `{{titlebar.hyprland}}` | `theme.window_titlebars` on: sway's `default_border normal` and font; Hyprland's `plugin { hyprbars { … } }` block (the plugin must be loaded); off: empty |
 | `{{ghostty.shader}}` | the ghostty target only: `custom-shader = <abs path>` and `custom-shader-animation = false` while the material is on for the shell (scope shell / shell_wallpaper, a known kind), else empty; the shader is `ghostty/shaders/kurashi.glsl` (I174, row 403) |
+| `{{terminal.image}}` | a terminal's line for its faint material picture (K99): Kitty's `background_image` lines (empty when off), WezTerm's `background` table (`nil` when off) |
 | `{{material.opacity}}` | the surface opacity in effect (1.00 when solid) |
 | `{{paths.config}}` | `$XDG_CONFIG_HOME`, absolute |
 | `{{gsettings.color_scheme}}` | `prefer-dark` or `default` (GNOME's colour scheme) |

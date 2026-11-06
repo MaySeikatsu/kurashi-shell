@@ -55,6 +55,8 @@ pub fn lines(path: &str) -> String {
 /// (high contrast forces the kind off; CONTRACT-CHANGE row 400 asks for a `texture.kind` token).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Material {
+    /// `theme.texture.terminals` off: colours alone in every terminal.
+    pub terminals_off: bool,
     pub kind: String,
     pub wrinkles: f64,
     pub cracks: f64,
@@ -64,6 +66,8 @@ pub struct Material {
 /// Why there is no shader.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Off {
+    /// `theme.texture.terminals` is off.
+    Switch,
     /// No material: kind `none`, forced off (high contrast, reduce transparency) or its tile still generating.
     Material,
     /// The material is not on the shell's surfaces (scope `wallpaper`), or the `everything` overlay already lies over
@@ -75,6 +79,9 @@ pub enum Off {
 
 /// The shader for the theme in effect, or why there is none.
 pub fn generate(tokens: &Map<String, Value>, m: &Material) -> Result<String, Off> {
+    if m.terminals_off {
+        return Err(Off::Switch);
+    }
     let num = |k: &str, d: f64| tokens.get(k).and_then(Value::as_f64).unwrap_or(d);
     let on = tokens
         .get("texture.map")
@@ -525,6 +532,7 @@ mod tests {
 
     fn material(kind: &str) -> Material {
         Material {
+            terminals_off: false,
             kind: kind.into(),
             ..Material::default()
         }
@@ -592,6 +600,7 @@ mod tests {
         for kind in KINDS {
             for (wrinkles, cracks, style) in [(0.0, 0.0, "stone"), (0.6, 0.5, "glass")] {
                 let m = Material {
+                    terminals_off: false,
                     kind: kind.into(),
                     wrinkles,
                     cracks,
@@ -621,6 +630,7 @@ mod tests {
         let glsl = generate(
             &tokens(),
             &Material {
+                terminals_off: false,
                 kind: "paper_dots".into(),
                 wrinkles: 0.2,
                 cracks: 0.0,

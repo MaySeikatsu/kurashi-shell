@@ -803,6 +803,69 @@ pub fn wallpaper_shading(
     Some((tl, sh, (scale as f32).max(0.1)))
 }
 
+/// How much of the shell's relief a terminal's picture carries (K99): a picture cannot keep off the text as the shader does.
+const TERMINAL_STRENGTH: f32 = 0.45;
+
+/// The relief a terminal's picture is baked with (I420), or why there is none, as `svc.theme_export` says it.
+pub fn terminal_relief(
+    store: &ConfigStore,
+    tokens: &Map<String, Value>,
+) -> Result<crate::theme_export::TerminalRelief, &'static str> {
+    if !b(store, "theme.texture.terminals") {
+        return Err("switch");
+    }
+    let Some(kind) = kind(store) else {
+        return Err("kind");
+    };
+    let num = |k: &str| tokens.get(k).and_then(Value::as_f64).unwrap_or(0.0) as f32;
+    if num("texture.amp") <= 0.0 {
+        return Err("kind");
+    }
+    if tokens.get("texture.shell").and_then(Value::as_bool) != Some(true)
+        || tokens.get("texture.overlay").and_then(Value::as_bool) == Some(true)
+    {
+        return Err("scope");
+    }
+    let p = params(store, kind);
+    let Some((_, tile)) = tile(&p) else {
+        return Err("pending");
+    };
+    let scale = (f(store, "theme.texture.scale", 1.0) as f32).max(0.1);
+    let m = kurashi_texture::material(kind);
+    let depth = f(store, "theme.texture.depth", 1.0) as f32;
+    let dir = tokens
+        .get("light.dir")
+        .and_then(Value::as_array)
+        .map(|a| std::array::from_fn(|i| a.get(i).and_then(Value::as_f64).unwrap_or(0.0) as f32))
+        .unwrap_or([0.0, 0.0, 1.0]);
+    let surface = rgb(tokens, "color.surface");
+    let shading = Shading {
+        amp: num("texture.amp") * TERMINAL_STRENGTH,
+        gloss: m.gloss,
+        shininess: m.shininess.max(1.0),
+        ink: lin(ink_colour(m.ink_role, tokens)),
+        ink_alpha: num("texture.ink_alpha") * TERMINAL_STRENGTH,
+        light_dir: dir,
+        light_color: lin(rgb(tokens, "light.color")),
+        lamp: None,
+        depth,
+        shadow: 0.0,
+        relief_px: tile.relief * depth * scale,
+        lit: 1.0,
+        beam: None,
+    };
+    Ok(crate::theme_export::TerminalRelief {
+        tile,
+        shading,
+        scale,
+        surface: [
+            f32::from(surface.0) / 255.0,
+            f32::from(surface.1) / 255.0,
+            f32::from(surface.2) / 255.0,
+        ],
+    })
+}
+
 /// K88: the grade the theme asks of the wallpaper; `None` while the switch is off.
 pub fn wallpaper_grade(
     store: &ConfigStore,
