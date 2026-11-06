@@ -130,7 +130,8 @@ fn outline(s: &Src<'_>, g: GlyphId) -> BezPath {
 
 /// The height of a font's own "x", in its units: what its letters look like, whatever its tables say.
 fn x_height(font: &FontRef<'_>) -> Option<f64> {
-    let g = font.charmap().map('x')?;
+    // (a font of someone's own handwriting may not have its "x" yet)
+    let g = ['x', 'z', 'n', 'o', 'a', 'e'].iter().find_map(|c| font.charmap().map(*c))?;
     let o = font.outline_glyphs().get(g)?;
     let mut pen = Pen {
         path: BezPath::new(),
@@ -284,9 +285,8 @@ pub fn build(fonts: &[(&[u8], u32)], family: &str) -> Result<Vec<u8>, MixError> 
         LookupFlag::empty(),
         rules,
     )));
-    for p in 1..n {
-        let map: Vec<GlyphId16> = phases[p].clone();
-        let single = SingleSubst::format_2(cover(0), map);
+    for map in phases.iter().skip(1) {
+        let single = SingleSubst::format_2(cover(0), map.clone());
         lookups.push(SubstitutionLookup::Single(Lookup::new(
             LookupFlag::empty(),
             vec![single],
