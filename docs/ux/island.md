@@ -57,7 +57,7 @@ one arbiter (K24, K28).
 - Expanded views: 400–480 px card, sections drop out when unavailable *with a reason line* (never blank), grow
   smoothly when a slot fills.
 - Keyboard: `island.expand` key opens the current face's view; Tab through controls; arrows in grids/lists; Esc.
-- Right click: face picker + pin; scroll: cycle faces (existing bindings).
+- Right click: the module menu (what is pinned, pin a face, the island's options; `docs/ux/module-menu.md`). Middle click: pin the face shown. Scroll: cycle faces.
 
 ## States
 nothing happening (clock, 0 frames idle) · one activity · two (primary + secondary) · overflow · pinned +

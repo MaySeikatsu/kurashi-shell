@@ -978,11 +978,11 @@
 #
 # Right click
 #   choices: from `actions` (resolved at runtime) · advanced
-# right = "island.pin"
+# right = ""
 #
 # Middle click
 #   choices: from `actions` (resolved at runtime) · advanced
-# middle = ""
+# middle = "island.pin"
 #
 # Hover
 #   choices: from `actions` (resolved at runtime) · advanced

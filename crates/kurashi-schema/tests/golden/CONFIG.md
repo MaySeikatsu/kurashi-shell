@@ -1591,13 +1591,13 @@ How the island meets the bar or the edge it grows out of. Automatic follows the 
 
 #### `island.main.input.right` — Right click
 
-- type: `action` · default: `"island.pin"`
+- type: `action` · default: `""`
 - choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.middle` — Middle click
 
-- type: `action` · default: `""`
+- type: `action` · default: `"island.pin"`
 - choices: from `actions` (resolved at runtime)
 - advanced
 

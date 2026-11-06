@@ -24,7 +24,10 @@ and keeps a way on to Settings for what a menu cannot hold.
 - **It stays open.** A change applies at once and the menu stays for the next one. Escape, a click elsewhere or the same
   right click closes it.
 - **Who keeps the right click.** A tray icon (its app's menu), a window button (the window's menu, with "Window list
-  options…" as a row), a mod that takes the button itself (sysmon), and the island while `island.main.input.right` is bound.
+  options…" as a row), a mod that takes the button itself (sysmon), and the island only if `island.main.input.right` is bound.
+- **The island.** Its menu starts with what is pinned: the face, a check that takes the pin back, and "Pin a face" for another
+  (user, session 23). One at most, since the island shows one face (K9). Its options follow, the list of faces as check marks. The
+  middle click pins the face shown, as the right click did.
 
 ## States
 - Inert (rule 2): a row another setting holds stays visible and grey, with one line under the run saying what it needs

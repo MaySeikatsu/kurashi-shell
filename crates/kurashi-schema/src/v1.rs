@@ -1414,7 +1414,7 @@ pub struct Island {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(input_slots(
     left = "island.expand",
-    right = "island.pin",
+    middle = "island.pin",
     scroll_up = "island.prev",
     scroll_down = "island.next"
 ))]
@@ -1423,7 +1423,8 @@ pub struct IslandInstance {
     /// Faces this island may show, in cycling order.
     #[kurashi(
         default = strings(&["clock", "media", "notifications"]),
-        choices_from = "island.faces"
+        choices_from = "island.faces",
+        module = "island"
     )]
     pub faces: Vec<String>,
     /// Default face

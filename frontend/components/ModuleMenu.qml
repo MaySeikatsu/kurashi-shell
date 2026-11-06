@@ -18,6 +18,10 @@ Scope {
 
     Watch { doc: "schema.settings"; active: mm.active }
     readonly property var schema: active ? Store.docs["schema.settings"] : null
+    // The island's menu also says what is pinned (the document's face while `pinned`), and takes it back.
+    readonly property bool isIsland: module === "island"
+    Watch { doc: "runtime.island.main"; active: mm.isIsland }
+    readonly property var island: isIsland ? Store.docs["runtime.island.main"] : null
 
     // The rows of this module, in the schema's order.
     readonly property var rows: {
@@ -44,7 +48,7 @@ Scope {
     }
     function drawable(r) {
         if (r.advanced === true) return false
-        return r.control === "toggle" || r.control === "slider" || (r.control === "select" && !!r.choices)
+        return r.control === "toggle" || r.control === "slider" || ((r.control === "select" || r.control === "pick_list") && !!r.choices)
     }
 
     // A menu id for every row and choice, stable across redraws (TrayMenu keeps an open submenu by id).
@@ -84,9 +88,34 @@ Scope {
             }
         return null
     }
-    // Each entry carries what it does (`act`: `{key, value}` to set, or `{open: true}` for Settings); TrayMenu ignores it.
+    // A face's name, as the island's settings say it (a mod's face has its own).
+    function faceLabel(id) {
+        var r = rowOf("island.main.default"), cs = r && r.choices ? r.choices : []
+        for (var i = 0; i < cs.length; i++) if (cs[i].value === id) return I18n.tr(cs[i].label)
+        return I18n.tr("island.face." + id)
+    }
+    // The island's first rows: the face that is pinned, a check that takes the pin back, and a submenu to pin another.
+    // (One at most: the island shows one face, K9.)
+    function pinRows() {
+        var d = island
+        if (!d) return []
+        var out = [], pinned = d.pinned === true ? d.face : "", faces = d.faces || []
+        out.push({ id: 900000, label: I18n.tr(pinned !== "" ? "frontend.module.pinned" : "frontend.module.nothing_pinned"), enabled: false })
+        if (pinned !== "")
+            out.push({ id: 900001, label: faceLabel(pinned), toggle: "checkmark", checked: true,
+                       act: { action: "island.pin", args: { face: pinned } } })
+        var ch = []
+        for (var i = 0; i < faces.length; i++)
+            if (faces[i] !== pinned)
+                ch.push({ id: 900010 + i, label: faceLabel(faces[i]), act: { action: "island.pin", args: { face: faces[i] } } })
+        if (ch.length > 0) out.push({ id: 900002, label: I18n.tr("frontend.module.pin_face"), children: ch })
+        out.push({ id: 900003, separator: true })
+        return out
+    }
+    // Each entry carries what it does (`act`: `{key, value}` to set, `{action, args}` to send, or `{open: true}` for
+    // Settings); TrayMenu ignores it.
     readonly property var tree: {
-        var kids = []
+        var kids = isIsland ? pinRows() : []
         var list = rows
         for (var i = 0; i < list.length; i++) {
             var r = list[i], p = bars ? bars.entry(r.key) : null
@@ -97,6 +126,16 @@ Scope {
             if (r.control === "toggle") {
                 kids.push({ id: id, label: I18n.tr(r.label), toggle: "checkmark", checked: now === true, enabled: live,
                             act: { key: r.key, value: now !== true } })
+            } else if (r.control === "pick_list") {
+                // A list to pick from: each choice a check mark, the list in its order with a new one at its end.
+                var picked = Array.isArray(now) ? now : []
+                var pk = []
+                for (var pi = 0; pi < r.choices.length; pi++) {
+                    var v = r.choices[pi].value, on = picked.indexOf(v) >= 0
+                    pk.push({ id: idOf(i, pi + 1), label: I18n.tr(r.choices[pi].label), toggle: "checkmark", checked: on, enabled: live,
+                              act: { key: r.key, value: on ? picked.filter(function (x) { return x !== v }) : picked.concat([v]) } })
+                }
+                kids.push({ id: id, label: I18n.tr(r.label), enabled: live, children: pk })
             } else {
                 var opts = r.control === "slider"
                     ? stepsOf(r, now).map(function (v) { return { value: v, label: mm.withUnit(r, v) } })
@@ -138,6 +177,10 @@ Scope {
             else if (list.length > 0) Store.act("settings.open", { key: list[0].key })
             else Store.act("settings.open", { page: "layout" })
             return true
+        }
+        if (a.action) {
+            Store.act(a.action, a.args)
+            return false
         }
         var op = { set: a.key, value: a.value }
         // An output's own entry is what stands there: change that one.

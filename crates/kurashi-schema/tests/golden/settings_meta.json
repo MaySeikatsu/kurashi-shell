@@ -4756,6 +4756,9 @@
               "help": "config.island.main.faces.help",
               "key": "island.main.faces",
               "label": "config.island.main.faces.label",
+              "modules": [
+                "island"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -4868,7 +4871,7 @@
               "choices_from": "actions",
               "control": "action_binding",
               "couplings": [],
-              "default": "island.pin",
+              "default": "",
               "key": "island.main.input.right",
               "label": "config.input.right",
               "per_output": false,
@@ -4882,7 +4885,7 @@
               "choices_from": "actions",
               "control": "action_binding",
               "couplings": [],
-              "default": "",
+              "default": "island.pin",
               "key": "island.main.input.middle",
               "label": "config.input.middle",
               "per_output": false,

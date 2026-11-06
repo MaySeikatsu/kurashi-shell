@@ -385,10 +385,28 @@ impl State {
                 }
             }
             "island.pin" => {
-                let pinned = !self.data("runtime.island.main")["pinned"]
-                    .as_bool()
-                    .unwrap_or(false);
-                self.patch("runtime.island.main", json!({"pinned": pinned}), None);
+                let now = self.data("runtime.island.main");
+                let was = now["pinned"].as_bool().unwrap_or(false);
+                match args.get("face") {
+                    None | Some(Value::Null) => {
+                        self.patch("runtime.island.main", json!({"pinned": !was}), None);
+                    }
+                    Some(Value::String(f)) if !f.is_empty() => {
+                        let offered = now["faces"]
+                            .as_array()
+                            .is_some_and(|a| a.iter().any(|x| x == f.as_str()));
+                        if !offered {
+                            return Err(Fail::invalid("island.error.unknown_face"));
+                        }
+                        let pinned = !(was && now["face"] == f.as_str());
+                        self.patch(
+                            "runtime.island.main",
+                            json!({"face": f, "pinned": pinned}),
+                            None,
+                        );
+                    }
+                    Some(_) => return Err(Fail::invalid(ARGS_INVALID)),
+                }
             }
             // K24, as kurashid: the island panel latches the face shown when it opens. K66 (row 203): `{face}`, one of
             // the island's `faces`, opens it on that face; the same face again closes it, another one switches to it.
@@ -1970,7 +1988,7 @@ mod tests {
         let b = st.data("bindings");
         for (slot, action) in [
             ("left", "island.expand"),
-            ("right", "island.pin"),
+            ("middle", "island.pin"),
             ("scroll_up", "island.prev"),
             ("scroll_down", "island.next"),
         ] {
@@ -1981,7 +1999,7 @@ mod tests {
             );
         }
         assert!(
-            b["island.main"].get("middle").is_none(),
+            b["island.main"].get("right").is_none(),
             "unbound slots are absent, not null"
         );
     }
@@ -1994,7 +2012,7 @@ mod tests {
         assert_eq!(st.data("runtime.ui")["panel"], "island");
 
         let mut rx = st.tx.subscribe();
-        assert_eq!(st.act("input.dispatch", &d("middle")), Ok(None));
+        assert_eq!(st.act("input.dispatch", &d("right")), Ok(None));
         assert!(rx.try_recv().is_err(), "unbound slot changes nothing");
 
         st.act("input.dispatch", &d("scroll_down")).unwrap();

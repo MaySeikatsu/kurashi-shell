@@ -1276,7 +1276,7 @@ note is, so the action's shape stays. (3) `modules.workspaces.*`, `modules.windo
 module", on every module on a bar or frame; a start menu "centered in middle" when opened by key, adjustable to the click
 point, the island or a fixed place. Prototyped in QML against a hand table first, then the table became the attribute.
 **Trade-off.** A launcher opened by key no longer grows out of the island by default on looks that did (W34): that morph is now
-`launcher.place = island`. The island keeps its bound right click (pin), so its menu needs that unbound: open, I408.
+`launcher.place = island`. Amended (user, session 23): the island's right click opens its menu, which lists and takes back the pin; the pin moved to the middle click (`island.main.input.middle`), and `island.pin {face}` pins a named face.
 **Evidence.** `frontend/test-module-menu.sh`; reviewed on nested niri on kami and aqua, on top, bottom and left bars.
 
 ## K91 — The shell's forms on niri's windows, as generated custom shaders (session 23, I410)
