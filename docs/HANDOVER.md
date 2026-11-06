@@ -17,6 +17,13 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-06 — session 23, the font mix (machine A): I176, K93
+**State.** `feat/s23-font-mix`, stacked on `feat/s23-niri-motion` (PR #6). Not pushed: the user decides. The worktree it was built in lived in the session's scratchpad and goes with it.
+**Built.** `theme.typography.mix.{preset,count,fonts}`. kurashid builds one font holding the chosen fonts' letters (`kurashi_theme::font_mix`, cache `kurashi/fonts/mix-<hash>.ttf`), `calt` moves on a font per letter and starts over per word, and `Theme.families` takes it through a `FontLoader`: no text component changed. New page Fonts, with the comparison card on top. Patrick Hand, Handlee, Gochi Hand in `nix/handwriting-fonts.nix`. Brief `docs/ux/fonts.md`. The plugin idea is I415.
+**Verified.** Nested niri on kami; `frontend/test-font-mix.sh`; builder tests shape text through `harfrust`.
+**Not verified.** The user's own desktop; fonts with CFF outlines or variable axes beyond what the preset uses (the code handles them, no test font does); the greeter (I416).
+**Next steps.** 1. The user reviews the look and says whether `kami` turns the mix on by default (left off). 2. PR after #6. 3. I415, the plugin.
+
 ## 2026-11-06 — session 23, last (machine A): forms on niri's windows (K91), hover previews (K92), the island's menu
 **State.** `main` has session 23's earlier work (merged at 6d751b0f, the user waived `island-join`, I406). This entry's work is on `feat/s23-niri-motion`, in a PR the user merges.
 **Built.**
