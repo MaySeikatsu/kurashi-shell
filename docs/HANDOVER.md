@@ -17,6 +17,26 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-06 — session 23, end (machine A): handwriting prototype (I415, K94), and what is next
+**State.** Three stacked branches. `feat/s23-niri-motion` is PR #6. `feat/s23-font-mix` sits on it, `feat/s23-handwriting-mod` on that; each is its own PR, and the user merges. If a lower one changes, rebase the ones above.
+**Built here.** `mods/handwriting`, `crates/kurashi-mod-handwriting`, `docs/ux/handwriting.md`, `mods/handwriting/test-handwriting.sh`. Off by default; enable it on the Mods page. Open with `kurashi act mod.panel.open '{"id":"handwriting","panel":"handwriting"}'`.
+**Not verified.** A real pen; a whole alphabet drawn by a person; the panel on the user's session.
+**Next steps, in order.**
+1. I418: shaders generated from a user's recipes for niri's windows (`crates/kurashi-motion/src/recipe.rs` has the tracks; `crates/kurashi-theme/src/niri_forms.rs` the frame). The user wants it if it is quick.
+2. I423: the window frame colour setting.
+3. I420: terminals, with the `theme.texture.terminals` switch.
+4. I422: Zen. Ask the user about their profile once it is ready to test; never hardcode one.
+5. I421, I419 afterwards.
+6. Sandboxes: delete `/tmp/kurashi-sb-*` with no live process (the user agreed), and the build dirs under `~/.cache/kurashi-agents-target/`.
+**Risks.** Do not edit `frontend/` or `settings/` in a tree whose suites are running: the frontend reloads itself on a change and a suite fails for no reason. Nested niri stops redrawing after a screencopy: turn previews off in a visual check with animations.
+
+## 2026-11-06 — session 23, the font mix (machine A): I176, K93
+**State.** `feat/s23-font-mix`, stacked on `feat/s23-niri-motion` (PR #6). Not pushed: the user decides. The worktree it was built in lived in the session's scratchpad and goes with it.
+**Built.** `theme.typography.mix.{preset,count,fonts}`. kurashid builds one font holding the chosen fonts' letters (`kurashi_theme::font_mix`, cache `kurashi/fonts/mix-<hash>.ttf`), `calt` moves on a font per letter and starts over per word, and `Theme.families` takes it through a `FontLoader`: no text component changed. New page Fonts, with the comparison card on top. Patrick Hand, Handlee, Gochi Hand in `nix/handwriting-fonts.nix`. Brief `docs/ux/fonts.md`. The plugin idea is I415.
+**Verified.** Nested niri on kami; `frontend/test-font-mix.sh`; builder tests shape text through `harfrust`.
+**Not verified.** The user's own desktop; fonts with CFF outlines or variable axes beyond what the preset uses (the code handles them, no test font does); the greeter (I416).
+**Next steps.** 1. The user reviews the look and says whether `kami` turns the mix on by default (left off). 2. PR after #6. 3. I415, the plugin.
+
 ## 2026-11-06 — session 23, last (machine A): forms on niri's windows (K91), hover previews (K92), the island's menu
 **State.** `main` has session 23's earlier work (merged at 6d751b0f, the user waived `island-join`, I406). This entry's work is on `feat/s23-niri-motion`, in a PR the user merges.
 **Built.**
@@ -72,41 +92,5 @@ the card; a layer with on-demand focus takes no keys before that there, not chec
 **Checks:** `just check` green. `just suites`: 14 of 15 steady; island-join is flaky (I406): it failed alone in one full run and passed alone in the last. 11 of those last ran one small commit earlier (the size cache's write in `Stage.qml`); island-join, quick-sections, stage and motion ran on the final code. test-texture and webdock test-dock are outside the merge set and still red (I405; I403, I404).
 
 **Open decisions/risks:** I404 is unexplained and stays red rather than loosened. I386 makes a titled card's window output-wide while it is open: within noise on software GL, not measured on a GPU. Rule from the user this session: prototype and debug in QML first, the proper implementation after verification; no subagents were used at their request.
-
----
-
-## 2026-11-04 — session 22, later (machine A): Wallpaper Color Grade (K88), Spotify covers (B44)
-**State:** `feat/s22-wallpaper-grade`; the user merges the PR themselves (gh here has only a read-only work account; use the compare URL).
-
-**Live state on machine A:** `kurashi-wallgrade.service`, the prototype, runs from `.claude/worktrees/wallgrade-proto` (a process with a shader on the background layer; `wg stop` ends it). Stop it once the real one is installed, or the two stack. Then remove that worktree, `.claude/worktrees/wallpaper-grade` and `~/.cache/kurashi-agents-target/s22-grade`.
-
-**Next steps (ordered):**
-1. The user merges, rebuilds, runs `wg stop`, turns on Settings › Appearance › Wallpaper Color Grade and judges it (mode, fade) on their wallpaper, with Spotify too.
-2. B43 still red in `just check` (Hyprland 0.57); I397 (dev shell on Qt 6.11); I399 (apps on a recolour per track).
-3. Session 21's list below.
-
----
-
-## 2026-11-04 — session 22 (machine A): kinetic wheel back under Qt 6.12 and on every scroller (B42, I396); Dynamic Media Color (K87)
-**State:** `feat/s22-media-theme` (holds `feat/s22-kinetic-wheel`) is pushed; the user opens and merges the PR themselves (gh is logged in only as a work account with read access, so use the compare URL). The user waived B43 for this merge.
-
-**Done:**
-- B42: the rebuild of 2026-11-04 (generation 1178) moved the installed shell to Qt 6.12.0 / Quickshell 0.3.2, which report a `pixelDelta` with a wheel notch; `KineticWheel` took that for a touchpad (15 px, no glide). It now reads `ev.phase`. Measured on 6.12 and 6.11: 156 px per notch with a glide, 1:1 for simulated fingers.
-- I396: `KineticWheel` moved to `frontend/components/`, on the launcher (which had no wheel scrolling), wallpaper, Wallhaven, sidebars, notification centre, tasks, AI, lyrics and Settings' dropdowns. Launcher checked on nested niri with Qt 6.12; the others only through the suites.
-- `wl_pointer.py finger`; a wheel step in `settings/test.sh`.
-
-- K87 Dynamic Media Color, on `feat/s22-media-theme` (holds the kinetic wheel too): `kurashi_theme::media_tint`, `theme.colors.media.*`, `frontend/core/ColorBlend.qml`, `frontend/test-dynamic-media.sh`. The Now Playing card keeps its behaviour (user).
-- I375: 402 sandboxes (180 GB) filled the disk mid-session and were deleted with the user's yes. A green `just suites` now clears its own; `sandbox.sh start` clears those a day old.
-
-**Live state on machine A:** the user's session may still run the prototype: `kurashi-proto.service` from `.claude/worktrees/media-theme-proto` instead of `kurashi-frontend.service`. `.claude/worktrees/media-theme-proto/mt revert` goes back. That worktree (`feat/s22-media-theme-proto`, uncommitted) and `media-theme` can go once the real one is installed.
-
-**Next steps (ordered):**
-1. The user merges the PR and rebuilds, then stops the prototype (`mt revert`). They feel the wheel on their real mouse; a real touchpad on machine B. They judge Dynamic Media Color on their apps (I399) and in `keep`.
-2. B43: `just check` is red on two Hyprland tests, on code unchanged from main: the user's Hyprland 0.57 reads its config as Lua. Pin or skip in the tests, and the adapter needs Lua output; the merge rule needs this fixed or the user's waiver. I397: the dev shell is still Qt 6.11.2, so the suites do not run on what the user runs. Bump flake.lock and run the merge set.
-3. Then session 21's list below: the user's motion verdicts, I390, I394, I391, I395, I386–I389, I392, I393.
-
-**Checks:** `just suites` 14/14 on the commit before the last small fix (sidebars and island-join only under load; settings failed on the Tab limit its new rows raised, fixed, then green alone). The last fix (K87 stage before the material, a daemon-start check) reran only test-dynamic-media and `just check`; it acts only with the switch on.
-
-**Open decisions/risks:** the installed shell needs a rebuild to get this. Any other Qt 6.12 regression would not show in the suites until I397.
 
 ---

@@ -43,7 +43,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 16] = [
+pub const CORE_SOURCES: [&str; 17] = [
     "lock.faces",
     "actions",
     "modules",
@@ -59,6 +59,7 @@ pub const CORE_SOURCES: [&str; 16] = [
     "motion.timings",
     "motion.forms",
     "motion.still",
+    "fonts.installed",
     "desktop.cards",
 ];
 
@@ -879,6 +880,14 @@ fn offers_now(
         use kurashi_theme::kurashi_motion::pack::Base;
         p.forms.is_none() && !matches!(p.base, Some(Base::None | Base::Reduced))
     }
+    // K93: the installed families, for the font mix (a family's own name is its label).
+    offers.insert(
+        "fonts.installed".to_string(),
+        crate::font_mix::installed()
+            .into_iter()
+            .map(|f| Offer::on(&f, f.clone()))
+            .collect(),
+    );
     // K83: the motion profiles are the motion packs (built in and the user's, `$XDG_CONFIG_HOME/kurashi/motion`); the
     // forms are kurashi-motion's forms meta. A form whose frontend has not landed yet is no option (a value naming one is
     // not in effect); a pack built on such forms is offered disabled, with the reason, until they have.

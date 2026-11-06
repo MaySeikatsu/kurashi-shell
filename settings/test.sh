@@ -252,6 +252,8 @@ motion_en() {
            curve:theme.motion.timing.effects forms-table forms-line:island form:theme.motion.form.open; do
     [ "$(Q present "$n")" = yes ] || fail "motion M1: $n is not on the page"
   done
+  # K91: compositor windows have their line in the table, or nothing on the page reaches their keys.
+  [ "$(Q present forms-line:window)" = yes ] || fail "motion M1: no line for compositor windows in the table"
   [[ "$(Q sections)" == *motion.profiles*motion.animation_style*motion.timing*motion.advanced_curves*motion.choreography*motion.windows* ]] \
     || fail "motion M1: the sections are $(Q sections)"
   mshot page
@@ -1062,7 +1064,7 @@ echo "keyboard K10: Right previewed the radius; Put back restored $radius0"
 # K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
 fonts0=$(val theme.typography.family)
 first=$(printf '%s' "$fonts0" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0])')
-Q goto appearance
+Q goto fonts
 Q focusList >/dev/null
 tab_to "Remove $first" 200   # past "Apps that follow" (25 apps) and its switches
 kp delete
@@ -1071,6 +1073,14 @@ shot_now 20c-preview-font
 Q putBack
 [ "$(val theme.typography.family)" = "$fonts0" ] || fail "font: Put back did not restore the chain ($(val theme.typography.family))"
 echo "keyboard K11: Delete on a font family previewed the chain; Put back restored it"
+
+# K12. Settings › Fonts (K93): the mix's comparison on top; it draws nothing at rest.
+Q goto fonts
+for _ in $(seq 50); do [ "$(Q present font-mix-preview)" = yes ] && break; sleep 0.1; done
+[ "$(Q present font-mix-preview)" = yes ] || fail "fonts: no comparison on the page"
+sleep 1; f1=$(Q frames); sleep 3; f2=$(Q frames)
+[ "$f1" = "$f2" ] || fail "fonts: the page drew $((f2 - f1)) frames in 3 s at rest"
+echo "keyboard K12: Fonts has its comparison, 0 frames at rest"
 
 # K12. search by keyboard (UX brief, settings 4): typing starts the search, Return lands on the first hit, and the row
 #      flashes; the shot is taken at once, inside the flash.
@@ -1140,7 +1150,7 @@ Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
 # W59.0 added the motion page (K83); media sorts before it by name.
-want="mods.demo-blur,layout,appearance,mods.media,motion,accessibility,island,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
+want="mods.demo-blur,layout,appearance,mods.media,motion,fonts,accessibility,island,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto layout

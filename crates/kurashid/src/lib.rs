@@ -8,6 +8,7 @@ pub mod clock;
 pub mod config;
 pub mod cursor;
 pub mod doctor;
+pub mod font_mix;
 pub mod greeter_cache;
 pub mod hub;
 pub mod i18n;

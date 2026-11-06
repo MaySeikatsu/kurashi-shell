@@ -77,6 +77,7 @@
 "motion.surface.osd" = "画面表示"
 "motion.surface.menu" = "メニュー"
 "motion.surface.dialog" = "ダイアログ"
+"motion.surface.window" = "コンポジターのウィンドウ"
 
 # 設定 › モーション（W59.6、ブリーフ §8）：カーブ編集、形の選択、プロファイル一覧、プレビュー。
 "motion.ui.curve.tab.cubic" = "ベジェ"

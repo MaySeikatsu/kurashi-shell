@@ -735,29 +735,6 @@ Scales spacing and control sizes everywhere.
 - type: `choice` · default: `"regular"`
 - choices: `"compact"` | `"regular"` | `"airy"`
 
-### Typography
-
-#### `theme.typography.family` — Font family
-
-Fallback chain; the first installed family wins (resolved via fontconfig).
-
-- type: `font` · default: `["Inter", "Noto Sans CJK JP", "sans-serif"]`
-
-#### `theme.typography.family_jp` — Japanese font family
-
-Fallback chain for Japanese text; the first installed family wins (K60).
-
-- type: `font` · default: `["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]`
-- advanced
-
-#### `theme.typography.scale` — Text scale
-
-Multiplies every type size token.
-
-- type: `float` · default: `1.0`
-- range: `0.75..=2.0`, step `0.05`
-- forced to `1.25` while `a11y.large_text` is on
-
 ### Texture
 
 #### `theme.texture.kind` — Material
@@ -1529,6 +1506,59 @@ Give the compositor's window animations the profile's curves (niri). With its an
 
 - type: `choice` · default: `"off"`
 - choices: `"off"` | `"follow"` | `"forms"`
+
+## Fonts
+
+### Font mix
+
+#### `theme.typography.mix.preset` — Font mix
+
+Mixes several fonts letter by letter, so text looks less regular, as handwriting does. Handwriting takes shipped fonts; Custom takes yours. It works with any fonts; the first gives the sizes. Digits and other scripts stay as they are.
+
+- type: `choice` · default: `"off"`
+- choices: `"off"` | `"handwriting"` | `"custom"`
+- since schema v7
+
+#### `theme.typography.mix.count` — How many fonts
+
+How many of the fonts to mix, from the first. Two is the quietest.
+
+- type: `int` · default: `3`
+- range: `2..=8`, step `1`
+- only while `theme.typography.mix.preset != "off"`
+- since schema v7
+
+#### `theme.typography.mix.fonts` — Fonts to mix
+
+The fonts, in order. Any installed font, your own too.
+
+- type: `string_list` · default: `["Kalam", "Patrick Hand", "Handlee"]`
+- choices: from `fonts.installed` (resolved at runtime)
+- only while `theme.typography.mix.preset == "custom"`
+- since schema v7
+
+### Typography
+
+#### `theme.typography.family` — Font family
+
+Fallback chain; the first installed family wins (resolved via fontconfig).
+
+- type: `font` · default: `["Inter", "Noto Sans CJK JP", "sans-serif"]`
+
+#### `theme.typography.family_jp` — Japanese font family
+
+Fallback chain for Japanese text; the first installed family wins (K60).
+
+- type: `font` · default: `["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]`
+- advanced
+
+#### `theme.typography.scale` — Text scale
+
+Multiplies every type size token.
+
+- type: `float` · default: `1.0`
+- range: `0.75..=2.0`, step `0.05`
+- forced to `1.25` while `a11y.large_text` is on
 
 ## Accessibility
 

@@ -585,6 +585,8 @@ pub fn document_with(
     match kurashi_theme::resolve(&input, fonts) {
         Ok(out) => {
             let mut tokens = serde_json::Map::from_iter(out.tokens);
+            // K93: the font mix in effect, as a file the frontend loads.
+            crate::font_mix::apply(store, &mut tokens);
             // K87: over the resolved colours, and before the material and the shadows, whose inks and strengths are worked out
             // from these colours; the config and the palette stay as the user left them.
             let cover = if media_follows(store) {
@@ -769,6 +771,15 @@ pub fn register(
         }
     };
     follow(store);
+    // K93: a font mix has been built.
+    {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        crate::font_mix::on_ready(Arc::new(move || {
+            if let Some(store) = store.upgrade() {
+                republish(&hub, &store, fonts.as_ref());
+            }
+        }));
+    }
     // K59: a texture tile became ready, or the outputs' scale changed.
     {
         let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());

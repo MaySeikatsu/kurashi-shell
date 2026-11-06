@@ -139,6 +139,7 @@
 "action.audio.mute.toggle" = "Mute"
 "action.island.expand" = "Expand the island"
 "action.island.pin" = "Pin the island's face"
+"action.font.mix.preview" = "Preview a font mix"
 "action.preview.refresh" = "Refresh the hover previews"
 "action.island.prev" = "Previous island face"
 "action.island.next" = "Next island face"
