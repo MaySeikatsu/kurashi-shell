@@ -153,6 +153,15 @@ impl Target {
         }
     }
 
+    /// Every window's place in the layout where the compositor tells it (niri); elsewhere none, and hover previews have the
+    /// workspace's still alone (I284).
+    pub async fn window_geoms(&self) -> Result<Vec<crate::locate::WindowGeom>> {
+        match self.kind {
+            Kind::Niri => niri::window_geoms_at(&self.path).await,
+            Kind::Hyprland | Kind::Sway => Ok(Vec::new()),
+        }
+    }
+
     /// The compositor's socket is there (not that it answers).
     pub fn reachable(&self) -> bool {
         match self.kind {

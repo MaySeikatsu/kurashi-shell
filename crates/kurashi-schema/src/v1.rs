@@ -1177,7 +1177,9 @@ pub struct Motion {
     #[kurashi(default = MotionShadow::Profile, section = "choreography", advanced)]
     pub shadow: MotionShadow,
     /// Window animations
-    /// Give the compositor's window animations the profile's curves (niri). Off: windows move as the compositor says.
+    /// Give the compositor's window animations the profile's curves (niri). With its animations, windows also open and
+    /// close the way the shell's surfaces do, through niri's custom shaders; niri keeps its own if a later version refuses
+    /// one. Off: windows move as the compositor says.
     #[kurashi(default = MotionWindows::Off, section = "windows")]
     pub windows: MotionWindows,
 }
@@ -1264,6 +1266,23 @@ pub struct MotionForms {
     pub menu: SurfaceForm,
     #[kurashi(nested)]
     pub dialog: SurfaceForm,
+    #[kurashi(nested)]
+    pub window: WindowForm,
+}
+
+/// The compositor's windows (K91, `docs/ux/niri-motion.md`): the form they open and close in; `""` follows the default.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct WindowForm {
+    /// Windows open with
+    /// The animation a window opens with. Follows the style's unless you pick one here.
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
+              requires = "theme.motion.windows == forms")]
+    pub open: String,
+    /// Windows close with
+    /// The animation a window closes with. Follows the style's unless you pick one here.
+    #[kurashi(default = String::new(), choices_from = "motion.forms",
+              requires = "theme.motion.windows == forms")]
+    pub close: String,
 }
 
 /// One surface class's forms; `""` follows the default. A form that cannot serve this class is refused by the resolver
@@ -1330,6 +1349,8 @@ pub enum MotionWindows {
     Off,
     /// Follow the profile
     Follow,
+    /// Follow the profile, with its animations
+    Forms,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1393,7 +1414,7 @@ pub struct Island {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(input_slots(
     left = "island.expand",
-    right = "island.pin",
+    middle = "island.pin",
     scroll_up = "island.prev",
     scroll_down = "island.next"
 ))]
@@ -1402,7 +1423,8 @@ pub struct IslandInstance {
     /// Faces this island may show, in cycling order.
     #[kurashi(
         default = strings(&["clock", "media", "notifications"]),
-        choices_from = "island.faces"
+        choices_from = "island.faces",
+        module = "island"
     )]
     pub faces: Vec<String>,
     /// Default face
@@ -1613,6 +1635,10 @@ pub struct WorkspacesModule {
     /// The mouse wheel over the workspaces moves to the next or the previous one.
     #[kurashi(default = false, module = "workspaces", since = 7)]
     pub scroll: bool,
+    /// Hover previews
+    /// Resting on a workspace shows what it held when you last saw it. The pictures stay in memory, for this session.
+    #[kurashi(default = true, module = "workspaces", since = 7)]
+    pub previews: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -1625,6 +1651,10 @@ pub struct WindowsModule {
     /// Middle click closes
     #[kurashi(default = true, module = "windows", since = 7)]
     pub middle_close: bool,
+    /// Hover previews
+    /// Resting on a window shows it as you last saw it, with its title. The pictures stay in memory, for this session.
+    #[kurashi(default = true, module = "windows", since = 7)]
+    pub previews: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]

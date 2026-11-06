@@ -259,6 +259,11 @@ impl Arbiter {
         self.pinned.is_some()
     }
 
+    /// Whether this face is the one pinned.
+    pub fn pinned_on(&self, face: &str) -> bool {
+        self.pinned.as_deref() == Some(face)
+    }
+
     /// Cycle forward/back from the face currently shown. No-op while pinned (pin means stay).
     pub fn next(&mut self, now: Ms) -> Decision {
         self.cycle(now, 1)

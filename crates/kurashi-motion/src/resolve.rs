@@ -42,7 +42,8 @@ pub struct Axes {
     pub jelly: f64,
     pub shadow: String,
     /// `theme.motion.windows`: `off` (niri's window animations follow the profile's family, as before K83) or `follow`
-    /// (they take the profile's own curves and springs — `motion.windows`, read by the niri export).
+    /// (they take the profile's own curves and springs — `motion.windows`, read by the niri export) or `forms` (K91: and the
+    /// forms, `motion.form.window.*`, as niri's custom shaders).
     pub windows: String,
 }
 
@@ -690,12 +691,10 @@ impl Resolver<'_> {
         };
         t.insert("motion.accent.shadow".into(), json!(shadow));
         // The compositor's windows (W59.9): `follow` only when the user asks; reduce motion turns them off in the export.
-        let windows = self.user.map_or("off", |u| {
-            if u.windows == "follow" {
-                "follow"
-            } else {
-                "off"
-            }
+        let windows = self.user.map_or("off", |u| match u.windows.as_str() {
+            "follow" => "follow",
+            "forms" => "forms",
+            _ => "off",
         });
         t.insert("motion.windows".into(), json!(windows));
     }
@@ -1077,7 +1076,7 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .len(),
-            12
+            SURFACES.len()
         );
         assert!(
             t["motion.forms"].get("wobbly").is_none(),

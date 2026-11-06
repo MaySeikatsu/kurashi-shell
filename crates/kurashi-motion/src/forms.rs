@@ -8,9 +8,9 @@
 use serde_json::{Value, json};
 
 /// The surface classes forms apply to (`theme.motion.form.<surface>`, brief §6). The island takes every form (D3).
-pub const SURFACES: [&str; 12] = [
+pub const SURFACES: [&str; 13] = [
     "island", "panel", "peek", "launcher", "centre", "toast", "sidebar", "dock", "bar", "osd",
-    "menu", "dialog",
+    "menu", "dialog", "window",
 ];
 
 /// Why a value naming a form that has no frontend yet is not in effect.
@@ -49,7 +49,7 @@ pub const VESTIBULAR: u8 = 1;
 pub const FLASH: u8 = 2;
 
 /// Every surface class.
-const ALL: u16 = 0xfff;
+const ALL: u16 = 0x1fff;
 const fn s(name: &str) -> u16 {
     let b = name.as_bytes();
     // The surface's index in SURFACES, by its first two letters (unique among them).
@@ -66,12 +66,15 @@ const fn s(name: &str) -> u16 {
         (b'o', _) => 1 << 9,
         (b'm', _) => 1 << 10,
         (b'd', b'i') => 1 << 11,
+        (b'w', _) => 1 << 12,
         _ => panic!("unknown surface"),
     }
 }
 /// The surfaces whose live shape morphs out of its origin — the Stage's island views, panels and peeks, BarMorph's
-/// launcher and centre: what liquid needs (the origin's own rect and radius flow into the card).
-const MORPHS: u16 = s("island") | s("panel") | s("peek") | s("launcher") | s("centre");
+/// launcher and centre: what liquid needs (the origin's own rect and radius flow into the card). And a compositor's window
+/// (K91): its shader flows out of the window's top.
+const MORPHS: u16 =
+    s("island") | s("panel") | s("peek") | s("launcher") | s("centre") | s("window");
 
 pub struct FormMeta {
     pub id: &'static str,
@@ -272,7 +275,7 @@ mod tests {
             FORMS
                 .iter()
                 .filter(|m| m.id != "liquid")
-                .all(|m| m.surfaces().count() == 12)
+                .all(|m| m.surfaces().count() == SURFACES.len())
         );
         assert!(form("liquid").unwrap().serves("peek"));
         assert!(!form("liquid").unwrap().serves("sidebar"));
@@ -283,6 +286,9 @@ mod tests {
         assert_eq!(m["grow"]["available"], true);
         assert_eq!(m["grow"]["pace"], 1.0);
         assert!(m["drop"]["pace"].as_f64().unwrap() > m["fold"]["pace"].as_f64().unwrap());
-        assert_eq!(m["grow"]["surfaces"].as_array().unwrap().len(), 12);
+        assert_eq!(
+            m["grow"]["surfaces"].as_array().unwrap().len(),
+            SURFACES.len()
+        );
     }
 }

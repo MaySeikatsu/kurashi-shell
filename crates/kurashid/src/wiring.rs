@@ -526,7 +526,8 @@ fn peek_of(hub: &Hub, a: &Value) -> Result<Option<Value>, ActionError> {
             }
             _ => false,
         },
-        Some(("tray" | "island", rest)) => !rest.is_empty(),
+        // (I284, I285: `window:<id>`, `workspace:<id>`, a hover preview)
+        Some(("tray" | "island" | "window" | "workspace", rest)) => !rest.is_empty(),
         _ => false,
     };
     if !ok {

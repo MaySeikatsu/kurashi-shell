@@ -139,6 +139,7 @@
 "action.audio.mute.toggle" = "ミュート"
 "action.island.expand" = "アイランドを開く"
 "action.island.pin" = "アイランドの表示を固定"
+"action.preview.refresh" = "ホバープレビューを更新"
 "action.island.prev" = "前のアイランド表示"
 "action.island.next" = "次のアイランド表示"
 

@@ -38,6 +38,7 @@ enabled = false
 profile = "none"
 [edges.top]
 start = ["launcher", "workspaces"]
+center = ["island"]
 end = ["clock"]'
 conf() { printf '%s\n%s\n' "$1" "$base" > "$CONF"; sleep 1.5; }
 printf '%s\n' "$base" > "$CONF"
@@ -125,4 +126,33 @@ sleep 0.5
 ptr 70 14 right
 wait_until 5 ui_is '"tray":"module:workspaces"' || fail "a right click on the workspaces opened no menu: $(doc runtime.ui)"
 echo "ok: the workspaces' right click opens their own menu"
+keys escape 2>/dev/null; K act tray.menu.open '{"id":""}' >/dev/null 2>&1 || true
+ptr "$(( W_OUT - 40 ))" 500 >/dev/null 2>&1 || true
+wait_until 5 ui_is '"tray":""' || fail "the workspaces' menu did not close"
+sleep 0.5
+
+# ---- 3. the island: the middle click pins, the right click opens the menu that lists and takes back the pin ----
+pinned() { doc runtime.island.main | grep -q "\"pinned\":$1"; }
+pinned false || fail "the island starts pinned"
+ptr "$(( W_OUT / 2 ))" 14 middle
+wait_until 5 pinned true || fail "the middle click did not pin: $(doc runtime.island.main)"
+echo "ok: the island's middle click pins the face shown"
+ptr "$(( W_OUT / 2 ))" 14 right
+wait_until 5 ui_is '"tray":"module:island"' || fail "the island's right click opened no menu: $(doc runtime.ui)"
+pinned true || fail "the right click changed the pin"
+echo "ok: the island's right click opens its menu and leaves the pin"
+sleep 0.5
+# (a click on the card's title first, as above) Down, Enter: the first row that can be chosen, the pinned face's check.
+TITLE_X=$(( W_OUT / 2 ))
+ptr "$TITLE_X" 63
+sleep 0.2
+keys down return
+wait_until 5 pinned false || fail "the menu's pinned row did not unpin: $(doc runtime.island.main)"
+ui_is '"tray":"module:island"' || fail "the menu closed after unpinning"
+echo "ok: the menu's pinned row takes the pin back and stays"
+K act island.pin '{"face":"media"}' >/dev/null
+wait_until 5 pinned true || fail "island.pin {face} did not pin"
+doc runtime.island.main | grep -q '"face":"media"' || fail "island.pin {face} pinned another face: $(doc runtime.island.main)"
+K act island.pin '{"face":"nope"}' >/dev/null 2>&1 && fail "island.pin of an unknown face was not refused"
+echo "ok: island.pin {face} pins that face, an unknown one is refused"
 echo "test-module-menu: all ok"

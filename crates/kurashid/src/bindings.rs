@@ -141,7 +141,7 @@ mod tests {
         assert_eq!(doc["island.main"]["left"]["source"]["kind"], "user");
         assert_eq!(doc["island.main"]["scroll_up"]["source"]["kind"], "default");
         assert!(
-            doc["island.main"].get("middle").is_none(),
+            doc["island.main"].get("right").is_none(),
             "unbound = absent"
         );
         cfg.apply(&[kurashi_ipc::ApplyOp::Set {
@@ -182,7 +182,7 @@ mod tests {
         // Unbound slot: no-op.
         daemon
             .actions
-            .invoke("input.dispatch", d("middle"))
+            .invoke("input.dispatch", d("right"))
             .await
             .unwrap();
         assert_eq!(hits.load(Ordering::SeqCst), 1);

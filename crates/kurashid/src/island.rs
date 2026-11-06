@@ -16,7 +16,7 @@ use kurashi_island::{
 };
 use serde_json::Value;
 
-use crate::actions::ActionRegistry;
+use crate::actions::{ActionError, ActionRegistry};
 use crate::config::ConfigStore;
 use crate::hub::Hub;
 
@@ -649,7 +649,9 @@ impl IslandHost {
         drop(w);
     }
 
-    /// `island.next` / `island.prev` / `island.pin` (toggle) — what scroll and right-click do.
+    /// `island.next` / `island.prev` — what scroll does. `island.pin` — what the middle click does: pins the face shown, or
+    /// unpins; `{face}` (the right-click menu, I408) pins that face, or unpins it when it is the one pinned. A face the
+    /// island does not offer is refused with `island.error.unknown_face`.
     pub fn register_actions(self: &Arc<Self>, actions: &mut ActionRegistry) {
         let me = self.clone();
         actions.register("island.next", "action.island.next", move |_: Value| {
@@ -672,18 +674,31 @@ impl IslandHost {
             }
         });
         let me = self.clone();
-        actions.register("island.pin", "action.island.pin", move |_: Value| {
+        actions.register("island.pin", "action.island.pin", move |args: Value| {
             let me = me.clone();
             async move {
-                me.with(|arb, now| {
-                    if arb.pinned() {
-                        arb.unpin();
-                    } else {
+                let asked = match args.get("face") {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(f)) if !f.is_empty() => Some(f.clone()),
+                    Some(_) => {
+                        return Err(ActionError::Invalid(crate::wiring::ARGS_INVALID.into()));
+                    }
+                };
+                let mut ok = true;
+                me.with(|arb, now| match &asked {
+                    Some(f) if arb.pinned_on(f) => arb.unpin(),
+                    Some(f) => ok = arb.pin(f),
+                    None if arb.pinned() => arb.unpin(),
+                    None => {
                         let face = arb.decide(now).face;
-                        arb.pin(&face);
+                        ok = arb.pin(&face);
                     }
                 });
-                Ok(None)
+                if ok {
+                    Ok(None)
+                } else {
+                    Err(ActionError::Invalid(crate::wiring::UNKNOWN_FACE.into()))
+                }
             }
         });
     }
@@ -791,6 +806,35 @@ mod tests {
         assert_eq!(face(&hub)["pinned"], json!(true));
         actions.invoke("island.pin", Value::Null).await.unwrap();
         assert_eq!(face(&hub)["pinned"], json!(false));
+        // I408: a named face is pinned, the same one again unpins, another moves the pin, an unknown one is refused.
+        actions
+            .invoke("island.pin", json!({"face": "media"}))
+            .await
+            .unwrap();
+        assert_eq!(face(&hub)["pinned"], json!(true));
+        assert_eq!(face(&hub)["face"], json!("media"));
+        actions
+            .invoke("island.pin", json!({"face": "clock"}))
+            .await
+            .unwrap();
+        assert_eq!(face(&hub)["face"], json!("clock"));
+        actions
+            .invoke("island.pin", json!({"face": "clock"}))
+            .await
+            .unwrap();
+        assert_eq!(face(&hub)["pinned"], json!(false));
+        assert!(
+            actions
+                .invoke("island.pin", json!({"face": "nope"}))
+                .await
+                .is_err()
+        );
+        assert!(
+            actions
+                .invoke("island.pin", json!({"face": 3}))
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

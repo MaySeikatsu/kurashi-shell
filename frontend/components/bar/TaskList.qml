@@ -22,6 +22,8 @@ Item {
     // How many buttons fit; past that the last slot is "+N".
     property int maxCount: 12
     property bool middleCloses: true
+    // I284: resting on a button shows the window as last seen (the Stage's peek, `window:<id>`), else its title beside it.
+    property bool previews: false
     // The bar is shown: the hop runs only then.
     property bool live: true
     // The bar's hit test for a drag: a scene point → the workspace under it ({id, idx, …}) or null.
@@ -132,7 +134,8 @@ Item {
     function hoverOn(t) {
         peekCandidate = t.modelData
         peekTile = t
-        if (dragId < 0 && menuId === -1) peekTimer.restart()
+        // (with previews on the Stage's peek shows it, title and all: each button's PeekSource)
+        if (dragId < 0 && menuId === -1 && !previews) peekTimer.restart()
     }
     function hoverOff(t) {
         if (peekCandidate !== t.modelData) return
@@ -316,6 +319,12 @@ Item {
                 HoverHandler {
                     id: hover
                     onHoveredChanged: hovered ? tl.hoverOn(task) : tl.hoverOff(task)
+                }
+                // I284: the window as last seen; not while it is dragged or its menu is open.
+                PreviewSource {
+                    source: "window:" + task.modelData
+                    output: tl.outName
+                    enabled_: tl.previews && tl.dragId < 0 && tl.menuId === -1
                 }
                 TapHandler {
                     acceptedButtons: Qt.LeftButton

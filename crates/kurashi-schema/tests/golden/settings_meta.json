@@ -896,6 +896,22 @@
               "restart": false,
               "since": 7,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.modules.workspaces.previews.help",
+              "key": "modules.workspaces.previews",
+              "label": "config.modules.workspaces.previews.label",
+              "modules": [
+                "workspaces"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         },
@@ -929,6 +945,22 @@
               "default": true,
               "key": "modules.windows.middle_close",
               "label": "config.modules.windows.middle_close.label",
+              "modules": [
+                "windows"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.modules.windows.previews.help",
+              "key": "modules.windows.previews",
+              "label": "config.modules.windows.previews.label",
               "modules": [
                 "windows"
               ],
@@ -4259,6 +4291,52 @@
               "restart": false,
               "since": 1,
               "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.windows",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "forms"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.window.open.help",
+              "key": "theme.motion.form.window.open",
+              "label": "config.theme.motion.form.window.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.windows",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "forms"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.window.close.help",
+              "key": "theme.motion.form.window.close",
+              "label": "config.theme.motion.form.window.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
             }
           ]
         },
@@ -4603,6 +4681,10 @@
                 {
                   "label": "config.choice.motion_windows.follow",
                   "value": "follow"
+                },
+                {
+                  "label": "config.choice.motion_windows.forms",
+                  "value": "forms"
                 }
               ],
               "control": "select",
@@ -4706,6 +4788,9 @@
               "help": "config.island.main.faces.help",
               "key": "island.main.faces",
               "label": "config.island.main.faces.label",
+              "modules": [
+                "island"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -4818,7 +4903,7 @@
               "choices_from": "actions",
               "control": "action_binding",
               "couplings": [],
-              "default": "island.pin",
+              "default": "",
               "key": "island.main.input.right",
               "label": "config.input.right",
               "per_output": false,
@@ -4832,7 +4917,7 @@
               "choices_from": "actions",
               "control": "action_binding",
               "couplings": [],
-              "default": "",
+              "default": "island.pin",
               "key": "island.main.input.middle",
               "label": "config.input.middle",
               "per_output": false,

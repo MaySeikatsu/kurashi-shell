@@ -9,11 +9,13 @@
 //! (focus timestamps, layout geometry) by diffing before it emits — Ma: no spurious wakeups.
 
 pub mod any;
+pub mod capture;
 mod doc;
 pub mod fake;
 pub mod globals;
 pub mod hyprland;
 pub mod idle;
+pub mod locate;
 pub mod niri;
 pub mod pointer;
 pub mod sway;

@@ -20,6 +20,8 @@ tracing.workspace = true
 wayland-client = "0.31"
 # K47: ext-idle-notify-v1 (staging) for svc.idle.
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
+# I284: wlr-screencopy, the capture niri speaks (whole outputs).
+wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 
 [dev-dependencies]
 tempfile = "3"

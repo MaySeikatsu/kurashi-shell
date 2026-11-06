@@ -24,6 +24,11 @@ Singleton {
     // Reactive document map: Store.docs["svc.media"]. Reassigned (shallow copy) on every change so
     // bindings re-evaluate; a doc that is not watched, or that the daemon does not serve, is absent.
     property var docs: ({})
+    // A document that changes while nothing shows it, kept out of `docs`: reassigning `docs` re-evaluates every binding on it,
+    // and the shell's surfaces each draw a frame. `svc.previews` patches after every focus change (K92), for a peek nobody may open.
+    readonly property var quietDocs: ({ "svc.previews": true })
+    property var quiet: ({})
+    function current(doc) { return quietDocs[doc] ? quiet[doc] : docs[doc] }
 
     // Socket is up and welcomed.
     property bool connected: false
@@ -65,6 +70,13 @@ Singleton {
         Qt.callLater(function () { if (!wanted[doc]) setDoc(doc, undefined) })
     }
     function setDoc(doc, v) {
+        if (quietDocs[doc]) {
+            var q = Object.assign({}, quiet)
+            if (v === undefined) delete q[doc]
+            else q[doc] = v
+            quiet = q
+            return
+        }
         var d = Object.assign({}, docs)
         if (v === undefined) delete d[doc]
         else d[doc] = v
@@ -146,13 +158,13 @@ Singleton {
             setDoc(m.doc, m.data)
             live = true
         } else if (m.t === "patch") {
-            if (!wanted[m.doc] || docs[m.doc] === undefined) return
+            if (!wanted[m.doc] || current(m.doc) === undefined) return
             if (revs[m.doc] === undefined || m.rev !== revs[m.doc] + 1) {
                 if (revs[m.doc] === undefined || m.rev > revs[m.doc]) send({ t: "resync", doc: m.doc })
                 return
             }
             revs[m.doc] = m.rev
-            setDoc(m.doc, merge(JSON.parse(JSON.stringify(docs[m.doc])), m.ops))
+            setDoc(m.doc, merge(JSON.parse(JSON.stringify(current(m.doc))), m.ops))
         } else if (m.t === "applied" || m.t === "rejected") {
             var ap = pending[m.id]
             delete pending[m.id]

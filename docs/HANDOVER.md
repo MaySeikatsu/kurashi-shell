@@ -17,6 +17,21 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-06 — session 23, last (machine A): forms on niri's windows (K91), hover previews (K92), the island's menu
+**State.** `main` has session 23's earlier work (merged at 6d751b0f, the user waived `island-join`, I406). This entry's work is on `feat/s23-niri-motion`, in a PR the user merges.
+**Built.**
+- `theme.motion.windows = forms` (default stays off): every shell form as a generated niri custom shader on window open and close, `crates/kurashi-theme/src/niri_forms/`. `window` is a thirteenth surface class. Brief `docs/ux/niri-motion.md`. The three repos the user sent proved the hook; no code taken from them.
+- The island's right click opens its menu: the pinned face and a check to take it back, "Pin a face", its faces and options. The pin moved to the middle click (`island.main.input.middle`). `island.pin {face}`. A user config that binds `right` keeps its own.
+- Hover previews, last-seen stills: `svc.previews`, `crates/kurashi-compositor/src/{capture,locate}.rs`, `crates/kurashid/src/previews.rs`, `frontend/components/PreviewPeek.qml`. On by default per module (`modules.{windows,workspaces}.previews`). Brief `docs/ux/hover-previews.md`.
+**Found.** niri does not say where a tiled window stands (`tile_pos_in_workspace_view` is floating only), so `locate` reads the scroll and the gap from the still's edges and gives no crop when unsure. `ext_image_copy_capture` is not on this niri: `wlr-screencopy` is (a new crate, `wayland-protocols-wlr`). Nested niri's output is `Flipped180`, so a capture must honour the output's transform. Nested niri compiles shaders with the real NVIDIA compiler: its messages say so. **Nested niri stops redrawing after any screencopy until something damages it** (plain `grim` with previews off does the same; a close animation froze for about 20 s): `src/backend/winit.rs` redraws through the host window's frame callback, `tty.rs` from its vblank, so a TTY session should not do this, but that rests on reading the source. Visual checks on nested niri with animations want previews off or a redraw; `test-niri-motion` turns them off.
+A `svc.previews` patch made every surface draw a frame, since any patch reassigns `Store.docs`: it lives in `Store.quiet` now; the wider cost is I417.
+**Verified.** Nested niri on the GTX 1060: contact sheets of all 24 forms at four progress values; `frontend/test-niri-motion.sh`, `frontend/test-previews.sh`, `frontend/test-module-menu.sh`, both new suites in the merge set. `just check` green. `just suites`: 18 of 18; `sidebars` failed under load (a timing and a memory check) and passed alone.
+**Not verified.** No real session: the user's niri has not run these. Crops on a real desktop with their wallpaper and window frames, on two outputs and at a fractional scale; only unit tests cover several outputs' logic and 90° transforms. A round's cost on the GPU (I414). Close animations were compiled and one was drawn (iris); the sheets show the open direction, which the close runs backwards. Every form's feel at speed, since only stills were judged.
+**Next steps.**
+1. The user merges `feat/s23-niri-motion` and rebuilds, then sets Settings › Motion › Window animations to "Follow the profile, with its animations". Their config has `windows = "follow"`, so nothing changes until then.
+2. Tune forms on the real session: durations on big windows; yorha's `glitch`.
+3. I412 (genie toward a bottom dock), I413 (crops on sway and Hyprland), I414 (default and GPU cost), I409, I411, I387, I389.
+
 ## 2026-11-06 — session 23, later (machine A): launcher placement (I407), module menus (I408, K90)
 **State.** Merged to `main` with `feat/s23-quick-wins` (2026-11-06). The user waived `island-join` for this merge (I406: it fails under
 load and passes alone). `just check` green on the merged tree.
@@ -95,39 +110,3 @@ the card; a layer with on-demand focus takes no keys before that there, not chec
 **Open decisions/risks:** the installed shell needs a rebuild to get this. Any other Qt 6.12 regression would not show in the suites until I397.
 
 ---
-
-## 2026-11-03 — session 21 (machine A): motion polish — every form everywhere, pace, three tiers, a style's own animation (K86, W64)
-**State:** branch `feat/s21-motion-polish` (from `origin/main` after PR #1 and session 20), **not pushed**; the user decides
-push/PR (gh is logged in only as a work account: last time the user opened the PR from the compare URL). `just check`
-green, `just suites` (merge set, 13/13) green after the W64 merge; test-motion-hosts and webdock's test-dock run separately.
-No agent running; the W64 worktree and its target dir are removed (agent-a5bf… from session 20 can go too).
-
-**Done (the user's eight points, brief `docs/ux/motion-engine.md` §8/§12, K86):**
-- Every form but liquid serves every surface (`forms.rs`); W64 made the dock (sheet forms, genie from its edge), the bar's
-  hover/empty-desktop reveal and the web dock's overlay card/panels actually host them; host links in `mods/webdock/host/`.
-- A form's `pace` (drop 1.9×, genie/noren 1.5×, fold/book/fan/crumple 1.4× …) stretches the profile's curves (`curves.js`
-  `stretch`), in the shell and the preview.
-- Stutter after a form lands: MorphSprings' `snap()` left a stale timed travel (the sysmon width jump); the launcher's
-  first-frame flash (slide/fade under a sheet form, raw card at p = 0) fixed; maximize moves on the profile's curve.
-- Motion page: nav icon; three tiers — Profiles (full packs; speed moved into the preview stage, replacing ½×/¼×),
-  Animation style (forms table) + **Timing preset** (`theme.motion.timing.preset`, `motion.timings`), Advanced curves.
-- Each style's own animation (yorha pixelate, souls dissolve, win95 outline, snes stepped pixelate, aqua genie, kawaii
-  stamp, hallownest bleed, ps2 iris, luna slide, sekai pop, glass liquid, kanso new pack).
-- Sheet closes keep their content to the end; genie's shadow/fillets follow the pour on joined surfaces; the raindrop's
-  new story (gathers from the clicked module, bulges, falls accelerating, squashes, ripples).
-- Tests: settings M1 section order, M8b on a user `still` pack (win95 moves now), M8c with liquid on the bar; the sidebar
-  logs `sidebar-rest` when a form lands it.
-
-**Next steps (ordered):**
-1. Ask the user to push/open the PR for `feat/s21-motion-polish` (compare URL `main...feat/s21-motion-polish`).
-2. User verdicts on niri: the raindrop's new story, the default paces, each style's animation (yorha, aqua, kawaii).
-3. I390 (reduce motion fades on the dock and bar), I394 (web dock strip waits for the card), I391 (WebCard via FormHost).
-4. I395: the suites outside the merge set that fail on main (peek, texture, morph, pen, webdock bar click) — alone, fix
-   or retire. Consider test-motion-hosts in MERGE_SET (its USS slack is noisy under load).
-5. I386 (morph maximize vanishes 2 frames), I387–I389, I392, I393.
-
-**Open decisions/risks:** pace factors are the lead's taste, not the user's yet; timing presets are hidden under still
-profiles (by design, the row says why). Shots stay local (I345: the sandbox shows the real login name).
-
----
-

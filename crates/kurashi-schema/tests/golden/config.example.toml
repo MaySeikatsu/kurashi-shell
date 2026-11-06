@@ -509,8 +509,10 @@
 # shadow = "profile"
 #
 # Window animations — Give the compositor's window animations the profile's curves (niri).
-# Off: windows move as the compositor says.
-#   choices: "off" | "follow"
+# With its animations, windows also open and close the way the shell's surfaces do, through
+# niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows
+# move as the compositor says.
+#   choices: "off" | "follow" | "forms"
 # windows = "off"
 
 # [theme.motion.form]
@@ -673,6 +675,20 @@
 # Closes with — This surface's own closing animation ("": the default).
 #   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
 #   "none" · advanced
+# close = ""
+
+# [theme.motion.form.window]
+#
+# Windows open with — The animation a window opens with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
+# open = ""
+#
+# Windows close with — The animation a window closes with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
 # close = ""
 
 # [theme.motion.timing]
@@ -962,11 +978,11 @@
 #
 # Right click
 #   choices: from `actions` (resolved at runtime) · advanced
-# right = "island.pin"
+# right = ""
 #
 # Middle click
 #   choices: from `actions` (resolved at runtime) · advanced
-# middle = ""
+# middle = "island.pin"
 #
 # Hover
 #   choices: from `actions` (resolved at runtime) · advanced
@@ -1055,6 +1071,11 @@
 # one.
 #   since schema v7
 # scroll = false
+#
+# Hover previews — Resting on a workspace shows what it held when you last saw it. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
 
 # [modules.windows]
 #
@@ -1065,6 +1086,11 @@
 # Middle click closes
 #   since schema v7
 # middle_close = true
+#
+# Hover previews — Resting on a window shows it as you last saw it, with its title. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
 
 # [clock]
 #

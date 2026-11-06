@@ -382,6 +382,8 @@
   "motion.form.sidebar.open": "zoom",
   "motion.form.toast.close": "genie",
   "motion.form.toast.open": "genie",
+  "motion.form.window.close": "zoom",
+  "motion.form.window.open": "zoom",
   "motion.forms": {
     "bleed": {
       "available": true,
@@ -402,7 +404,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -427,7 +430,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -452,7 +456,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -477,7 +482,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -500,7 +506,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -523,7 +530,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -546,7 +554,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -569,7 +578,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -594,7 +604,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -619,7 +630,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -644,7 +656,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -669,7 +682,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -694,7 +708,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -717,7 +732,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -740,7 +756,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -756,7 +773,8 @@
         "panel",
         "peek",
         "launcher",
-        "centre"
+        "centre",
+        "window"
       ],
       "tier": "transform"
     },
@@ -779,7 +797,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -802,7 +821,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -825,7 +845,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -848,7 +869,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -873,7 +895,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "mesh"
     },
@@ -896,7 +919,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -919,7 +943,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -942,7 +967,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "layer"
     },
@@ -965,7 +991,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     },
@@ -988,7 +1015,8 @@
         "bar",
         "osd",
         "menu",
-        "dialog"
+        "dialog",
+        "window"
       ],
       "tier": "transform"
     }

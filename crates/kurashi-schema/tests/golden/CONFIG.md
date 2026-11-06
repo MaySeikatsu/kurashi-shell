@@ -355,6 +355,13 @@ The mouse wheel over the workspaces moves to the next or the previous one.
 - type: `bool` · default: `false`
 - since schema v7
 
+#### `modules.workspaces.previews` — Hover previews
+
+Resting on a workspace shows what it held when you last saw it. The pictures stay in memory, for this session.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ### Windows
 
 #### `modules.windows.max` — Most windows shown
@@ -366,6 +373,13 @@ The rest go under "+N". 0: as many as the bar has room for.
 - since schema v7
 
 #### `modules.windows.middle_close` — Middle click closes
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `modules.windows.previews` — Hover previews
+
+Resting on a window shows it as you last saw it, with its title. The pictures stay in memory, for this session.
 
 - type: `bool` · default: `true`
 - since schema v7
@@ -1375,6 +1389,22 @@ This surface's own closing animation ("": the default).
 - only while `theme.motion.profile != "none"`
 - advanced
 
+#### `theme.motion.form.window.open` — Windows open with
+
+The animation a window opens with. Follows the style's unless you pick one here.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.windows == "forms"`
+
+#### `theme.motion.form.window.close` — Windows close with
+
+The animation a window closes with. Follows the style's unless you pick one here.
+
+- type: `string` · default: `""`
+- choices: from `motion.forms` (resolved at runtime)
+- only while `theme.motion.windows == "forms"`
+
 ### Timing
 
 #### `theme.motion.timing.preset` — Timing preset
@@ -1495,10 +1525,10 @@ What a surface's shadow does during its motion: carried with the shape, or faded
 
 #### `theme.motion.windows` — Window animations
 
-Give the compositor's window animations the profile's curves (niri). Off: windows move as the compositor says.
+Give the compositor's window animations the profile's curves (niri). With its animations, windows also open and close the way the shell's surfaces do, through niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows move as the compositor says.
 
 - type: `choice` · default: `"off"`
-- choices: `"off"` | `"follow"`
+- choices: `"off"` | `"follow"` | `"forms"`
 
 ## Accessibility
 
@@ -1575,13 +1605,13 @@ How the island meets the bar or the edge it grows out of. Automatic follows the 
 
 #### `island.main.input.right` — Right click
 
-- type: `action` · default: `"island.pin"`
+- type: `action` · default: `""`
 - choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.middle` — Middle click
 
-- type: `action` · default: `""`
+- type: `action` · default: `"island.pin"`
 - choices: from `actions` (resolved at runtime)
 - advanced
 

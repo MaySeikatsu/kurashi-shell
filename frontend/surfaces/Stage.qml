@@ -558,7 +558,8 @@ PanelWindow {
     // Live: the source is one this shell can draw now (its mod is on and has the component, a tray item has text, the
     // island has a line for its face).
     readonly property bool peekAvailable: peekMod !== null
-        ? Mods.qmlOf(modsDoc, "peek:" + peekMod.panel, peekMod.mod) !== "" : peekLinesOf(peekSourceId).length > 0
+        ? Mods.qmlOf(modsDoc, "peek:" + peekMod.panel, peekMod.mod) !== ""
+        : peekKind === "preview" || peekLinesOf(peekSourceId).length > 0
     // Asked for now: available, on this Stage's output, and on an enabled bar of any edge (I67: side bars too).
     readonly property bool peekWanted: peekAvailable && !open && !polkit && bars.enabled && !!screen && screen.name === peekOutput
     // Held while the peek is asked for and while it fades out (I67): the Stage keeps the peek's output and place until the
@@ -589,7 +590,7 @@ PanelWindow {
     readonly property int peekInset: peekBarInset + Theme.barH + 4
     readonly property int peekBarClear: peekBarInset + Theme.barH + Theme.gap
     readonly property int peekMaxW: screen
-        ? Math.max(160, Math.min(400, screen.width - (peekSide ? peekBarClear : 0) - 2 * Theme.gap)) : 400
+        ? Math.max(160, Math.min(shownKind === "preview" ? 640 : 400, screen.width - (peekSide ? peekBarClear : 0) - 2 * Theme.gap)) : 400
     // Kept a gap away from the output's edges, like the cards (lead review: a clamped peek touched the edge).
     readonly property int peekLeft: Math.max(Theme.gap, Math.min(shownX, (screen ? screen.width : 0) - peekCard.width - Theme.gap))
     readonly property int peekTop: Math.max(Theme.gap, Math.min(Math.round(shownY), (screen ? screen.height : 0) - peekCard.height - Theme.gap))
@@ -600,6 +601,7 @@ PanelWindow {
     readonly property bool peekInstant: Theme.quickMs <= 0
     function peekKindOf(src) {
         if (src.indexOf("tray:") === 0) return "tray"
+        if (src.indexOf("window:") === 0 || src.indexOf("workspace:") === 0) return "preview"
         if (src.indexOf("island:") === 0) return "island"
         return Mods.panelOf(src) !== null ? "mod" : ""
     }
@@ -640,6 +642,8 @@ PanelWindow {
     // Watched only while a peek of that kind is asked for (Ma).
     Watch { doc: "svc.tray"; active: stage.peekKind === "tray" }
     Watch { doc: "runtime.island.main"; active: stage.peekKind === "island" }
+    Watch { doc: "svc.previews"; active: stage.peekKind === "preview" }
+    Watch { doc: "svc.workspaces"; active: stage.peekKind === "preview" }
     // The fade in and out (DESIGN-SYSTEM §9: quick, interruptible; none under reduced motion). The fade in starts on the first
     // frame that shows the peek (peekGate); the fade out runs while the window is still mapped, and the Stage is idle at its end.
     NumberAnimation {
@@ -931,7 +935,8 @@ PanelWindow {
             x: Theme.pad
             y: Theme.pad
             active: stage.peekLayout
-            sourceComponent: stage.shownKind === "mod" ? peekModView : (stage.shownKind === "" ? null : peekLinesView)
+            sourceComponent: stage.shownKind === "mod" ? peekModView
+                : stage.shownKind === "preview" ? peekPreviewView : (stage.shownKind === "" ? null : peekLinesView)
         }
     }
     }
@@ -945,6 +950,15 @@ PanelWindow {
     Component {
         id: peekModView
         ModLoader { provide: stage.shownMod ? "peek:" + stage.shownMod.panel : ""; mod: stage.shownMod ? stage.shownMod.mod : "" }
+    }
+    Component {
+        id: peekPreviewView
+        PreviewPeek {
+            source: stage.shownSource
+            maxWidth: stage.peekMaxW - 2 * Theme.pad
+            fg: peekTip.ink(Theme.fg)
+            dim: peekTip.ink(Theme.dim)
+        }
     }
     Component {
         id: peekLinesView
