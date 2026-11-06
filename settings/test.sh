@@ -252,6 +252,8 @@ motion_en() {
            curve:theme.motion.timing.effects forms-table forms-line:island form:theme.motion.form.open; do
     [ "$(Q present "$n")" = yes ] || fail "motion M1: $n is not on the page"
   done
+  # K91: compositor windows have their line in the table, or nothing on the page reaches their keys.
+  [ "$(Q present forms-line:window)" = yes ] || fail "motion M1: no line for compositor windows in the table"
   [[ "$(Q sections)" == *motion.profiles*motion.animation_style*motion.timing*motion.advanced_curves*motion.choreography*motion.windows* ]] \
     || fail "motion M1: the sections are $(Q sections)"
   mshot page

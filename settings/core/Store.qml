@@ -316,6 +316,12 @@ Singleton {
     // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names inert_by. `key`
     // is the setting that controls this one ("" when none): the row offers a link to it. kinds "pending", "unavailable"
     // and "mod_off" keep the row editable: the value is only not in effect yet.
+    // The value a row needs, as the row that sets it words it (a choice's label, not its config value).
+    function requiredLabel(key, value) {
+        var h = rowOf(key), cs = h && h.row.choices ? h.row.choices : []
+        for (var i = 0; i < cs.length; i++) if (cs[i].value === value) return I18n.tr(cs[i].label)
+        return displayValue(value)
+    }
     function inertReasons(row, output) {
         var out = []
         var p = prov(row.key, output)
@@ -339,7 +345,7 @@ Singleton {
             if (hit !== null)
                 out.push({ kind: "requires", key: hit.key, text: I18n.fmt(
                     hit.op === "eq" ? hit.reason : "settings.ui.requires_ne",
-                    { key: I18n.tr(labelOf(hit.key)), value: displayValue(hit.value) }) })
+                    { key: I18n.tr(labelOf(hit.key)), value: requiredLabel(hit.key, hit.value) }) })
         } else if (p && p.reason === "settings.pending.restart") {
             out.push({ kind: "pending", key: "", text: I18n.tr("settings.pending.restart") })
         } else if (p && p.reason === "settings.choice.unavailable") {
