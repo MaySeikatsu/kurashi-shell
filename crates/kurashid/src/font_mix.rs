@@ -19,6 +19,8 @@ pub const HANDWRITING: [&str; 4] = ["Kalam", "Patrick Hand", "Handlee", "Gochi H
 
 static AGAIN: OnceLock<Arc<dyn Fn() + Send + Sync>> = OnceLock::new();
 static BUILDING: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+/// What could not be built, so the theme says so instead of `building` for ever, and a republish does not try again.
+static FAILED: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 
 /// What to call when a font has been built.
 pub fn on_ready(again: Arc<dyn Fn() + Send + Sync>) {
@@ -179,6 +181,10 @@ pub fn apply(store: &ConfigStore, tokens: &mut Map<String, Value>) {
         set(&file.to_string_lossy(), &plan.family(), "on", &plan.missing);
         return;
     }
+    if FAILED.lock().expect("failed lock").contains(&plan.hash) {
+        set("", "", "failed", &plan.missing);
+        return;
+    }
     set("", "", "building", &plan.missing);
     spawn(plan);
 }
@@ -199,6 +205,10 @@ fn spawn(plan: Plan) {
         if let Some(dir) = cache_dir() {
             if let Err(e) = build(&plan, &dir) {
                 tracing::warn!(error = %e, "font mix not built");
+                FAILED
+                    .lock()
+                    .expect("failed lock")
+                    .insert(plan.hash.clone());
             } else {
                 forget_others(&dir, &plan);
             }

@@ -92,6 +92,7 @@
 "fonts.preview.building" = "ミックスを作成中…"
 "fonts.preview.missing" = "未インストール：{names}"
 "fonts.preview.too_few" = "ミックスにはインストール済みのフォントが 2 つ必要です。"
+"fonts.preview.failed" = "これらのフォントは混ぜられませんでした。通常のフォントを使っています。"
 "fonts.preview.sample1" = "Notifications"
 "fonts.preview.sample2" = "All little kittens will settle"
 "fonts.preview.sample3" = "The quick brown fox jumps over the lazy dog"

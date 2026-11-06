@@ -26,7 +26,7 @@ No desktop shell found mixes fonts per letter.
 - Off: nothing built, nothing loaded.
 - Building: the theme keeps the plain family until the file is there (first use only: 100 to 300 ms off the runtime), then republishes. The file is the cache's `kurashi/fonts/mix-<hash>.ttf`; the hash covers the files and their times, so an updated font makes a new one. At most 16 stay.
 - A font not installed: left out, and the card names it (Shōjiki). Fewer than two left: the plain family, and the card says a mix needs two.
-- Unreadable font: logged, the plain family.
+- A set that cannot be mixed: logged, the plain family, and the card says so; it is not tried again until the set changes. A font with no small letters yet keeps its own size.
 
 ## Keyboard and a11y
 Settings' rows as any other. Large text scales it as any font. No reduce-motion issue: it does not move. A mix may read worse for some people, and it is off by default.

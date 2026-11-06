@@ -161,13 +161,21 @@ pub fn build(fonts: &[(&[u8], u32)], family: &str) -> Result<Vec<u8>, MixError> 
     for (i, (data, face)) in fonts.iter().enumerate() {
         read.push(FontRef::from_index(data, *face).map_err(|_| MixError::Unreadable(i))?);
     }
+    let upem = |f: &FontRef<'_>| f.head().map_or(1000.0, |h| f64::from(h.units_per_em()));
+    // A font with no small letters yet (someone's own, half drawn) has no height to match: it keeps its own size. So does the
+    // whole mix when the first has none.
+    let measured: Vec<Option<f64>> = read.iter().map(x_height).collect();
+    let target = measured[0].map(|h| h / upem(&read[0]));
     let heights: Vec<f64> = read
         .iter()
-        .enumerate()
-        .map(|(i, f)| x_height(f).ok_or(MixError::Unreadable(i)))
-        .collect::<Result<_, _>>()?;
-    let upem = |f: &FontRef<'_>| f.head().map_or(1000.0, |h| f64::from(h.units_per_em()));
-    let target = heights[0] / upem(&read[0]);
+        .zip(&measured)
+        .map(|(f, m)| match (m, target) {
+            (Some(h), Some(_)) => *h,
+            (_, Some(t)) => t * upem(f),
+            (_, None) => upem(f),
+        })
+        .collect();
+    let target = target.unwrap_or(1.0);
     let sources: Vec<Src<'_>> = read
         .iter()
         .zip(&heights)
@@ -582,6 +590,82 @@ mod tests {
         }
         // (a capital in proportion: the sources' 1.4)
         assert!((top(&m, 'H') - 700.0).abs() <= 2.0, "{}", top(&m, 'H'));
+    }
+
+    /// Someone's own font may have capitals only so far: no "x" to measure, and it still mixes, at its own size.
+    #[test]
+    fn a_font_without_small_letters_still_mixes() {
+        let only_caps = |h: f64| {
+            let mut glyf = GlyfLocaBuilder::new();
+            glyf.add_glyph(&Glyph::Empty).unwrap();
+            let mut p = BezPath::new();
+            p.move_to((0.0, 0.0));
+            p.line_to((400.0, 0.0));
+            p.line_to((400.0, h));
+            p.close_path();
+            glyf.add_glyph(&Glyph::Simple(SimpleGlyph::from_bezpath(&p).unwrap()))
+                .unwrap();
+            let (g, l, fmt): (Glyf, Loca, _) = glyf.build();
+            let mut b = FontBuilder::new();
+            b.add_table(&Head {
+                units_per_em: 1000,
+                font_revision: Fixed::from_f64(1.0),
+                index_to_loc_format: fmt as i16,
+                ..Default::default()
+            })
+            .unwrap();
+            b.add_table(&Hhea {
+                ascender: 800.into(),
+                descender: (-200).into(),
+                number_of_h_metrics: 2,
+                ..Default::default()
+            })
+            .unwrap();
+            b.add_table(&Maxp {
+                num_glyphs: 2,
+                max_points: Some(3),
+                max_contours: Some(1),
+                max_composite_points: Some(0),
+                max_composite_contours: Some(0),
+                max_zones: Some(1),
+                max_twilight_points: Some(0),
+                max_storage: Some(0),
+                max_function_defs: Some(0),
+                max_instruction_defs: Some(0),
+                max_stack_elements: Some(0),
+                max_size_of_instructions: Some(0),
+                max_component_elements: Some(0),
+                max_component_depth: Some(0),
+            })
+            .unwrap();
+            b.add_table(&Hmtx::new(
+                vec![
+                    LongMetric {
+                        advance: 500,
+                        side_bearing: 0,
+                    },
+                    LongMetric {
+                        advance: 500,
+                        side_bearing: 0,
+                    },
+                ],
+                vec![],
+            ))
+            .unwrap();
+            b.add_table(&Cmap::from_mappings([('A', GlyphId::new(1))]).unwrap())
+                .unwrap();
+            b.add_table(&l).unwrap();
+            b.add_table(&g).unwrap();
+            b.build()
+        };
+        let (a, b) = (only_caps(700.0), only_caps(600.0));
+        let m = build(&[(&a, 0), (&b, 0)], "M").unwrap();
+        assert_eq!(calt_rules(&m), 1);
+        assert!(
+            (top(&m, 'A') - 700.0).abs() <= 1.0 || (top(&m, 'A') - 600.0).abs() <= 1.0,
+            "{}",
+            top(&m, 'A')
+        );
     }
 
     #[test]

@@ -92,6 +92,7 @@
 "fonts.preview.building" = "Making the mix…"
 "fonts.preview.missing" = "Not installed: {names}"
 "fonts.preview.too_few" = "A mix needs two installed fonts."
+"fonts.preview.failed" = "These fonts could not be mixed. The plain font is in use."
 "fonts.preview.sample1" = "Notifications"
 "fonts.preview.sample2" = "All little kittens will settle"
 "fonts.preview.sample3" = "The quick brown fox jumps over the lazy dog"

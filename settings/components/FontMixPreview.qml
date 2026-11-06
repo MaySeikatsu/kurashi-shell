@@ -34,6 +34,7 @@ SectionCard {
             font.family: Theme.fam(text, Theme.families)
             text: mp.state_ === "building" ? I18n.tr("fonts.preview.building")
                 : mp.state_ === "too_few" ? I18n.tr("fonts.preview.too_few")
+                : mp.state_ === "failed" ? I18n.tr("fonts.preview.failed")
                 : mp.missing.length > 0 ? I18n.tr("fonts.preview.missing").replace("{names}", mp.missing.join(", ")) : ""
         }
         Repeater {
