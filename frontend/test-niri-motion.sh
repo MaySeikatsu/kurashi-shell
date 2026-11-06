@@ -53,6 +53,17 @@ layout {
     focus-ring {
         off
     }
+    border {
+        on
+        width 2
+    }
+    shadow {
+        on
+        softness 30
+        spread 5
+        offset x=0 y=5
+        color "#00000070"
+    }
 }
 cursor {
     xcursor-size 24
@@ -123,6 +134,11 @@ done
 [ -n "$stood" ] || fail "fold: the window's top never came"
 foot=$(px "$OUT/fold-mid.png" 960 950)
 bg "$foot" || fail "fold mid-way: the window's foot is not empty ($foot)"
+# Nothing beside it either: a shader runs over 500 px round the window, and a stray sample there paints its shadow over the screen.
+for at in "100 540" "1820 540"; do
+  beside=$(px "$OUT/fold-mid.png" $at)
+  bg "$beside" || fail "fold mid-way: it draws outside the window at $at ($beside)"
+done
 rest=
 for _ in $(seq 100); do
   shot rest
