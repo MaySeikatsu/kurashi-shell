@@ -684,6 +684,7 @@ Scope {
                                 height: shape.bodyRect.height
                                 radius: col.floating ? col.floatR : col.joinR
                                 level: 2
+                                sheet: true
                                 cutTop: win.openT
                                 cutBottom: win.openB
                                 cutRight: win.openO

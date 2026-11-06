@@ -500,7 +500,9 @@ px1() { [ "$(ink "$1" "$2" 1 1)" -gt 0 ] && echo ink || echo desk; }
 for d in $LAYOUT_DECORS; do
   mkdir -p "$LOUT/$d"
   start_mock
-  mockdoc "$(cat "$W/theme-$d.json")"
+  # The table reads the dock's outline against the desk, and the sheet's shadow (K97) darkens the desk beside a band:
+  # off here, frontend/test-sheet-shadow.sh checks it.
+  mockdoc "$(jq -c '.patch.tokens["elevation.sheet"] = "off"' "$W/theme-$d.json")"
   start_frontend
   mock_scene
   ptr move $(( SW / 2 )) $(( SH / 2 ))

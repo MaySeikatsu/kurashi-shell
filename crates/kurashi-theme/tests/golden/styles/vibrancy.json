@@ -265,6 +265,7 @@
   "decor.workspace.mark": "own",
   "elevation.mode": "static",
   "elevation.pointer": false,
+  "elevation.sheet": "static",
   "elevation.strength": 1.0,
   "focus.ring": "#0066cc",
   "font.family": "Inter",

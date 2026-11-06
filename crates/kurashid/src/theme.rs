@@ -295,6 +295,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => "outline".into(),
         },
         elevation: s(store, "theme.material.elevation"),
+        sheet_shadow: s(store, "theme.material.sheet_shadow"),
         elevation_strength: f(store, "theme.material.elevation_strength", 1.0),
         elevation_pointer: b(store, "theme.material.elevation_pointer"),
         ..Axes::default()
@@ -554,6 +555,22 @@ fn shadow_tokens(store: &ConfigStore, t: &mut serde_json::Map<String, Value>, in
             serde_json::json!([r(u[0]), r(u[1]), r(k)]),
         );
     }
+    // The sheet's direction by its own mode (I427): inward has none. Its mode can differ from the surfaces' above.
+    let sheet = t
+        .get("elevation.sheet")
+        .and_then(Value::as_str)
+        .unwrap_or("off")
+        .to_owned();
+    let (su, sk) = light_dir
+        .filter(|_| sheet == "follow")
+        .and_then(kurashi_theme::tokens::shadow_from_light)
+        .unwrap_or_else(|| (kurashi_theme::tokens::shadow_unit(spec.angle), 1.0));
+    let dir = if sheet == "inward" {
+        serde_json::json!([0, 0, 0])
+    } else {
+        serde_json::json!([r(su[0]), r(su[1]), r(sk)])
+    };
+    t.insert("elevation.sheet_dir".into(), dir);
 }
 
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
