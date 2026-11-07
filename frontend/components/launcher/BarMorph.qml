@@ -96,7 +96,7 @@ Item {
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
     readonly property bool joined: Theme.groups && lifted
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
-    readonly property real neckR: joined ? 0 : Theme.rLg
+    readonly property real neckR: joined ? 0 : Theme.rJoin
     // Room round the card for the springs: the width's soft-limited overshoot and the landing's bulge (squash) on each
     // side, the centre's overshoot past its travel, the neck's fillets and the soft shadow.
     readonly property int slackX: 16 + Theme.softR + Math.ceil(cardW * (springs.cap + springs.squash) / 2 + Math.abs(pillDx) * springs.cap)
@@ -424,7 +424,7 @@ Item {
             hw: m.pillW
             hh: m.pillH
             hr: m.pillR
-            neckF: Theme.rLg / 2
+            neckF: Theme.rJoin
             neckScale: m.sf ? 1 : springs.neckScale
             // (liquid's thread; under a sheet form the fillets grow back from 0 over the landing, W59.9a)
             stretch: m.sheetOn ? cardHost.sheetFillets : m.sf ? m.sf.neck : 1

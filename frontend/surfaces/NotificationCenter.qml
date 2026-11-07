@@ -122,7 +122,7 @@ PanelWindow {
             // 400 px, wider (up to 480) when the title and its two buttons need it (a monospaced or wide face).
             width: Math.min(480, Math.max(400, titleText.implicitWidth + dnd.width + clear.width + 2 * Theme.gap + 2 * Theme.pad + 2))
             height: Math.min(win.maxH, head.height + (win.items.length > 0 ? list.contentHeight : empty.height) + 3 * Theme.pad)
-            radius: Theme.rLg + 4
+            radius: Theme.rLg
             // In the morph the shape is the card's chrome (fill, outline, shadows, material); this only holds the content.
             readonly property bool chrome: !morph.morph
             color: chrome ? Theme.panel : "transparent"

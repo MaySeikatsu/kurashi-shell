@@ -59,15 +59,16 @@ Where every edge surface stands, per output, computed by the daemon's layout ste
 outputs (rebuilt on any of them; nothing polls). Renderers draw it and never re-derive it: no `barH + 4` deciding where a
 fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
 - Top level: `draw` (the preset `layout.draw` in effect), `reveal_delay_ms`, `gap` (token `space.sm`), `join_radius`
-  (token `radius.lg`), `screen_radius` (the screen's outer corners, K74: `join_radius` while
-  `theme.shape.screen_corners_follow`, else `theme.shape.screen_corners`; 0 = square; since schema v5), `bar_size`
+  (token `radius.join`, K96), `screen_radius` (the screen's outer corners without a frame: token `radius.frame` while
+  `theme.shape.screen_corners_follow`, else `theme.shape.screen_corners`; 0 = square; an output's own is `frame.screen_radius`), `bar_size`
   (`bar.height`), `outputs`.
 - `outputs` maps an output name to its layout; `"*"` is the layout for an output the daemon does not know yet (a fresh
   hotplug renders from it until its own entry arrives). `"*"` is an alias, not an output: a view that lists outputs
   (Settings' output picker) skips it, here and in `svc.workspaces` (row 531).
 - Every offset is in logical px **from a screen edge**; the daemon never needs the output's size.
-- `frame`: `on`, `thickness`, `radius` (the inner corners: K74, `join_radius` less `thickness` while the frame is on, never
-  below 0; `join_radius` while it is off — no config key of its own since schema v4), `reserve`, and `band.<edge>` — the frame's visible thickness on
+- `frame`: `on`, `thickness`, `radius` (the inner corners, K96: token `radius.frame` while the frame is on; `join_radius` while it
+  is off), `screen_radius` (the screen's outer corners on this output, K96: `radius` plus `thickness` on a framed output, `radius` otherwise, 0 under a
+  square hole; `theme.shape.screen_corners` while they do not follow), `reserve`, and `band.<edge>` — the frame's visible thickness on
   each edge (0 where a docked bar is the band, and everywhere while the frame is off).
   A docked bar carries its edge's frame strip (row 492 b).
 - `edges.<top|bottom|left|right>`: `bar` (a bar stands there), `size` (only with a bar), `draw` + `draw_source`
@@ -79,7 +80,7 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   (only on a left or right bar: its free length along its edge, px from the top and bottom — row 511).
 - `dock`: `on`, `edge`, `draw` + `draw_source`, `visibility`, `inset`, `reserve` + `reserve_source`, `joins`
   (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet and the joined dock's corners: for
-  dynamic the hole's radius — `frame.radius` on a framed output, else `join_radius` (K74) —, 0 for connected).
+  dynamic `join_radius` (K96), 0 for connected).
 - `sidebars.<right|left>`: `draw` + `draw_source`, `visibility`, `width`, `inset`, `reserve` + `reserve_source`
   (+ `reserve_reason`), `reserve_open` (schema v7, row 558, I301: px from the screen edge, like `reserve` — the zone the
   edge keeps while the sidebar is out: `inset + width` for `reserve = on` with `visibility` `hover` or `empty_desktop`,

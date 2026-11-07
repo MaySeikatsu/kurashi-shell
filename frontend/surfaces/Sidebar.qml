@@ -127,8 +127,7 @@ Scope {
             // I341: a floating column on a framed output stands concentric with the frame's hole — its corners the hole's
             // radius less the gap it keeps (K74, Theme.nested), so the gap is one width all round the hole's corner; on an
             // output without a frame, the look's radius.
-            readonly property int floatR: (lay.frame || {}).on === true && (lay.frame.radius || 0) > 0
-                ? Theme.nested(lay.frame.radius, inset) : Theme.rLg
+            readonly property int floatR: Theme.rLg
             // A docked bar on the sidebar's own side: its outer side meets the bar (one sheet).
             readonly property var sideEdge: edges[sb.side] || ({})
             readonly property bool sideBar: !floating && sideEdge.bar === true && sideEdge.draw !== "floating"

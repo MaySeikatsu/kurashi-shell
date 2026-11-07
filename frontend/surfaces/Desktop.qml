@@ -85,7 +85,7 @@ PanelWindow {
     property var blurSlots: []
     function addBlur(it) { if (blurSlots.indexOf(it) < 0) blurSlots = blurSlots.concat([it]) }
     function dropBlur(it) { var l = blurSlots.filter(function (e) { return e !== it }); if (l.length !== blurSlots.length) blurSlots = l }
-    readonly property int blurR: Theme.rLg + 4
+    readonly property int blurR: Theme.rWidget
     BackgroundEffect.blurRegion: Region {
         item: Theme.blur && desk.blurSlots.length > 0 ? desk.blurSlots[0] : null
         radius: desk.blurR
@@ -326,7 +326,7 @@ PanelWindow {
         property bool hasContent: true
         width: desk.cardW
         height: inner.childrenRect.height + 2 * Theme.pad + 2 * inset + Theme.shadowDy
-        radius: Theme.rLg + 4
+        radius: Theme.rWidget
         fill: Theme.surfaceAlpha
         flatBorder: Theme.outline
         // Inside the Block's fill (its default property), which already sits within the outline and ring.
@@ -800,7 +800,7 @@ PanelWindow {
                 visible: desk.editing && rep.count === 0
                 width: desk.cardW
                 height: emptyText.implicitHeight + 2 * Theme.pad
-                radius: Theme.rLg + 4
+                radius: Theme.rWidget
                 color: "transparent"
                 border.width: 2
                 border.color: Qt.alpha(Theme.accent, 0.7)
@@ -898,7 +898,7 @@ PanelWindow {
                     Elevation {
                         visible: slot.showReal && !slot.dragging
                         anchors.fill: real
-                        radius: Theme.rLg + 4
+                        radius: Theme.rWidget
                         level: 2
                     }
                     readonly property bool blurs: slot.showReal && real.item !== null
@@ -938,7 +938,7 @@ PanelWindow {
                         visible: desk.editing
                         anchors.fill: parent
                         anchors.bottomMargin: Theme.shadowDy
-                        radius: Theme.rLg + 4
+                        radius: Theme.rWidget
                         color: "transparent"
                         border.width: slot.activeFocus || slot.dragging ? 3 : 2
                         border.color: slot.activeFocus || slot.dragging ? Theme.focusRing : Qt.alpha(Theme.accent, 0.7)

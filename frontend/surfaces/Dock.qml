@@ -522,10 +522,10 @@ Scope {
                         // (K83, W59.9a: none while a shape form masks the dock — it would show the body's rect)
                         width: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.width : 0
                         height: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.height : 0
-                        topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rLg + 4
-                        topRightRadius: dock.joined ? joinedShape.sTR : Theme.rLg + 4
-                        bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rLg + 4
-                        bottomRightRadius: dock.joined ? joinedShape.sBR : Theme.rLg + 4
+                        topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rDock
+                        topRightRadius: dock.joined ? joinedShape.sTR : Theme.rDock
+                        bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rDock
+                        bottomRightRadius: dock.joined ? joinedShape.sBR : Theme.rDock
                     }
                     // Test only (frontend/test-dock.sh): the window's size and each tile's box in window coordinates, logged once
                     // the dock stands after a change. Off without the variable.
@@ -618,7 +618,7 @@ Scope {
                             y: body.y
                             width: body.width
                             height: body.height
-                            radius: Theme.rLg + 4
+                            radius: Theme.rDock
                             level: 2
                         }
                         // W64: the dock as drawn, window-aligned: SheetRest takes it into one layer while a sheet form runs
@@ -659,7 +659,7 @@ Scope {
                                 neckO: dock.aR * dkHost.sheetFillets
                                 // K74: the joined dock's corners are corners of the window cut into the sheet: the layout's
                                 // one radius, as its fillets (0 = connected, straight)
-                                radius: dock.joinR
+                                radius: dock.joinR > 0 ? Theme.rDock : 0
                                 squareOuter: false
                                 flipY: dock.edge === "bottom"
                                 flipX: dock.edge === "left"
@@ -726,7 +726,7 @@ Scope {
                             Block {
                                 anchors.fill: parent
                                 visible: !dock.joined && !dockPart.ready
-                                radius: Theme.rLg + 4
+                                radius: Theme.rDock
                                 fill: dkHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
                                 flatBorder: Theme.outline
                                 animate: win.visible && !dock.joined
