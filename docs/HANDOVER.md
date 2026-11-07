@@ -17,6 +17,19 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-07 — session 24 (machine A): recipes on windows, frame colour, matching corners, the sheet's shadow, corner merges, terminals, Zen
+**State.** Seven stacked PRs, each on the one before, none merged; merge bottom up: #11 `feat/s24-recipe-shaders` → #12 `feat/s24-frame-colour` → #13 `feat/s24-surface-radii` → #14 `feat/s24-sheet-shadows` → #15 `feat/s24-popover-joins` → #16 `feat/s24-terminals` → #17 `feat/s24-zen`. `just check` is green on each; the merge set ran on the tip only, and every suite passes alone. If a lower one changes, rebase the rest with `git rebase --update-refs`. Worktree `../kurashi-wt-radii` holds the tip, with `CARGO_TARGET_DIR=~/.cache/kurashi-agents-target/radii`: remove both after the merges. `.git/info/attributes` sets union merges for DECISIONS, BACKLOG, PROGRESS and PROTOCOL: union keeps both sides of a status change in BACKLOG, so check for a doubled row after a rebase.
+**Built.** I418 K95 (a recipe's shader from its tracks). I423 (`theme.window_frame_color`). I426 K96: the hole's radius is the radius you set, the outer corner it plus the band; `radius.{frame,join,window,widget,dock}`, `theme.shape.radius_*`; K74 gave the frame's corner 0 under washi with a 10 px band. I427 K97 (`theme.material.sheet_shadow`). I428 K98 (Stage cards and the launcher at a button merge near a corner in dynamic: `MorphShape.edgeL/edgeR`, `components/JoinedCard.qml`). I420 K99 (`theme.texture.terminals`, targets wezterm, rio, ratty, `targets[].material`). I422 K100 (`browsers.rs`, `theme.export.link`, Zen's layers). Six new suites joined the merge set: corners, sheet-shadow, popover-joins, window-frame, terminals, browsers.
+**Learned.** Zen sets its background variable inline on `.zen-browser-generic-background`, so `:root` can never win. An extension's `browser.theme.update` runs unsigned in Zen with the pref and does not reach its chrome. Rio 0.5.28's `background-image` draws over text. Foot 1.28 refuses `[colors]`, so the shell's foot theme had been refused. On nested niri a config with modules on a bar-less edge makes them edge modules, and a module's menu then opens elsewhere: keep those zones empty in suites. Run `just check` per branch before a stack goes up: on the tip alone it hid a stale `nix/icon-names.txt` and a formatting miss that lower branches would have merged with. The sheet's shadow darkens the desk beside a band, so a pixel check for "desk" there sees ink: that check turns it off.
+**Not verified.** Anything on the live session; translucent pages; Firefox's toolbox tile; Hyprland, MangoWM and sway running the frame colour file; Alacritty running its file; PSS of the wider frame strips (BENCH); a recipe with a real long translate on a tall window beyond the contact sheet.
+**Open for the user.** (1) Their Zen profile: `Link` in Settings › Apps that follow, once they say so; nothing has been written to it. (2) Whether "Inward" means what K97 took: even, no direction, into the hole, as Caelestia's offset 0. (3) Should kami turn the Handwriting mix on by default: ask once they have seen it. (4) I430: 914 `config.tmp.*` in `~/.config/ghostty/` from a tool of theirs, left alone.
+**Next steps, in order.**
+1. The user merges the stack; fix what review finds; rebase with `--update-refs`.
+2. Ask (1) and (2) above.
+3. I424: the launcher's rows moving while typing as Caelestia's (confirm what they mean first: it reads `modules/launcher/AppList.qml`'s transitions); I425 idea.
+4. I419: handwriting after the prototype. I421 stays an idea.
+5. The quick panel's phone frame under dynamic (I428's note); I429 when Rio changes.
+
 ## 2026-11-06 — session 23, end (machine A): handwriting prototype (I415, K94), and what is next
 **State.** Three stacked branches. `feat/s23-niri-motion` is PR #6. `feat/s23-font-mix` sits on it, `feat/s23-handwriting-mod` on that; each is its own PR, and the user merges. If a lower one changes, rebase the ones above.
 **Built here.** `mods/handwriting`, `crates/kurashi-mod-handwriting`, `docs/ux/handwriting.md`, `mods/handwriting/test-handwriting.sh`. Off by default; enable it on the Mods page. Open with `kurashi act mod.panel.open '{"id":"handwriting","panel":"handwriting"}'`.
@@ -70,27 +83,3 @@ the card; a layer with on-demand focus takes no keys before that there, not chec
 2. The user decides the island's right click (I408): keep pin, or the module menu with pin as a row.
 3. I409 (launcher in a sidebar), I410 (the motion styles on niri's windows through custom shaders), I411.
 4. `/tmp/kurashi-sb-*` still holds many old sandboxes: the user decides.
-
-## 2026-11-05 — session 23 (machine A): the dock's texture (I298), dev shell on Qt 6.12, the user's list from session 22
-**State:** `feat/s23-quick-wins`, pushed; the user merges the PR themselves (gh here is a work account: use the compare URL). Their live session runs the installed shell again, config back as it was; it needs a rebuild to get any of this.
-
-**Done:**
-- I298, the dock losing its texture: a window's scene graph starts anew on each map and a non-live copy is not drawn again (K89). Reproduced and fixed live on the user's GTX 1060, on kami and washi; `test-dock` fails without it. `StillCopy` replaces every other still copy.
-- I397 lock bump (Qt 6.12, Quickshell 0.3.2). B43: a Hyprland that reads `-c` as Lua counts as no checker, so its keys file is written again; `hyprland.conf` at its default path still loads as hyprlang, so **Lua output is deferred** (user). mango 0.18's renamed keywords.
-- I399 `theme.colors.media.apps`, I390 reduced motion fades (dock, bar), I386 maximize keeps the card, I392, I393, and three binding loops Qt 6.12 reports.
-- I395: peek, pen, morph green, all stale tests.
-- User's verdicts: Spotify and Wallpaper Color Grade work as intended; the updated animations are fine; the web dock's motion waits for an overhaul (I402, I391, I394).
-- **Lost:** the `wallgrade-proto` worktree was removed with `--force` before looking at its uncommitted files; the prototype was never committed, so its code is gone (K88 is the shipped version).
-
-**Next steps (ordered):**
-1. The user merges and rebuilds, then judges the texture on their dock (hover it more than twice) and the new "Apps follow too" switch.
-2. I404: Qt 6.12 budgets on a quiet machine; no BENCH numbers yet, and the web dock's reveal cycles are over their budget on main too.
-3. I406 (flaky island-join case), I405 (one texture check), I403 (web dock's bar widget in its test).
-4. I387 (shape forms on non-morph launcher and centre), I388 (needs a decision: where a start menu pours from), I389 (drop's 1 to 2 frame gap): looked at or left, not done.
-5. Session 21's remaining list, then the unprioritised `new` rows.
-
-**Checks:** `just check` green. `just suites`: 14 of 15 steady; island-join is flaky (I406): it failed alone in one full run and passed alone in the last. 11 of those last ran one small commit earlier (the size cache's write in `Stage.qml`); island-join, quick-sections, stage and motion ran on the final code. test-texture and webdock test-dock are outside the merge set and still red (I405; I403, I404).
-
-**Open decisions/risks:** I404 is unexplained and stays red rather than loosened. I386 makes a titled card's window output-wide while it is open: within noise on software GL, not measured on a GPU. Rule from the user this session: prototype and debug in QML first, the proper implementation after verification; no subagents were used at their request.
-
----
