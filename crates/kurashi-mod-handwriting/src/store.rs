@@ -13,7 +13,34 @@ use crate::glyph::Strokes;
 /// What the sequence asks for, in order: capitals, small letters, digits, then the marks a text needs. A mark left out falls back.
 pub const CHARSET: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-()&/+=@#%*";
+/// With accents (the setting `letters`): what Western European text adds to it.
+pub const EXTENDED: &str =
+    "ÄÖÜäöüßÀÁÂÃÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕØÙÚÛÝŒàáâãåæçèéêëìíîïñòóôõøùúûýÿœ„“”‚‘’–—…€£";
 pub const DEFAULT_PEN: f64 = 56.0;
+
+/// The mod's settings, as the store needs them.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Options {
+    pub extended: bool,
+    pub pen: f64,
+    /// Added between letters when a font is made, in font units.
+    pub spacing: f64,
+    pub guides: bool,
+    pub shadow: bool,
+    pub next_letter: bool,
+}
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            extended: false,
+            pen: DEFAULT_PEN,
+            spacing: 0.0,
+            guides: true,
+            shadow: true,
+            next_letter: true,
+        }
+    }
+}
 pub const MAX_VERSIONS: u32 = 8;
 /// 2: simple polygons. Fonts made before could crash the shell's text renderer (`glyph::outline`).
 pub const OUTLINES: u32 = 2;
@@ -33,6 +60,7 @@ pub struct Font {
 
 #[derive(Debug)]
 pub struct Store {
+    pub options: Options,
     data: PathBuf,
     fonts_dir: PathBuf,
     pub fonts: BTreeMap<String, Font>,
@@ -79,6 +107,7 @@ impl Store {
             }
         }
         Store {
+            options: Options::default(),
             data,
             fonts_dir,
             fonts,
@@ -110,7 +139,7 @@ impl Store {
             id.clone(),
             Font {
                 name: name.to_owned(),
-                pen: DEFAULT_PEN,
+                pen: self.options.pen,
                 versions: 3,
                 glyphs: BTreeMap::new(),
                 outlines: OUTLINES,
@@ -203,6 +232,15 @@ impl Store {
         made
     }
 
+    /// The letters to draw, by the setting: the basic set, then what `extended` adds.
+    pub fn charset(&self) -> String {
+        if self.options.extended {
+            format!("{CHARSET}{EXTENDED}")
+        } else {
+            CHARSET.to_owned()
+        }
+    }
+
     /// Makes the font of each version with something drawn in it (a version with nothing would only copy another). A letter a version
     /// has not drawn takes the first version that has: every version covers what any does, so a person can draw the whole set once and only
     /// the letters they care for again. Returns the families made.
@@ -221,7 +259,7 @@ impl Store {
         }
         for k in (1..=f.versions).filter(|k| has(*k)) {
             let mut letters: BTreeMap<char, &Strokes> = BTreeMap::new();
-            for c in CHARSET.chars() {
+            for c in self.charset().chars() {
                 let own = f.glyphs.get(&format!("{k}:{c}"));
                 let any = own
                     .or_else(|| (1..=f.versions).find_map(|v| f.glyphs.get(&format!("{v}:{c}"))));
@@ -230,7 +268,7 @@ impl Store {
                 }
             }
             let family = Self::family_of(f, k);
-            let Some(bytes) = font::build(&letters, f.pen, &family)? else {
+            let Some(bytes) = font::build(&letters, f.pen, &family, self.options.spacing)? else {
                 continue;
             };
             let file = self.file_of(id, k);
@@ -268,7 +306,8 @@ impl Store {
         json!({
             "available": true,
             "fonts": fonts,
-            "charset": CHARSET,
+            "charset": self.charset(),
+            "options": {"guides": self.options.guides, "shadow": self.options.shadow, "next_letter": self.options.next_letter},
             "lines": {"cap": font::CAP, "x": font::X_HEIGHT, "ascent": font::ASCENT, "descent": font::DESCENT},
         })
     }
@@ -305,6 +344,25 @@ mod tests {
         assert_ne!(std::fs::read(&file).unwrap(), b"not a font");
         assert_eq!(st.fonts[&id].outlines, OUTLINES);
         assert!(st.refresh().is_empty());
+    }
+
+    #[test]
+    fn options_set_the_letters_the_pen_and_the_spacing() {
+        let (_d, mut st) = store();
+        assert_eq!(st.charset(), CHARSET);
+        st.options.extended = true;
+        assert!(st.charset().contains('ß') && st.charset().starts_with(CHARSET));
+        assert_eq!(st.charset().chars().filter(|c| *c == 'A').count(), 1);
+        st.options.pen = 84.0;
+        let id = st.create("wide").unwrap();
+        assert_eq!(st.font_mut(&id).unwrap().pen, 84.0);
+        // A letter of the extended set goes into the font only while the set has it.
+        st.save_glyph(&id, 1, 'ß', line()).unwrap();
+        st.save_glyph(&id, 1, 'A', line()).unwrap();
+        st.make(&id).unwrap();
+        let doc = st.document();
+        assert_eq!(doc["options"]["guides"], true);
+        assert!(doc["charset"].as_str().unwrap().contains('ß'));
     }
 
     #[test]

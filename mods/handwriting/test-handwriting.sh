@@ -44,9 +44,9 @@ shot() { "$SB" shot "$1" "0,0 1920x1080" 0.6 > /dev/null; }
 K act mod.panel.open '{"id":"handwriting","panel":"handwriting"}' > /dev/null || fail "the panel did not open"
 for _ in $(seq 50); do [ -n "$(at name)" ] && break; sleep 0.2; done
 sleep 1.5
-# The card stands in the middle of the output, and the log says where the panel is in its window: the window's coordinates to the screen's.
+# The log says where the window stands on its output and where the panel is in it: the window's coordinates to the screen's.
 read -r nx ny _ _ < <(at name)
-offset() { read -r px _ pw _ < <(at panel); OFF=$(( (1920 - pw) / 2 - px )); }
+offset() { read -r OFF _ _ _ < <(at win); }
 offset
 ptr click $((nx + OFF + 10)) $((ny + 8)) left
 sleep 0.4
@@ -125,5 +125,43 @@ sleep 0.5
 [ ! -e "$FILE" ] || fail "delete left the font"
 [ ! -e "$XDG_DATA_HOME/kurashi/handwriting/my-hand.json" ] || fail "delete left the drawing"
 echo "deleted: drawing and fonts gone"
+# ---- the ways in, the options and where it opens (K102) ----
+K act ui.close > /dev/null 2>&1; sleep 1
+opt() { K set "mods.handwriting.$1" "$2" > /dev/null || fail "mods.handwriting.$1 refused"; }
+K --json get mods.handwriting.panel_place | jq -e '.value == "opened"' > /dev/null || fail "panel_place is not a setting"
+# Where it opens: the card's window, by the log's panel place, centred and in a corner.
+place() { K act mod.panel.open '{"id":"handwriting","panel":"handwriting"}' > /dev/null || fail "opening the panel"; sleep 2; "$SB" shot "place-$1" "0,0 1920x1080" 0.6 > /dev/null; K act ui.close > /dev/null; sleep 1; }
+paper() { magick "$OUT/shots/place-$1.png" -format "%[fx:int(255*p{$2,$3}.b)]" info:; }
+opt panel_place '"centre"'; sleep 1; place centre
+opt panel_place '"bottom_right"'; sleep 1; place bottom_right
+opt panel_place '"top_left"'; sleep 1; place top_left
+opt panel_place '"opened"'; sleep 1; place opened
+# (shots at 0.6: paper where the card should stand, the desk elsewhere)
+is_paper() { [ "$(paper "$1" "$2" "$3")" -ge 170 ] || fail "$1: no card at $2,$3"; }
+is_desk() { [ "$(paper "$1" "$2" "$3")" -lt 170 ] || fail "$1: a card at $2,$3"; }
+is_paper centre 576 324; is_desk centre 60 50
+is_paper bottom_right 1080 610; is_desk bottom_right 576 324
+is_paper top_left 60 50; is_desk top_left 1080 610
+is_paper opened 1090 50; is_desk opened 576 324
+echo "where it opens: centre, corners, under the bar"
+# The options reach the document and the panel. (A subscriber the while: the service runs while something watches, as the panel does.)
+"$BIN/kurashi" sub mod.handwriting > /dev/null 2>&1 &
+WATCH=$!
+sleep 1
+for k in letters default_pen spacing guides shadow next_letter; do K --json get "mods.handwriting.$k" > /dev/null || fail "no setting $k"; done
+opt letters '"extended"'; opt guides false; opt shadow false; opt next_letter false; sleep 1
+K sub mod.handwriting --count 0 --json 2>/dev/null | head -1 | jq -e '.data.charset | contains("ß")' > /dev/null || fail "letters did not reach the document"
+K sub mod.handwriting --count 0 --json 2>/dev/null | head -1 | jq -e '.data.options == {guides: false, shadow: false, next_letter: false}' > /dev/null || fail "options did not reach the document"
+opt default_pen '"bold"'; sleep 1
+K act handwriting.font.create '{"name":"bold one"}' > /dev/null || fail "create with a bold pen"
+K sub mod.handwriting --count 0 --json 2>/dev/null | head -1 | jq -e '[.data.fonts[] | select(.name == "bold one") | .pen] == [84]' > /dev/null || fail "a new font did not take the pen"
+# Spacing: the same drawing made wider.
+K act handwriting.glyph.save '{"id":"bold-one","version":1,"char":"ß","strokes":[[[0,0],[0,700]]]}' > /dev/null || fail "ß refused"
+K act handwriting.font.make '{"id":"bold-one"}' > /dev/null || fail "make with an accent"
+fc-scan --format '%{charset}\n' "$XDG_DATA_HOME/fonts/kurashi-hand-bold-one-1.ttf" | grep -q 'df' || fail "ß is not in the font: $(fc-scan --format '%{charset}' "$XDG_DATA_HOME/fonts/kurashi-hand-bold-one-1.ttf")"
+K act handwriting.font.delete '{"id":"bold-one"}' > /dev/null
+kill "$WATCH" 2>/dev/null
+echo "options: letters, lines, shadow, go on, pen and an accent in a made font"
+
 "$SB" log 14 | grep -v 'host portal' | grep -iE 'TypeError|ReferenceError|handwriting.*(warn|error)' && fail "the frontend complained"
 echo "test-handwriting: OK"

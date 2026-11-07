@@ -32,6 +32,7 @@ pub fn build(
     letters: &BTreeMap<char, &Strokes>,
     pen: f64,
     family: &str,
+    spacing: f64,
 ) -> Result<Option<Vec<u8>>, String> {
     let err = |e: &dyn std::fmt::Debug| format!("{e:?}");
     let mut glyf = GlyfLocaBuilder::new();
@@ -69,7 +70,9 @@ pub fn build(
         contours = contours.max(g.contours.len() as u16);
         points = points.max(g.contours.iter().map(|c| c.len() as u16).sum());
         metrics.push(LongMetric {
-            advance: (x1 - x0 + 2.0 * BEARING).round().clamp(0.0, 4000.0) as u16,
+            advance: (x1 - x0 + 2.0 * BEARING + spacing)
+                .round()
+                .clamp(0.0, 4000.0) as u16,
             side_bearing: g.bbox.x_min,
         });
         glyf.add_glyph(&Glyph::Simple(g)).map_err(|e| err(&e))?;
@@ -182,7 +185,7 @@ mod tests {
 
     #[test]
     fn nothing_drawn_is_no_font() {
-        assert_eq!(build(&BTreeMap::new(), 60.0, "F"), Ok(None));
+        assert_eq!(build(&BTreeMap::new(), 60.0, "F", 0.0), Ok(None));
     }
 
     #[test]
@@ -191,7 +194,7 @@ mod tests {
         let mut m = BTreeMap::new();
         m.insert('a', &a);
         m.insert('b', &b);
-        let data = build(&m, 40.0, "My Hand").unwrap().unwrap();
+        let data = build(&m, 40.0, "My Hand", 0.0).unwrap().unwrap();
         let f = FontRef::new(&data).unwrap();
         let metrics = f.glyph_metrics(Size::unscaled(), LocationRef::default());
         let adv = |c| metrics.advance_width(f.charmap().map(c).unwrap()).unwrap();
@@ -213,7 +216,7 @@ mod tests {
         let a = letter(100.0);
         let mut m = BTreeMap::new();
         m.insert('a', &a);
-        let data = build(&m, 40.0, "F").unwrap().unwrap();
+        let data = build(&m, 40.0, "F", 0.0).unwrap().unwrap();
         let font = harfrust::Font::new(data, 0).unwrap();
         let shaper = harfrust::ShaperFont::new(&font);
         let mut buf = harfrust::Buffer::new();

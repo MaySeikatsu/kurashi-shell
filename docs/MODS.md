@@ -348,3 +348,6 @@ full table; the other modules' gaps are BACKLOG rows, one per module.
 (`nix/icon-names.txt`, the names the bundled code uses; `tools/check-icon-names.sh` in `just check` keeps it current);
 a name the subset lacks is drawn from the full Material Symbols family when installed (`font.icons_fallback`), and a
 name neither family has draws the component's glyph, or a bullet (K69). There is no manifest list of icons.
+
+## A panel's place (K102)
+A mod's panel opens under the bar or at its widget. A mod that declares the enum setting `panel_place` with any of `opened`, `centre`, `top`, `bottom`, `left`, `right`, `top_left`, `top_right`, `bottom_left`, `bottom_right` has the Stage stand it there instead: a card apart, with no morph. Every enabled mod's panel also has a `>` row in the launcher, matched on the mod's name, and an Open button on its Settings page.

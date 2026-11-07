@@ -26,13 +26,16 @@ Item {
         var q = item.mapToItem(null, 0, 0)
         console.log("handwriting-place " + name + " " + Math.round(q.x) + " " + Math.round(q.y) + " " + Math.round(item.width) + " " + Math.round(item.height))
     }
-    function logAll() { logPlace("panel", p); logPlace("box", box); logPlace("save", saveBtn); logPlace("retry", retryBtn); logPlace("make", makeBtn); logPlace("create", createBtn); logPlace("name", nameField) }
+    function logAll() {
+        if (logOn && QsWindow.window) console.log("handwriting-place win " + Math.round(QsWindow.window.margins.left) + " " + Math.round(QsWindow.window.margins.top) + " 0 0")
+        logPlace("panel", p); logPlace("box", box); logPlace("save", saveBtn); logPlace("retry", retryBtn); logPlace("make", makeBtn); logPlace("create", createBtn); logPlace("name", nameField) }
 
     readonly property var d: Store.docs["mod.handwriting"] || ({})
     readonly property var fonts: d.fonts || []
     readonly property string charset: d.charset || ""
     readonly property var chars: charset.split("")
     readonly property var lines: d.lines || ({ cap: 720, x: 480, ascent: 1000, descent: -300 })
+    readonly property var opts: d.options || ({ guides: true, shadow: true, next_letter: true })
 
     property string fontId: ""
     readonly property var font_: {
@@ -89,7 +92,9 @@ Item {
             g[p.keyOf(p.version, c)] = s
             p.glyphs = g
             p.message = ""
-            p.goNext()
+            // (the setting `next_letter`: off, it stays on this letter, to draw it again)
+            if (p.opts.next_letter) p.goNext()
+            else p.go(p.index)
         })
     }
     function goNext() {
@@ -315,6 +320,8 @@ Item {
                             letter: p.letter
                             pen: p.font_ ? p.font_.pen : 56
                             lines: p.lines
+                            showLines: p.opts.guides
+                            showShadow: p.opts.shadow
                         }
                         Row {
                             spacing: Theme.gap

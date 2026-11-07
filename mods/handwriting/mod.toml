@@ -1,7 +1,7 @@
 id = "handwriting"
 name = "Handwriting"
 description = "mods.handwriting.description"
-version = "0.1.0"
+version = "1.0.0"
 tier = "native"
 kurashi = ">=0.0.1"
 # Make your own font by drawing it (K94, I415, docs/ux/handwriting.md). The panel asks for letters one at a time, in a box with the letter's
@@ -10,6 +10,61 @@ provides = [
     "service:handwriting",
     "action:handwriting.*",
     "panel:handwriting",
+    "widget:handwriting",
 ]
 capabilities = ["fs:scoped", "exec:fc-cache"]
 cost = "low"
+
+# Where the panel opens (K102, docs/ux/handwriting.md): any mod can name `panel_place`, the Stage reads it.
+[[setting]]
+key = "panel_place"
+type = "enum"
+default = "opened"
+choices = ["opened", "centre", "top", "bottom", "left", "right", "top_left", "top_right", "bottom_left", "bottom_right"]
+label = "mods.handwriting.panel_place"
+help = "mods.handwriting.panel_place.help"
+
+[[setting]]
+key = "letters"
+type = "enum"
+default = "basic"
+choices = ["basic", "extended"]
+label = "mods.handwriting.letters"
+help = "mods.handwriting.letters.help"
+
+[[setting]]
+key = "default_pen"
+type = "enum"
+default = "medium"
+choices = ["fine", "medium", "bold"]
+label = "mods.handwriting.default_pen"
+help = "mods.handwriting.default_pen.help"
+
+[[setting]]
+key = "spacing"
+type = "int"
+default = 0
+range = [-30, 150]
+label = "mods.handwriting.spacing"
+help = "mods.handwriting.spacing.help"
+
+[[setting]]
+key = "guides"
+type = "bool"
+default = true
+label = "mods.handwriting.guides"
+help = "mods.handwriting.guides.help"
+
+[[setting]]
+key = "shadow"
+type = "bool"
+default = true
+label = "mods.handwriting.shadow"
+help = "mods.handwriting.shadow.help"
+
+[[setting]]
+key = "next_letter"
+type = "bool"
+default = true
+label = "mods.handwriting.next_letter"
+help = "mods.handwriting.next_letter.help"

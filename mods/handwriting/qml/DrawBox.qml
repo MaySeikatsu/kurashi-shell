@@ -9,6 +9,9 @@ Item {
     property string letter: ""
     property real pen: 56
     property var lines: ({ cap: 720, x: 480, ascent: 1000, descent: -300 })
+    // The settings `guides` and `shadow`.
+    property bool showLines: true
+    property bool showShadow: true
     // The strokes on the box now, each a list of [x, y] in font units.
     property var strokes: []
     readonly property real unit: height / (lines.ascent - lines.descent)
@@ -27,6 +30,7 @@ Item {
     Text {
         id: shadow
         objectName: "handwriting-shadow"
+        visible: box.showShadow
         x: (box.width - implicitWidth) / 2
         y: box.baseY - fmAt.ascent
         text: box.letter
@@ -54,10 +58,10 @@ Item {
             font.family: Theme.fam(text, Theme.families)
         }
     }
-    Line { at: box.lines.cap; name: I18n.tr("mod-handwriting.line.cap") }
-    Line { at: box.lines.x; name: I18n.tr("mod-handwriting.line.x") }
-    Line { at: 0; name: I18n.tr("mod-handwriting.line.base"); strong: true }
-    Line { at: box.lines.descent + 60; name: I18n.tr("mod-handwriting.line.tail") }
+    Line { visible: box.showLines; at: box.lines.cap; name: I18n.tr("mod-handwriting.line.cap") }
+    Line { visible: box.showLines; at: box.lines.x; name: I18n.tr("mod-handwriting.line.x") }
+    Line { visible: box.showLines; at: 0; name: I18n.tr("mod-handwriting.line.base"); strong: true }
+    Line { visible: box.showLines; at: box.lines.descent + 60; name: I18n.tr("mod-handwriting.line.tail") }
 
     Canvas {
         id: ink

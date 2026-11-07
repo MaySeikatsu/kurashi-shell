@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use tokio::sync::watch;
 
 use glyph::Strokes;
-use store::Store;
+use store::{DEFAULT_PEN, Options, Store};
 
 #[derive(Default)]
 pub struct HandwritingMod;
@@ -27,10 +27,37 @@ impl HandwritingMod {
 struct Shared {
     store: Mutex<Store>,
     version: watch::Sender<u64>,
+    settings: Settings,
 }
+
+/// The mod's settings as the store takes them.
+fn options(s: &Settings) -> Options {
+    let word = |k: &str| {
+        s.get(k)
+            .and_then(|v| v.as_str().map(str::to_owned))
+            .unwrap_or_default()
+    };
+    let flag = |k: &str| s.get(k).and_then(|v| v.as_bool()).unwrap_or(true);
+    Options {
+        extended: word("letters") == "extended",
+        pen: match word("default_pen").as_str() {
+            "fine" => 32.0,
+            "bold" => 84.0,
+            _ => DEFAULT_PEN,
+        },
+        spacing: s.get("spacing").and_then(|v| v.as_f64()).unwrap_or(0.0),
+        guides: flag("guides"),
+        shadow: flag("shadow"),
+        next_letter: flag("next_letter"),
+    }
+}
+
 impl Shared {
     fn with<T>(&self, f: impl FnOnce(&mut Store) -> Result<T, String>) -> Result<T, ActionError> {
-        let r = f(&mut self.store.lock().expect("store lock")).map_err(ActionError::Invalid);
+        let mut st = self.store.lock().expect("store lock");
+        st.options = options(&self.settings);
+        let r = f(&mut st).map_err(ActionError::Invalid);
+        drop(st);
         self.version.send_modify(|v| *v += 1);
         r
     }
@@ -48,13 +75,26 @@ fn number(args: &Value, key: &str) -> Result<f64, ActionError> {
         .ok_or_else(|| ActionError::Invalid(format!("needs {key}")))
 }
 
-async fn run(shared: Arc<Shared>, publish: Publish, _settings: Settings) {
+async fn run(shared: Arc<Shared>, publish: Publish, mut settings: Settings) {
     let mut version = shared.version.subscribe();
     loop {
-        let doc = shared.store.lock().expect("store lock").document();
+        let doc = {
+            let mut st = shared.store.lock().expect("store lock");
+            st.options = options(&settings);
+            st.document()
+        };
         publish(doc);
-        if version.changed().await.is_err() {
-            return;
+        tokio::select! {
+            r = version.changed() => {
+                if r.is_err() {
+                    return;
+                }
+            }
+            on = settings.changed() => {
+                if !on {
+                    return;
+                }
+            }
         }
     }
 }
@@ -66,12 +106,15 @@ impl NativeMod for HandwritingMod {
 
     fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
         let (data, fonts) = Store::default_paths();
-        let store = Store::load(data, fonts);
+        let mut store = Store::load(data, fonts);
+        let settings = ctx.settings().clone();
+        store.options = options(&settings);
         let initial = store.document();
         let (version, _) = watch::channel(0);
         let shared = Arc::new(Shared {
             store: Mutex::new(store),
             version,
+            settings,
         });
 
         // Fonts made with older outlines, off the daemon's start (a font's a few milliseconds, fontconfig's refresh longer).

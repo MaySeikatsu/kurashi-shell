@@ -25,6 +25,32 @@ SectionCard {
     Column {
         width: parent ? parent.width : 0
         spacing: Theme.gap
+        // K102: your own hand among the fonts, when the mod that makes it is on; a way to it when it is off.
+        Row {
+            readonly property var hand: Store.modEntry("handwriting")
+            readonly property bool on: !!hand && hand.state === "enabled"
+            visible: !!hand
+            width: parent.width
+            spacing: Theme.gap
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - drawKey.width - parent.spacing
+                wrapMode: Text.WordWrap
+                color: Theme.fg
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr(parent.on ? "fonts.hand.on" : "fonts.hand.off")
+            }
+            Button {
+                id: drawKey
+                objectName: "fonts-draw"
+                anchors.verticalCenter: parent.verticalCenter
+                label: I18n.tr(parent.on ? "fonts.hand.open" : "fonts.hand.enable")
+                enabled: Store.live
+                onClicked: parent.on ? Store.act("mod.panel.open", { id: "handwriting", panel: "handwriting" })
+                                     : Store.act("mod.enable", { id: "handwriting" })
+            }
+        }
         Text {
             visible: text !== ""
             width: parent.width
