@@ -3162,14 +3162,16 @@ impl crate::hub::Provider for LayoutProvider {
         let Some(store) = self.store.upgrade() else {
             return;
         };
+        // In this order: listening and the outputs as known first, the document after. An output that came between a document
+        // written first and a list read after it was in the list already, so it moved nothing and the layout never named it.
+        let mut rx = hub.events();
+        let mut outputs = layout_outputs(&hub);
         let _ = hub.set(LAYOUT_DOC, layout_document(&store, &hub), None);
         let Ok(rt) = tokio::runtime::Handle::try_current() else {
             return;
         };
         let weak = self.store.clone();
-        let mut rx = hub.events();
         let task = rt.spawn(async move {
-            let mut outputs = layout_outputs(&hub);
             loop {
                 let mut dirty = match rx.recv().await {
                     Ok(m) => layout_relevant(&m, &hub, &mut outputs),

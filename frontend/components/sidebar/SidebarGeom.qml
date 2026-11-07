@@ -39,6 +39,22 @@ Singleton {
         n[output][k] = { side: side, edge: edge, from: from, to: to }
         openings = n
     }
+    // I435: the boxes of the cards standing on this output's bars while the look is translucent (CardJoin), output px: the
+    // sheet's shadow is cut under them, or it shows through the card as a dark neck.
+    property var cards: ({})
+    function setCard(output, side, box) {
+        if (output === "" || side === "") return
+        var n = Object.assign({}, cards)
+        n[output] = Object.assign({}, cards[output] || {})
+        if (box) n[output][side] = box
+        else delete n[output][side]
+        cards = n
+    }
+    function cardOf(output) {
+        var cur = cards[output] || {}
+        for (var k in cur) return cur[k]
+        return null
+    }
     // Withdraws `side`'s opening on `edge`, or every opening of `side` when `edge` is absent.
     function clear(output, side, edge) {
         var cur = openings[output]

@@ -34,8 +34,7 @@ Loader {
     active: mode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
 
     // [ambient blur, ambient alpha, key distance, key blur, key alpha] per level (starting values, tuned on niri).
-    readonly property var ladder: [[0, 0, 0, 0, 0], [12, 0.12, 2, 6, 0.18], [26, 0.18, 6, 14, 0.24],
-        [34, 0.20, 10, 20, 0.26], [46, 0.22, 14, 26, 0.28]]
+    readonly property var ladder: Theme.elevLadder
     // (Inward: only the all-round layer, as far as the key would have reached, darker.)
     readonly property var l: {
         var v = ladder[Math.max(0, Math.min(4, level))]

@@ -241,7 +241,10 @@ Shape {
         if (x1 - x0 - 2 * d < 1) return ""
         var E = edgeY + dy, dd = Math.min(d, ow)
         var xL = flushL ? x0 - dd : x0 - n, xR = flushR ? x1 + dd : x1 + n
-        return "M " + f(xL) + " " + f(E - ow) + " L " + f(xR) + " " + f(E - ow) + " L" + hangStartR(d, dy)
+        // (into the strip by the outline's width, to cover its rule; translucent that is a line of double fill, and the rule is
+        // left out instead: CardJoin)
+        var top = E - (Theme.tok("color.surface_alpha", 1) < 0.999 ? 0 : ow)
+        return "M " + f(xL) + " " + f(top) + " L " + f(xR) + " " + f(top) + " L" + hangStartR(d, dy)
             + hangContour(d, dy, false) + " Z"
     }
     // W34, headless and joined: the neck's half width, centre and fillets (0 half width: no neck, the body is free).

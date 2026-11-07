@@ -133,6 +133,16 @@ Singleton {
     // (components/SheetShadow.qml: the key's distance × the longest length factor + 3 σ); 0 while elevation is off.
     readonly property int sheetReach: sheetMode === "off" || elevationStrength <= 0 ? 0
         : Math.ceil(27 * Math.max(0.5, elevationStrength)) + 2
+    // The room a window keeps round a card for its elevation (Elevation.qml's `reach`, whose ladder this is): a window with
+    // less cuts the shadow square at its edges, and only the card's corners show it. 0 while elevation is off.
+    readonly property var elevLadder: [[0, 0, 0, 0, 0], [12, 0.12, 2, 6, 0.18], [26, 0.18, 6, 14, 0.24],
+        [34, 0.20, 10, 20, 0.26], [46, 0.22, 14, 26, 0.28]]
+    function elevReach(level) {
+        var s = elevationStrength
+        if (elevationMode === "off" || s <= 0) return 0
+        var v = elevLadder[Math.max(0, Math.min(4, level))]
+        return Math.ceil(Math.max(v[0] * s, v[2] * 2 * s + v[3] * Math.max(0.5, s))) + 2
+    }
     readonly property bool darkScheme: surface.hslLightness < 0.5
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)

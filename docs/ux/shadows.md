@@ -347,3 +347,9 @@ User, session 24: the frame, bars, sidebars and dock "don't really seem to cast 
 - **The band**: a key layer (6 px, softness 10, 0.36) and a faint all-round one (softness 18, 0.22); Inward: all-round only (0.6). Two analytic layers, one pass each, painted once: 0 frames at rest. Reach 29 px at strength 1 (was 25) on the strips' inner side, outside input and blur.
 - **States**: as the elevation table. The dock's window keeps its room in every mode that casts, joined too. Under a translucent material the hole's shadow is still inside the hole only.
 - **Done when**: `frontend/test-sheet-shadow.sh` reads each mode at the hole's four edges: off 0, static falling down, inward even; a joined dock shot under each. **Not done**: the budget's PSS for the wider strips, unmeasured.
+
+## Strong shadows and translucent cards (I435)
+- **One shadow.** The sheet's windows paint parts of one inset shadow, so they share one light vector per output, taken at the hole's middle. A vector per window stepped where two met.
+- **Room.** A window keeps `Theme.elevReach(level)` round a card (launcher, Stage, notification centre, toasts). With less, the window cuts the shadow: squares at the corners of a card with no room, a straight line where there is some. The launcher's window may stand past the screen's edge for this, so the card stays where it was.
+- **Blur follows.** `Region { item: … }` takes an item's place once. A strip whose room grows with the strength moved its fills and left the blur behind, a band's width of blurred backdrop in the hole: `FillRegion` binds the rect.
+- **A translucent card on a bar** would show what lies under it along the connecting edge. `CardJoin` has the bar's and band's rule left out over its span and the sheet's shadow cut under its box, and the card's fill stops at the edge rather than a row into the strip. An opaque card covers all of that, so nothing is published.

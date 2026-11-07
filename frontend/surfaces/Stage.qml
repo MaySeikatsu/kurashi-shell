@@ -7,6 +7,7 @@ import "../core/mods.js" as Mods
 import "../components"
 import "../components/expanded"
 import "../components/island"
+import "../components/sidebar"
 import "../components/decor"
 import "../components/motion"
 import "../core/motion"
@@ -1106,9 +1107,10 @@ PanelWindow {
     // that would cut the shape), and is fitted anew when the shape comes out.
     // The springs' room past origin and card: the width's soft-limited overshoot and the landing's bulge on each side, the
     // centre's overshoot past its travel (MorphSprings.cap, .squash), the neck's fillets and the soft shadow.
-    readonly property int slackX: 16 + Theme.softR
+    // (I435: and the elevation's own reach, or the window cuts the card's shadow off in a straight line.)
+    readonly property int slackX: 16 + Math.max(Theme.softR, Theme.elevReach(3))
         + Math.ceil(card.width * (springs.cap + springs.squash) / 2 + Math.abs(cardOutX + card.width / 2 - originCx) * springs.cap)
-    readonly property int slackY: 40
+    readonly property int slackY: Math.max(40, Theme.elevReach(3))
     // I386: a card with a title bar can go full screen, so its window takes the output's width from the start. Widening it
     // then moves the layout at once but the window one configure later: the shape lay outside the window, and the card
     // vanished for two frames. (Its height grows from a fixed top, which moves nothing.)
@@ -1129,6 +1131,22 @@ PanelWindow {
         if (r > boxR) boxR = r
         // A card that grows while it is out (a view filling in) grows the box in steps, not every frame.
         if (needH > boxH) boxH = needH + 48
+    }
+    // I435: a translucent card that hangs from the bar has the rule left out under it and the sheet's shadow cut.
+    CardJoin {
+        output: stage.screen ? stage.screen.name : ""
+        side: "stage"
+        on: stage.dynamicEdge && stage.open && Theme.tok("color.surface_alpha", 1) < 0.999
+        readonly property real top: stage.flip ? stage.outH - stage.cardFoot : stage.barEdgeY
+        readonly property real foot: stage.flip ? stage.outH - stage.barEdgeY : stage.cardFoot
+        spans: {
+            var l = [{ edge: stage.morphEdge, from: stage.cardOutX - (stage.mergesL ? 0 : Theme.rJoin),
+                       to: stage.cardOutX + card.width + (stage.mergesR ? 0 : Theme.rJoin) }]
+            if (stage.mergesL) l.push({ edge: "left", from: top, to: foot + Theme.rJoin })
+            if (stage.mergesR) l.push({ edge: "right", from: top, to: foot + Theme.rJoin })
+            return l
+        }
+        box: Qt.rect(stage.cardOutX, top, card.width, foot - top)
     }
     readonly property real morphW: Math.max(1, boxR - boxL)
     readonly property real morphH: boxH

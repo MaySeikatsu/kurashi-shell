@@ -6,6 +6,7 @@ import "../core"
 import "../components"
 import "../components/launcher"
 import "../components/island"
+import "../components/sidebar"
 import "../components/decor"
 
 // Launcher (M5): centred overlay with exclusive keyboard focus while open. The daemon owns the
@@ -112,8 +113,9 @@ PanelWindow {
         > (sideways ? scrH - holeSide("bottom") : scrW - holeSide("right")) - mergeRoom
     // The window's top and left on the output, for `at` beside a side bar and for the places on the output.
     readonly property real standX: {
+        // (the card's place: the window round it may stand past the screen's edge, with its shadow's room)
         var room = Math.max(0, scrW - implicitWidth)
-        if (place === "fixed") return Math.round(room * fixedX)
+        if (place === "fixed") return Math.round(Math.max(0, scrW - implicitWidth + 2 * morph.shade) * fixedX) - morph.shade
         if (place !== "at" || !startAt) return Math.round(room / 2)
         if (joinsAt) {
             if (atEdge === "left") return holeSide("left") - morph.shade
@@ -126,21 +128,21 @@ PanelWindow {
         if (Theme.decor("start.menu", "button") === "center") return Math.round(room / 2)
         // A start menu's corner stands at its button; another card is centred under what opened it.
         var x = skin ? startAt.x - morph.shade : startAt.x + (startAt.w - implicitWidth) / 2
-        return Math.round(Math.max(Math.max(0, holeSide("left") + Theme.gap - morph.shade),
+        return Math.round(Math.max(holeSide("left") + Theme.gap - morph.shade,
             Math.min(room - holeSide("right") - Theme.gap + morph.shade, x)))
     }
     readonly property real standY: {
         var room = Math.max(0, scrH - tallH)
-        if (place === "fixed") return Math.round(room * fixedY)
-        if (place === "island") return Math.max(0, (bars.atBottom ? 0 : bars.topInset) - morph.shade)
+        if (place === "fixed") return Math.round(Math.max(0, scrH - tallH + 2 * morph.shade) * fixedY) - morph.shade
+        if (place === "island") return (bars.atBottom ? 0 : bars.topInset) - morph.shade
         if (place !== "at" || !startAt) return Math.round(room / 2)
         if (joinsAt) {
             if (atEdge === "top") return holeSide("top") - morph.shade
             if (mergesStart) return holeSide("top") - morph.shade
             if (mergesEnd) return scrH - holeSide("bottom") - card.height - morph.shade
         }
-        if (atEdge === "left" || atEdge === "right") return Math.round(Math.max(0, Math.min(room, startAt.y - morph.shade)))
-        return Math.max(0, startAt.y + startAt.h + hangGap - morph.shade)
+        if (atEdge === "left" || atEdge === "right") return Math.round(Math.max(-morph.shade, Math.min(room + morph.shade, startAt.y - morph.shade)))
+        return startAt.y + startAt.h + hangGap - morph.shade
     }
     // Under a bar with the shape out the compositor centres the window on the bar; every other place sets the corner.
     readonly property bool hangsOnBar: place === "island" && morph.layout
@@ -271,7 +273,7 @@ PanelWindow {
         id: placeLogTimer
         interval: 500
         onTriggered: console.log("launcher-place " + lp.place + " " + lp.scrW + " " + lp.scrH + " " + lp.margins.left + " " + lp.margins.top
-            + " " + lp.implicitWidth + " " + lp.implicitHeight + " " + lp.footAnchored)
+            + " " + lp.implicitWidth + " " + lp.implicitHeight + " " + lp.footAnchored + " " + morph.shade)
     }
     function screenNamed(name) {
         var s = Quickshell.screens
@@ -394,11 +396,33 @@ PanelWindow {
     }
     // (W53.4: a start menu that hangs from its bar, `[decor] flyout.hang` — Mac OS X's menus — meets it, no gap)
     readonly property int hangGap: Theme.decor("flyout.hang", false) === true ? 0 : Theme.gap
+    // I435: a translucent card that stands on the bar has the rule left out under it and the sheet's shadow cut.
+    CardJoin {
+        output: lp.scr ? lp.scr.name : ""
+        side: "launcher"
+        on: lp.joinsAt && lp.want && !morph.morph && Theme.tok("color.surface_alpha", 1) < 0.999
+        readonly property real cx: lp.standX + morph.shade
+        readonly property real cy: lp.footAnchored ? lp.scrH - lp.margins.bottom - morph.shade - card.height : lp.standY + morph.shade
+        spans: {
+            var j = Theme.rJoin, w = card.width, h = card.height, l = []
+            if (lp.sideways) {
+                l.push({ edge: lp.atEdge, from: cy - (lp.mergesStart ? 0 : j), to: cy + h + (lp.mergesEnd ? 0 : j) })
+                if (lp.mergesStart) l.push({ edge: "top", from: cx, to: cx + w + j })
+                if (lp.mergesEnd) l.push({ edge: "bottom", from: cx, to: cx + w + j })
+            } else {
+                l.push({ edge: lp.atEdge, from: cx - (lp.mergesStart ? 0 : j), to: cx + w + (lp.mergesEnd ? 0 : j) })
+                if (lp.mergesStart) l.push({ edge: "left", from: cy, to: cy + h + j })
+                if (lp.mergesEnd) l.push({ edge: "right", from: cy, to: cy + h + j })
+            }
+            return l
+        }
+        box: Qt.rect(cx, cy, card.width, card.height)
+    }
     margins.left: hangsOnBar ? 0 : standX
     margins.top: hangsOnBar || footAnchored ? 0 : standY
     margins.bottom: hangsOnBar || !footAnchored ? 0
         : joinsAt ? holeSide("bottom") - morph.shade
-        : Math.max(0, (startAt ? scrH - startAt.y + hangGap : bars.bottomInset) - morph.shade)
+        : (startAt ? scrH - startAt.y + hangGap : bars.bottomInset) - morph.shade
     implicitWidth: morph.width
     implicitHeight: morph.height
     exclusionMode: ExclusionMode.Ignore
@@ -456,7 +480,8 @@ PanelWindow {
         surface: "launcher"
         outName: lp.scr ? lp.scr.name : ""
         // (room for the fillets round a card that stands on its bar; its corners there are the bar's)
-        shade: lp.joinsAt ? Math.max(Theme.softR, Theme.rJoin + 2) : Theme.softR
+        // (and for the card's elevation, level 4 below: with less, the window cuts it square and only the corners show it)
+        shade: Math.max(lp.joinsAt ? Math.max(Theme.softR, Theme.rJoin + 2) : Theme.softR, morph.morph ? 0 : Theme.elevReach(4))
         cardRNear: morph.morph || lp.joinsAt ? 0 : Theme.rLg
         onBar: lp.place === "island"
         flip: lp.skinEdge !== "top"

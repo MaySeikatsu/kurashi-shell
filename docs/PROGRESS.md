@@ -341,3 +341,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S24.7 | Zen and Firefox: profiles from their ini, Link, Zen's layers, translucency toggles; no live colours (I422, K100) | ✅ functional · 🟡 UX (user's profile untested) | feat/s24-zen |
 | S24.8 | Web dock host starts again: broken by RoundBox in the shared PhoneFrame since 2026-10-29; `test-real` joins the merge set | ✅ functional · 🟡 UX (user to judge on their pins) | fix/s25-webdock-host |
 | S24.8b | A handwritten font can't crash the shell: simple outlines, old fonts made again (I439, K103) | ✅ functional · 🟡 UX (user to judge the letters' look) | fix/s25-hand-outlines |
+| S24.9 | High strength and translucent cards: no column, no step, no cut-off, no line on the connecting edge (I435) | ✅ functional · 🟡 UX (user to judge) | fix/s25-sheet-artifacts |
