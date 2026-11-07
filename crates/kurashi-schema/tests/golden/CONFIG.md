@@ -547,6 +547,7 @@ The colour round the focused window, on the compositors that follow (niri, Hyprl
 
 - type: `choice` · default: `"accent"`
 - choices: `"accent"` | `"shell_outline"` | `"secondary"` | `"tertiary"` | `"outline"` | `"on_surface"`
+
 #### `theme.browser_material` — Material in browsers
 
 Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads its chrome at start: it shows after a restart.
