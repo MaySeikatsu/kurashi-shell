@@ -2452,6 +2452,27 @@
             },
             {
               "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.texture.kind",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.texture.terminals.help",
+              "key": "theme.texture.terminals",
+              "label": "config.theme.texture.terminals.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "control": "slider",
               "couplings": [
                 {

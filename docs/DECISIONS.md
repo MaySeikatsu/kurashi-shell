@@ -1333,3 +1333,8 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 24, with Caelestia's popout: "it should connect to its neighbour bar/frame fluently". Caelestia unions blobs in one window (`modules/drawers/Panels.qml`, K71's "not taken"); separate windows with paths give the same picture at 0 frames idle.
 **Trade-off.** Under a translucent material the fill overlaps a band by the outline's width. The launcher's slide lets its fillets move with it for the entrance.
 **Evidence.** `frontend/test-popover-joins.sh`; `docs/ux/layout.md`.
+
+## K99 — Terminals: shader, faint tile, or colours, and Settings says which (session 24, I420)
+**Decision.** `theme.texture.terminals` switches the material in terminals. Ghostty keeps its shader; Kitty and WezTerm take a tile baked at 45 % of the relief; Rio, Alacritty, Foot and Ratty colours. `svc.theme_export` reports `targets[].material` (closes CONTRACT-CHANGE row 401's request). New targets `wezterm`, `rio`, `ratty`. Ratty's `ratty.toml` is written whole while it is absent or the shell's, as it has no include: the one exception to K49's "never edits an app's config", and only for a file that is not the user's.
+**Why.** User, session 24, I420. A picture cannot keep off text, so strength is what keeps it legible.
+**Evidence.** Each tried through Nix on nested niri (`docs/ux/terminal-texture.md`). Rio 0.5.28's `background-image` draws over the text, so it is not used. Foot 1.28 rejects `[colors]`, so the theme's sections changed.
