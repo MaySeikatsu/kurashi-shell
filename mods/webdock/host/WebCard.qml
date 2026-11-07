@@ -3,6 +3,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import "core"
+import "components/phone"
 
 // The web dock's card (docs/ux/webdock.md "Layout per edge", "Sites", "Motion", "Keyboard and a11y"; MODS.md "Web dock",
 // "Host"; K40): one layer-shell surface at the dock's edge, mapped only while the shown pin is a web pin in extended

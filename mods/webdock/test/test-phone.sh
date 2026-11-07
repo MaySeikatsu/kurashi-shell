@@ -15,6 +15,7 @@ shift || true
 [ $# -eq 0 ] && set -- 'theme.style = "sekai"'
 PAGES=file://$ROOT/mods/webdock/test/pages
 SHOTS=$ROOT/mods/webdock/shots
+mkdir -p "$SHOTS"
 LOOK=$ROOT/frontend/shots/look/w21-phone-$TAG
 fail() { echo "test-phone: FAIL: $*" >&2; exit 1; }
 
