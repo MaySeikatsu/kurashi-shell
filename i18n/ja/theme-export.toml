@@ -60,3 +60,5 @@
 "theme.export.profile.others_off" = "オフにする"
 "theme.export.profile.silenced" = "{name}：{files} はオフです。リンク解除でも元に戻ります。"
 "theme.export.profile.others_on" = "オンに戻す"
+"theme.export.font.family" = "等幅フォントを使います：{family}（サイズはそのまま）。"
+"theme.export.font.unsupported" = "自分のフォントのままです：シェルからは色だけを読み込みます。"

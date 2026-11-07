@@ -269,6 +269,7 @@
   "focus.ring": "#c9a45c",
   "font.family": "serif",
   "font.family_jp": "serif",
+  "font.family_mono": "monospace",
   "font.icons": "",
   "font.icons_fallback": "",
   "font.pixel": false,

@@ -37,3 +37,5 @@ blue    = "{{colors.primary_container.default.hex}}"
 magenta = "{{colors.on_tertiary_container.default.hex}}"
 cyan    = "{{colors.on_secondary_container.default.hex}}"
 white   = "{{colors.on_surface_variant.default.hex}}"
+# The shell's monospaced font while Monospaced font in apps is on (K104); blank otherwise.
+{{alacritty.font}}

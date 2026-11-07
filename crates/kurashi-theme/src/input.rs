@@ -190,6 +190,8 @@ pub struct Axes {
     pub type_scale: f64,
     pub font_chain: Vec<String>,
     pub font_chain_jp: Vec<String>,
+    /// `theme.typography.mono` (a monospaced chain; `font.family_mono`).
+    pub font_chain_mono: Vec<String>,
 }
 
 impl Default for Axes {
@@ -224,6 +226,7 @@ impl Default for Axes {
             ]
             .map(String::from)
             .to_vec(),
+            font_chain_mono: vec!["monospace".into()],
         }
     }
 }

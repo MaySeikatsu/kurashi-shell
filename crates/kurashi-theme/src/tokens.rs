@@ -262,6 +262,9 @@ pub fn build(
     notes.extend(n2);
     t.insert("font.family".into(), json!(fam));
     t.insert("font.family_jp".into(), json!(fam_jp));
+    let (fam_mono, n3) = resolve_chain(&axes.font_chain_mono, fonts);
+    notes.extend(n3);
+    t.insert("font.family_mono".into(), json!(fam_mono));
     // Icons (K42, W41): the shell's subset when installed, else Material Symbols, else "" and components draw their
     // text glyph instead (Shōjiki: no tofu boxes for a font that is not there). Line chrome takes the sharp cut first,
     // so a subset of the other cut never beats the full family of this one.

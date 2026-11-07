@@ -13,6 +13,8 @@ category = "inspired"
 "theme.shape.radius" = 13
 "theme.typography.family" = ["Kalam", "Klee One", "cursive"]
 "theme.typography.family_jp" = ["Klee One", "Noto Sans CJK JP", "sans-serif"]
+# K104: a monospaced hand for terminals and code.
+"theme.typography.mono" = ["Monaspace Radon", "JetBrains Mono", "monospace"]
 "theme.texture.kind" = "paper_dots"
 "theme.texture.strength" = 0.55
 "theme.texture.tint" = true

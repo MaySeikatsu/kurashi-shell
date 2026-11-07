@@ -270,6 +270,7 @@
   "focus.ring": "#0066cc",
   "font.family": "Inter",
   "font.family_jp": "Noto Sans CJK JP",
+  "font.family_mono": "monospace",
   "font.icons": "",
   "font.icons_fallback": "",
   "font.pixel": false,

@@ -12,7 +12,7 @@ so matugen templates work unchanged), and:
 |---|---|
 | `{{fonts.family}}` | the first installed family of `theme.typography.family` |
 | `{{fonts.size}}` | the body size in points (px × 0.75, to the half point: 13 px → 10) |
-| `{{fonts.mono}}` | `monospace`, the generic family (the shell has no monospace choice yet) |
+| `{{fonts.mono}}` | the shell's monospaced font, `theme.typography.mono` resolved (`font.family_mono`, K104) |
 | `{{icons.theme}}` | `theme.icon_theme`; empty = leave as is |
 | `{{scheme}}` | `dark` or `light`, the scheme in effect |
 | `{{shape.radius}}` | `radius.lg` in px: the shell's panel corner (0 under `shape none`) |
@@ -83,5 +83,4 @@ A placeholder with no value is reported as unknown and left in the file. A line 
   differ from the current ones. The opt-in is the only consent: nothing else is changed. It needs `gsettings` on the
   daemon's PATH and a dconf session.
 
-The shipped templates do not set a monospace font: the shell does not choose one yet (`{{fonts.mono}}` is there for
-your own templates).
+The shipped templates set the monospaced font only while `theme.export_mono` is on (K104): `{{ghostty.font}}`, `{{kitty.font}}`, `{{wezterm.font}}`, `{{foot.font}}`, `{{alacritty.font}}`, `{{fonts.mono_gtk}}`, `{{fonts.mono_qt}}` are each app's lines, empty (`nil` for WezTerm) while it is off, so each app keeps its own.

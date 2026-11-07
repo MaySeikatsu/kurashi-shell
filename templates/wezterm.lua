@@ -20,10 +20,15 @@ M.colors = {
 }
 -- The shell's material: a faint tile while it is on for the terminals, nil otherwise.
 M.background = {{terminal.image}}
+-- The shell's monospaced font while Monospaced font in apps is on (K104), nil otherwise.
+M.font = {{wezterm.font}}
 function M.apply(config)
   config.colors = M.colors
   if M.background then
     config.background = M.background
+  end
+  if M.font then
+    config.font = M.font
   end
   return config
 end

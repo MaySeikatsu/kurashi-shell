@@ -534,6 +534,12 @@ Write the shell's colours for these apps whenever the theme changes: GTK, Qt, KD
 - type: `string_list` · default: `[]`
 - choices: from `theme.export` (resolved at runtime)
 
+#### `theme.export_mono` — Monospaced font in apps
+
+The terminals among the apps that follow (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's monospaced font (GTK, Qt, KDE) take the shell's: Monospaced font in Fonts. Each terminal keeps its size. Off: every app keeps its own.
+
+- type: `bool` · default: `false`
+
 #### `theme.window_frame` — Window frames
 
 The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round every window: the accent round the focused one, the outline round the others, as wide as the shell's outline. Off: each keeps its own frame setting and only takes the colours.
@@ -1642,6 +1648,13 @@ Fallback chain for Japanese text; the first installed family wins (K60).
 
 - type: `font` · default: `["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]`
 - advanced
+
+#### `theme.typography.mono` — Monospaced font
+
+For terminals and code: fallback chain, the first installed family wins. Apps take it while Monospaced font in apps is on.
+
+- type: `font` · default: `["monospace"]`
+- since schema v7
 
 #### `theme.typography.scale` — Text scale
 

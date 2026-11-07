@@ -1484,6 +1484,19 @@
               "control": "toggle",
               "couplings": [],
               "default": false,
+              "help": "config.theme.export_mono.help",
+              "key": "theme.export_mono",
+              "label": "config.theme.export_mono.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
               "help": "config.theme.window_frame.help",
               "key": "theme.window_frame",
               "label": "config.theme.window_frame.label",
@@ -5082,6 +5095,21 @@
               "per_output": false,
               "restart": false,
               "since": 1,
+              "type": "font"
+            },
+            {
+              "advanced": false,
+              "control": "font",
+              "couplings": [],
+              "default": [
+                "monospace"
+              ],
+              "help": "config.theme.typography.mono.help",
+              "key": "theme.typography.mono",
+              "label": "config.theme.typography.mono.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
               "type": "font"
             },
             {

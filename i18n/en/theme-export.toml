@@ -60,3 +60,5 @@
 "theme.export.profile.others_off" = "Turn it off"
 "theme.export.profile.silenced" = "{name}: {files} is turned off. Unlink brings it back too."
 "theme.export.profile.others_on" = "Turn it back on"
+"theme.export.font.family" = "Takes the monospaced font: {family}, at its own size."
+"theme.export.font.unsupported" = "Keeps its own font: it reads only colours from the shell."
