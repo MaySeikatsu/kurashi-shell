@@ -811,3 +811,7 @@
 "config.choice.cursor_decoration.trail" = "軌跡"
 "config.choice.cursor_decoration.sparkles" = "きらめき"
 "config.choice.cursor_decoration.ring" = "輪"
+"config.theme.light.outputs.label" = "光が届くモニター"
+"config.theme.light.outputs.help" = "ポインターの光と、それで向きが変わる影が働く場所。ポインターのあるモニターだけ、またはすべてのモニター（モニター全体でのポインターの位置から）。すべての場合、ポインターが動くたびに全モニターの面を描き直します。"
+"config.choice.light_outputs.pointer" = "ポインターのあるモニター"
+"config.choice.light_outputs.all" = "すべてのモニター"

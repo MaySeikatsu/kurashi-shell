@@ -600,6 +600,10 @@ pub fn tokens(
         json!(f(store, "theme.light.beam", 35.0)),
     );
     t.insert(
+        "light.outputs".into(),
+        json!(s(store, "theme.light.outputs")),
+    );
+    t.insert(
         "light.height_px".into(),
         json!(30.0 + f(store, "theme.light.elevation", 40.0) * 5.0),
     );

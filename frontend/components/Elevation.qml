@@ -48,8 +48,8 @@ Loader {
 
     // The pointer's lamp on this output turns the key layer away from it (where it stands relative to the shape).
     readonly property var qsw: QsWindow.window
-    readonly property bool lamp: mode === "follow" && Theme.elevationPointer && Light.wanted && Light.k > 0 && !!qsw && !!qsw.screen
-        && Light.output === qsw.screen.name
+    readonly property bool lamp: mode === "follow" && Theme.elevationPointer && Light.wanted && !!qsw && !!qsw.screen
+        && Light.reaches(qsw.screen.name)
     // The lamp held on this output (the wallpaper's light, the spotlight's pin: Light.heldLamp) under follow: the shadow
     // falls away from it here, its length from how low it stands (I338: the relief's light and the shadows are one).
     readonly property point held: {
@@ -62,7 +62,7 @@ Loader {
         var o = Light.originOf(qsw), p = el.mapToItem(null, el.width / 2, el.height / 2)
         return Qt.point(o.x + p.x, o.y + p.y)
     }
-    readonly property var want: lamp ? Light.awayFrom(Light.x, Light.y, centre.x, centre.y, el.dirRest)
+    readonly property var want: lamp ? Light.awayFrom(Light.xOn(qsw.screen.name), Light.yOn(qsw.screen.name), centre.x, centre.y, el.dirRest)
         : pinned ? Light.awayFrom(held.x, held.y, centre.x, centre.y, el.dirRest) : el.dirRest
     readonly property real wantX: want[0]
     readonly property real wantY: want[1]

@@ -44,10 +44,21 @@ Loader {
     readonly property var qsw: QsWindow.window
     // Where the shadow is taken: the hole's middle, the same for every window of this hole.
     readonly property point at: Qt.point((x0 + x1) / 2, (y0 + y1) / 2)
+    // Under `elevation_pointer` the pointer's lamp turns it too, as it turns the surfaces' (Elevation).
+    readonly property bool lamp: Theme.sheetMode === "follow" && Theme.elevationPointer && Light.wanted && !!qsw && !!qsw.screen
+        && Light.reaches(qsw.screen.name)
     readonly property var dir: {
+        if (lamp) return Light.awayFrom(Light.xOn(qsw.screen.name), Light.yOn(qsw.screen.name), at.x, at.y, Theme.sheetDir)
         var h = Theme.sheetMode === "follow" ? Light.heldLamp(qsw) : null
         return h ? Light.awayFrom(h.x, h.y, at.x, at.y, Theme.sheetDir) : Theme.sheetDir
     }
+    // (eased as the surfaces' are: the frame's shadow never jumps when the lamp comes or goes)
+    readonly property real wantX: dir[0] * dir[2]
+    readonly property real wantY: dir[1] * dir[2]
+    property real ux: wantX
+    property real uy: wantY
+    Behavior on ux { enabled: ss.active && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
+    Behavior on uy { enabled: ss.active && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
 
     // A translucent card standing on the bar (I435): the shadow would show through it.
     readonly property var cardBox: qsw && qsw.screen ? SidebarGeom.cardOf(qsw.screen.name) : null
@@ -78,8 +89,8 @@ Loader {
             visible: !ss.inward
             strength: ss.alpha
             soft: ss.blur
-            ox: ss.dir[0] * ss.dist * ss.dir[2] * ss.s
-            oy: ss.dir[1] * ss.dist * ss.dir[2] * ss.s
+            ox: ss.ux * ss.dist * ss.s
+            oy: ss.uy * ss.dist * ss.s
         }
     }
 }

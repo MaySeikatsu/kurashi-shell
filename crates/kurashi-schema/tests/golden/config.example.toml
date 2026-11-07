@@ -958,6 +958,13 @@
 #   range: 10..=80, step 1 (°) · only while theme.light.mode == "spotlight"
 # beam = 35
 #
+# Monitors it reaches — Where the pointer's light and the shadows it turns act: on the
+# monitor the pointer is on, or on all of them, from where the pointer stands across your
+# monitors. All repaints every monitor's surfaces as the pointer moves.
+#   choices: "pointer" | "all" · only while theme.light.mode != "static" · only while
+#   theme.light.mode != "daytime" · only while theme.light.mode != "wallpaper"
+# outputs = "pointer"
+#
 # Light colour — The colour of the light's highlights. Natural: white, the sun's own, or
 # the wallpaper's.
 #   choices: "natural" | "white" | "warm" | "cool" | "custom" · only while theme.texture.kind

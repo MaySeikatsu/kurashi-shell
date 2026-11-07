@@ -3215,6 +3215,51 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.light_outputs.pointer",
+                  "value": "pointer"
+                },
+                {
+                  "label": "config.choice.light_outputs.all",
+                  "value": "all"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.light.mode",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "static"
+                },
+                {
+                  "key": "theme.light.mode",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "daytime"
+                },
+                {
+                  "key": "theme.light.mode",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "wallpaper"
+                }
+              ],
+              "default": "pointer",
+              "help": "config.theme.light.outputs.help",
+              "key": "theme.light.outputs",
+              "label": "config.theme.light.outputs.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
                   "label": "config.choice.light_color.natural",
                   "value": "natural"
                 },

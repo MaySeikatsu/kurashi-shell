@@ -65,7 +65,7 @@ ShaderEffect {
     readonly property real outW: qsw && qsw.screen ? qsw.screen.width : 0
     readonly property real outH: qsw && qsw.screen ? qsw.screen.height : 0
     // The lamp is this output's only while the pointer light or the spotlight is in use; elsewhere it rests.
-    readonly property bool pointed: Light.output === outName && Light.k > 0
+    readonly property bool pointed: Light.reaches(outName)
         && (Theme.lightMode === "pointer" || Theme.lightMode === "spotlight")
 
     // The tile set: the window's own, or this item's (made only in a window that names none).
@@ -105,13 +105,14 @@ ShaderEffect {
     readonly property vector4d uLamp: pinned
         ? Qt.vector4d(held[0] * outW, held[1] * outH, Theme.lightHeight, 1)
         : (Theme.lightMode === "pointer" && pointed
-            ? Qt.vector4d(Light.x, Light.y, Theme.lightHeight, Light.k) : Qt.vector4d(0, 0, Theme.lightHeight, 0))
+            ? Qt.vector4d(Light.xOn(outName), Light.yOn(outName), Theme.lightHeight, Light.k) : Qt.vector4d(0, 0, Theme.lightHeight, 0))
     // The spotlight's aim: the pointer over this output's shell surfaces, gliding back to the middle (Light.k).
     readonly property bool beamed: Theme.lightMode === "spotlight" && pinned
     readonly property real beamRad: Math.max(1, Math.min(89, Theme.lightBeam)) * Math.PI / 180
     readonly property vector4d uBeam: Qt.vector4d(
-        outW / 2 + (pointed ? (Light.x - outW / 2) * Light.k : 0),
-        outH / 2 + (pointed ? (Light.y - outH / 2) * Light.k : 0),
+        // (a pointer on another output: the pool leans to the edge nearest it, and stays on this output)
+        outW / 2 + (pointed ? (Math.max(0, Math.min(outW, Light.xOn(outName))) - outW / 2) * Light.k : 0),
+        outH / 2 + (pointed ? (Math.max(0, Math.min(outH, Light.yOn(outName))) - outH / 2) * Light.k : 0),
         Math.cos(beamRad), Math.cos(beamRad / 2))
     readonly property vector4d uSheet: Qt.vector4d(origin.x, origin.y, dpr, (win ? win.height : 0) * dpr)
     readonly property vector4d uSize: Qt.vector4d(width, height, 0, 0)
