@@ -17,6 +17,14 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-07 — session 24, after the merge (machine A): the web dock's host
+**State.** #11 to #17 are merged: `main`'s tree equals the stack's tip. `fix/s25-webdock-host` is open as a PR; worktree `../kurashi-wt-radii` holds it, with `CARGO_TARGET_DIR=~/.cache/kurashi-agents-target/radii`: remove both after that merge.
+**Fixed.** Every web pin failed since 2026-10-29: `RoundBox` went into the shared `PhoneFrame.qml`, and the host's link to it could not reach the type. The host's `components/` now mirrors the shell's layout (`phone/PhoneFrame.qml`, `RoundBox`, `RoundPen`, `SquircleRect`). `test-real` is in the merge set now, so the host starting is checked before a merge.
+**Done for the user.** 913 of the 914 `config.tmp.*` in `~/.config/ghostty/` removed (I430).
+**Not done.** Sandboxes left running from session 24's suites (I432): the permission check refused killing them; the user decides. Real sites in the web dock, on the user's own pins, after their rebuild.
+**The user's answers.** Zen: they test after the rebuild. Inward as Caelestia's is about right; it may need to reach desktop widgets too, they test first. I424: the reading is confirmed, not built (I433 and I419 for handwriting).
+**Next steps, in order.** 1. The user's test results (Zen, Inward, corners, shadows). 2. I424 when they say go. 3. I433: a way in to mod panels. 4. I432. Then the previous entry's steps.
+
 ## 2026-11-07 — session 24 (machine A): recipes on windows, frame colour, matching corners, the sheet's shadow, corner merges, terminals, Zen
 **State.** Seven stacked PRs, each on the one before, none merged; merge bottom up: #11 `feat/s24-recipe-shaders` → #12 `feat/s24-frame-colour` → #13 `feat/s24-surface-radii` → #14 `feat/s24-sheet-shadows` → #15 `feat/s24-popover-joins` → #16 `feat/s24-terminals` → #17 `feat/s24-zen`. `just check` is green on each; the merge set ran on the tip only, and every suite passes alone. If a lower one changes, rebase the rest with `git rebase --update-refs`. Worktree `../kurashi-wt-radii` holds the tip, with `CARGO_TARGET_DIR=~/.cache/kurashi-agents-target/radii`: remove both after the merges. `.git/info/attributes` sets union merges for DECISIONS, BACKLOG, PROGRESS and PROTOCOL: union keeps both sides of a status change in BACKLOG, so check for a doubled row after a rebase.
 **Built.** I418 K95 (a recipe's shader from its tracks). I423 (`theme.window_frame_color`). I426 K96: the hole's radius is the radius you set, the outer corner it plus the band; `radius.{frame,join,window,widget,dock}`, `theme.shape.radius_*`; K74 gave the frame's corner 0 under washi with a 10 px band. I427 K97 (`theme.material.sheet_shadow`). I428 K98 (Stage cards and the launcher at a button merge near a corner in dynamic: `MorphShape.edgeL/edgeR`, `components/JoinedCard.qml`). I420 K99 (`theme.texture.terminals`, targets wezterm, rio, ratty, `targets[].material`). I422 K100 (`browsers.rs`, `theme.export.link`, Zen's layers). Six new suites joined the merge set: corners, sheet-shadow, popover-joins, window-frame, terminals, browsers.
@@ -64,22 +72,3 @@ A `svc.previews` patch made every surface draw a frame, since any patch reassign
 1. The user merges `feat/s23-niri-motion` and rebuilds, then sets Settings › Motion › Window animations to "Follow the profile, with its animations". Their config has `windows = "follow"`, so nothing changes until then.
 2. Tune forms on the real session: durations on big windows; yorha's `glitch`.
 3. I412 (genie toward a bottom dock), I413 (crops on sway and Hyprland), I414 (default and GPU cost), I409, I411, I387, I389.
-
-## 2026-11-06 — session 23, later (machine A): launcher placement (I407), module menus (I408, K90)
-**State.** Merged to `main` with `feat/s23-quick-wins` (2026-11-06). The user waived `island-join` for this merge (I406: it fails under
-load and passes alone). `just check` green on the merged tree.
-**Built.** `launcher.place` (opened, centre, island, fixed; by key in the middle, by click at the button). Every module on a bar or
-frame opens its own menu on a right click, from `#[kurashi(module = "<id>")]`, in the Stage's `tray` panel (`module:<id>`).
-New options `modules.workspaces.{empty,marks,scroll}`, `modules.windows.{max,middle_close}`. Briefs `docs/ux/module-menu.md`,
-`docs/ux/launcher.md` "Where it opens". New suite `frontend/test-module-menu.sh`, in the merge set.
-**Verified.** Nested niri (kami, aqua; top, bottom, left bars). `just suites`: 16 of 16, `island-join` failing under load and passing
-alone (I406). `just check` green but for the icon list, regenerated since and rechecked alone.
-**Not verified.** The dock's launcher tile opener has not been clicked in a test. Keyboard in the menu: tested on sway after a click on
-the card; a layer with on-demand focus takes no keys before that there, not checked on niri.
-**Next steps.**
-1. The user picks a route for the hover previews (I284, I285). The recorded route is out: niri's `screenshot-window` overwrites the
-   clipboard. Candidates: last-seen stills cropped from whole-output screencopy (no clipboard; stale, and nothing for a window never
-   seen); per-window PipeWire cast through niri's ScreenCast D-Bus (live, heavier, not tried); wait for toplevel capture in niri.
-2. The user decides the island's right click (I408): keep pin, or the module menu with pin as a row.
-3. I409 (launcher in a sidebar), I410 (the motion styles on niri's windows through custom shaders), I411.
-4. `/tmp/kurashi-sb-*` still holds many old sandboxes: the user decides.

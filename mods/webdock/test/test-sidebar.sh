@@ -17,6 +17,7 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 NAME=${1:-w30-webdock-sb-$$}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 SHOTS=$ROOT/mods/webdock/shots
+mkdir -p "$SHOTS"
 PAGES=file://$ROOT/mods/webdock/test/pages
 mkdir -p "$SHOTS"
 fail() { echo "test-sidebar: FAIL: $*" >&2; exit 1; }

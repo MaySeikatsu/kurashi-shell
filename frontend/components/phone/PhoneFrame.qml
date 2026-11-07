@@ -11,8 +11,9 @@ import ".."
 //   soft chrome    a thin dark bezel with the faint light rim (`outlineColor`) and the soft drop shadow (K45);
 //   line chrome    a drawing: the body in the screen's colour, outlined, the screen and the cut-out outlined too (K45);
 //   flat chrome    a thin dark bezel in `line` with a hairline in `outline`; no rim, no shadow.
-// It imports nothing but Qt's own modules, so the web host (mods/webdock/host, which cannot import the shell's components) uses
-// this very file through a link; the caller hands it its Theme singleton (`theme`). Width includes the side buttons
+// The web host (mods/webdock/host, which cannot import the shell's modules) uses this very file through a link, with the same
+// layout round it: `..` is its `components/`, which links RoundBox, RoundPen and SquircleRect too. Anything else from `..` needs a link there. The caller
+// hands it its Theme singleton (`theme`). Width includes the side buttons
 // (they stand `stick` px out of the body) and height the shadow; under soft chrome both keep `softPad` px round the
 // body for its drop shadow (a clipping card would cut it off flat). Static: no animation, no timer (Ma).
 Item {

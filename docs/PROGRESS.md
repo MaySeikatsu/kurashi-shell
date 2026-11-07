@@ -339,3 +339,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S24.5 | What opens at a bar in dynamic stands on it and merges near a corner (I428, K98) | ✅ functional · 🟡 UX (user to judge) | feat/s24-popover-joins |
 | S24.6 | Terminals: a switch; Ghostty's shader, Kitty's and WezTerm's tile, colours for Rio, Alacritty, Foot, Ratty; Settings says which (I420, K99) | ✅ functional · 🟡 UX (user to judge) | feat/s24-terminals |
 | S24.7 | Zen and Firefox: profiles from their ini, Link, Zen's layers, translucency toggles; no live colours (I422, K100) | ✅ functional · 🟡 UX (user's profile untested) | feat/s24-zen |
+| S24.8 | Web dock host starts again: broken by RoundBox in the shared PhoneFrame since 2026-10-29; `test-real` joins the merge set | ✅ functional · 🟡 UX (user to judge on their pins) | fix/s25-webdock-host |

@@ -21,6 +21,7 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 TEST=$ROOT/mods/webdock/test
 PAGES=$TEST/pages
 SHOTS=$ROOT/mods/webdock/shots
+mkdir -p "$SHOTS"
 PORT=8765
 # The pragma's switches (mods/webdock/host/shell.qml); the camera switch is test-only: Chromium asks for a camera
 # only when one exists, and the sandbox has none.

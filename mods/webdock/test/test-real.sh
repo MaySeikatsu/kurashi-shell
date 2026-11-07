@@ -10,6 +10,7 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 NAME=${1:-${KURASHI_SB_PREFIX:-}webdock-real}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 SHOTS=$ROOT/mods/webdock/shots
+mkdir -p "$SHOTS"
 PAGES=file://$ROOT/mods/webdock/test/pages
 
 fail() { echo "test-real: FAIL: $*" >&2; exit 1; }
