@@ -38,5 +38,8 @@ None of its own beyond the Stage's card. Canvases paint only on a change; the pa
 ## Fit
 A Stage panel, wider than others: the card's limit went from 720 to 1100 px. Fonts land where fontconfig finds them, so nothing else in the shell needs to know about this mod.
 
+## Outlines
+No drawing may take the shell down. A pen line that doubles back strokes to an outline that crosses itself, with points on top of each other, and Qt's distance fields crash on some of those (`PathSimplifier::fillIndices`, a segfault on the render thread: the shell restarts into the same font and loops). What goes into a font is the union of what was drawn, as simple polygons on the font's integer grid (`glyph::simple`): no contour crosses itself or another. Fonts on disk from before are made again at the daemon's next start. `mods/handwriting/test-outlines.sh` has Qt draw a font of the worst a pen can do, and a digit that crashed it.
+
 ## Not done (I419)
 Pen pressure, kerning from sample phrases, a link from Settings › Fonts, the launcher entry.

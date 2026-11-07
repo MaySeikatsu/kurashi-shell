@@ -1344,3 +1344,8 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 24. Zen sets its background variable inline on those elements, so `:root` can never win: read in its source, seen in the sandbox.
 **Not taken: live colours by an extension.** Tested in Zen Twilight: an unsigned `browser.theme.update` extension runs with `xpinstall.signatures.required = false`, and its colours do not reach Zen's sidebar or toolbar. So a restart it is, and Settings says so.
 **Evidence.** `docs/ux/browsers.md`; `frontend/test-browsers.sh`.
+
+## K103 — A handwritten font's outlines are simple polygons (session 24)
+**Decision.** `kurashi-mod-handwriting` unites what was drawn into non-overlapping polygons (`i_overlay`, integer grid, non-zero) before it writes `glyf`, rather than writing the stroker's self-crossing outline. Letters are polygons at 0.5 font units, not curves. Fonts on disk with older outlines are made again at start (`Font.outlines`).
+**Why.** User, session 24: a font they drew crash-looped the shell, and "that shouldn't happen even with very bad handwriting". Seen: a `3` whose pen doubled back segfaulted Qt in `PathSimplifier::fillIndices` while making its distance field, in the font and in every mix with it. A renderer's bug on valid-enough input, so the input has to be one no renderer can trip on. The rule is enforced by a test on every outline.
+**Left.** Any other installed font with such outlines can still crash Qt, and the frontend restarts into it: I440.

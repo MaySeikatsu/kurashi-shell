@@ -1,9 +1,14 @@
 //! From what a hand drew to a glyph (K94). A letter is strokes of points in font units, y up, the baseline at 0, as the drawing box
 //! measures them. Each stroke becomes a smooth path through its points, then the outline of that path at the pen's width. The letter stands
 //! where it was drawn in height, which is what the box's lines are for; across, it is moved to start at a side bearing, and its advance is its
-//! ink and the two bearings, so a letter is as wide as it was written.
+//! ink and the two bearings, so a letter is as wide as it was written. What leaves here is simple polygons (`simple`).
 
-use kurbo::{BezPath, Cap, CubicBez, Join, PathEl, Point, Stroke, StrokeOpts, stroke};
+use i_overlay::core::fill_rule::FillRule;
+use i_overlay::core::overlay::{ContourDirection, IntOverlayOptions};
+use i_overlay::core::simplify::Simplify;
+use i_overlay::i_float::int::point::IntPoint;
+use i_overlay::i_shape::int::shape::IntContour;
+use kurbo::{BezPath, Cap, Join, PathEl, Point, Stroke, StrokeOpts, stroke};
 
 /// The space either side of a letter.
 pub const BEARING: f64 = 45.0;
@@ -57,47 +62,54 @@ fn circle(c: [f64; 2], r: f64) -> BezPath {
     p
 }
 
-/// A path's cubics as quadratics, whole contours closed: what `glyf` holds.
-fn quadratic(path: &BezPath) -> BezPath {
-    let mut out = BezPath::new();
-    let (mut at, mut start) = (Point::ZERO, Point::ZERO);
-    let mut open = false;
-    for el in path.elements() {
-        match *el {
-            PathEl::MoveTo(p) => {
-                if open {
-                    out.close_path();
-                }
-                out.move_to(p);
-                at = p;
-                start = p;
-                open = true;
-            }
-            PathEl::LineTo(p) => {
-                out.line_to(p);
-                at = p;
-            }
-            PathEl::QuadTo(c, p) => {
-                out.quad_to(c, p);
-                at = p;
-            }
-            PathEl::CurveTo(c0, c1, p) => {
-                for (_, _, q) in CubicBez::new(at, c0, c1, p).to_quads(TOLERANCE) {
-                    out.quad_to(q.p1, q.p2);
-                }
-                at = p;
-            }
-            PathEl::ClosePath => {
-                out.close_path();
-                at = start;
-                open = false;
+/// How closely the polygons follow the curves, in font units: a thousandth of the height of the text, never seen.
+const FLATTEN: f64 = 0.5;
+/// Slivers smaller than this (square font units) are what a crossing leaves, never ink.
+const SLIVER: u64 = 8;
+
+/// The ink of a letter as simple polygons: no contour crosses itself or another, and nothing overlaps. A pen line that doubles back
+/// strokes to an outline that crosses itself with points on top of each other, and text renderers differ on what to do with that:
+/// Qt's distance fields crash on some, and take the whole shell with them, however the letter was drawn. So what goes into a font is
+/// always the union of what was drawn, on the font's own integer grid.
+fn simple(path: &BezPath) -> Vec<IntContour> {
+    let mut contours: Vec<IntContour> = Vec::new();
+    let mut now: IntContour = Vec::new();
+    let flush = |c: &mut IntContour, all: &mut Vec<IntContour>| {
+        if c.first() == c.last() {
+            c.pop();
+        }
+        if c.len() >= 3 {
+            all.push(std::mem::take(c));
+        } else {
+            c.clear();
+        }
+    };
+    kurbo::flatten(path.elements().iter().copied(), FLATTEN, |el| match el {
+        PathEl::MoveTo(p) => {
+            flush(&mut now, &mut contours);
+            now.push(IntPoint::new(p.x.round() as i32, p.y.round() as i32));
+        }
+        PathEl::LineTo(p) => {
+            let q = IntPoint::new(p.x.round() as i32, p.y.round() as i32);
+            if now.last() != Some(&q) {
+                now.push(q);
             }
         }
-    }
-    if open {
-        out.close_path();
-    }
-    out
+        PathEl::ClosePath => flush(&mut now, &mut contours),
+        _ => {}
+    });
+    flush(&mut now, &mut contours);
+    let options = IntOverlayOptions {
+        output_direction: ContourDirection::Clockwise,
+        min_output_area: SLIVER,
+        ogc: true,
+        ..IntOverlayOptions::default()
+    };
+    contours
+        .simplify(FillRule::NonZero, options)
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 /// The outline of a drawn letter at this pen's width, and its bounds across: `None` with nothing drawn.
@@ -125,11 +137,26 @@ pub fn outline(strokes: &Strokes, pen: f64) -> Option<(BezPath, f64, f64)> {
         );
         all.extend(out.elements().iter().copied());
     }
-    if all.elements().is_empty() {
+    let contours = simple(&all);
+    let (mut x0, mut x1) = (i32::MAX, i32::MIN);
+    let mut out = BezPath::new();
+    for c in &contours {
+        for (i, p) in c.iter().enumerate() {
+            x0 = x0.min(p.x);
+            x1 = x1.max(p.x);
+            let q = (f64::from(p.x), f64::from(p.y));
+            if i == 0 {
+                out.move_to(q);
+            } else {
+                out.line_to(q);
+            }
+        }
+        out.close_path();
+    }
+    if contours.is_empty() {
         return None;
     }
-    let bounds = kurbo::Shape::bounding_box(&all);
-    Some((quadratic(&all), bounds.x0, bounds.x1))
+    Some((out, f64::from(x0), f64::from(x1)))
 }
 
 #[cfg(test)]
@@ -173,6 +200,125 @@ mod tests {
                 .all(|e| !matches!(e, PathEl::CurveTo(..)))
         );
         assert!(matches!(p.elements().last(), Some(PathEl::ClosePath)));
+    }
+
+    /// Every edge of an outline, as pairs of points.
+    fn edges(p: &BezPath) -> Vec<(Point, Point)> {
+        let (mut out, mut at, mut start) = (Vec::new(), Point::ZERO, Point::ZERO);
+        for el in p.elements() {
+            match *el {
+                PathEl::MoveTo(q) => {
+                    at = q;
+                    start = q;
+                }
+                PathEl::LineTo(q) => {
+                    out.push((at, q));
+                    at = q;
+                }
+                PathEl::ClosePath => out.push((at, start)),
+                _ => panic!("only lines: {el:?}"),
+            }
+        }
+        out
+    }
+
+    /// Whether two edges cross at a point inside both (sharing an end is not a crossing).
+    fn cross(a: (Point, Point), b: (Point, Point)) -> bool {
+        let side =
+            |o: Point, p: Point, q: Point| (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+        let (d1, d2) = (side(b.0, b.1, a.0), side(b.0, b.1, a.1));
+        let (d3, d4) = (side(a.0, a.1, b.0), side(a.0, a.1, b.1));
+        d1 * d2 < 0.0 && d3 * d4 < 0.0
+    }
+
+    /// A pen doing its worst: back on itself, in tight zigzags, round and round on one spot, along its own line.
+    fn scribbles() -> Vec<Strokes> {
+        let hairpin: Vec<[f64; 2]> = vec![
+            [100.0, 100.0],
+            [300.0, 100.0],
+            [304.0, 100.0],
+            [100.0, 102.0],
+            [300.0, 104.0],
+            [100.0, 100.0],
+        ];
+        let zigzag: Vec<[f64; 2]> = (0..40)
+            .map(|i| {
+                [
+                    100.0 + f64::from(i) * 4.0,
+                    if i % 2 == 0 { 100.0 } else { 400.0 },
+                ]
+            })
+            .collect();
+        let spiral: Vec<[f64; 2]> = (0..120)
+            .map(|i| {
+                let t = f64::from(i) * 0.4;
+                [300.0 + (30.0 + t) * t.cos(), 300.0 + (30.0 + t) * t.sin()]
+            })
+            .collect();
+        let again: Vec<[f64; 2]> = (0..30)
+            .map(|i| {
+                if i % 2 == 0 {
+                    [100.0, 100.0]
+                } else {
+                    [110.0, 100.0]
+                }
+            })
+            .collect();
+        let tail: Vec<[f64; 2]> = vec![
+            [488.0, 95.0],
+            [472.0, 93.0],
+            [458.0, 92.0],
+            [449.0, 91.0],
+            [453.0, 91.0],
+            [509.0, 84.0],
+        ];
+        vec![
+            vec![hairpin.clone()],
+            vec![zigzag.clone()],
+            vec![spiral.clone()],
+            vec![again],
+            vec![tail],
+            vec![hairpin, zigzag, spiral],
+        ]
+    }
+
+    #[test]
+    fn no_outline_crosses_itself_however_it_was_drawn() {
+        for pen in [8.0, 32.0, 56.0, 84.0, 160.0] {
+            for s in scribbles() {
+                let (p, _, _) = outline(&s, pen).unwrap();
+                let e = edges(&p);
+                assert!(e.iter().all(|(a, b)| a != b), "a point on top of another");
+                for i in 0..e.len() {
+                    for j in i + 1..e.len() {
+                        assert!(
+                            !cross(e[i], e[j]),
+                            "pen {pen}: {:?} crosses {:?}",
+                            e[i],
+                            e[j]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_shaped_letter_keeps_its_hole() {
+        // An o: a ring, whose counter must stay open.
+        let ring: Vec<[f64; 2]> = (0..=60)
+            .map(|i| {
+                let t = f64::from(i) * std::f64::consts::TAU / 60.0;
+                [200.0 + 150.0 * t.cos(), 200.0 + 150.0 * t.sin()]
+            })
+            .collect();
+        let (p, _, _) = outline(&vec![ring], 40.0).unwrap();
+        let closes = p
+            .elements()
+            .iter()
+            .filter(|e| matches!(e, PathEl::ClosePath))
+            .count();
+        assert_eq!(closes, 2, "an outside and a counter");
     }
 
     #[test]

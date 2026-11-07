@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+i_overlay = "4.5.2"
 kurashi-mod-api = { path = "../kurashi-mod-api" }
 kurbo = "0.13"
 serde = { version = "1", features = ["derive"] }

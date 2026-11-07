@@ -74,6 +74,18 @@ impl NativeMod for HandwritingMod {
             version,
         });
 
+        // Fonts made with older outlines, off the daemon's start (a font's a few milliseconds, fontconfig's refresh longer).
+        let s = shared.clone();
+        std::thread::spawn(move || {
+            let _ = s.with(|st| {
+                let made = st.refresh();
+                if !made.is_empty() {
+                    tracing::info!(?made, "handwriting: fonts made again with simple outlines");
+                }
+                Ok(())
+            });
+        });
+
         let s = shared.clone();
         ctx.service("handwriting", initial, move |publish, settings| {
             run(s.clone(), publish, settings)

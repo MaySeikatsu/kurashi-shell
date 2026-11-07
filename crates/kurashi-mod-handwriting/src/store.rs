@@ -15,6 +15,8 @@ pub const CHARSET: &str =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-()&/+=@#%*";
 pub const DEFAULT_PEN: f64 = 56.0;
 pub const MAX_VERSIONS: u32 = 8;
+/// 2: simple polygons. Fonts made before could crash the shell's text renderer (`glyph::outline`).
+pub const OUTLINES: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Font {
@@ -24,6 +26,9 @@ pub struct Font {
     pub versions: u32,
     /// `"<version>:<char>"` → the drawing.
     pub glyphs: BTreeMap<String, Strokes>,
+    /// Which outlines its files were made with (`OUTLINES`): older ones are made again on the next start.
+    #[serde(default)]
+    pub outlines: u32,
 }
 
 #[derive(Debug)]
@@ -108,6 +113,7 @@ impl Store {
                 pen: DEFAULT_PEN,
                 versions: 3,
                 glyphs: BTreeMap::new(),
+                outlines: OUTLINES,
             },
         );
         self.save(&id)?;
@@ -172,6 +178,29 @@ impl Store {
         } else {
             format!("{} {version}", f.name)
         }
+    }
+
+    /// Makes again the fonts on disk that older outlines made, and says which. A font that once took the shell down is never left
+    /// in the fonts folder for the next start.
+    pub fn refresh(&mut self) -> Vec<String> {
+        let stale: Vec<String> = self
+            .fonts
+            .iter()
+            .filter(|(_, f)| f.outlines < OUTLINES)
+            .map(|(id, _)| id.clone())
+            .collect();
+        let mut made = Vec::new();
+        for id in stale {
+            let on_disk = (1..=MAX_VERSIONS).any(|k| self.file_of(&id, k).is_file());
+            if on_disk && self.make(&id).is_ok() {
+                made.push(id.clone());
+            }
+            if let Some(f) = self.fonts.get_mut(&id) {
+                f.outlines = OUTLINES;
+            }
+            let _ = self.save(&id);
+        }
+        made
     }
 
     /// Makes the font of each version with something drawn in it (a version with nothing would only copy another). A letter a version
@@ -261,6 +290,21 @@ mod tests {
     }
     fn line() -> Strokes {
         vec![vec![[100.0, 0.0], [200.0, 480.0]]]
+    }
+
+    #[test]
+    fn fonts_on_disk_from_older_outlines_are_made_again_once() {
+        let (_d, mut st) = store();
+        let id = st.create("old").unwrap();
+        st.save_glyph(&id, 1, 'A', line()).unwrap();
+        st.make(&id).unwrap();
+        let file = st.file_of(&id, 1);
+        std::fs::write(&file, b"not a font").unwrap();
+        st.font_mut(&id).unwrap().outlines = 0;
+        assert_eq!(st.refresh(), vec![id.clone()]);
+        assert_ne!(std::fs::read(&file).unwrap(), b"not a font");
+        assert_eq!(st.fonts[&id].outlines, OUTLINES);
+        assert!(st.refresh().is_empty());
     }
 
     #[test]
