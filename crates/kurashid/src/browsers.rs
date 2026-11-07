@@ -112,23 +112,101 @@ const END: &str = "// kurashi: end";
 
 /// `userChrome.css` with the import at the very top (`@import` must come first) or without it.
 fn with_import(css: &str, line: &str, on: bool) -> String {
-    let rest: String = css
-        .lines()
-        .filter(|l| l.trim() != line.trim())
-        .collect::<Vec<_>>()
-        .join("\n");
-    let rest = rest.trim_start_matches('\n');
-    if on {
-        if rest.is_empty() {
-            format!("{line}\n")
+    let lines: Vec<&str> = css.lines().filter(|l| l.trim() != line.trim()).collect();
+    if !on {
+        let rest = lines.join("\n");
+        let rest = rest.trim_start_matches('\n');
+        return if rest.is_empty() {
+            String::new()
         } else {
-            format!("{line}\n{rest}\n")
+            format!("{rest}\n")
+        };
+    }
+    // After the other imports at the top, so ours wins a tie with them; before everything else, where an @import must stand.
+    let mut at = 0;
+    for (i, l) in lines.iter().enumerate() {
+        let t = l.trim();
+        if t.starts_with("@import") {
+            at = i + 1;
+        } else if !(t.is_empty() || t.starts_with("/*")) {
+            break;
         }
-    } else if rest.is_empty() {
+    }
+    let mut out: Vec<&str> = lines[..at].to_vec();
+    out.push(line);
+    out.extend_from_slice(&lines[at..]);
+    format!("{}\n", out.join("\n").trim_end_matches('\n'))
+}
+
+const OFF_OPEN: &str = "/* kurashi: off: ";
+const OFF_CLOSE: &str = " */";
+
+/// What an `@import` names, for Settings to say.
+fn imported(line: &str) -> String {
+    line.trim()
+        .trim_start_matches("@import")
+        .trim()
+        .trim_start_matches("url(")
+        .trim_end_matches(';')
+        .trim_end_matches(')')
+        .trim_matches(['"', '\''])
+        .trim_start_matches("file://")
+        .to_owned()
+}
+
+/// The other stylesheets a profile's `userChrome.css` imports (they can paint over the theme: another shell's, a theme of the
+/// user's), and those turned off here (K100).
+pub fn other_imports(dir: &Path, line: &str) -> (Vec<String>, Vec<String>) {
+    let css = std::fs::read_to_string(dir.join("chrome/userChrome.css")).unwrap_or_default();
+    let (mut on, mut off) = (vec![], vec![]);
+    for l in css.lines().map(str::trim) {
+        if l == line.trim() {
+            continue;
+        }
+        if l.starts_with("@import") {
+            on.push(imported(l));
+        } else if let Some(rest) = l
+            .strip_prefix(OFF_OPEN)
+            .and_then(|r| r.strip_suffix(OFF_CLOSE))
+        {
+            off.push(imported(rest));
+        }
+    }
+    (on, off)
+}
+
+/// The user's click: the other imports commented out with a mark, or back as they were. Only `@import` lines; `line` stays.
+fn with_others(css: &str, line: &str, on: bool) -> String {
+    let out: Vec<String> = css
+        .lines()
+        .map(|l| {
+            let t = l.trim();
+            if on {
+                t.strip_prefix(OFF_OPEN)
+                    .and_then(|r| r.strip_suffix(OFF_CLOSE))
+                    .map_or_else(|| l.to_owned(), str::to_owned)
+            } else if t.starts_with("@import") && t != line.trim() {
+                format!("{OFF_OPEN}{t}{OFF_CLOSE}")
+            } else {
+                l.to_owned()
+            }
+        })
+        .collect();
+    if out.is_empty() {
         String::new()
     } else {
-        format!("{rest}\n")
+        out.join("\n") + "\n"
     }
+}
+
+pub fn set_others(dir: &Path, line: &str, on: bool) -> std::io::Result<()> {
+    let path = dir.join("chrome/userChrome.css");
+    let css = std::fs::read_to_string(&path).unwrap_or_default();
+    let next = with_others(&css, line, on);
+    if next != css {
+        std::fs::write(&path, next)?;
+    }
+    Ok(())
 }
 
 /// `user.js` with the marked block holding `prefs` (`name`, its JS value), or without it. The rest of the file is left as it is.
@@ -175,7 +253,13 @@ pub fn set_link(dir: &Path, line: &str, prefs: &[(&str, &str)], on: bool) -> std
     let chrome = dir.join("chrome");
     let css_path = chrome.join("userChrome.css");
     let css = std::fs::read_to_string(&css_path).unwrap_or_default();
-    let next = with_import(&css, line, on);
+    // (Unlink brings back what this turned off: the profile goes back to what the user had.)
+    let css_in = if on {
+        css.clone()
+    } else {
+        with_others(&css, line, true)
+    };
+    let next = with_import(&css_in, line, on);
     if next != css {
         std::fs::create_dir_all(&chrome)?;
         std::fs::write(&css_path, next)?;
@@ -199,6 +283,39 @@ mod tests {
     use super::*;
 
     const INI: &str = "[General]\nStartWithLastProfile=1\n\n[Profile0]\nName=default\nIsRelative=1\nPath=95hxj346.default\nDefault=1\n\n[Profile2]\nName=migrated\nIsRelative=1\nPath=kyw28fqm.migrated\n\n[Profile1]\nName=maike\nIsRelative=0\nPath=/abs/maike\n\n[Profile Groups]\nx=y\n";
+
+    const OURS: &str = "@import url(\"file:///c/kurashi/apps/zen.css\");";
+    const THEIRS: &str = "@import \"/c/noctalia/zen-userChrome.css\";";
+
+    #[test]
+    fn the_import_stands_after_the_others_and_before_the_rules() {
+        let css = format!("/* mine */\n{THEIRS}\n#a {{ color: red }}\n");
+        assert_eq!(
+            with_import(&css, OURS, true),
+            format!("/* mine */\n{THEIRS}\n{OURS}\n#a {{ color: red }}\n")
+        );
+        assert_eq!(
+            with_import("#a {}\n", OURS, true),
+            format!("{OURS}\n#a {{}}\n")
+        );
+        assert_eq!(with_import("", OURS, true), format!("{OURS}\n"));
+        assert_eq!(
+            with_import(&with_import(&css, OURS, true), OURS, false),
+            css
+        );
+    }
+
+    #[test]
+    fn others_go_out_with_a_mark_and_come_back() {
+        let css = format!("{OURS}\n{THEIRS}\n#a {{}}\n");
+        let off = with_others(&css, OURS, false);
+        assert!(off.contains(OURS), "{off}");
+        assert!(off.contains("/* kurashi: off: @import"), "{off}");
+        assert!(!off.lines().any(|l| l.trim() == THEIRS), "{off}");
+        assert_eq!(with_others(&off, OURS, true), css);
+        assert_eq!(imported(THEIRS), "/c/noctalia/zen-userChrome.css");
+        assert_eq!(imported(OURS), "/c/kurashi/apps/zen.css");
+    }
 
     #[test]
     fn profiles_come_from_the_ini_with_the_default_first() {

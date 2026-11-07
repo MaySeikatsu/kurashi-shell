@@ -34,3 +34,6 @@ Link is a Settings button. Its name carries the profile. The browser's window is
 - [x] `frontend/test-browsers.sh`: profiles from the ini, link and unlink byte for byte, the other profile alone, toggles move prefs. Real HOME not used.
 - [x] Seen in Zen Twilight on nested niri in a fresh profile: palette, tile, corners, translucent UI.
 - [ ] Translucent pages seen. Firefox's toolbox tile seen. The user's own profile.
+
+## Another stylesheet in the profile (session 24)
+A linked profile can still look untouched: the user's profile imported Noctalia's old theme right after ours, and its `!important` rules on the same elements won. Seen in Zen: the sidebar was Noctalia's grey, and only with that line gone did ours show. Settings names any other `@import` in a linked profile's `userChrome.css` and offers to turn it off: `theme.export.others {target, profile, on}` comments the line out with a mark, and that or Unlink brings it back, byte for byte. Nothing happens without the click. Ours also goes after the other imports now, so it wins a tie. Zen's element fill (grey at 80 %) under our colour goes transparent, or it dims a translucent colour.

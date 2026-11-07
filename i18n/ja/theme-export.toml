@@ -56,3 +56,7 @@
 "theme.export.profile.none" = "{dir} にプロファイルがありません。"
 "theme.export.profile.failed" = "プロファイルを変更できませんでした：{reason}"
 "theme.export.profile.restart" = "変更はブラウザの再起動で反映されます（起動時に読み込むため）。"
+"theme.export.profile.others" = "{name} は {files} も読み込んでいて、テーマを上書きすることがあります。"
+"theme.export.profile.others_off" = "オフにする"
+"theme.export.profile.silenced" = "{name}：{files} はオフです。リンク解除でも元に戻ります。"
+"theme.export.profile.others_on" = "オンに戻す"

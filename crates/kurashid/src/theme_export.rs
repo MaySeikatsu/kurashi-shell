@@ -177,6 +177,24 @@ pub fn link_profile(
     crate::browsers::set_link(&pr.dir, &line, &prefs, on).map_err(|e| e.to_string())
 }
 
+/// The action `theme.export.others {target, profile, on}`: the user's click on a linked profile, the other stylesheets it imports
+/// turned off (with a mark, so this or Unlink brings them back) or on again.
+pub fn set_others(target: &str, profile: &str, on: bool) -> Result<(), String> {
+    if !export::is_browser(target) {
+        return Err(format!("not a browser: {target}"));
+    }
+    let (home, config) = (browser_home(), config_home());
+    let root = crate::browsers::root_of(target, &home, &config).ok_or("no root")?;
+    let found = crate::browsers::profiles(&root);
+    let pr = found
+        .iter()
+        .find(|p| p.name == profile)
+        .ok_or_else(|| format!("no profile {profile}"))?;
+    let css = config.join(format!("kurashi/apps/{target}.css"));
+    let line = browser_import(&css.to_string_lossy());
+    crate::browsers::set_others(&pr.dir, &line, on).map_err(|e| e.to_string())
+}
+
 /// Whether Ratty's one config is the shell's to write: absent, or written by it before.
 fn ratty_config_is_ours(path: &Path) -> bool {
     std::fs::read_to_string(path).map_or(true, |t| t.starts_with("# Written by kurashid"))
@@ -628,11 +646,14 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
                 if linked && let Err(e) = crate::browsers::sync_prefs(&pr.dir, &prefs, true) {
                     tracing::warn!(error = %e, "browser prefs not written");
                 }
+                let (others, silenced) = crate::browsers::other_imports(&pr.dir, &line);
                 json!({
                     "name": pr.name,
                     "default": pr.default,
                     "dir": pr.dir.to_string_lossy(),
                     "linked": linked,
+                    "others": others,
+                    "silenced": silenced,
                 })
             })
             .collect();
@@ -694,7 +715,8 @@ fn poke() -> Arc<tokio::sync::Notify> {
         .clone()
 }
 
-/// `theme.export.link {target, profile, on}` (K100): Settings' Link and Unlink.
+/// `theme.export.link {target, profile, on}` (K100): Settings' Link and Unlink. `theme.export.others {target, profile, on}`: the
+/// other stylesheets a profile imports, off or back on.
 pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc<ConfigStore>) {
     actions.register(
         "theme.export.link",
@@ -730,6 +752,27 @@ pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc
                 poke().notify_one();
                 Ok(None)
             }
+        },
+    );
+    actions.register(
+        "theme.export.others",
+        "action.theme.export.others",
+        move |args: Value| async move {
+            use crate::actions::ActionError;
+            let word = |k: &str| {
+                args.get(k)
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+                    .ok_or_else(|| ActionError::Invalid(crate::wiring::ARGS_INVALID.into()))
+            };
+            let (target, profile) = (word("target")?, word("profile")?);
+            let on = args.get("on").and_then(Value::as_bool).unwrap_or(false);
+            tokio::task::spawn_blocking(move || set_others(&target, &profile, on))
+                .await
+                .map_err(|e| ActionError::Unavailable(e.to_string()))?
+                .map_err(ActionError::Unavailable)?;
+            poke().notify_one();
+            Ok(None)
         },
     );
 }

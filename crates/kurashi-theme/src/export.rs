@@ -764,10 +764,11 @@ pub fn browser_extras(
         format!("  background-image: url(\"file://{path}\") !important;\n  background-size: {px}px {px}px !important;\n  background-repeat: repeat !important;\n")
     });
     if name == "zen" {
+        // (The element's own fill is Zen's grey, at 80 %: under a translucent colour it dims it, so it goes.)
         // Zen sets its background per window on these layers' own element, so a variable on :root never reaches them: the
         // layers themselves, `::after` the colour in effect and `::before` the one it fades from; its grain is the shell's now.
         out.push_str(&format!(
-            ".zen-browser-generic-background::after {{\n  background-color: {} !important;\n{}  opacity: 1 !important;\n}}\n.zen-browser-generic-background::before {{ background: transparent !important; }}\n.zen-browser-grain {{ display: none !important; }}\n",
+            ".zen-browser-generic-background {{ background-color: transparent !important; }}\n.zen-browser-generic-background::after {{\n  background-color: {} !important;\n{}  opacity: 1 !important;\n}}\n.zen-browser-generic-background::before {{ background: transparent !important; }}\n.zen-browser-grain {{ display: none !important; }}\n",
             surface(alpha),
             image.as_deref().unwrap_or("")
         ));

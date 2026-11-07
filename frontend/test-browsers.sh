@@ -55,6 +55,7 @@ Z=$C/kurashi/apps/zen.css
 for _ in $(seq 100); do [ -s "$C/kurashi/apps/zen-tile.png" ] && grep -q 'zen-tile.png' "$Z" && break; sleep 0.2; done
 grep -q 'zen-tile.png' "$Z" || fail "no tile in zen.css"
 grep -q '.zen-browser-generic-background::after' "$Z" || fail "not on Zen's layers"
+grep -q '.zen-browser-generic-background { background-color: transparent' "$Z" || fail "Zen's grey stays under the colour"
 grep -q -- '--zen-border-radius: 9px' "$Z" || fail "no corners: $(grep -n radius "$Z" | head -3)"
 conf true true; "$SB" config "$CFG"
 for _ in $(seq 100); do grep -q 'zen.widget.linux.transparency", true' "$ZJS" && break; sleep 0.2; done
@@ -68,8 +69,30 @@ for _ in $(seq 100); do grep -q 'zen.widget.linux.transparency' "$ZJS" || break;
 grep -q 'zen.widget.linux.transparency' "$ZJS" && fail "the pref stayed after the toggle"
 echo "css: Zen's layers, corners, a tile; translucent drops it and asks for the pref; a toggle moves it"
 
+# Another shell's stylesheet imported in the same profile: Settings is told, the click turns it off with a mark, and Unlink puts it back.
+ORIG=$(cat "$ZCSS")
+printf '@import "/c/noctalia/zen-userChrome.css";\n%s\n' "$ORIG" > "$ZCSS.new"; mv "$ZCSS.new" "$ZCSS"
+"$SB" act act theme.export.link '{"target":"zen","profile":"default","on":true}' > /dev/null || fail "linking again"
+row() { doc | jq -r ".data.targets[] | select(.name==\"zen\") | .profiles.list[] | select(.name==\"default\") | .$1 | join(\",\")"; }
+until_row() { for _ in $(seq 100); do [ "$(row "$1")" = "$2" ] && return 0; sleep 0.2; done; fail "$1 is '$(row "$1")', want '$2'"; }
+until_row others /c/noctalia/zen-userChrome.css
+L1=$(grep -n 'noctalia' "$ZCSS" | cut -d: -f1); L2=$(grep -n 'kurashi/apps/zen.css' "$ZCSS" | cut -d: -f1)
+[ "$L2" -gt "$L1" ] || fail "ours does not follow the other import: $(cat "$ZCSS")"
+"$SB" act act theme.export.others '{"target":"nobody","profile":"default"}' > /dev/null 2>&1 && fail "others on a target that is no browser"
+"$SB" act act theme.export.others '{"target":"zen","profile":"default","on":false}' > /dev/null || fail "the others action"
+until_row silenced /c/noctalia/zen-userChrome.css
+until_row others ""
+grep -q '^/\* kurashi: off: @import "/c/noctalia/zen-userChrome.css"; \*/$' "$ZCSS" || fail "not turned off with a mark: $(cat "$ZCSS")"
+"$SB" act act theme.export.others '{"target":"zen","profile":"default","on":true}' > /dev/null || fail "turning it back on"
+until_row others /c/noctalia/zen-userChrome.css
+"$SB" act act theme.export.others '{"target":"zen","profile":"default","on":false}' > /dev/null || fail "off again"
+until_row others ""
+echo "others: named, off with a mark, back on"
+
 "$SB" act act theme.export.link '{"target":"zen","profile":"default","on":false}' > /dev/null || fail "the unlink action"
 until_list zen "default* work"
+[ "$(cat "$ZCSS")" = "$(printf '@import "/c/noctalia/zen-userChrome.css";\n%s' "$ORIG" | grep -v 'kurashi/apps/zen.css')" ] || fail "Unlink did not bring the other back: $(cat "$ZCSS")"
+sed -i '/noctalia/d' "$ZCSS"
 [ "$(cat "$ZCSS")" = "$(printf '/* mine */\n#foo { color: red }')" ] || fail "Unlink left the css otherwise: $(cat "$ZCSS")"
 [ "$(cat "$ZJS")" = 'user_pref("mine", 1);' ] || fail "Unlink left user.js otherwise: $(cat "$ZJS")"
 echo "unlink: back to what the user had, byte for byte"

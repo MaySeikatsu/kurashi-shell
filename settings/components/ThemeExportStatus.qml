@@ -244,6 +244,46 @@ Column {
                     }
                 }
             }
+            // A linked profile that imports another stylesheet (another shell's theme, say) paints over the theme: Settings says so
+            // rather than showing a link that does nothing, and offers to turn it off (K100). Only on this click; Unlink undoes it.
+            Repeater {
+                model: t.modelData.profiles ? t.modelData.profiles.list.filter(function (p) {
+                    return p.linked && ((p.others || []).length > 0 || (p.silenced || []).length > 0)
+                }) : []
+                delegate: Row {
+                    id: other
+                    required property var modelData
+                    readonly property bool has: (modelData.others || []).length > 0
+                    width: t.width
+                    spacing: Theme.gap
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - otherKey.width - parent.spacing
+                        wrapMode: Text.WordWrap
+                        color: other.has ? Theme.fg : Theme.dim
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.fmt(other.has ? "theme.export.profile.others" : "theme.export.profile.silenced", {
+                            name: other.modelData.name,
+                            files: (other.has ? other.modelData.others : other.modelData.silenced).map(ex.tilde).join(", ")
+                        })
+                    }
+                    Button {
+                        id: otherKey
+                        objectName: "others:" + t.modelData.name + ":" + other.modelData.name
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: I18n.tr(other.has ? "theme.export.profile.others_off" : "theme.export.profile.others_on")
+                        enabled: Store.live
+                        onClicked: Store.act("theme.export.others", { target: t.modelData.name, profile: other.modelData.name,
+                                                                      on: !other.has }, function (m) {
+                            ex.linkErrors = m.t === "done" ? "" : I18n.fmt("theme.export.profile.failed", { reason: Store.actError(m) })
+                        })
+                    }
+                }
+            }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType

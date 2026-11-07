@@ -56,3 +56,7 @@
 "theme.export.profile.none" = "No profiles found in {dir}."
 "theme.export.profile.failed" = "Could not change the profile: {reason}"
 "theme.export.profile.restart" = "Restart the browser to see a change: it reads its chrome at start."
+"theme.export.profile.others" = "{name} also imports {files}, which can paint over the theme."
+"theme.export.profile.others_off" = "Turn it off"
+"theme.export.profile.silenced" = "{name}: {files} is turned off. Unlink brings it back too."
+"theme.export.profile.others_on" = "Turn it back on"
