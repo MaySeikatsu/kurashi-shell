@@ -726,6 +726,95 @@ pub fn terminal_image(name: &str, picture: Option<(&str, u32)>) -> String {
     }
 }
 
+/// The browsers that follow, and what their chrome takes (I422, K100).
+pub fn is_browser(name: &str) -> bool {
+    matches!(name, "zen" | "firefox")
+}
+
+/// `{{browser.extras}}`: Zen's corners and frame through its own variables; a tile on its sidebar and toolbar (Firefox's
+/// toolbars) at `tile` (absolute, with its size in px); translucency by what is asked.
+pub fn browser_extras(
+    name: &str,
+    tokens: &serde_json::Map<String, Value>,
+    p: &Palette,
+    tile: Option<(&str, u32)>,
+    translucent: bool,
+    translucent_pages: bool,
+) -> String {
+    let num = |k: &str, d: f64| tokens.get(k).and_then(Value::as_f64).unwrap_or(d);
+    let mut out = String::new();
+    let outline = role(p, "outline_variant").map_or_else(|| "currentColor".to_owned(), Rgb::hex);
+    if name == "zen" {
+        let radius = num("radius.window", num("radius.lg", 8.0)).round();
+        out.push_str(&format!(
+            ":root {{\n  --zen-border-radius: {radius}px !important;\n  --zen-appcontent-border: 1px solid {outline} !important;\n}}\n"
+        ));
+    }
+    let surface = |alpha: f64| {
+        let Rgb(r, g, b) = role(p, "surface_container_low").unwrap_or(Rgb(128, 128, 128));
+        format!("rgba({r}, {g}, {b}, {alpha:.2})")
+    };
+    let alpha = if translucent {
+        num("color.surface_alpha", 0.85).clamp(0.3, 0.92)
+    } else {
+        1.0
+    };
+    // (A tile is opaque, and would close what translucency opens.)
+    let image = tile.filter(|_| !translucent).map(|(path, px)| {
+        format!("  background-image: url(\"file://{path}\") !important;\n  background-size: {px}px {px}px !important;\n  background-repeat: repeat !important;\n")
+    });
+    if name == "zen" {
+        // Zen sets its background per window on these layers' own element, so a variable on :root never reaches them: the
+        // layers themselves, `::after` the colour in effect and `::before` the one it fades from; its grain is the shell's now.
+        out.push_str(&format!(
+            ".zen-browser-generic-background::after {{\n  background-color: {} !important;\n{}  opacity: 1 !important;\n}}\n.zen-browser-generic-background::before {{ background: transparent !important; }}\n.zen-browser-grain {{ display: none !important; }}\n",
+            surface(alpha),
+            image.as_deref().unwrap_or("")
+        ));
+    } else {
+        if translucent {
+            let bg = surface(alpha);
+            out.push_str(&format!(
+                ":root {{\n  --toolbar-bgcolor: {bg} !important;\n  --toolbox-bgcolor: {bg} !important;\n  --lwt-accent-color: transparent !important;\n  --sidebar-background-color: {bg} !important;\n}}\n#main-window, #browser, #navigator-toolbox {{ background: transparent !important; }}\n"
+            ));
+        }
+        if let Some(img) = &image {
+            out.push_str(&format!(
+                "#navigator-toolbox, #sidebar-box, #sidebar-main {{\n{img}}}\n"
+            ));
+        }
+    }
+    if translucent_pages {
+        out.push_str("#tabbrowser-tabpanels, browser[type=\"content\"], .browserStack { background: transparent !important; }\n");
+    }
+    out
+}
+
+/// The prefs a linked profile needs (name, its JS value): user chrome, and what translucency asks of the browser.
+pub fn browser_prefs(
+    name: &str,
+    translucent: bool,
+    pages: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let mut out = vec![(
+        "toolkit.legacyUserProfileCustomizations.stylesheets",
+        "true",
+    )];
+    if translucent {
+        if name == "zen" {
+            out.push(("zen.widget.linux.transparency", "true"));
+        } else {
+            out.push(("browser.tabs.allow_transparent_browser", "true"));
+        }
+    }
+    if pages {
+        out.push(("browser.tabs.allow_transparent_browser", "true"));
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
 pub const LEGACY_STUB: &str = "// Superseded (K49, W34): the shell's niri settings are in kurashi.kdl now. Replace the\n// include line that names this file with `include \"kurashi.kdl\"`.\n";
 
 /// The targets, in the order Settings lists them.
@@ -939,10 +1028,8 @@ pub const TARGETS: &[Target] = &[
             template: "mozilla.css",
             path: "kurashi/apps/firefox.css",
         },
-        include: Some((
-            "mozilla/firefox/<profile>/chrome/userChrome.css",
-            "@import url(\"file://{{paths.config}}/kurashi/apps/firefox.css\");",
-        )),
+        // (the import is listed per profile, from profiles.ini: `theme_export.rs`, K100)
+        include: None,
         lines: None,
         legacy: None,
         shader: None,
@@ -953,10 +1040,7 @@ pub const TARGETS: &[Target] = &[
             template: "mozilla.css",
             path: "kurashi/apps/zen.css",
         },
-        include: Some((
-            "~/.zen/<profile>/chrome/userChrome.css",
-            "@import url(\"file://{{paths.config}}/kurashi/apps/zen.css\");",
-        )),
+        include: None,
         lines: None,
         legacy: None,
         shader: None,

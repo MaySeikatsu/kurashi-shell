@@ -266,6 +266,21 @@
 # windows keep the outline; a window asking for attention keeps the error colour.
 #   choices: "accent" | "shell_outline" | "secondary" | "tertiary" | "outline" | "on_surface"
 # window_frame_color = "accent"
+# Material in browsers — Zen and Firefox take the material on their sidebar and toolbar,
+# as a tile, with the shell's corners. A browser reads its chrome at start: it shows after a
+# restart.
+#   only while theme.texture.kind != "none"
+# browser_material = true
+#
+# Translucent browser — Zen's and Firefox's own interface lets what is under the window
+# show. Zen needs its transparency setting, written to a linked profile. After a restart.
+# browser_translucent = false
+#
+# Translucent pages — Pages without a background of their own show what is under the
+# window too. Many sites assume a white page, so this is an opt-in of its own. After a
+# restart.
+#   only while theme.browser_translucent == true
+# browser_translucent_pages = false
 #
 # See-through unfocused windows — The compositors that follow make every window but the
 # focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it).

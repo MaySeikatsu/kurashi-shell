@@ -814,6 +814,15 @@ pub fn terminal_relief(
     if !b(store, "theme.texture.terminals") {
         return Err("switch");
     }
+    relief_for_apps(store, tokens, TERMINAL_STRENGTH)
+}
+
+/// The shell's material for an app's picture, at `strength` of its relief.
+fn relief_for_apps(
+    store: &ConfigStore,
+    tokens: &Map<String, Value>,
+    strength: f32,
+) -> Result<crate::theme_export::TerminalRelief, &'static str> {
     let Some(kind) = kind(store) else {
         return Err("kind");
     };
@@ -840,11 +849,11 @@ pub fn terminal_relief(
         .unwrap_or([0.0, 0.0, 1.0]);
     let surface = rgb(tokens, "color.surface");
     let shading = Shading {
-        amp: num("texture.amp") * TERMINAL_STRENGTH,
+        amp: num("texture.amp") * strength,
         gloss: m.gloss,
         shininess: m.shininess.max(1.0),
         ink: lin(ink_colour(m.ink_role, tokens)),
-        ink_alpha: num("texture.ink_alpha") * TERMINAL_STRENGTH,
+        ink_alpha: num("texture.ink_alpha") * strength,
         light_dir: dir,
         light_color: lin(rgb(tokens, "light.color")),
         lamp: None,
@@ -864,6 +873,17 @@ pub fn terminal_relief(
             f32::from(surface.2) / 255.0,
         ],
     })
+}
+
+/// The relief a browser's tile is baked with (I422, K100): chrome has little text on it and short, so more of the shell's relief.
+pub fn browser_relief(
+    store: &ConfigStore,
+    tokens: &Map<String, Value>,
+) -> Result<crate::theme_export::TerminalRelief, &'static str> {
+    if !b(store, "theme.browser_material") {
+        return Err("switch");
+    }
+    relief_for_apps(store, tokens, 0.8)
 }
 
 /// K88: the grade the theme asks of the wallpaper; `None` while the switch is off.
