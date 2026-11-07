@@ -10,7 +10,7 @@ use serde_json::{Map, Value};
 
 const COMMON: &str = include_str!("niri_forms/common.glsl");
 
-/// The form's GLSL: `ks_form(uv, size, p, opening)`. `None`: a form with no shader here, a user's recipe.
+/// The form's GLSL: `ks_form(uv, size, p, opening)`. `None`: a form with no file here, a user's recipe (`niri_recipe`).
 fn source(form: &str) -> Option<&'static str> {
     Some(match form {
         "fade" => include_str!("niri_forms/fade.glsl"),
@@ -66,7 +66,7 @@ fn lum(c: [f64; 3]) -> f64 {
     0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
 }
 /// A GLSL float: ES 1.00 refuses `1` where it wants `1.0`.
-fn fl(x: f64) -> String {
+pub(crate) fn fl(x: f64) -> String {
     format!("{x:.5}")
 }
 fn vec3(c: [f64; 3]) -> String {
@@ -203,10 +203,21 @@ pub fn needs_linear(curve: Option<&Value>) -> bool {
     easing(curve).is_some()
 }
 
-/// The `custom-shader` text of `form` for one direction, under `curve` (the role's token). `None`: this form has no
-/// shader (a recipe), so the window keeps niri's own animation on the shell's curve.
+/// The `custom-shader` text of `form` for one direction, under `curve` (the role's token). A form's file, or a user's recipe
+/// generated from its tracks (K95). `None`: neither (a recipe that is skipped), so the window keeps niri's own animation on
+/// the shell's curve.
 pub fn shader(t: &Tokens, form: &str, opening: bool, curve: Option<&Value>) -> Option<String> {
-    let body = source(form)?;
+    let recipe = source(form).is_none();
+    let base = if recipe {
+        crate::niri_recipe::base(t, form)?
+    } else {
+        form
+    };
+    let body = if recipe {
+        crate::niri_recipe::source(t, form, source(base))?
+    } else {
+        source(form)?.to_owned()
+    };
     let overshoots = kurashi_motion::forms::form(form).is_some_and(|m| m.overshoot);
     let ease = easing(curve);
     let progress = match (&ease, overshoots) {
@@ -219,7 +230,7 @@ pub fn shader(t: &Tokens, form: &str, opening: bool, curve: Option<&Value>) -> O
     } else {
         ("close", format!("1.0 - {progress}"), "0.0")
     };
-    let mut out = constants(t, form);
+    let mut out = constants(t, base);
     if let Some(e) = ease {
         out.push_str(&e);
     }
@@ -336,6 +347,85 @@ mod tests {
         assert!(!needs_linear(Some(&json!({"kind": "spring", "ms": 300}))));
     }
 
+    /// A token as the daemon publishes it (`Recipe::token`): every prop, every kind of curve, on a base when given.
+    fn with_recipe(base: &str) -> Tokens {
+        let mut t = tokens();
+        let cubic = json!({"kind": "cubic", "ms": 0, "points": [0.2, 0, 0, 1, 1, 1]});
+        let spring = json!({"kind": "spring", "ms": 300, "response": 300, "bounce": 0.3});
+        let spring_q = json!({"kind": "spring_q", "ms": 0, "spring": 0.1, "damping": 0.3});
+        let steps = json!({"kind": "steps", "ms": 0, "n": 4});
+        let curves = [Value::Null, cubic, spring, spring_q, steps];
+        let tracks: Vec<Value> = kurashi_motion::recipe::PROPS
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let mid = (p.max + p.min) * 0.5 + p.rest * 0.1;
+                json!({"prop": p.name, "keys": [[0, p.min], [0.5, mid], [1, p.rest]],
+                       "curve": curves[i % curves.len()],
+                       "unit": if p.px.is_some() && i % 2 == 0 { "px" } else { "fraction" }})
+            })
+            .collect();
+        t.insert(
+            "motion.recipe.mine".into(),
+            json!({"ok": true, "base": base, "pivot": "edge", "tracks": tracks}),
+        );
+        t.insert(
+            "motion.recipe.broken".into(),
+            json!({"ok": false, "base": "", "pivot": "centre", "tracks": [], "diags": [{"key": "x"}]}),
+        );
+        t
+    }
+
+    /// I418: a recipe's tracks become functions of p, what no track moves stays at rest, and a skipped one has no shader.
+    #[test]
+    fn a_recipe_is_written_from_its_tracks() {
+        let t = with_recipe("");
+        let s = shader(&t, "mine", true, None).unwrap();
+        assert!(s.contains("float ks_r_scale(float p) {\n"), "{s}");
+        assert!(s.contains("float ks_e_scale(float x) {\n"), "{s}");
+        assert!(s.contains("const float ks_pivot = 0.00000;"), "{s}");
+        assert!(s.contains("vec4 open_color") && s.contains("niri_clamped_progress, 1.0)"));
+        assert!(!s.contains('"'), "a double quote breaks the raw string");
+        let c = shader(&t, "mine", false, None).unwrap();
+        assert!(c.contains("1.0 - niri_clamped_progress, 0.0)"), "{c}");
+        assert!(shader(&t, "broken", true, None).is_none());
+        assert!(shader(&t, "nobody", true, None).is_none());
+
+        let mut one = tokens();
+        one.insert(
+            "motion.recipe.fades".into(),
+            json!({"ok": true, "base": "", "pivot": "centre", "tracks": [
+                {"prop": "opacity", "keys": [[0, 0], [0.5, 1], [1, 1]], "curve": null, "unit": "fraction"}]}),
+        );
+        let s = shader(&one, "fades", true, None).unwrap();
+        assert!(
+            s.contains("float ks_r_scale(float p) { return 1.00000; }"),
+            "{s}"
+        );
+        assert!(
+            s.contains("float ks_r_blur(float p) { return 0.00000; }"),
+            "{s}"
+        );
+        assert!(
+            s.contains("if (p < 0.50000) return mix(0.00000, 1.00000, (p - 0.00000) / 0.50000);"),
+            "{s}"
+        );
+        assert!(s.contains("const float ks_pivot = 0.50000;"), "{s}");
+    }
+
+    /// A base runs under the tracks with its own parameters, by its name in the shader.
+    #[test]
+    fn a_recipe_runs_over_its_base() {
+        let s = shader(&with_recipe("slide"), "mine", true, None).unwrap();
+        assert!(
+            s.contains(
+                "vec4 ks_base(vec2 uv, vec2 size, float p, float opening) {\n    float travel"
+            ),
+            "{s}"
+        );
+        assert_eq!(s.matches("vec4 ks_form(").count(), 1, "{s}");
+    }
+
     /// Every shader through a GLSL ES 1.00 compiler, between what niri puts round it (its prelude and epilogue, kept in
     /// step by `frontend/test-niri-motion.sh`, which compiles them in niri itself). Skips where `glslangValidator` is not on
     /// the PATH: the dev shell has it.
@@ -354,28 +444,41 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let t = tokens();
         let steps = json!({"kind": "steps", "ms": 240, "n": 6});
+        let compile = |t: &Tokens,
+                       form: &str,
+                       label: &str,
+                       opening: bool,
+                       curve: Option<&Value>| {
+            let Some(s) = shader(t, form, opening, curve) else {
+                return;
+            };
+            let name = if opening { "open" } else { "close" };
+            let text = format!(
+                "{PRELUDE}{s}\nvoid main() {{\n    vec3 g = niri_input_to_geo * vec3(niri_v_coords, 1.0);\n    gl_FragColor = {name}_color(g, vec3(niri_geo_size, 1.0)) * niri_alpha;\n}}\n"
+            );
+            let file = dir.join(format!("{label}-{name}.frag"));
+            std::fs::write(&file, text).unwrap();
+            let out = std::process::Command::new("glslangValidator")
+                .arg(&file)
+                .output()
+                .unwrap();
+            assert!(
+                out.status.success(),
+                "{label} {name}: {}",
+                String::from_utf8_lossy(&out.stdout)
+            );
+        };
         for m in kurashi_motion::forms::FORMS {
             for (opening, curve) in [(true, None), (false, None), (true, Some(&steps))] {
-                let Some(s) = shader(&t, m.id, opening, curve) else {
-                    continue;
-                };
-                let name = if opening { "open" } else { "close" };
-                let text = format!(
-                    "{PRELUDE}{s}\nvoid main() {{\n    vec3 g = niri_input_to_geo * vec3(niri_v_coords, 1.0);\n    gl_FragColor = {name}_color(g, vec3(niri_geo_size, 1.0)) * niri_alpha;\n}}\n"
-                );
-                let file = dir.join(format!("{}-{name}.frag", m.id));
-                std::fs::write(&file, text).unwrap();
-                let out = std::process::Command::new("glslangValidator")
-                    .arg(&file)
-                    .output()
-                    .unwrap();
-                assert!(
-                    out.status.success(),
-                    "{} {name}: {}",
-                    m.id,
-                    String::from_utf8_lossy(&out.stdout)
-                );
+                compile(&t, m.id, m.id, opening, curve);
             }
+        }
+        // I418: a recipe with every prop and every kind of curve, on no base and on each.
+        for base in std::iter::once("").chain(kurashi_motion::recipe::BASES) {
+            let t = with_recipe(base);
+            let label = format!("recipe-{base}");
+            compile(&t, "mine", &label, true, None);
+            compile(&t, "mine", &label, false, Some(&steps));
         }
         std::fs::remove_dir_all(&dir).ok();
     }

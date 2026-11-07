@@ -27,8 +27,12 @@ the window's texture and 500 px round it. So:
   - no derivatives (`#extension` would have to precede the prelude): edges are a logical pixel wide;
   - flip and book turn away from the viewer: a tall window turned toward them would cover the screen. Fan's rays are limited
     so that its rim stays inside the 500 px.
-- **Not carried**: a user's recipes (keyframe tracks): the window keeps niri's own animation on the shell's curve. The workspace
-  switch and view movement have no shader hook: they keep the curves `follow` gives them.
+- **A user's recipes** (I418, K95) are generated from their tracks, with no port by hand: `niri_recipe.rs` writes one function per
+  prop, `niri_forms/recipe.glsl` is `recipe.js` run backwards per pixel. Differences from the shell: `origin` is the top edge's middle (no
+  origin reaches a shader); a blur is a 16-sample disc, so it is grainier than the shell's layer; a recipe that turns a tall window toward
+  the viewer grows past the 500 px niri draws round it and is cut there, and so does a long translate. A skipped recipe falls to the next
+  form in line, as on every other surface.
+- **Not carried**: the workspace switch and view movement have no shader hook: they keep the curves `follow` gives them.
 - `window-resize` stays niri's. The shell has no resize form.
 
 ## Design

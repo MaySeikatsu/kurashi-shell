@@ -1288,7 +1288,7 @@ forms are run backwards per pixel, since niri has a fragment stage only. Opt-in.
 ([nirimation](https://github.com/Xansidev/nirimation), [niri-animation-collection](https://github.com/jgarza9788/niri-animation-collection),
 [liixini/shaders](https://github.com/liixini/shaders); all MIT) proved the hook carries such effects; they are fixed pastes, so nothing is copied: the forms are the shell's.
 **Trade-off.** niri states custom shaders have no compatibility guarantee, and a refused one only logs a warning the daemon cannot see. So it is opt-in, the help says it,
-and the suite compiles every form in niri. A window hangs from its own top edge (I412). A user's recipe has no shader.
+and the suite compiles every form in niri. A window hangs from its own top edge (I412). A user's recipe had no shader until K95.
 **Evidence.** `frontend/test-niri-motion.sh`; `niri_forms` tests through glslang; contact sheets of every form at four progress values on nested niri on the GTX 1060 (NVIDIA's compiler).
 
 ## K92 — Hover previews are last-seen stills, cropped by reading the layout from the picture (session 23, I284, I285)
@@ -1309,3 +1309,10 @@ and the suite compiles every form in niri. A window hangs from its own top edge 
 **Trade-off.** The pen has one width per font: no pressure yet. Strokes are stroked by `kurbo` and marked as overlapping, not merged. The Stage's mod card may now be 1100 px wide, up from 720, for this board. `font.rs` repeats some table assembly from `kurashi_theme::font_mix` (I419).
 **Evidence.** `mods/handwriting/test-handwriting.sh` draws with a real pointer on nested niri; the crate's tests read the fonts through `skrifa` and `harfrust`.
 
+## K95 — A user's recipes on niri's windows, generated from their tracks (session 24, I418)
+**Decision.** A recipe that resolves as `motion.form.window.*` gets a `custom-shader` written from its `motion.recipe.<id>` token: `niri_recipe.rs` generates one GLSL function per
+prop over p and each track's curve as a polyline; `niri_forms/recipe.glsl` is the frame's math of `recipe.js`, inverted per pixel by the adjugate of its projective matrix. A base is its form's
+file, renamed `ks_base`, run at the transformed coordinate.
+**Why.** User, session 23: the forms on windows should be the shell's. A recipe is declarative, so no port by hand is needed and a test need not refuse one. The same frame math keeps it the same motion.
+**Trade-off.** No origin in a shader (the top edge's middle); blur is a 16-sample disc per base call; the clip keeps the shadow only while that clip is at rest; a large turn or translate is cut at niri's 500 px.
+**Evidence.** `niri_forms` tests compile every prop and every kind of curve on every base through glslang; `frontend/test-niri-motion.sh` compiles the brief's recipes in niri and reads pixels of a slow wipe and shrink; a contact sheet on nested niri.

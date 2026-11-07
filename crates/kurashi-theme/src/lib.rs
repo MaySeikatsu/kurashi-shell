@@ -15,6 +15,7 @@ pub mod fonts;
 pub mod input;
 pub mod media_tint;
 pub mod niri_forms;
+mod niri_recipe;
 pub mod palette;
 pub mod season;
 pub mod stages;
