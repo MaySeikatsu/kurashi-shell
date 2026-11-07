@@ -62,7 +62,7 @@ placed() {
   local since; since=$(log_size "$R/qs.log")
   "$@" >/dev/null
   wait_for "$R/qs.log" 'launcher-place ' 8 "$since" || fail "no place logged for: $*"
-  read -r PLACE SW SH X Y WW WH FOOT < <(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a 'launcher-place ' | tail -1 | sed 's/.*launcher-place //')
+  read -r PLACE SW SH X Y WW WH FOOT SHADE < <(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a 'launcher-place ' | tail -1 | sed 's/.*launcher-place //')
   K act launcher.toggle >/dev/null
   wait_until 5 ui_is '"launcher":false' || fail "the launcher did not close"
   sleep 0.3
@@ -93,7 +93,8 @@ place_x = 100
 place_y = 0'
 placed K act launcher.toggle
 [ "$PLACE" = fixed ] || fail "fixed: place $PLACE"
-near "$X" "$(( SW - WW ))" && [ "$Y" -eq 0 ] || fail "fixed 100,0: at $X,$Y (window $WW of $SW)"
+# (the card against the corner: its window stands past the edge by the shadow's room)
+near "$X" "$(( SW - WW + SHADE ))" && [ "$Y" -eq "$(( -SHADE ))" ] || fail "fixed 100,0: at $X,$Y (window $WW of $SW, room $SHADE)"
 echo "ok: place = fixed: where the sliders say"
 
 conf '[launcher]

@@ -52,7 +52,8 @@ PanelWindow {
     anchors { top: !bars.atBottom; bottom: bars.atBottom; right: !morphing }
     // Room for the soft chrome's shadow round the card (K45; 0 under every other chrome), taken out of the margins so the
     // card stays where it was. Floating chromes (bar groups) keep a gap from the bar.
-    readonly property int shade: Theme.softR
+    // (I435: and the card's elevation, or the window cuts its shadow off in a straight line)
+    readonly property int shade: Math.max(Theme.softR, Theme.elevReach(3))
     // K67 (docs/ux/shadows.md, CONTRACT row 422): the shadow vector's reach past the card, per side (px): the hard shadow's
     // whole px and the soft shadow's offset. Where the reach is more than the room the look keeps (`shade`, and `shadowDy`
     // on the right and bottom), the window takes the slack on that side. The margins and the card's offset take the same

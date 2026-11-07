@@ -152,3 +152,4 @@
 "launcher.start.apps" = "Apps"
 "launcher.start.recommended" = "Recommended"
 "action.theme.export.link" = "Link a browser profile to the theme"
+"action.theme.export.others" = "Turn a browser profile's other stylesheets off or on"

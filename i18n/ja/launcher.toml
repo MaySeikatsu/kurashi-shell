@@ -152,3 +152,4 @@
 "launcher.start.apps" = "アプリ"
 "launcher.start.recommended" = "おすすめ"
 "action.theme.export.link" = "ブラウザのプロファイルをテーマにリンク"
+"action.theme.export.others" = "ブラウザープロファイルの他のスタイルシートをオン／オフ"

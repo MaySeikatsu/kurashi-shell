@@ -20,6 +20,7 @@ layout(std140, binding = 0) uniform buf {
     vec2 size;      // the item's size (px)
     float radius;   // the hole's corner radius
     float sigma;    // the key's softness (px)
+    vec4 cut;       // x0, y0, x1, y1: a translucent card standing here, the shadow fades out under it (all 0: none)
 };
 
 const float PI = 3.14159265;
@@ -84,6 +85,10 @@ void main() {
     // Lit where the hole, moved along the shadow, still covers the point; the sheet's shadow everywhere else.
     float lit = blurredBox(hole.xy, hole.zw, p - offset, max(0.5, sigma), r);
     float a = color.a * clamp(1.0 - lit, 0.0, 1.0) * inside;
+    if (cut.z > cut.x) {
+        vec2 d = max(cut.xy - p, p - cut.zw);
+        a *= smoothstep(0.0, 14.0, length(max(d, vec2(0.0))) + min(max(d.x, d.y), 0.0));
+    }
     // Triangular dither, ±½ LSB.
     float n = fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
             - fract(sin(dot(p + 17.0, vec2(39.3468, 11.1353))) * 24634.6345);

@@ -408,9 +408,9 @@ Scope {
             BackgroundEffect.blurRegion: Region {
                 item: Theme.blur && body.shownNow && !bb.clearStrip && !bar.bRun.busy && !bHost.sheetBlurOff ? bg : null
                 radius: bar.drawFloating ? Math.min(bg.width, bg.height) / 2 : 0
-                Region { item: Theme.blur && carried.item ? carried.item.fillAt(0) : null }
-                Region { item: Theme.blur && carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
-                Region { item: Theme.blur && carried.item && carried.item.fillCount > 2 ? carried.item.fillAt(2) : null }
+                FillRegion { of: Theme.blur && carried.item ? carried.item.fillAt(0) : null }
+                FillRegion { of: Theme.blur && carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
+                FillRegion { of: Theme.blur && carried.item && carried.item.fillCount > 2 ? carried.item.fillAt(2) : null }
             }
 
             // Row 492 (b): the frame's strip on this edge (its side bands to the fillets' end, the fillets, the rule's arcs).

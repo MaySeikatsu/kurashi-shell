@@ -1012,6 +1012,16 @@ How wide the spotlight's beam is: narrow lights a small pool round the pointer, 
 - range: `10..=80`, step `1` (°)
 - only while `theme.light.mode == "spotlight"`
 
+#### `theme.light.outputs` — Monitors it reaches
+
+Where the pointer's light and the shadows it turns act: on the monitor the pointer is on, or on all of them, from where the pointer stands across your monitors. All repaints every monitor's surfaces as the pointer moves.
+
+- type: `choice` · default: `"pointer"`
+- choices: `"pointer"` | `"all"`
+- only while `theme.light.mode != "static"`
+- only while `theme.light.mode != "daytime"`
+- only while `theme.light.mode != "wallpaper"`
+
 #### `theme.light.color` — Light colour
 
 The colour of the light's highlights. Natural: white, the sun's own, or the wallpaper's.

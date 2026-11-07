@@ -7,6 +7,7 @@ import "../core/mods.js" as Mods
 import "../components"
 import "../components/expanded"
 import "../components/island"
+import "../components/sidebar"
 import "../components/decor"
 import "../components/motion"
 import "../core/motion"
@@ -338,25 +339,25 @@ PanelWindow {
     // W34: while a shape morphs under a top or bottom bar the window is the box round its origin and its card (`boxL`,
     // from the output's left edge), so it is anchored to the left with that margin, as a peek is.
     anchors {
-        top: peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null)
-        bottom: peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null))
-        left: peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && besideEdge === "left"))
-        right: peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!menuBeside || besideEdge === "right"))
+        top: placed || (peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null))
+        bottom: !placed && (peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null)))
+        left: placed || (peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && besideEdge === "left")))
+        right: !placed && (peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!menuBeside || besideEdge === "right")))
     }
     margins {
-        top: peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
+        top: placed ? placedY - placedRoom : peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
             : (morphLayout ? 0 : (besideAt !== null
                 ? Math.round(Math.max(Theme.pad, Math.min((stage.screen ? stage.screen.height : 1080) - card.height - Theme.pad, besideAt.y + besideAt.h / 2 - card.height / 2)))
                 : bars.topInset - (hangs ? 4 : 0)))
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
             : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0)))
-        left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
+        left: placed ? placedX - placedRoom : peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
             : (morphLayout ? boxL : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
             : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : Theme.pad) : 0))
     }
-    implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width)
-    implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height)
+    implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width + 2 * placedRoom)
+    implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height + 2 * placedRoom)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open && !polkit ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -1013,7 +1014,29 @@ PanelWindow {
     readonly property var morphBar: IslandGeom.barOf(outName, morphEdge)
     readonly property real barInset: morphBar ? morphBar.inset : bars.insetOf(morphEdge)
     // W53.5 (`[decor] surface.join = false`): a look whose cards stand apart from the bar never morphs.
-    readonly property bool morphMode: Theme.decor("surface.join", true) !== false
+    // K102: a mod's panel may stand on the screen instead of under the bar, by its setting `panel_place`. A card apart: it does
+    // not morph, it keeps the elevation's room round it, and it stands clear of the bars and bands.
+    readonly property string panelPlace: contentKind === "mod" && shownPanelMod !== ""
+        ? String(bars.valueOf("mods." + shownPanelMod + ".panel_place", "opened")) : "opened"
+    readonly property bool placed: panelPlace !== "opened" && !peekLayout
+    readonly property int placedRoom: placed ? Theme.elevReach(3) : 0
+    readonly property real placedX: {
+        var w = card.width, band = outLay && outLay.frame && outLay.frame.band ? outLay.frame.band : ({})
+        var L = Math.max(sideClear("left"), (band.left || 0) + Theme.gap), R = outW - Math.max(sideClear("right"), (band.right || 0) + Theme.gap)
+        var p = panelPlace
+        var x = p === "left" || p === "top_left" || p === "bottom_left" ? L
+            : p === "right" || p === "top_right" || p === "bottom_right" ? R - w : (outW - w) / 2
+        return Math.round(Math.max(L, Math.min(R - w, x)))
+    }
+    readonly property real placedY: {
+        var h = card.height, H = screen ? screen.height : 1080, band = outLay && outLay.frame && outLay.frame.band ? outLay.frame.band : ({})
+        var T = Math.max(bars.topInset, (band.top || 0) + Theme.gap), B = H - Math.max(bars.bottomEdgeInset, (band.bottom || 0) + Theme.gap)
+        var p = panelPlace
+        var y = p === "top" || p === "top_left" || p === "top_right" ? T
+            : p === "bottom" || p === "bottom_left" || p === "bottom_right" ? B - h : (H - h) / 2
+        return Math.round(Math.max(T, Math.min(Math.max(T, B - h), y)))
+    }
+    readonly property bool morphMode: !placed && Theme.decor("surface.join", true) !== false
         && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge)) && besideAt === null
         && (headMode || panelKinds.indexOf(contentKind) >= 0 || fromModule)
     readonly property bool flip: morphEdge === "bottom"
@@ -1106,9 +1129,10 @@ PanelWindow {
     // that would cut the shape), and is fitted anew when the shape comes out.
     // The springs' room past origin and card: the width's soft-limited overshoot and the landing's bulge on each side, the
     // centre's overshoot past its travel (MorphSprings.cap, .squash), the neck's fillets and the soft shadow.
-    readonly property int slackX: 16 + Theme.softR
+    // (I435: and the elevation's own reach, or the window cuts the card's shadow off in a straight line.)
+    readonly property int slackX: 16 + Math.max(Theme.softR, Theme.elevReach(3))
         + Math.ceil(card.width * (springs.cap + springs.squash) / 2 + Math.abs(cardOutX + card.width / 2 - originCx) * springs.cap)
-    readonly property int slackY: 40
+    readonly property int slackY: Math.max(40, Theme.elevReach(3))
     // I386: a card with a title bar can go full screen, so its window takes the output's width from the start. Widening it
     // then moves the layout at once but the window one configure later: the shape lay outside the window, and the card
     // vanished for two frames. (Its height grows from a fixed top, which moves nothing.)
@@ -1129,6 +1153,22 @@ PanelWindow {
         if (r > boxR) boxR = r
         // A card that grows while it is out (a view filling in) grows the box in steps, not every frame.
         if (needH > boxH) boxH = needH + 48
+    }
+    // I435: a translucent card that hangs from the bar has the rule left out under it and the sheet's shadow cut.
+    CardJoin {
+        output: stage.screen ? stage.screen.name : ""
+        side: "stage"
+        on: stage.dynamicEdge && stage.open && Theme.tok("color.surface_alpha", 1) < 0.999
+        readonly property real top: stage.flip ? stage.outH - stage.cardFoot : stage.barEdgeY
+        readonly property real foot: stage.flip ? stage.outH - stage.barEdgeY : stage.cardFoot
+        spans: {
+            var l = [{ edge: stage.morphEdge, from: stage.cardOutX - (stage.mergesL ? 0 : Theme.rJoin),
+                       to: stage.cardOutX + card.width + (stage.mergesR ? 0 : Theme.rJoin) }]
+            if (stage.mergesL) l.push({ edge: "left", from: top, to: foot + Theme.rJoin })
+            if (stage.mergesR) l.push({ edge: "right", from: top, to: foot + Theme.rJoin })
+            return l
+        }
+        box: Qt.rect(stage.cardOutX, top, card.width, foot - top)
     }
     readonly property real morphW: Math.max(1, boxR - boxL)
     readonly property real morphH: boxH
@@ -1583,6 +1623,17 @@ PanelWindow {
         anchors.fill: parent
         run: stage.morphMode ? null : run
         edge: stage.slideEdge
+    // K102: a card apart casts as a card does.
+    Elevation {
+        visible: stage.placed && stage.shown
+        x: card.x
+        y: card.y
+        width: card.width
+        height: card.height
+        radius: card.radius
+        level: 3
+        opacity: stage.p
+    }
     RoundBox {
         id: card
         visible: stage.shown
@@ -1623,9 +1674,9 @@ PanelWindow {
         }
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
         // The island's card (W21): the shape draws it; this holds the view where the grown shape will be, fading in after it.
-        x: stage.morphMode ? stage.cardOutX - stage.boxL : 0
+        x: stage.morphMode ? stage.cardOutX - stage.boxL : stage.placedRoom
         y: stage.morphMode ? (stage.flip ? stage.morphH - stage.cardTop - height : stage.cardTop)
-            : (inner.form === "grow" ? -stage.slide * (1 - stage.p) : 0)   // above the surface edge = clipped away
+            : stage.placedRoom + (inner.form === "grow" ? -stage.slide * (1 - stage.p) : 0)   // above the surface edge = clipped away
         // (K83: a shape form shows the content as its form says — revealed, through the iris, landing with the stamp, or
         // not until the outline has stepped out; the 0.98 → 1 settle is the grow's)
         opacity: stage.morphMode ? (stage.sf ? stage.sf.content : stage.contentP) : 1

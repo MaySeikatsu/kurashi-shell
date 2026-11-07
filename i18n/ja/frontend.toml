@@ -96,3 +96,7 @@
 "fonts.preview.sample1" = "Notifications"
 "fonts.preview.sample2" = "All little kittens will settle"
 "fonts.preview.sample3" = "The quick brown fox jumps over the lazy dog"
+"fonts.hand.on" = "自分のフォントを一文字ずつ描いて、ここやミックスで使えます。"
+"fonts.hand.off" = "手書きモッドで、自分のフォントを一文字ずつ描けます。"
+"fonts.hand.open" = "フォントを描く"
+"fonts.hand.enable" = "オンにする"

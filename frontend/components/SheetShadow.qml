@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "sidebar"
 
 // W57 (K78 decision 4, I338): the sheet's shadow into the hole — the frame band and the docked bars cast the key light's
 // shadow, short-reached, onto what lies in the window cut into the sheet (the desktop, the windows' edges). The hole is a
@@ -10,7 +11,8 @@ import "../core"
 // (shaders/sheet_shadow.frag); made only while elevation is on; 0 frames at rest (Ma).
 //
 // The direction is the surfaces' (Theme.elevationDir), or away from a lamp held on the output under follow (Light.heldLamp,
-// as Elevation): one vector per window, taken where the hole's edge nearest the window's middle lies.
+// as Elevation). One vector per output, taken at the hole's middle: every window of the sheet paints a part of one shadow,
+// so a vector of their own (each taken at its own edge) made a step where two of them meet.
 Loader {
     id: ss
     // The hole, output px.
@@ -40,16 +42,26 @@ Loader {
     // (Theme.sheetReach is the room this needs: distance × the longest length factor + 3 σ.)
 
     readonly property var qsw: QsWindow.window
-    // Where the shadow is taken: the hole's edge nearest this window's middle.
-    readonly property point at: {
-        var mx = origin.x + width / 2, my = origin.y + height / 2
-        return Qt.point(Math.max(x0, Math.min(x1, mx)), Math.max(y0, Math.min(y1, my)))
-    }
+    // Where the shadow is taken: the hole's middle, the same for every window of this hole.
+    readonly property point at: Qt.point((x0 + x1) / 2, (y0 + y1) / 2)
+    // Under `elevation_pointer` the pointer's lamp turns it too, as it turns the surfaces' (Elevation).
+    readonly property bool lamp: Theme.sheetMode === "follow" && Theme.elevationPointer && Light.wanted && !!qsw && !!qsw.screen
+        && Light.reaches(qsw.screen.name)
     readonly property var dir: {
+        if (lamp) return Light.awayFrom(Light.xOn(qsw.screen.name), Light.yOn(qsw.screen.name), at.x, at.y, Theme.sheetDir)
         var h = Theme.sheetMode === "follow" ? Light.heldLamp(qsw) : null
         return h ? Light.awayFrom(h.x, h.y, at.x, at.y, Theme.sheetDir) : Theme.sheetDir
     }
+    // (eased as the surfaces' are: the frame's shadow never jumps when the lamp comes or goes)
+    readonly property real wantX: dir[0] * dir[2]
+    readonly property real wantY: dir[1] * dir[2]
+    property real ux: wantX
+    property real uy: wantY
+    Behavior on ux { enabled: ss.active && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
+    Behavior on uy { enabled: ss.active && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
 
+    // A translucent card standing on the bar (I435): the shadow would show through it.
+    readonly property var cardBox: qsw && qsw.screen ? SidebarGeom.cardOf(qsw.screen.name) : null
     component Layer: ShaderEffect {
         property real ox: 0
         property real oy: 0
@@ -61,6 +73,8 @@ Loader {
         readonly property vector4d clipRect: Qt.vector4d(ss.own.x - ss.origin.x, ss.own.y - ss.origin.y,
             ss.own.x + ss.own.width - ss.origin.x, ss.own.y + ss.own.height - ss.origin.y)
         readonly property color color: Qt.rgba(ss.ink.r, ss.ink.g, ss.ink.b, Math.min(0.9, strength * ss.s * ss.dark))
+        readonly property vector4d cut: ss.cardBox ? Qt.vector4d(ss.cardBox.x - ss.origin.x, ss.cardBox.y - ss.origin.y,
+            ss.cardBox.x + ss.cardBox.width - ss.origin.x, ss.cardBox.y + ss.cardBox.height - ss.origin.y) : Qt.vector4d(0, 0, 0, 0)
         readonly property point offset: Qt.point(ox, oy)
         readonly property size size: Qt.size(width, height)
         readonly property real radius: ss.radius
@@ -75,8 +89,8 @@ Loader {
             visible: !ss.inward
             strength: ss.alpha
             soft: ss.blur
-            ox: ss.dir[0] * ss.dist * ss.dir[2] * ss.s
-            oy: ss.dir[1] * ss.dist * ss.dir[2] * ss.s
+            ox: ss.ux * ss.dist * ss.s
+            oy: ss.uy * ss.dist * ss.s
         }
     }
 }

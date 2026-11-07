@@ -139,6 +139,8 @@ when the light changes.
 One sheet per output, registered in output coordinates. The tile is generated at the largest output scale. Wallpaper
 bakes per output size.
 
+Under `theme.light.outputs = all` (K101) the pointer's lamp reaches every output, from where it stands across them.
+
 ## Budget
 Tile 512×512 device px RGBA (1 MiB; 4 MiB at scale 2) per window that shows texture; the shader is one texture fetch +
 a dozen ALU ops per pixel. Idle: 0 frames, 0 wakeups (static/daytime between ticks). Bench row in BENCH.md when merged.

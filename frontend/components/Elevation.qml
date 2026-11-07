@@ -34,8 +34,7 @@ Loader {
     active: mode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
 
     // [ambient blur, ambient alpha, key distance, key blur, key alpha] per level (starting values, tuned on niri).
-    readonly property var ladder: [[0, 0, 0, 0, 0], [12, 0.12, 2, 6, 0.18], [26, 0.18, 6, 14, 0.24],
-        [34, 0.20, 10, 20, 0.26], [46, 0.22, 14, 26, 0.28]]
+    readonly property var ladder: Theme.elevLadder
     // (Inward: only the all-round layer, as far as the key would have reached, darker.)
     readonly property var l: {
         var v = ladder[Math.max(0, Math.min(4, level))]
@@ -49,8 +48,8 @@ Loader {
 
     // The pointer's lamp on this output turns the key layer away from it (where it stands relative to the shape).
     readonly property var qsw: QsWindow.window
-    readonly property bool lamp: mode === "follow" && Theme.elevationPointer && Light.wanted && Light.k > 0 && !!qsw && !!qsw.screen
-        && Light.output === qsw.screen.name
+    readonly property bool lamp: mode === "follow" && Theme.elevationPointer && Light.wanted && !!qsw && !!qsw.screen
+        && Light.reaches(qsw.screen.name)
     // The lamp held on this output (the wallpaper's light, the spotlight's pin: Light.heldLamp) under follow: the shadow
     // falls away from it here, its length from how low it stands (I338: the relief's light and the shadows are one).
     readonly property point held: {
@@ -63,7 +62,7 @@ Loader {
         var o = Light.originOf(qsw), p = el.mapToItem(null, el.width / 2, el.height / 2)
         return Qt.point(o.x + p.x, o.y + p.y)
     }
-    readonly property var want: lamp ? Light.awayFrom(Light.x, Light.y, centre.x, centre.y, el.dirRest)
+    readonly property var want: lamp ? Light.awayFrom(Light.xOn(qsw.screen.name), Light.yOn(qsw.screen.name), centre.x, centre.y, el.dirRest)
         : pinned ? Light.awayFrom(held.x, held.y, centre.x, centre.y, el.dirRest) : el.dirRest
     readonly property real wantX: want[0]
     readonly property real wantY: want[1]

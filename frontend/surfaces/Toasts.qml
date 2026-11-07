@@ -170,7 +170,8 @@ Scope {
             ? bars.valueOf("dock.icon_size", 44) + 2 * Theme.pad + Theme.gap : 0
         readonly property bool springing: Theme.springOn && visible
         // Without one: below a top edge, at the right, clear of a right bar (as before W34).
-        readonly property int shade: Theme.softR
+        // (I435: and the card's elevation, or the window cuts its shadow off in a straight line)
+        readonly property int shade: Math.max(Theme.softR, Theme.elevReach(4))
         // K67 (docs/ux/shadows.md, CONTRACT row 422): the shadow vector's reach past a card, per side (px). Where it is more
         // than the room the look keeps (`shade`; `shadowDy` on the right; the bottom's two rooms), the window takes the slack
         // on that side. The margins and the card's place take the same room, so the card stays where it was. Not for a drip:

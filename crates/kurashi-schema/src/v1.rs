@@ -952,6 +952,15 @@ pub enum LightMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "light_outputs")]
+pub enum LightOutputs {
+    /// The one with the pointer
+    Pointer,
+    /// All monitors
+    All,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 #[kurashi(i18n = "light_color")]
 pub enum LightColor {
     /// Natural
@@ -988,6 +997,16 @@ pub struct Light {
     /// How wide the spotlight's beam is: narrow lights a small pool round the pointer, wide most of the screen.
     #[kurashi(default = 35, range = 10..=80, step = 1, unit = "°", requires = "theme.light.mode == spotlight")]
     pub beam: u32,
+    /// Monitors it reaches
+    /// Where the pointer's light and the shadows it turns act: on the monitor the pointer is on, or on all of them, from
+    /// where the pointer stands across your monitors. All repaints every monitor's surfaces as the pointer moves.
+    #[kurashi(
+        default = LightOutputs::Pointer,
+        requires = "theme.light.mode != static",
+        requires = "theme.light.mode != daytime",
+        requires = "theme.light.mode != wallpaper"
+    )]
+    pub outputs: LightOutputs,
     /// Light colour
     /// The colour of the light's highlights. Natural: white, the sun's own, or the wallpaper's.
     #[kurashi(default = LightColor::Natural, requires = "theme.texture.kind != none")]

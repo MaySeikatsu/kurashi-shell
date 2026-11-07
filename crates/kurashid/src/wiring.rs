@@ -549,6 +549,43 @@ const PEEK_UNDER_CARD: &str = "ui.error.peek_under_card";
 /// `ui.peek` of a mod peek the mod does not offer, or whose mod is off.
 const PEEK_UNAVAILABLE: &str = "mods.error.peek_unavailable";
 
+/// `>` rows for what the enabled mods' panels offer (K102), matched on the mod's name and its panel's: a mod's own panel
+/// can then be opened without a widget in a bar. Named by the mod's `name` (its i18n key or plain).
+fn mod_panel_rows(hub: &Hub, q: &str) -> Vec<Value> {
+    let words: Vec<String> = q.split_whitespace().map(str::to_lowercase).collect();
+    if words.is_empty() {
+        return Vec::new();
+    }
+    let Ok((_, doc)) = hub.snapshot("mods") else {
+        return Vec::new();
+    };
+    let strings = hub
+        .snapshot("i18n")
+        .map(|(_, d)| d["strings"].clone())
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    for m in doc["mods"].as_array().into_iter().flatten() {
+        if m["state"] != "enabled" {
+            continue;
+        }
+        let id = m["id"].as_str().unwrap_or_default();
+        let name = m["name"].as_str().unwrap_or(id);
+        let name = strings[name].as_str().unwrap_or(name);
+        for p in m["provides"].as_array().into_iter().flatten() {
+            let Some(panel) = p.as_str().and_then(|p| p.strip_prefix("panel:")) else {
+                continue;
+            };
+            let hay = format!("{} {id} {panel}", name.to_lowercase());
+            if words.iter().all(|w| hay.contains(w.as_str())) {
+                out.push(json!({"id": format!("panel:{id}:{panel}"), "name": name,
+                                "generic": format!("> mod.panel.open {id}"),
+                                "icon": "extension", "kind": "command", "score": 1.0}));
+            }
+        }
+    }
+    out
+}
+
 /// `mod.panel.open` of a panel the mod does not offer, or whose mod is off.
 const PANEL_UNAVAILABLE: &str = "mods.error.panel_unavailable";
 
@@ -930,6 +967,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             if registered("settings.open") {
                 cache.add_settings_rows(&mut rows, rest);
             }
+            rows.extend(mod_panel_rows(&hub, rest));
             return rows;
         }
         let calc = kurashi_launcher::calc::eval(q)
@@ -1093,6 +1131,14 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 // A `>` command runs its action; the web row opens its address in the default browser.
                 if let Some(action) = id.strip_prefix("cmd:") {
                     return actions.invoke(action, json!({})).await;
+                }
+                // A mod's panel (K102): `panel:<mod>:<panel>`, as its own widget opens it.
+                if let Some((id_, panel)) =
+                    id.strip_prefix("panel:").and_then(|r| r.split_once(':'))
+                {
+                    return actions
+                        .invoke("mod.panel.open", json!({ "id": id_, "panel": panel }))
+                        .await;
                 }
                 // A Settings page link (row 387, I40): `settings.open {page}` checks the page.
                 if let Some(page) = id.strip_prefix("settings:") {
@@ -3162,14 +3208,16 @@ impl crate::hub::Provider for LayoutProvider {
         let Some(store) = self.store.upgrade() else {
             return;
         };
+        // In this order: listening and the outputs as known first, the document after. An output that came between a document
+        // written first and a list read after it was in the list already, so it moved nothing and the layout never named it.
+        let mut rx = hub.events();
+        let mut outputs = layout_outputs(&hub);
         let _ = hub.set(LAYOUT_DOC, layout_document(&store, &hub), None);
         let Ok(rt) = tokio::runtime::Handle::try_current() else {
             return;
         };
         let weak = self.store.clone();
-        let mut rx = hub.events();
         let task = rt.spawn(async move {
-            let mut outputs = layout_outputs(&hub);
             loop {
                 let mut dirty = match rx.recv().await {
                     Ok(m) => layout_relevant(&m, &hub, &mut outputs),

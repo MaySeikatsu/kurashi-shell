@@ -56,6 +56,20 @@ Column {
             anchors.leftMargin: Theme.pad * 2
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.gap
+            // K102: a mod with a panel opens from here: turning it on is not the end of finding it.
+            Button {
+                readonly property string panel: {
+                    if (!h.entry || h.entry.state !== "enabled") return ""
+                    var l = (h.entry.provides || []).filter(function (p) { return String(p).indexOf("panel:") === 0 })
+                    return l.length > 0 ? String(l[0]).substring(6) : ""
+                }
+                objectName: "mod-open:" + h.modId
+                visible: panel !== ""
+                anchors.verticalCenter: parent.verticalCenter
+                label: I18n.tr("settings.ui.mod_open")
+                enabled: Store.live
+                onClicked: Store.act("mod.panel.open", { id: h.modId, panel: panel })
+            }
             Toggle {
                 id: sw
                 objectName: "modpage:" + h.modId

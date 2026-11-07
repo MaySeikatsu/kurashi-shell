@@ -1,5 +1,5 @@
 # Handwriting: draw your own font — UX brief (session 23, I415, K94)
-Status: prototype. Test `mods/handwriting/test-handwriting.sh`, in the merge set. Reviewed on nested niri (kami).
+Status: a feature of the mod, on since you turn it on (K102). Test `mods/handwriting/test-handwriting.sh`, in the merge set. Reviewed on nested niri (kami).
 
 ## Job
 Make a font of your own hand inside the shell, with nothing to print, scan or import. "When a human is writing a letter it doesn't always look the same": draw letters more than once, and Font Mix varies them as a hand does.
@@ -38,5 +38,16 @@ None of its own beyond the Stage's card. Canvases paint only on a change; the pa
 ## Fit
 A Stage panel, wider than others: the card's limit went from 720 to 1100 px. Fonts land where fontconfig finds them, so nothing else in the shell needs to know about this mod.
 
+## Outlines
+No drawing may take the shell down. A pen line that doubles back strokes to an outline that crosses itself, with points on top of each other, and Qt's distance fields crash on some of those (`PathSimplifier::fillIndices`, a segfault on the render thread: the shell restarts into the same font and loops). What goes into a font is the union of what was drawn, as simple polygons on the font's integer grid (`glyph::simple`): no contour crosses itself or another. Fonts on disk from before are made again at the daemon's next start. `mods/handwriting/test-outlines.sh` has Qt draw a font of the worst a pen can do, and a digit that crashed it.
+
+## Finding it (K102)
+The mod being on used to show nothing to click, so "I can activate it but couldn't create a font" was the first report. Now: **Open** on its page in Settings › Mods, and on any mod with a panel; **Draw a font** on Settings › Fonts (or Turn it on, while it is off); `>hand` in the launcher, as any enabled mod's panel; a pen widget for a bar (`mods` or a zone).
+
+## Options (K102)
+In Settings › Mods › Handwriting, all read by the daemon: **Opens** (where it was opened, the middle, the sides and corners); **Letters to draw** (basic, or with accents: umlauts, ß, accented Latin, curly quotes, dashes, € and £); **Pen for a new font**; **Letter spacing** (added when a font is made); **Writing lines**; **Letter shadow**; **Go on after saving**.
+
+**Where it opens.** A mod's panel takes `panel_place` in its settings (`docs/MODS.md`). Apart from the bar it is a card of its own: no morph, its own elevation with room for it, clear of the bars and bands. Other shells: KDE and macOS place dialogs centred; Caelestia's launcher hangs from the bar. The launcher's own Opens is the model; sliders are left out because a mod's settings cannot yet say a control is inert (rule 2), so it offers named places.
+
 ## Not done (I419)
-Pen pressure, kerning from sample phrases, a link from Settings › Fonts, the launcher entry.
+Pen pressure (needs a tablet to verify: a stylus draws as a plain pointer), kerning from sample phrases, sharing table assembly with `kurashi_theme::font_mix`.

@@ -144,10 +144,10 @@ Scope {
         onGeoLogChanged: if (geoLog !== "") console.log(geoLog)
         Component.onDestruction: Light.setZone(strip, "", edge, 0)
 
-        BackgroundEffect.blurRegion: Region {
-            item: Theme.blur ? pieces.fillAt(0) : null
-            Region { item: Theme.blur && pieces.fillCount > 1 ? pieces.fillAt(1) : null }
-            Region { item: Theme.blur && pieces.fillCount > 2 ? pieces.fillAt(2) : null }
+        BackgroundEffect.blurRegion: FillRegion {
+            of: Theme.blur ? pieces.fillAt(0) : null
+            FillRegion { of: Theme.blur && pieces.fillCount > 1 ? pieces.fillAt(1) : null }
+            FillRegion { of: Theme.blur && pieces.fillCount > 2 ? pieces.fillAt(2) : null }
         }
 
         // The sheet's shadow into the hole (I338, K78 decision 4): the strip's room on its inner side holds it.

@@ -32,7 +32,8 @@ Item {
     }
     // ColumnShape runs its open sides on past the neighbour's edge, under where its own window would end for the dock. Here the
     // window has room for the fillets, so they are cut: an overlap of the outline's width, enough to hide a rule under the card.
-    readonly property real over: pad - Math.max(1, Theme.outlineW)
+    // (Translucent, an overlap is a line of double fill along the connecting edge; CardJoin has the rule left out there.)
+    readonly property real over: pad - (Theme.tok("color.surface_alpha", 1) < 0.999 ? 0 : Math.max(1, Theme.outlineW))
     readonly property bool cutL: edge === "left" || (!vertical && flushStart)
     readonly property bool cutR: edge === "right" || (!vertical && flushEnd)
     readonly property bool cutT: edge === "top" || (vertical && flushStart)

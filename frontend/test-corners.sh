@@ -32,7 +32,7 @@ until_is() { # until_is <what> <want> <cmd…>
   fail "$what is $got, not $want"
 }
 winr() { sed -n 's/.*geometry-corner-radius \([0-9]*\).*/\1/p' "$KDL" | head -1; }
-for _ in $(seq 100); do OUTPUT=$("$SB" act --json sub runtime.layout --count 0 2>/dev/null | head -1 | jq -r '.data.outputs | keys | map(select(. != "*")) | .[0] // empty'); [ -n "$OUTPUT" ] && break; sleep 0.1; done
+for _ in $(seq 600); do OUTPUT=$("$SB" act --json sub runtime.layout --count 0 2>/dev/null | head -1 | jq -r '.data.outputs | keys | map(select(. != "*")) | .[0] // empty'); [ -n "$OUTPUT" ] && break; sleep 0.1; done
 [ -n "${OUTPUT:-}" ] || fail "no output in the layout"
 
 R=$(tok lg)

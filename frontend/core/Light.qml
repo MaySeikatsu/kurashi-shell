@@ -40,6 +40,20 @@ Singleton {
         if (l.length !== pictures.length) pictures = l
     }
 
+    // `theme.light.outputs` (K101): the lamp stands on one output, and with `all` every other output takes it where it stands
+    // across the outputs, in its own coordinates (the layout's logical px: an output's x and y). A lamp off an output lights it
+    // from that side and turns its shadows that way.
+    readonly property bool all: Theme.tok("light.outputs", "pointer") === "all"
+    readonly property var origins: {
+        var m = ({}), l = Quickshell.screens
+        for (var i = 0; i < l.length; i++) m[l[i].name] = Qt.point(l[i].x, l[i].y)
+        return m
+    }
+    // Whether the lamp is on `out` now.
+    function reaches(out) { return k > 0 && output !== "" && (out === output || all) }
+    function xOn(out) { return out === output || !all || !origins[output] || !origins[out] ? x : x + origins[output].x - origins[out].x }
+    function yOn(out) { return out === output || !all || !origins[output] || !origins[out] ? y : y + origins[output].y - origins[out].y }
+
     // The glide back to the static light: a single motion.long run, gated by the glide's own running (it stops itself).
     NumberAnimation {
         id: glide
