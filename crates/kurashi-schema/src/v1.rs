@@ -460,6 +460,29 @@ pub struct Theme {
     /// windows keep the outline; a window asking for attention keeps the error colour.
     #[kurashi(default = WindowFrameColor::Accent, section = "colors")]
     pub window_frame_color: WindowFrameColor,
+    /// Material in browsers
+    /// Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads
+    /// its chrome at start: it shows after a restart.
+    #[kurashi(
+        default = true,
+        section = "colors",
+        requires = "theme.texture.kind != none"
+    )]
+    pub browser_material: bool,
+    /// Translucent browser
+    /// Zen's and Firefox's own interface lets what is under the window show. Zen needs its transparency setting, written
+    /// to a linked profile. After a restart.
+    #[kurashi(default = false, section = "colors")]
+    pub browser_translucent: bool,
+    /// Translucent pages
+    /// Pages without a background of their own show what is under the window too. Many sites assume a white page, so this
+    /// is an opt-in of its own. After a restart.
+    #[kurashi(
+        default = false,
+        section = "colors",
+        requires = "theme.browser_translucent == true"
+    )]
+    pub browser_translucent_pages: bool,
     /// See-through unfocused windows
     /// The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and
     /// MangoWM; sway has no setting for it). Off: each keeps its own.

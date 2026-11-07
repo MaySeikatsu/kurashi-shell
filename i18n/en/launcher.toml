@@ -151,3 +151,4 @@
 "launcher.start.pinned" = "Pinned"
 "launcher.start.apps" = "Apps"
 "launcher.start.recommended" = "Recommended"
+"action.theme.export.link" = "Link a browser profile to the theme"

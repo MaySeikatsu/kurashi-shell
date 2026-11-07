@@ -149,6 +149,7 @@ async fn run() -> anyhow::Result<()> {
                     migrations: kurashid::config::migrations(),
                 },
             );
+            kurashid::theme_export::register_actions(&mut actions, store.clone());
             store.register_actions(&mut actions);
             // fc-list once at startup (subprocess); fonts installed later need a restart for now.
             let fonts: Arc<dyn kurashi_theme::FontProvider + Send + Sync> =

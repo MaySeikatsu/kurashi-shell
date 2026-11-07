@@ -142,6 +142,41 @@ fn bake_terminal_image(dest: &Path, r: &TerminalRelief) -> std::io::Result<u32> 
     Ok(px)
 }
 
+/// `$HOME`: where Zen and Firefox keep their profiles.
+fn browser_home() -> PathBuf {
+    std::env::var_os("HOME").map_or_else(|| PathBuf::from("/"), PathBuf::from)
+}
+
+/// The line a profile's `userChrome.css` needs for the file at `path`.
+fn browser_import(path: &str) -> String {
+    format!("@import url(\"file://{path}\");")
+}
+
+/// The action `theme.export.link {target, profile, on}`: the user's click in Settings, the import and its prefs in that profile
+/// or out of it. The profile is looked up by name in the browser's own `profiles.ini`, so nothing else can be named.
+pub fn link_profile(
+    target: &str,
+    profile: &str,
+    on: bool,
+    translucent: bool,
+    pages: bool,
+) -> Result<(), String> {
+    if !export::is_browser(target) {
+        return Err(format!("not a browser: {target}"));
+    }
+    let (home, config) = (browser_home(), config_home());
+    let root = crate::browsers::root_of(target, &home, &config).ok_or("no root")?;
+    let found = crate::browsers::profiles(&root);
+    let pr = found
+        .iter()
+        .find(|p| p.name == profile)
+        .ok_or_else(|| format!("no profile {profile}"))?;
+    let css = config.join(format!("kurashi/apps/{target}.css"));
+    let line = browser_import(&css.to_string_lossy());
+    let prefs = export::browser_prefs(target, translucent, pages);
+    crate::browsers::set_link(&pr.dir, &line, &prefs, on).map_err(|e| e.to_string())
+}
+
 /// Whether Ratty's one config is the shell's to write: absent, or written by it before.
 fn ratty_config_is_ours(path: &Path) -> bool {
     std::fs::read_to_string(path).map_or(true, |t| t.starts_with("# Written by kurashid"))
@@ -302,6 +337,11 @@ pub struct Run<'a> {
     pub material: &'a ghostty_shader::Material,
     /// What the terminals' pictures bake from, or why there are none (`switch`, `kind`, `scope`, `pending`).
     pub terminal: &'a Result<TerminalRelief, &'static str>,
+    /// What the browsers' tile bakes from, or why there is none.
+    pub browser: &'a Result<TerminalRelief, &'static str>,
+    /// `theme.browser_translucent`, `theme.browser_translucent_pages`.
+    pub browser_translucent: bool,
+    pub browser_translucent_pages: bool,
 }
 
 /// Renders and applies every chosen target; returns the `svc.theme_export` document.
@@ -401,8 +441,38 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
         }
         Some(export::TerminalWay::Shader) | None => {}
     }
-    let values = match (t.shader, image_lines) {
-        (Some(rel), _) => {
+    // A browser's corners, tile and translucency (K100).
+    let browser_extra = export::is_browser(t.name).then(|| {
+        let picture = match run.browser {
+            Ok(r) => {
+                let dest = run.home.join(format!("kurashi/apps/{}-tile.png", t.name));
+                match bake_terminal_image(&dest, r) {
+                    Ok(px) => Some((dest.to_string_lossy().into_owned(), px)),
+                    Err(e) => {
+                        tracing::warn!(target = %t.name, error = %e, "browser tile not written");
+                        None
+                    }
+                }
+            }
+            Err(_) => None,
+        };
+        let tokens = run.theme["tokens"].as_object().cloned().unwrap_or_default();
+        export::browser_extras(
+            t.name,
+            &tokens,
+            p,
+            picture.as_ref().map(|(p, px)| (p.as_str(), *px)),
+            run.browser_translucent,
+            run.browser_translucent && run.browser_translucent_pages,
+        )
+    });
+    let values = match (t.shader, image_lines, browser_extra) {
+        (_, _, Some(extra)) => {
+            own = values.clone();
+            own.insert("browser.extras".into(), extra);
+            &own
+        }
+        (Some(rel), _, None) => {
             own = values.clone();
             shader(run, rel, &mut own);
             material = Some(
@@ -417,12 +487,12 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
             );
             &own
         }
-        (None, Some(lines)) => {
+        (None, Some(lines), None) => {
             own = values.clone();
             own.insert("terminal.image".into(), lines);
             &own
         }
-        (None, None) => values,
+        (None, None, None) => values,
     };
     if let Some(m) = material {
         entry["material"] = m;
@@ -537,6 +607,37 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
         }
         entry["include"] = inc;
     }
+    // A browser: its profiles on this machine, from its own profiles.ini, and whether each has the import (K100). A linked
+    // profile's prefs follow the toggles: that block is the shell's.
+    if export::is_browser(t.name)
+        && let Some(path) = entry["path"].as_str().map(str::to_owned)
+    {
+        let home = browser_home();
+        let root = crate::browsers::root_of(t.name, &home, run.home);
+        let root = root.unwrap_or_else(|| home.clone());
+        let line = browser_import(&path);
+        let prefs = export::browser_prefs(
+            t.name,
+            run.browser_translucent,
+            run.browser_translucent && run.browser_translucent_pages,
+        );
+        let rows: Vec<Value> = crate::browsers::profiles(&root)
+            .into_iter()
+            .map(|pr| {
+                let linked = crate::browsers::linked(&pr.dir, &line);
+                if linked && let Err(e) = crate::browsers::sync_prefs(&pr.dir, &prefs, true) {
+                    tracing::warn!(error = %e, "browser prefs not written");
+                }
+                json!({
+                    "name": pr.name,
+                    "default": pr.default,
+                    "dir": pr.dir.to_string_lossy(),
+                    "linked": linked,
+                })
+            })
+            .collect();
+        entry["profiles"] = json!({"root": root.to_string_lossy(), "line": line, "list": rows});
+    }
     // A superseded file is kept as a stub while an old include may still name it: niri stops at a missing include.
     if let Some((old, old_line)) = t.legacy {
         let stub = run.home.join(old);
@@ -584,6 +685,53 @@ fn material_of(store: &ConfigStore) -> ghostty_shader::Material {
         cracks: num("theme.texture.cracks"),
         crack_style: text("theme.texture.crack_style"),
     }
+}
+
+/// Asks for an export now, after something the document says changed outside the config (a profile linked).
+fn poke() -> Arc<tokio::sync::Notify> {
+    static POKE: std::sync::OnceLock<Arc<tokio::sync::Notify>> = std::sync::OnceLock::new();
+    POKE.get_or_init(|| Arc::new(tokio::sync::Notify::new()))
+        .clone()
+}
+
+/// `theme.export.link {target, profile, on}` (K100): Settings' Link and Unlink.
+pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc<ConfigStore>) {
+    actions.register(
+        "theme.export.link",
+        "action.theme.export.link",
+        move |args: Value| {
+            let store = store.clone();
+            async move {
+                use crate::actions::ActionError;
+                let word = |k: &str| {
+                    args.get(k)
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                        .ok_or_else(|| ActionError::Invalid(crate::wiring::ARGS_INVALID.into()))
+                };
+                let (target, profile) = (word("target")?, word("profile")?);
+                let on = args.get("on").and_then(Value::as_bool).unwrap_or(true);
+                let flag = |k: &str| {
+                    store
+                        .get(k, None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(false)
+                };
+                let (translucent, pages) = (
+                    flag("theme.browser_translucent"),
+                    flag("theme.browser_translucent") && flag("theme.browser_translucent_pages"),
+                );
+                tokio::task::spawn_blocking(move || {
+                    link_profile(&target, &profile, on, translucent, pages)
+                })
+                .await
+                .map_err(|e| ActionError::Unavailable(e.to_string()))?
+                .map_err(ActionError::Unavailable)?;
+                poke().notify_one();
+                Ok(None)
+            }
+        },
+    );
 }
 
 /// `svc.theme_export`, kept current after each theme document or config change.
@@ -635,6 +783,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     .get("theme.window_frame_color", None)
                     .and_then(|p| p.value.as_str().map(str::to_owned))
                     .unwrap_or_else(|| "accent".to_owned());
+                let tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
                 export(&Run {
                     theme: &theme,
                     targets: &targets,
@@ -653,12 +802,10 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     titlebars: flag("theme.window_titlebars"),
                     desktop: &desktop,
                     material: &material,
-                    terminal: &crate::texture::terminal_relief(
-                        &store,
-                        theme["tokens"]
-                            .as_object()
-                            .unwrap_or(&serde_json::Map::new()),
-                    ),
+                    terminal: &crate::texture::terminal_relief(&store, &tokens),
+                    browser: &crate::texture::browser_relief(&store, &tokens),
+                    browser_translucent: flag("theme.browser_translucent"),
+                    browser_translucent_pages: flag("theme.browser_translucent_pages"),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -669,17 +816,21 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
         return;
     };
     let mut events = hub.events();
+    let poke = poke();
     rt.spawn(async move {
         loop {
-            match events.recv().await {
-                Ok(msg) => match msg.as_ref() {
-                    kurashi_ipc::ServerMsg::Snap { doc, .. }
-                    | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                        if doc == crate::theme::DOC || doc == crate::config::DOC => {}
-                    _ => continue,
+            tokio::select! {
+                msg = events.recv() => match msg {
+                    Ok(msg) => match msg.as_ref() {
+                        kurashi_ipc::ServerMsg::Snap { doc, .. }
+                        | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                            if doc == crate::theme::DOC || doc == crate::config::DOC => {}
+                        _ => continue,
+                    },
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 },
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                () = poke.notified() => {}
             }
             // Files are small; still off the runtime's threads.
             let run = run.clone();
@@ -761,6 +912,9 @@ mod tests {
             desktop,
             material,
             terminal: &Err("kind"),
+            browser: &Err("kind"),
+            browser_translucent: false,
+            browser_translucent_pages: false,
         })
     }
 
@@ -1111,6 +1265,9 @@ mod tests {
                 desktop: &desktop,
                 material: &ghostty_shader::Material::default(),
                 terminal: &Err("kind"),
+                browser: &Err("kind"),
+                browser_translucent: false,
+                browser_translucent_pages: false,
             });
             for name in APPS {
                 let e = entry(&doc, name);
@@ -1157,8 +1314,9 @@ mod tests {
             assert_eq!(hypr.contains("hyprbars {"), bars, "{hypr}");
             assert_eq!(sway.contains("default_border normal 2"), bars, "{sway}");
             let fx = entry(&doc, "firefox");
+            // (per profile since K100: no include of its own, the import stands beside the list of profiles)
             assert_eq!(
-                fx["include"]["line"],
+                fx["profiles"]["line"],
                 format!(
                     "@import url(\"file://{}/kurashi/apps/firefox.css\");",
                     home.display()
