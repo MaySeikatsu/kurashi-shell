@@ -29,6 +29,7 @@ Column {
     readonly property var targets: ex.doc && Array.isArray(ex.doc.targets) ? ex.doc.targets : []
     // Copies by row (an app's include is keyed by the app's name, its lines by `name#index`): the line copied, or {error}.
     property var copied: ({})
+    property string linkErrors: ""
     readonly property string home: Quickshell.env("HOME") || ""
     readonly property string xdg: Quickshell.env("XDG_CONFIG_HOME") || ""
     // Under $HOME a path reads `~/…`. Under $XDG_CONFIG_HOME (when that lies outside $HOME) it reads `$XDG_CONFIG_HOME/…`:
@@ -192,6 +193,68 @@ Column {
                 font.pixelSize: Theme.fs - 2
                 font.family: Theme.fam(text, Theme.families)
                 text: "⊘ " + I18n.fmt("settings.export.unknown", { names: (t.modelData.unknown || []).join(", ") })
+            }
+            // A browser: its profiles on this machine (profiles.ini, K100), each with Link: the only time the shell writes
+            // into a profile, and only on this click.
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                readonly property var pr: t.modelData.profiles
+                visible: !!pr
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: !pr ? "" : pr.list.length === 0 ? I18n.fmt("theme.export.profile.none", { dir: ex.tilde(pr.root) })
+                    : I18n.tr("theme.export.profile.restart")
+            }
+            Repeater {
+                model: t.modelData.profiles ? t.modelData.profiles.list : []
+                delegate: Row {
+                    id: prof
+                    required property var modelData
+                    width: t.width
+                    spacing: Theme.gap
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - linkKey.width - parent.spacing
+                        elide: Text.ElideMiddle
+                        color: Theme.fg
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        readonly property string who: prof.modelData.default
+                            ? I18n.fmt("theme.export.profile.default", { name: prof.modelData.name }) : prof.modelData.name
+                        text: prof.modelData.linked ? I18n.fmt("theme.export.profile.linked", { name: who }) : who
+                    }
+                    Button {
+                        id: linkKey
+                        objectName: "link:" + t.modelData.name + ":" + prof.modelData.name
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: I18n.tr(prof.modelData.linked ? "theme.export.profile.unlink" : "theme.export.profile.link")
+                        enabled: Store.live
+                        onClicked: Store.act("theme.export.link", { target: t.modelData.name, profile: prof.modelData.name,
+                                                                    on: !prof.modelData.linked }, function (m) {
+                            ex.linkErrors = m.t === "done" ? "" : I18n.fmt("theme.export.profile.failed", { reason: Store.actError(m, "settings.export.copy_failed") })
+                        })
+                    }
+                }
+            }
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                visible: ex.linkErrors !== "" && !!t.modelData.profiles
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.error
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: "✕ " + ex.linkErrors
             }
             // The include and the lines: present ones say so; the others show the line, the file it goes in and Copy.
             Repeater {

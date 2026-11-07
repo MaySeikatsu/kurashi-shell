@@ -548,6 +548,26 @@ The colour round the focused window, on the compositors that follow (niri, Hyprl
 - type: `choice` · default: `"accent"`
 - choices: `"accent"` | `"shell_outline"` | `"secondary"` | `"tertiary"` | `"outline"` | `"on_surface"`
 
+#### `theme.browser_material` — Material in browsers
+
+Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads its chrome at start: it shows after a restart.
+
+- type: `bool` · default: `true`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.browser_translucent` — Translucent browser
+
+Zen's and Firefox's own interface lets what is under the window show. Zen needs its transparency setting, written to a linked profile. After a restart.
+
+- type: `bool` · default: `false`
+
+#### `theme.browser_translucent_pages` — Translucent pages
+
+Pages without a background of their own show what is under the window too. Many sites assume a white page, so this is an opt-in of its own. After a restart.
+
+- type: `bool` · default: `false`
+- only while `theme.browser_translucent == true`
+
 #### `theme.inactive_transparent` — See-through unfocused windows
 
 The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it). Off: each keeps its own.

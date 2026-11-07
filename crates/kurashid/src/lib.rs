@@ -3,6 +3,7 @@
 
 pub mod actions;
 pub mod bindings;
+pub mod browsers;
 pub mod capabilities;
 pub mod clock;
 pub mod config;
