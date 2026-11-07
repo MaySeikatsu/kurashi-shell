@@ -334,3 +334,8 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S23.10 | The handwriting mod (I415, K94): draw a font letter by letter in versions, make fonts, use them in Font Mix. Functional: prototype, on nested niri. UX: reviewed on niri on kami. | prototype |
 | S24.1 | A user's recipes on niri's windows, shaders generated from their tracks (I418, K95). Functional: done, on nested niri. UX: reviewed on a contact sheet of five recipes | ✅ functional · 🟡 UX (user to judge) | feat/s24-recipe-shaders |
 | S24.2 | Window frame colour (I423): Accent, Shell outline or a palette role on niri, Hyprland, MangoWM, sway | ✅ functional · 🟡 UX (user to judge) | feat/s24-frame-colour |
+| S24.3 | Corners that match, a surface's own (I426, K96): the hole's radius is the radius; concentric outward | ✅ functional · 🟡 UX (user to judge) | feat/s24-surface-radii |
+| S24.4 | The sheet's shadow: Automatic, Follow, Static, Inward, Off; the band and joined dock cast (I427, K97) | ✅ functional · 🟡 UX (user to judge) | feat/s24-sheet-shadows |
+| S24.5 | What opens at a bar in dynamic stands on it and merges near a corner (I428, K98) | ✅ functional · 🟡 UX (user to judge) | feat/s24-popover-joins |
+| S24.6 | Terminals: a switch; Ghostty's shader, Kitty's and WezTerm's tile, colours for Rio, Alacritty, Foot, Ratty; Settings says which (I420, K99) | ✅ functional · 🟡 UX (user to judge) | feat/s24-terminals |
+| S24.7 | Zen and Firefox: profiles from their ini, Link, Zen's layers, translucency toggles; no live colours (I422, K100) | ✅ functional · 🟡 UX (user's profile untested) | feat/s24-zen |
