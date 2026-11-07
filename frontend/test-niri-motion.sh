@@ -7,6 +7,8 @@
 #   style    a style's pack gives the windows its forms (origami folds)
 #   drawn    a slow fold really is one: mid-way the window's top stands and its foot is still empty; a slow iris close has
 #            emptied the corners while the middle stands; at rest the window is whole
+#   recipes  a user's recipes have shaders from their tracks (I418, K95): the brief's three and a turn load in niri; a slow wipe
+#            has its top before its foot, a slow shrink emptied the corners while the middle stands; a broken one falls to the next form
 #   nix develop -c frontend/test-niri-motion.sh
 # Binaries from $KURASHI_BIN_DIR, else $CARGO_TARGET_DIR/debug. Shots: frontend/shots/niri-motion/.
 set -uo pipefail
@@ -170,5 +172,84 @@ done
 [ -n "$left" ] || fail "the window never left ($(px "$OUT/gone.png" 960 540); windows: $("$SB" niri --json windows | cut -c1-200))"
 echo "drawn: fold's top before its foot, iris's middle after its corners, whole at rest"
 echo "drawn: the close took $(( ($(date +%s%N) - closed_at) / 1000000 )) ms (the form's own 3600)"
+
+# --- a user's recipes ---
+mkdir -p "$XDG_CONFIG_HOME/kurashi/motion"
+cp "$ROOT/crates/kurashi-motion/tests/recipes-brief.toml" "$XDG_CONFIG_HOME/kurashi/motion/mine.toml"
+cat > "$XDG_CONFIG_HOME/kurashi/motion/tests.toml" <<'TOML'
+name = "tests"
+label = "Tests"
+[recipes.t-wipe]
+[[recipes.t-wipe.track]]
+prop = "clip_wipe"
+keys = [[0, 0], [1, 1]]
+[recipes.t-shrink]
+base = "fade"
+[[recipes.t-shrink.track]]
+prop = "scale"
+keys = [[0, 0.3], [1, 1]]
+[recipes.t-turn]
+pivot = "edge"
+[[recipes.t-turn.track]]
+prop = "rotate_x"
+keys = [[0, 70], [0.6, -8], [1, 0]]
+curve = "spring(300ms, 0.3)"
+[[recipes.t-turn.track]]
+prop = "blur"
+keys = [[0, 24], [1, 0]]
+curve = "steps(4)"
+[recipes.t-broken]
+[[recipes.t-broken.track]]
+prop = "no_such_prop"
+keys = [[0, 0], [1, 1]]
+TOML
+for f in pop-tilt drop-squash slide-blur t-wipe t-shrink t-turn; do
+  : > "$LOG"
+  set_conf forms origami "$f" "$f"
+  until_kdl 'ks_r_opacity' "$f's shader"
+  sleep 0.2
+  [ "$(errs)" = 0 ] || { grep -a -B2 'error compiling custom' "$LOG" | cut -c1-300 | tail -8 >&2; fail "$f: niri could not compile it"; }
+  grep -q "$( [ "$f" = t-turn ] && echo 'ks_r_rotate_x(float p) {$' || echo ks_form )" "$KDL" || fail "$f: not its tracks"
+done
+echo "recipes: the brief's three and a turn load in niri, open and close"
+set_conf forms origami t-broken t-broken
+for _ in $(seq 100); do grep -q 'ks_r_opacity' "$KDL" || break; sleep 0.1; done
+grep -q 'ks_r_opacity' "$KDL" && fail "a recipe that is skipped has a shader"
+
+set_conf forms origami t-wipe t-shrink "$SLOW"
+until_kdl 'ks_r_clip_wipe\(float p\) \{$' "the slow wipe"
+until_kdl 'ks_r_scale\(float p\) \{$' "the slow shrink"
+sleep 0.5
+"$SB" spawn foot -a kstest sh -c 'printf "kurashi"; sleep 100'
+stood=
+for _ in $(seq 60); do
+  shot recipe-wipe
+  bg "$(px "$OUT/recipe-wipe.png" 960 60)" || { stood=1; break; }
+  sleep 0.1
+done
+[ -n "$stood" ] || fail "the wipe's top never came"
+foot=$(px "$OUT/recipe-wipe.png" 960 950)
+bg "$foot" || fail "the wipe mid-way: its foot is not empty ($foot)"
+rest=
+for _ in $(seq 100); do
+  shot recipe-rest
+  bg "$(px "$OUT/recipe-rest.png" 960 950)" || { rest=1; break; }
+  sleep 0.2
+done
+[ -n "$rest" ] || fail "the wipe never landed"
+sleep 1
+shot recipe-rest
+"$SB" niri action close-window > /dev/null 2>&1
+gone=
+for _ in $(seq 60); do
+  shot recipe-shrink
+  bg "$(px "$OUT/recipe-shrink.png" 500 60)" && { gone=1; break; }
+  sleep 0.1
+done
+[ -n "$gone" ] || fail "the shrink: the corner never went"
+mid=$(px "$OUT/recipe-shrink.png" 960 540)
+bg "$mid" && fail "the shrink mid-way: the middle is gone ($mid)"
+echo "recipes: a wipe's top before its foot, a shrink's middle after its corners, a skipped one falls to the next form"
+
 [ "$(errs)" = 0 ] || fail "niri warned about a shader"
 echo "test-niri-motion: OK"

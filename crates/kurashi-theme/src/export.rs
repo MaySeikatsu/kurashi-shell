@@ -388,7 +388,7 @@ fn niri_family(t: &serde_json::Map<String, Value>) -> Option<&str> {
 /// `stiffness = (2π / response)²`, `damping-ratio = 1 − bounce`, or `1 / (1 + bounce)` when overdamped); K42's springs
 /// (`spring_q`), multi-segment cubics and steps have no niri form and take the family's spring. With `forms` (K91) a window
 /// opens and closes in its form (`motion.form.window.*`): the form's pace stretches the curve as in the shell, what niri has
-/// no curve for runs in the shader on a linear clock, `none` is niri's `off`, and a recipe keeps niri's own on the curve.
+/// no curve for runs in the shader on a linear clock, `none` is niri's `off`, and a recipe is generated from its tracks.
 fn niri_follow(
     t: &serde_json::Map<String, Value>,
     family: &str,
@@ -1125,7 +1125,7 @@ mod tests {
     }
 
     /// `theme.motion.windows = forms` (K91): open and close carry the window's form as a custom shader, on the form's
-    /// pace; the view, moves and resizes keep their curves; `none` is `off`; a recipe has the curve alone.
+    /// pace; the view, moves and resizes keep their curves; `none` is `off`; a recipe that is skipped has the curve alone.
     #[test]
     fn niri_carries_the_forms_when_asked() {
         let toks = |open: &str, close: &str| {
