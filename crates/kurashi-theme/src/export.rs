@@ -113,6 +113,8 @@ pub struct Inputs<'a> {
     pub config_dir: &'a str,
     /// `theme.window_frame`: the compositors draw a frame round every window.
     pub window_frame: bool,
+    /// `theme.window_frame_color`: `accent`, `shell_outline` or a palette role (I423).
+    pub window_frame_color: &'a str,
     /// `theme.inactive_opacity` while `theme.inactive_transparent` is on; `None` leaves each compositor's own.
     pub inactive_opacity: Option<f64>,
     /// `theme.window_animations`: the compositors take the shell's motion. Off: each keeps its own.
@@ -157,6 +159,12 @@ pub fn values(i: &Inputs) -> Values {
         let w = whole(if o > 0.0 { o } else { 2.0 });
         v.extend(frame_lines(i.window_frame, &w));
         v.insert("shape.border".into(), w);
+    }
+    let frame = frame_colour(i);
+    for fmt in ["hex", "hex_stripped"] {
+        if let Some(c) = format(frame, fmt) {
+            v.insert(format!("frame.active.{fmt}"), c);
+        }
     }
     v.extend(opacity_lines(i.inactive_opacity));
     if let Some(ms) = num("motion.standard_ms") {
@@ -291,6 +299,34 @@ fn hyprbars(p: &Palette, family: &str, size: &str) -> String {
         close = c("error"),
         max = c("tertiary"),
     )
+}
+
+/// The colour round the focused window (`theme.window_frame_color`, I423). `shell_outline` is the shell's frame outline as
+/// `Theme.frameOutlineColor` has it, opaque: the text's ink, the accent, or the chrome's outline (flat chrome: the role).
+fn frame_colour(i: &Inputs) -> Rgb {
+    let p = i.palette;
+    let accent = role(p, "primary").unwrap_or(Rgb(128, 128, 128));
+    let by_role = |name: &str| role(p, name).unwrap_or(accent);
+    match i.window_frame_color {
+        "shell_outline" => match i.tokens.get("outline.ink").and_then(Value::as_str) {
+            Some("text") => by_role("on_surface"),
+            Some("accent") => accent,
+            _ => {
+                let drawn = i.tokens.get("chrome.outline").and_then(Value::as_f64) > Some(0.0);
+                i.tokens
+                    .get("chrome.outline_color")
+                    .and_then(Value::as_str)
+                    .filter(|_| drawn)
+                    .and_then(Rgb::parse)
+                    .unwrap_or_else(|| by_role("outline"))
+            }
+        },
+        "secondary" => by_role("secondary"),
+        "tertiary" => by_role("tertiary"),
+        "outline" => by_role("outline"),
+        "on_surface" => by_role("on_surface"),
+        _ => accent,
+    }
 }
 
 /// The compositors' frame lines (`theme.window_frame`): on → each draws its frame at `width`, niri its border in place
@@ -995,11 +1031,66 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/home/u/.config",
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,
             palette: &palette(),
         })
+    }
+
+    /// I423: the colour round the focused window. Accent stays the default; the shell's outline follows its ink.
+    #[test]
+    fn the_window_frame_takes_the_colour_asked_for() {
+        let mut p = palette();
+        p.roles.insert("tertiary".into(), Rgb(0x8f, 0x6a, 0xc1));
+        p.roles.insert("outline".into(), Rgb(0x70, 0x70, 0x70));
+        let frame = |color: &str, tokens: serde_json::Map<String, Value>| {
+            values(&Inputs {
+                tokens: &tokens,
+                scheme: "dark",
+                icon_theme: "",
+                motion_speed: 1.0,
+                config_dir: "/",
+                window_frame: true,
+                window_frame_color: color,
+                inactive_opacity: None,
+                animations: true,
+                titlebars: false,
+                palette: &p,
+            })["frame.active.hex"]
+                .clone()
+        };
+        let hex = |r: &str| role(&p, r).unwrap().hex();
+        let with = |ink: &str, outline: f64| {
+            let mut t = tokens();
+            t.insert("outline.ink".into(), ink.into());
+            t.insert("chrome.outline".into(), outline.into());
+            t.insert("chrome.outline_color".into(), "#123456".into());
+            t
+        };
+        assert_eq!(frame("accent", with("text", 1.0)), hex("primary"));
+        assert_eq!(frame("shell_outline", with("text", 1.0)), hex("on_surface"));
+        assert_eq!(frame("shell_outline", with("accent", 1.0)), hex("primary"));
+        assert_eq!(frame("shell_outline", with("outline", 1.0)), "#123456");
+        // Flat chrome draws no outline of its own: the shell falls to the role, and so does the frame.
+        assert_eq!(frame("shell_outline", with("outline", 0.0)), hex("outline"));
+        for r in ["secondary", "tertiary", "outline", "on_surface"] {
+            assert_eq!(frame(r, tokens()), hex(r));
+        }
+    }
+
+    /// Every compositor that draws frames takes it.
+    #[test]
+    fn every_compositor_template_names_the_frame_colour() {
+        for (name, text) in [
+            ("niri", include_str!("../../../templates/niri-colors.kdl")),
+            ("hyprland", include_str!("../../../templates/hyprland.conf")),
+            ("mango", include_str!("../../../templates/mango.conf")),
+            ("sway", include_str!("../../../templates/sway.conf")),
+        ] {
+            assert!(text.contains("{{frame.active.hex"), "{name}");
+        }
     }
 
     #[test]
@@ -1063,6 +1154,7 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/c",
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,

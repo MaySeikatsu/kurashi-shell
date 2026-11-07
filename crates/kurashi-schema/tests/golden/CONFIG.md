@@ -541,6 +541,13 @@ The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round e
 - type: `bool` · default: `false`
 - since schema v7
 
+#### `theme.window_frame_color` — Window frame colour
+
+The colour round the focused window, on the compositors that follow (niri, Hyprland, MangoWM, sway): the accent, the shell's outline ink, so that frames and the shell's outlines are one colour, or a colour of the palette. Unfocused windows keep the outline; a window asking for attention keeps the error colour.
+
+- type: `choice` · default: `"accent"`
+- choices: `"accent"` | `"shell_outline"` | `"secondary"` | `"tertiary"` | `"outline"` | `"on_surface"`
+
 #### `theme.inactive_transparent` — See-through unfocused windows
 
 The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it). Off: each keeps its own.

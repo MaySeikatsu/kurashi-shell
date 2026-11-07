@@ -222,6 +222,8 @@ pub struct Run<'a> {
     pub motion_speed: f64,
     /// `theme.window_frame`.
     pub window_frame: bool,
+    /// `theme.window_frame_color`.
+    pub window_frame_color: &'a str,
     /// `theme.inactive_opacity` while `theme.inactive_transparent` is on.
     pub inactive_opacity: Option<f64>,
     /// `theme.window_animations`.
@@ -247,6 +249,7 @@ pub fn export(run: &Run) -> Value {
         motion_speed: run.motion_speed,
         config_dir: &config_dir,
         window_frame: run.window_frame,
+        window_frame_color: run.window_frame_color,
         inactive_opacity: run.inactive_opacity,
         animations: run.animations,
         titlebars: run.titlebars,
@@ -493,6 +496,10 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                 let (home, data) = config_and_data();
                 let bundled = crate::i18n::data_dir().join("templates");
                 let material = material_of(&store);
+                let frame_color = store
+                    .get("theme.window_frame_color", None)
+                    .and_then(|p| p.value.as_str().map(str::to_owned))
+                    .unwrap_or_else(|| "accent".to_owned());
                 export(&Run {
                     theme: &theme,
                     targets: &targets,
@@ -502,6 +509,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     icon_theme: &icon_theme,
                     motion_speed,
                     window_frame: flag("theme.window_frame"),
+                    window_frame_color: &frame_color,
                     inactive_opacity,
                     animations: store
                         .get("theme.window_animations", None)
@@ -605,6 +613,7 @@ mod tests {
             icon_theme: icon,
             motion_speed: 1.0,
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,
@@ -953,6 +962,7 @@ mod tests {
                 icon_theme: "",
                 motion_speed: 1.0,
                 window_frame: frame,
+                window_frame_color: "accent",
                 inactive_opacity: opacity,
                 animations: motion,
                 titlebars: bars,

@@ -333,3 +333,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S23.9 | The font mix (I176, K93): one generated font mixing any fonts per letter; preset, count, list; a Fonts page with the comparison. Functional: done, on nested niri. UX: reviewed on niri on kami. | done |
 | S23.10 | The handwriting mod (I415, K94): draw a font letter by letter in versions, make fonts, use them in Font Mix. Functional: prototype, on nested niri. UX: reviewed on niri on kami. | prototype |
 | S24.1 | A user's recipes on niri's windows, shaders generated from their tracks (I418, K95). Functional: done, on nested niri. UX: reviewed on a contact sheet of five recipes | ✅ functional · 🟡 UX (user to judge) | feat/s24-recipe-shaders |
+| S24.2 | Window frame colour (I423): Accent, Shell outline or a palette role on niri, Hyprland, MangoWM, sway | ✅ functional · 🟡 UX (user to judge) | feat/s24-frame-colour |
