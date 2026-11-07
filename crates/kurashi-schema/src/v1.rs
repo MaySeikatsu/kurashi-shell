@@ -448,6 +448,11 @@ pub struct Theme {
     /// read the file; Settings shows it.
     #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
+    /// Monospaced font in apps
+    /// The terminals among the apps that follow (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's monospaced font
+    /// (GTK, Qt, KDE) take the shell's: Monospaced font in Fonts. Each terminal keeps its size. Off: every app keeps its own.
+    #[kurashi(default = false, section = "colors")]
+    pub export_mono: bool,
     /// Window frames
     /// The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round every window: the accent round
     /// the focused one, the outline round the others, as wide as the shell's outline. Off: each keeps its own frame
@@ -1487,6 +1492,11 @@ pub struct Typography {
     #[kurashi(default = FontFamilies::of(&["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]),
               advanced)]
     pub family_jp: FontFamilies,
+    /// Monospaced font
+    /// For terminals and code: fallback chain, the first installed family wins. Apps take it while Monospaced font in apps
+    /// is on.
+    #[kurashi(default = FontFamilies::of(&["monospace"]), since = 7)]
+    pub mono: FontFamilies,
     /// Text scale
     /// Multiplies every type size token.
     #[kurashi(default = 1.0, range = 0.75..=2.0, step = 0.05,

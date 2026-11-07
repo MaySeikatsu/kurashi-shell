@@ -360,6 +360,32 @@ pub struct Run<'a> {
     /// `theme.browser_translucent`, `theme.browser_translucent_pages`.
     pub browser_translucent: bool,
     pub browser_translucent_pages: bool,
+    /// `theme.export_mono` (K104).
+    pub mono: bool,
+}
+
+/// Foot's own font size, from its `[main] font=…:size=N` (Foot's one font line holds the size too, so the shell's repeats it).
+fn foot_size(config_home: &Path) -> Option<f64> {
+    let text = std::fs::read_to_string(config_home.join("foot/foot.ini")).ok()?;
+    let mut main = true;
+    for raw in text.lines() {
+        let l = raw.trim();
+        if l.starts_with('[') {
+            main = l == "[main]";
+        } else if main
+            && let Some(v) = l
+                .strip_prefix("font")
+                .map(str::trim_start)
+                .and_then(|r| r.strip_prefix('='))
+        {
+            return v.split(',').next()?.split(':').find_map(|kv| {
+                kv.trim()
+                    .strip_prefix("size=")
+                    .and_then(|n| n.trim().parse().ok())
+            });
+        }
+    }
+    None
 }
 
 /// Renders and applies every chosen target; returns the `svc.theme_export` document.
@@ -376,6 +402,8 @@ pub fn export(run: &Run) -> Value {
         motion_speed: run.motion_speed,
         config_dir: &config_dir,
         window_frame: run.window_frame,
+        mono: run.mono,
+        foot_size: foot_size(run.home),
         window_frame_color: run.window_frame_color,
         inactive_opacity: run.inactive_opacity,
         animations: run.animations,
@@ -514,6 +542,16 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
     };
     if let Some(m) = material {
         entry["material"] = m;
+    }
+    // K104: what a terminal does with the monospaced font, while Monospaced font in apps is on.
+    if run.mono
+        && let Some(takes) = export::mono_way(t.name)
+    {
+        entry["font"] = if takes {
+            json!({"family": values.get("fonts.mono").cloned().unwrap_or_default()})
+        } else {
+            json!({"why": "unsupported"})
+        };
     }
     match &t.output {
         Output::File { template, path } => {
@@ -849,6 +887,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     browser: &crate::texture::browser_relief(&store, &tokens),
                     browser_translucent: flag("theme.browser_translucent"),
                     browser_translucent_pages: flag("theme.browser_translucent_pages"),
+                    mono: flag("theme.export_mono"),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -958,6 +997,7 @@ mod tests {
             browser: &Err("kind"),
             browser_translucent: false,
             browser_translucent_pages: false,
+            mono: false,
         })
     }
 
@@ -1311,6 +1351,7 @@ mod tests {
                 browser: &Err("kind"),
                 browser_translucent: false,
                 browser_translucent_pages: false,
+                mono: false,
             });
             for name in APPS {
                 let e = entry(&doc, name);

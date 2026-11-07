@@ -345,3 +345,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S24.10 | The light across monitors: one lamp, on the pointer's monitor or on all of them (I436, K101) | ✅ functional · 🟡 UX (user to judge) | feat/s25-light-outputs |
 | S24.11 | Zen: another stylesheet in a linked profile is named and can be turned off; Zen's grey no longer dims the colour (I437) | ✅ functional · 🟡 UX (user's profile takes the click) | fix/s25-zen-other-imports |
 | S24.12 | Handwriting: options, Open in Settings and the launcher, a widget, where the panel opens (I438, K102) | ✅ functional · 🟡 UX (user to judge) | feat/s25-handwriting |
+| S24.13 | The shell's monospaced font for terminals and the desktop, opt-in (I441, K104) | ✅ functional · 🟡 UX (user to judge Monaspace Radon) | feat/s25-terminal-fonts |

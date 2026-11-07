@@ -263,6 +263,7 @@
   "focus.ring": "#2b2a2e",
   "font.family": "serif",
   "font.family_jp": "Noto Sans CJK JP",
+  "font.family_mono": "monospace",
   "font.icons": "",
   "font.icons_fallback": "",
   "font.pixel": false,

@@ -308,6 +308,10 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     if !chain_jp.is_empty() {
         axes.font_chain_jp = chain_jp;
     }
+    let chain_mono = families("theme.typography.mono");
+    if !chain_mono.is_empty() {
+        axes.font_chain_mono = chain_mono;
+    }
     if b(store, "a11y.large_text") {
         axes.type_scale = axes.type_scale.max(1.25);
     }

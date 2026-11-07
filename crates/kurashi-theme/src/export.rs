@@ -113,6 +113,10 @@ pub struct Inputs<'a> {
     pub config_dir: &'a str,
     /// `theme.window_frame`: the compositors draw a frame round every window.
     pub window_frame: bool,
+    /// `theme.export_mono`: the terminals and the desktop's monospaced font take `font.family_mono`.
+    pub mono: bool,
+    /// Foot's own font size (its `[main] font=…:size=`), which Foot's one font line has to repeat; 11 when it names none.
+    pub foot_size: Option<f64>,
     /// `theme.window_frame_color`: `accent`, `shell_outline` or a palette role (I423).
     pub window_frame_color: &'a str,
     /// `theme.inactive_opacity` while `theme.inactive_transparent` is on; `None` leaves each compositor's own.
@@ -137,9 +141,19 @@ pub fn values(i: &Inputs) -> Values {
     if let Some(px) = num("font.size.body") {
         v.insert("fonts.size".into(), pt(px));
     }
-    // The shell has no monospace choice of its own (a CONTRACT-CHANGE row asks for one): the generic family, which
-    // fontconfig maps to the installed one. The shipped templates do not set it, so a user's font stays.
-    v.insert("fonts.mono".into(), "monospace".into());
+    // `theme.typography.mono` (CONTRACT-CHANGE rows 221, 343): the first installed of its chain. The apps take it only with
+    // `theme.export_mono`; otherwise the font lines below are empty, which the line targets leave out and the file targets
+    // leave blank, so each app keeps its own.
+    let mono = i
+        .tokens
+        .get("font.family_mono")
+        .and_then(Value::as_str)
+        .unwrap_or("monospace")
+        .to_owned();
+    v.insert("fonts.mono".into(), mono.clone());
+    for (k, line) in mono_lines(&mono, i.mono, num("font.size.body"), i.foot_size) {
+        v.insert(k.into(), line);
+    }
     v.insert("icons.theme".into(), i.icon_theme.into());
     v.insert("scheme".into(), i.scheme.into());
     v.insert(
@@ -370,6 +384,62 @@ fn opacity_lines(opacity: Option<f64>) -> Values {
             pick(&|o| format!("unfocused_opacity={o}")),
         ),
     ])
+}
+
+/// The font lines of the monospaced font (K104), each app's own syntax, empty while `on` is false. The terminals keep their
+/// size (the family alone), except Foot, whose one line holds both. The desktop's monospaced font takes the shell's body size.
+pub fn mono_lines(
+    family: &str,
+    on: bool,
+    body_px: Option<f64>,
+    foot_size: Option<f64>,
+) -> Vec<(&'static str, String)> {
+    let size = body_px.map_or_else(|| "10".to_owned(), pt);
+    let f = family.replace(['"', '\\'], "");
+    let lua = f.replace('\'', "");
+    let foot = foot_size.unwrap_or(11.0);
+    let foot = if foot.fract() == 0.0 {
+        format!("{foot:.0}")
+    } else {
+        format!("{foot}")
+    };
+    let lines = [
+        // (Ghostty appends each `font-family` to a list: the empty one first clears the user's, as its docs say.)
+        (
+            "ghostty.font",
+            format!("font-family = \"\"\nfont-family = \"{f}\""),
+        ),
+        ("kitty.font", format!("font_family {f}")),
+        ("wezterm.font", format!("require('wezterm').font('{lua}')")),
+        ("foot.font", format!("[main]\nfont={f}:size={foot}")),
+        ("alacritty.font", format!("[font.normal]\nfamily = \"{f}\"")),
+        ("fonts.mono_gtk", format!("{f} {size}")),
+        (
+            "fonts.mono_qt",
+            format!("{f},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular"),
+        ),
+    ];
+    lines
+        .into_iter()
+        .map(|(k, v)| {
+            let off = if k == "wezterm.font" {
+                "nil".to_owned()
+            } else {
+                String::new()
+            };
+            (k, if on { v } else { off })
+        })
+        .collect()
+}
+
+/// Whether a terminal takes the monospaced font (K104): Rio reads only colours from a theme file, and Ratty's config has no
+/// font of ours. `None`: not a terminal.
+pub fn mono_way(name: &str) -> Option<bool> {
+    match name {
+        "ghostty" | "kitty" | "wezterm" | "foot" | "alacritty" => Some(true),
+        "rio" | "ratty" => Some(false),
+        _ => None,
+    }
 }
 
 /// A pixel size as points for the apps' font strings (96 dpi), to the half point: 13 px → 10 pt.
@@ -1146,6 +1216,40 @@ pub fn target(name: &str) -> Option<&'static Target> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_monospaced_font_only_when_on_each_app_in_its_syntax() {
+        let on: std::collections::BTreeMap<_, _> =
+            mono_lines("JetBrains Mono", true, Some(13.0), Some(12.5))
+                .into_iter()
+                .collect();
+        assert_eq!(
+            on["ghostty.font"],
+            "font-family = \"\"\nfont-family = \"JetBrains Mono\""
+        );
+        assert_eq!(on["kitty.font"], "font_family JetBrains Mono");
+        assert_eq!(
+            on["wezterm.font"],
+            "require('wezterm').font('JetBrains Mono')"
+        );
+        assert_eq!(on["foot.font"], "[main]\nfont=JetBrains Mono:size=12.5");
+        assert_eq!(on["fonts.mono_gtk"], "JetBrains Mono 10");
+        assert!(on["fonts.mono_qt"].starts_with("JetBrains Mono,10,"));
+        let off: std::collections::BTreeMap<_, _> =
+            mono_lines("JetBrains Mono", false, Some(13.0), None)
+                .into_iter()
+                .collect();
+        assert!(off.iter().all(|(k, v)| if *k == "wezterm.font" {
+            v == "nil"
+        } else {
+            v.is_empty()
+        }));
+        // An off line is left out of a line target: the desktop keeps its own monospaced font.
+        assert!(entries(&format!("[Fonts]\nfixed=\"{}\"\n", off["fonts.mono_qt"])).is_empty());
+        assert_eq!(mono_way("ghostty"), Some(true));
+        assert_eq!(mono_way("rio"), Some(false));
+        assert_eq!(mono_way("gtk3"), None);
+    }
+
     fn palette() -> Palette {
         let mut roles = BTreeMap::new();
         for (r, c) in [
@@ -1190,6 +1294,8 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/home/u/.config",
             window_frame: false,
+            mono: false,
+            foot_size: None,
             window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
@@ -1212,6 +1318,8 @@ mod tests {
                 motion_speed: 1.0,
                 config_dir: "/",
                 window_frame: true,
+                mono: false,
+                foot_size: None,
                 window_frame_color: color,
                 inactive_opacity: None,
                 animations: true,
@@ -1313,6 +1421,8 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/c",
             window_frame: false,
+            mono: false,
+            foot_size: None,
             window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,

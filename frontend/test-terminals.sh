@@ -16,8 +16,8 @@ mkdir -p "$OUT"
 fail() { echo "test-terminals: $*" >&2; "$SB" stop >/dev/null 2>&1; exit 1; }
 trap '"$SB" stop >/dev/null 2>&1' EXIT
 CFG=$OUT/config.toml
-conf() { # conf <terminals true|false>
-  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport = ["foot","kitty","alacritty","ghostty","wezterm","rio","ratty"]\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\nterminals = %s\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "$1" > "$CFG"
+conf() { # conf <terminals true|false> [mono true|false]
+  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport_mono = %s\nexport = ["foot","kitty","alacritty","ghostty","wezterm","rio","ratty"]\n\n[theme.typography]\nmono = ["JetBrains Mono", "DejaVu Sans Mono", "monospace"]\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\nterminals = %s\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "${2:-false}" "$1" > "$CFG"
 }
 conf true
 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
@@ -65,4 +65,37 @@ done
 [ -n "${own:-}" ] || fail "the document does not say ratty.toml is the user's"
 grep -q '#000000' "$C/ratty/ratty.toml" || fail "the user's ratty.toml was written over"
 echo "ratty: its config is the shell's while it has none; the user's stays"
+
+# ---- the monospaced font (K104): only while Monospaced font in apps is on, each terminal in its own syntax ----
+printf '[main]\nfont=Some Font:size=13\ninclude=%s\n' "$C/foot/kurashi-colors.ini" > "$C/foot/foot.ini"
+grep -q '^font-family' "$C/ghostty/themes/kurashi" && fail "a font in ghostty's theme while it is off"
+grep -q 'M.font = nil' "$C/wezterm/kurashi.lua" || fail "wezterm names a font while it is off"
+conf true true; "$SB" config "$CFG"
+for _ in $(seq 100); do
+  F=$("$SB" act --json sub svc.theme_export --count 0 2>/dev/null | head -1 | jq -r '.data.targets[] | select(.name=="kitty") | .font.family // empty')
+  [ -n "$F" ] && break; sleep 0.2
+done
+[ -n "${F:-}" ] || fail "kitty does not say it takes the font"
+for t in rio ratty; do
+  why=$("$SB" act --json sub svc.theme_export --count 0 2>/dev/null | head -1 | jq -r ".data.targets[] | select(.name==\"$t\") | .font.why // empty")
+  [ "$why" = unsupported ] || fail "$t: '$why', not unsupported"
+done
+for _ in $(seq 50); do grep -q "font_family $F" "$C/kitty/kurashi-colors.conf" && break; sleep 0.2; done
+grep -q "font_family $F" "$C/kitty/kurashi-colors.conf" || fail "kitty's font line"
+grep -q "^font-family = \"$F\"" "$C/ghostty/themes/kurashi" || fail "ghostty's font line"
+grep -q "M.font = require('wezterm').font('$F')" "$C/wezterm/kurashi.lua" || fail "wezterm's font"
+grep -q "^font=$F:size=13$" "$C/foot/kurashi-colors.ini" || fail "foot's font, at the user's size: $(grep -n font "$C/foot/kurashi-colors.ini")"
+grep -A1 '^\[font.normal\]' "$C/alacritty/kurashi-colors.toml" | grep -q "family = \"$F\"" || fail "alacritty's font"
+foot --check-config --config="$C/foot/kurashi-colors.ini" 2>&1 | grep -q . && fail "foot refuses its file with the font"
+if command -v ghostty > /dev/null; then
+  printf 'theme = kurashi\nfont-family = "Mine"\n' > "$C/ghostty/config"
+  first=$(XDG_CONFIG_HOME=$C ghostty +show-config 2>/dev/null | grep -m1 '^font-family = ' | sed 's/^font-family = //')
+  [ "$first" = "$F" ] || fail "ghostty's first font is '$first', not $F"
+fi
+echo "mono: $F in ghostty, kitty, wezterm, foot (at its own size), alacritty; rio and ratty say why not"
+conf true false; "$SB" config "$CFG"
+for _ in $(seq 100); do grep -q 'M.font = nil' "$C/wezterm/kurashi.lua" && break; sleep 0.2; done
+grep -q "font_family" "$C/kitty/kurashi-colors.conf" && fail "kitty keeps the font when it is off"
+grep -q 'font-family' "$C/ghostty/themes/kurashi" && fail "ghostty keeps the font when it is off"
+echo "mono off: every terminal keeps its own"
 echo "test-terminals: OK"

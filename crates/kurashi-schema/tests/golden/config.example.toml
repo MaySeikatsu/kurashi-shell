@@ -253,6 +253,12 @@
 #   choices: from `theme.export` (resolved at runtime)
 # export = []
 #
+# Monospaced font in apps — The terminals among the apps that follow (Ghostty, Kitty,
+# WezTerm, Foot, Alacritty) and the desktop's monospaced font (GTK, Qt, KDE) take the
+# shell's: Monospaced font in Fonts. Each terminal keeps its size. Off: every app keeps its
+# own.
+# export_mono = false
+#
 # Window frames — The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame
 # round every window: the accent round the focused one, the outline round the others, as
 # wide as the shell's outline. Off: each keeps its own frame setting and only takes the
@@ -812,6 +818,11 @@
 # (K60).
 #   advanced
 # family_jp = ["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]
+#
+# Monospaced font — For terminals and code: fallback chain, the first installed family
+# wins. Apps take it while Monospaced font in apps is on.
+#   since schema v7
+# mono = ["monospace"]
 #
 # Text scale — Multiplies every type size token.
 #   range: 0.75..=2.0, step 0.05 · forced to 1.25 while a11y.large_text is on

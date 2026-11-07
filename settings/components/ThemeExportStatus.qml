@@ -93,6 +93,21 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: ex.appName(t.modelData.name)
             }
+            // K104: what a terminal does with the monospaced font, while Monospaced font in apps is on.
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                readonly property var fnt: t.modelData.font
+                visible: !!fnt
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: !fnt ? "" : fnt.family ? I18n.fmt("theme.export.font.family", { family: fnt.family })
+                    : I18n.tr("theme.export.font.unsupported")
+            }
             // A terminal: what it takes of the material, honestly (K99).
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
