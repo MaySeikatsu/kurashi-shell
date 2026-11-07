@@ -58,12 +58,17 @@ for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && br
 K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
 swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
 BARE=$(screen_hash)
+crop_hash() { grim -g "$CROP" -t ppm - | md5sum; }
+BARE_CROP=$(crop_hash)
 env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
 grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
 # Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
 wait_frontend "$R/qs.log" 0 3 0.6 "$BARE" || fail "the frontend did not load (see $R/qs.log)"
+# The bar in the crop, not only something on the screen: on a busy machine a bottom bar came after those 3 s.
+for _ in $(seq 100); do [ "$(crop_hash)" != "$BARE_CROP" ] && break; sleep 0.2; done
+wait_settled 3 0.6 "$CROP"
 
 # burst <name> <action>: the action, and one grim per MORPH_AT offset, each started on its own clock.
 burst() {

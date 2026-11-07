@@ -258,6 +258,7 @@
   "decor.workspace.mark": "own",
   "elevation.mode": "off",
   "elevation.pointer": false,
+  "elevation.sheet": "off",
   "elevation.strength": 1.0,
   "focus.ring": "#c8c8c8",
   "font.family": "Inter",

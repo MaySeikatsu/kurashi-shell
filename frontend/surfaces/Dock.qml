@@ -256,7 +256,7 @@ Scope {
             // the screen edge (the band, a bar, a gap: K71).
             readonly property int room: Math.max(joinR + 2, Theme.softR > 0 ? Math.ceil(Theme.softR + Math.abs(Theme.softDy)) : 3,
                 // W57: room for a floating dock's elevation (its reach at level 2), outside its input region.
-                !joined && Theme.elevationMode !== "off" ? Math.ceil(30 * Math.max(0.5, Theme.elevationStrength)) : 0)
+                Theme.sheetMode !== "off" ? Math.ceil(30 * Math.max(0.5, Theme.elevationStrength)) : 0)
             readonly property int edgeGap: inset
             readonly property int winW: horiz ? bodyAlong + 2 * room : bodyAcross + room + edgeGap
             readonly property int winH: horiz ? bodyAcross + room + edgeGap : bodyH + 2 * room
@@ -609,10 +609,14 @@ Scope {
                             run: dock.dRun
                             edge: dock.edge
 
-                        // W57 (K78): a floating dock's elevation (joined, it is one sheet with the band) — outside what a
-                        // sheet form captures, faded out while one warps the body and back in over its landing (W64).
+                        // W57 (K78), I427: the dock's shadow; joined, cut along the edge it stands on (one sheet with the band) —
+                        // outside what a sheet form captures, faded out while one warps the body and back in over its landing (W64).
                         Elevation {
-                            visible: !dock.joined
+                            sheet: true
+                            cutBottom: dock.joined && dock.edge === "bottom"
+                            cutTop: dock.joined && dock.edge === "top"
+                            cutLeft: dock.joined && dock.edge === "left"
+                            cutRight: dock.joined && dock.edge === "right"
                             opacity: dkHost.sheetShadow
                             x: body.x
                             y: body.y

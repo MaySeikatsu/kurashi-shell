@@ -14,6 +14,12 @@ Loader {
     id: el
     property int level: 2
     property real radius: 0
+    // I427: part of the sheet (a bar, a sidebar, the dock): its shadow is `theme.material.sheet_shadow`'s, Inward among them:
+    // evenly all round, with no direction (Caelestia's). Otherwise the surfaces' elevation.
+    property bool sheet: false
+    readonly property string mode: sheet ? Theme.sheetMode : Theme.elevationMode
+    readonly property bool inward: mode === "inward"
+    readonly property var dirRest: sheet ? Theme.sheetDir : Theme.elevationDir
     // Sides joined to a neighbour (a column's fillets on the band, its outer side on the screen's edge): the shadow is
     // cut there, so joined shapes read as one sheet (K78) — it only falls where the surface meets the desktop.
     property bool cutTop: false
@@ -25,12 +31,16 @@ Loader {
     property real mirrorY: 1
     // The window's room for the shadow is the owner's: the shadow is drawn where the item lies, never past its window.
     z: -1
-    active: Theme.elevationMode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
+    active: mode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
 
     // [ambient blur, ambient alpha, key distance, key blur, key alpha] per level (starting values, tuned on niri).
     readonly property var ladder: [[0, 0, 0, 0, 0], [12, 0.12, 2, 6, 0.18], [26, 0.18, 6, 14, 0.24],
         [34, 0.20, 10, 20, 0.26], [46, 0.22, 14, 26, 0.28]]
-    readonly property var l: ladder[Math.max(0, Math.min(4, level))]
+    // (Inward: only the all-round layer, as far as the key would have reached, darker.)
+    readonly property var l: {
+        var v = ladder[Math.max(0, Math.min(4, level))]
+        return inward ? [v[3] * 1.6, 0.5, 0, v[3], 0] : v
+    }
     readonly property real s: Theme.elevationStrength
     readonly property real dark: Theme.darkScheme ? 1.6 : 1
     readonly property color ink: Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
@@ -39,12 +49,12 @@ Loader {
 
     // The pointer's lamp on this output turns the key layer away from it (where it stands relative to the shape).
     readonly property var qsw: QsWindow.window
-    readonly property bool lamp: Theme.elevationPointer && Light.wanted && Light.k > 0 && !!qsw && !!qsw.screen
+    readonly property bool lamp: mode === "follow" && Theme.elevationPointer && Light.wanted && Light.k > 0 && !!qsw && !!qsw.screen
         && Light.output === qsw.screen.name
     // The lamp held on this output (the wallpaper's light, the spotlight's pin: Light.heldLamp) under follow: the shadow
     // falls away from it here, its length from how low it stands (I338: the relief's light and the shadows are one).
     readonly property point held: {
-        var h = Light.heldLamp(qsw)
+        var h = mode === "follow" ? Light.heldLamp(qsw) : null
         return h ? h : Qt.point(-1e9, -1e9)
     }
     readonly property bool pinned: held.x > -1e8
@@ -53,8 +63,8 @@ Loader {
         var o = Light.originOf(qsw), p = el.mapToItem(null, el.width / 2, el.height / 2)
         return Qt.point(o.x + p.x, o.y + p.y)
     }
-    readonly property var want: lamp ? Light.awayFrom(Light.x, Light.y, centre.x, centre.y, Theme.elevationDir)
-        : pinned ? Light.awayFrom(held.x, held.y, centre.x, centre.y, Theme.elevationDir) : Theme.elevationDir
+    readonly property var want: lamp ? Light.awayFrom(Light.x, Light.y, centre.x, centre.y, el.dirRest)
+        : pinned ? Light.awayFrom(held.x, held.y, centre.x, centre.y, el.dirRest) : el.dirRest
     readonly property real wantX: want[0]
     readonly property real wantY: want[1]
     // The key's length factor (the daemon's for a directional light, the lamp's height here for a held or pointer lamp).

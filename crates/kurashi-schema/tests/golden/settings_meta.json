@@ -2201,16 +2201,50 @@
             },
             {
               "advanced": false,
-              "control": "slider",
-              "couplings": [
+              "choices": [
                 {
-                  "key": "theme.material.elevation",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
+                  "label": "config.choice.sheet_shadow.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.sheet_shadow.follow",
+                  "value": "follow"
+                },
+                {
+                  "label": "config.choice.sheet_shadow.static",
+                  "value": "static"
+                },
+                {
+                  "label": "config.choice.sheet_shadow.inward",
+                  "value": "inward"
+                },
+                {
+                  "label": "config.choice.sheet_shadow.off",
                   "value": "off"
                 }
               ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "off",
+                  "key": "a11y.high_contrast",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "auto",
+              "help": "config.theme.material.sheet_shadow.help",
+              "key": "theme.material.sheet_shadow",
+              "label": "config.theme.material.sheet_shadow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
               "default": 1.0,
               "help": "config.theme.material.elevation_strength.help",
               "key": "theme.material.elevation_strength",

@@ -260,6 +260,7 @@
   "decor.workspace.mark": "own",
   "elevation.mode": "off",
   "elevation.pointer": false,
+  "elevation.sheet": "off",
   "elevation.strength": 1.0,
   "focus.ring": "#e4e4e4",
   "font.family": "monospace",

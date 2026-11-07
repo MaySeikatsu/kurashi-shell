@@ -555,6 +555,7 @@ Scope {
                         anchors.fill: parent
                         radius: Math.min(width, height) / 2
                         level: 2
+                        sheet: true
                     }
 
                     Rectangle {

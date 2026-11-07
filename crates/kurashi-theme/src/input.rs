@@ -182,6 +182,8 @@ pub struct Axes {
     pub outline_ink: String,
     /// `theme.material.elevation` (W57, K78): "auto" | "off" | "static" | "follow"; auto takes the chrome's default.
     pub elevation: String,
+    /// `theme.material.sheet_shadow`: "auto" | "follow" | "static" | "inward" | "off"; auto takes `elevation`'s.
+    pub sheet_shadow: String,
     pub elevation_strength: f64,
     pub elevation_pointer: bool,
     /// Type scale multiplier (accessibility `large_text` raises it).
@@ -207,6 +209,7 @@ impl Default for Axes {
             frame_outline: FrameOutline::Auto,
             outline_ink: "outline".into(),
             elevation: "auto".into(),
+            sheet_shadow: "auto".into(),
             elevation_strength: 1.0,
             elevation_pointer: false,
             type_scale: 1.0,

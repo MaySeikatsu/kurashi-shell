@@ -258,6 +258,7 @@
   "decor.workspace.mark": "own",
   "elevation.mode": "follow",
   "elevation.pointer": false,
+  "elevation.sheet": "follow",
   "elevation.strength": 1.0,
   "focus.ring": "#2b2a2e",
   "font.family": "serif",
