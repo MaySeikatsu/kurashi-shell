@@ -1316,3 +1316,31 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** User, session 23: the forms on windows should be the shell's. A recipe is declarative, so no port by hand is needed and a test need not refuse one. The same frame math keeps it the same motion.
 **Trade-off.** No origin in a shader (the top edge's middle); blur is a 16-sample disc per base call; the clip keeps the shadow only while that clip is at rest; a large turn or translate is cut at niri's 500 px.
 **Evidence.** `niri_forms` tests compile every prop and every kind of curve on every base through glslang; `frontend/test-niri-motion.sh` compiles the brief's recipes in niri and reads pixels of a slow wipe and shrink; a contact sheet on nested niri.
+## K96 — The radius you set is the radius you see; a surface can take its own (session 24, I426)
+**Decision.** Amends K74. `frame.radius` is the frame's radius, no longer it less the thickness; the screen's outer corner is it plus the band (`frame.screen_radius`, per output), so they stay concentric the other way round. `rLg + 4` and `rLg / 2` go: `radius.frame`, `radius.join`, `radius.window`, `radius.widget`, `radius.dock` are `radius.lg` unless `theme.shape.radius_<surface>` gives one its own (−1: Auto).
+**Why.** User, session 24: "THEY SHOULD MATCH". Under washi (radius 9, band 10) K74 gave the frame's corner 0, the windows 9, widgets 13, a card's fillet 4.5. Caelestia's `border.rounding` is the hole's own radius.
+**Trade-off.** A framed screen's outer corner grows with the band, past what a panel's physical corner may be. Screen corners keep their own setting for that.
+**Evidence.** `frontend/test-corners.sh`; `docs/ux/corners.md`.
+
+## K97 — The sheet casts as the rest of the shell does; Inward as Caelestia's (session 24, I427)
+**Decision.** Amends K78 decision 4. `theme.material.sheet_shadow` (auto, follow, static, inward, off; tokens `elevation.sheet`, `elevation.sheet_dir`) rules the frame, bars, sidebars and dock. The band keeps a key layer and adds a faint one all round; a joined dock casts, cut along the edge it stands on. Inward: one even layer with no direction.
+**Why.** User, session 24, with Caelestia's screenshot beside ours. Caelestia's sheet shadow has offset 0 (`modules/drawers/ContentWindow.qml`), so it falls inward evenly: I read the user's "inwards" as that, not an inset drawn on the sheet itself. To confirm with the user.
+**Trade-off.** The strips' room grows from 25 to 29 px at strength 1; the shadow darkens a window's edge a little more than K78's short reach.
+**Evidence.** `frontend/test-sheet-shadow.sh`; `docs/ux/shadows.md`.
+
+## K98 — What opens at a bar in dynamic stands on it, and merges near a corner (session 24, I428)
+**Decision.** In `draw = dynamic`, a Stage card under a widget and a launcher at its button merge with a neighbour along their side when there is no room for a fillet: flush, no fillet to the bar there, a concave fillet from the foot into the neighbour. MorphShape gets `edgeL` and `edgeR`; `JoinedCard` wraps ColumnShape for the launcher, its material with it. Amends session 15's "a card keeps clear of the bands" for dynamic alone.
+**Why.** User, session 24, with Caelestia's popout: "it should connect to its neighbour bar/frame fluently". Caelestia unions blobs in one window (`modules/drawers/Panels.qml`, K71's "not taken"); separate windows with paths give the same picture at 0 frames idle.
+**Trade-off.** Under a translucent material the fill overlaps a band by the outline's width. The launcher's slide lets its fillets move with it for the entrance.
+**Evidence.** `frontend/test-popover-joins.sh`; `docs/ux/layout.md`.
+
+## K99 — Terminals: shader, faint tile, or colours, and Settings says which (session 24, I420)
+**Decision.** `theme.texture.terminals` switches the material in terminals. Ghostty keeps its shader; Kitty and WezTerm take a tile baked at 45 % of the relief; Rio, Alacritty, Foot and Ratty colours. `svc.theme_export` reports `targets[].material` (closes CONTRACT-CHANGE row 401's request). New targets `wezterm`, `rio`, `ratty`. Ratty's `ratty.toml` is written whole while it is absent or the shell's, as it has no include: the one exception to K49's "never edits an app's config", and only for a file that is not the user's.
+**Why.** User, session 24, I420. A picture cannot keep off text, so strength is what keeps it legible.
+**Evidence.** Each tried through Nix on nested niri (`docs/ux/terminal-texture.md`). Rio 0.5.28's `background-image` draws over the text, so it is not used. Foot 1.28 rejects `[colors]`, so the theme's sections changed.
+
+## K100 — Browsers: profiles from their ini, a Link button, Zen by its layers (session 24, I422)
+**Decision.** Zen and Firefox's profiles come from `profiles.ini`, listed per machine in `svc.theme_export`. `theme.export.link` writes the import and a marked block of prefs into one profile on the user's click, and takes back exactly that: a narrow, explicit exception to K49's "never edits an app's config". Zen's background and tile go on `.zen-browser-generic-background`'s pseudo-elements. `theme.browser_material`, `theme.browser_translucent`, `theme.browser_translucent_pages`.
+**Why.** User, session 24. Zen sets its background variable inline on those elements, so `:root` can never win: read in its source, seen in the sandbox.
+**Not taken: live colours by an extension.** Tested in Zen Twilight: an unsigned `browser.theme.update` extension runs with `xpinstall.signatures.required = false`, and its colours do not reach Zen's sidebar or toolbar. So a restart it is, and Settings says so.
+**Evidence.** `docs/ux/browsers.md`; `frontend/test-browsers.sh`.

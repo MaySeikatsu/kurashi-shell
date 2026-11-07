@@ -61,7 +61,7 @@ on per output, follows the look (fill, chrome outline, texture, pen, light) and,
   coming out, it is the band grown thick — its inner edge moves and the frame's fillets, arcs, side bands and rules follow
   it on all four edges, as do the columns joined to it (Caelestia: the bar's width animates from the border's
   thickness). Its overshoot widens it inward and settles.
-- **One radius** (user): the inner corners are `theme.shape.radius − thickness` (concentric with an outer corner of R; 0
+- **One radius** (user; K96 amends this: the inner corners are now the radius itself, the outer corner the radius plus the band): the inner corners were `theme.shape.radius − thickness` (concentric with an outer corner of R; 0
   at least), the same radius as every dynamic join and the joined dock's and columns' corners; `layout.frame.radius` is
   gone. A square look (`corners = none`) squares the frame too. Screen corners keep their own key (R recommended; whether
   they follow R is open, I269).

@@ -22,9 +22,11 @@ so matugen templates work unchanged), and:
 | `{{motion.niri}}` | niri's `animations {}` block for the motion profile and speed (calm, lively: springs; none: `off`); empty with `theme.window_animations` off |
 | `{{motion.hyprland}}`, `{{motion.mango}}` | the same for Hyprland (`animations {}`: a `kurashi` bezier from the continuous curve, speed from the standard duration) and MangoWM (`animation_*` keys); empty with `theme.window_animations` off |
 | `{{frame.niri.ring}}`, `{{frame.niri.border}}`, `{{frame.hyprland}}`, `{{frame.mango}}`, `{{frame.sway}}` | `theme.window_frame` on: the frame at `{{shape.border}}` (niri: `off` for the focus ring, `on` for the border); off: empty, the compositor keeps its own |
+| `{{frame.active.hex}}`, `{{frame.active.hex_stripped}}` | the colour round the focused window (`theme.window_frame_color`): the accent, the shell's outline ink or a palette role |
 | `{{opacity.niri}}`, `{{opacity.hyprland}}`, `{{opacity.mango}}` | `theme.inactive_transparent` on: unfocused windows at `theme.inactive_opacity` (niri: a `window-rule` on `is-focused=false`); off: empty |
 | `{{titlebar.sway}}`, `{{titlebar.hyprland}}` | `theme.window_titlebars` on: sway's `default_border normal` and font; Hyprland's `plugin { hyprbars { … } }` block (the plugin must be loaded); off: empty |
 | `{{ghostty.shader}}` | the ghostty target only: `custom-shader = <abs path>` and `custom-shader-animation = false` while the material is on for the shell (scope shell / shell_wallpaper, a known kind), else empty; the shader is `ghostty/shaders/kurashi.glsl` (I174, row 403) |
+| `{{terminal.image}}` | a terminal's line for its faint material picture (K99): Kitty's `background_image` lines (empty when off), WezTerm's `background` table (`nil` when off) |
 | `{{material.opacity}}` | the surface opacity in effect (1.00 when solid) |
 | `{{paths.config}}` | `$XDG_CONFIG_HOME`, absolute |
 | `{{gsettings.color_scheme}}` | `prefer-dark` or `default` (GNOME's colour scheme) |

@@ -10,6 +10,7 @@ fn globals() -> Globals {
         reveal_delay_ms: 250,
         gap: 8,
         join_radius: 16,
+        frame_radius: 16,
         screen_follow: true,
         screen_corners: 0,
         bar_size: 32,
@@ -342,7 +343,7 @@ fn the_dock_in_every_draw_mode() {
                         Some(if frame { "frame" } else { "edge" })
                     );
                     // K74: the hole's radius — `radius.lg` less the frame's thickness on a framed output.
-                    assert_eq!(d.radius, if frame { 8 } else { 16 });
+                    assert_eq!(d.radius, 16);
                 }
                 Draw::Connected => {
                     assert_eq!(d.inset, band);
@@ -383,7 +384,7 @@ fn sidebars_in_every_draw_mode() {
                         end: "frame".into()
                     })
                 );
-                assert_eq!(s.radius, if draw == Draw::Dynamic { 8 } else { 0 });
+                assert_eq!(s.radius, if draw == Draw::Dynamic { 16 } else { 0 });
             }
         }
     }
@@ -790,22 +791,39 @@ fn parsers_read_the_config_spelling() {
 }
 
 #[test]
-fn one_radius_for_the_hole() {
-    // K74: the frame's inner corners are `radius.lg` less the thickness (concentric with an outer corner of `radius.lg`),
-    // never below 0; without a frame the joins take `radius.lg` itself.
+fn the_hole_has_the_radius_you_see() {
+    // K96: the frame's inner corners are its radius, whatever the band: a band as thick as the radius once left no corner.
+    let mut g = globals();
+    g.frame_radius = 9;
+    g.join_radius = 12;
+    let lay_g = |c: &OutputConfig, g: &Globals| output(g, &[], c);
     let mut c = defaults();
     c.frame.enabled = true;
-    assert_eq!(lay(&c, &[]).frame.radius, 8);
-    c.frame.thickness = 24;
-    assert_eq!(lay(&c, &[]).frame.radius, 0);
-    c.frame.enabled = false;
+    c.frame.thickness = 10;
+    let l = lay_g(&c, &g);
+    assert_eq!(l.frame.radius, 9);
+    // ... and the screen's outer corner is concentric with it, the band one width round the corner.
+    assert_eq!(l.frame.screen_radius, 19);
+    // A surface merging takes the join's, framed or not.
     c.sidebar_right.draw = Some(Draw::Dynamic);
-    assert_eq!(lay(&c, &[]).sidebars.right.radius, 16);
+    assert_eq!(lay_g(&c, &g).sidebars.right.radius, 12);
+    c.frame.enabled = false;
+    let l = lay_g(&c, &g);
+    assert_eq!(l.sidebars.right.radius, 12);
+    assert_eq!(l.frame.screen_radius, 12);
+    // A square hole stays square.
+    c.frame.enabled = true;
+    g.frame_radius = 0;
+    assert_eq!(lay_g(&c, &g).frame.screen_radius, 0);
+    // Their own size wins.
+    g.screen_follow = false;
+    g.screen_corners = 24;
+    assert_eq!(lay_g(&c, &g).frame.screen_radius, 24);
 }
 
 #[test]
 fn screen_corners_follow_the_radius() {
-    // K74 (session 16): the screen's corners are `radius.lg` unless the user gives them their own size.
+    // K74, K96: the screen's corners follow the frame's unless the user gives them their own size.
     let mut g = globals();
     g.screen_corners = 24;
     let doc = |g: &Globals| {

@@ -1036,7 +1036,7 @@ PanelWindow {
     readonly property bool joined: Theme.groups && lifted
     // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
-    readonly property real neckR: joined ? 0 : Theme.rLg
+    readonly property real neckR: joined ? 0 : Theme.rJoin
 
     // The origin (out x, width; `e`: the line the shape hangs from, local). A widget's drawn square is 3 px in from its
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
@@ -1086,7 +1086,17 @@ PanelWindow {
     }
     readonly property real clearL: sideClear("left")
     readonly property real clearR: sideClear("right")
-    readonly property real cardOutX: restsUnder
+    // I428, dynamic: a card under a widget near the output's side has no room for a fillet there, so it merges with what stands
+    // there instead of keeping clear of it: flush on the band, a side bar or the screen's edge (Caelestia's popouts).
+    readonly property bool dynamicEdge: morphMode && !joined && !headMode
+        && FG.edgeOf(outLay, flip ? "bottom" : "top").draw === "dynamic"
+    readonly property real holeL: FG.holeSide(outLay, "left", Theme.barH)
+    readonly property real holeR: outW - FG.holeSide(outLay, "right", Theme.barH)
+    readonly property real wantX: originCx - card.width / 2
+    readonly property real mergeRoom: 2 * neckR + Theme.pad
+    readonly property bool mergesL: dynamicEdge && restsUnder && wantX < holeL + mergeRoom
+    readonly property bool mergesR: dynamicEdge && (restsUnder || aligned) && !mergesL && (aligned || wantX + card.width > holeR - mergeRoom)
+    readonly property real cardOutX: mergesL ? holeL : mergesR ? holeR - card.width : restsUnder
         ? Math.round(Math.max(clearL, Math.min(outW - clearR - card.width, originCx - card.width / 2)))
         : (aligned ? outW - clearR - card.width : Math.round((outW - card.width) / 2))
     readonly property real cardFoot: cardTop + card.height
@@ -1445,6 +1455,8 @@ PanelWindow {
             radius: Math.min(shape.rTop, shape.rBot)
             level: 3
             cutTop: stage.joined || stage.morphMode
+            cutLeft: stage.mergesL
+            cutRight: stage.mergesR
             mirrorY: stage.flip ? -1 : 1
         }
         // K83 (stamp): the card still above the screen casts one level higher, the shadow tightening as it lands.
@@ -1471,7 +1483,7 @@ PanelWindow {
             hw: stage.pillW
             hh: stage.pillH
             hr: stage.pillR
-            neckF: Theme.rLg / 2
+            neckF: Theme.rJoin
             neckCx: stage.neckCx
             attach: stage.neckAttach
             neckScale: stage.sf ? 1 : springs.neckScale
@@ -1485,6 +1497,8 @@ PanelWindow {
             stretch: stage.sheetOn ? cardHost.sheetFillets : stage.sf ? stage.sf.neck : 1
             edgeY: stage.joined ? stage.hangE : stage.barEdgeY
             neck: stage.neckR
+            edgeL: stage.mergesL ? stage.holeL - stage.boxL : -1e6
+            edgeR: stage.mergesR ? stage.holeR - stage.boxL : 1e6
             fill: stage.shapeFill
             headFill: stage.headMode ? stage.headFill : stage.shapeFill
             fade: stage.shapeFade

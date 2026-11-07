@@ -541,6 +541,33 @@ The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round e
 - type: `bool` · default: `false`
 - since schema v7
 
+#### `theme.window_frame_color` — Window frame colour
+
+The colour round the focused window, on the compositors that follow (niri, Hyprland, MangoWM, sway): the accent, the shell's outline ink, so that frames and the shell's outlines are one colour, or a colour of the palette. Unfocused windows keep the outline; a window asking for attention keeps the error colour.
+
+- type: `choice` · default: `"accent"`
+- choices: `"accent"` | `"shell_outline"` | `"secondary"` | `"tertiary"` | `"outline"` | `"on_surface"`
+
+#### `theme.browser_material` — Material in browsers
+
+Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads its chrome at start: it shows after a restart.
+
+- type: `bool` · default: `true`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.browser_translucent` — Translucent browser
+
+Zen's and Firefox's own interface lets what is under the window show. Zen needs its transparency setting, written to a linked profile. After a restart.
+
+- type: `bool` · default: `false`
+
+#### `theme.browser_translucent_pages` — Translucent pages
+
+Pages without a background of their own show what is under the window too. Many sites assume a white page, so this is an opt-in of its own. After a restart.
+
+- type: `bool` · default: `false`
+- only while `theme.browser_translucent == true`
+
 #### `theme.inactive_transparent` — See-through unfocused windows
 
 The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it). Off: each keeps its own.
@@ -587,7 +614,7 @@ Corner style of bars, popups and the island.
 
 #### `theme.shape.screen_corners_follow` — Screen corners follow the radius
 
-The screen's corners take the corner radius, so the frame, the bars and the panels sit concentric in them (a square look leaves them square). Off: they take their own size below.
+The screen's corners follow the frame's: its corner radius plus its thickness on a framed screen, so the band keeps one width round the corner (a square look leaves them square). Off: they take their own size below.
 
 - type: `bool` · default: `true`
 - since schema v5
@@ -602,12 +629,52 @@ Rounds the corners of every screen by this many pixels (0 = square, as the panel
 
 #### `theme.shape.radius` — Corner radius
 
-The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and smaller parts take steps of it; the frame's inner corners and the joins of the bar, the dock and the sidebars take it less the frame's thickness, so curves that sit inside one another stay concentric.
+The one radius every corner follows (K74, K96): panels, cards, the island's views, the frame, merging corners, windows, the dock and desktop widgets, so they match; buttons, toggles and smaller parts take steps of it. A surface below can take its own.
 
 - type: `int` · default: `18`
 - range: `0..=48`, step `1` (px)
 - only while `theme.shape.corners != "none"`
 - since schema v4
+
+#### `theme.shape.radius_frame` — Frame corners
+
+The corners of the window cut into the frame. The screen's outer corners go with them, this much plus the frame's thickness. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_joins` — Merging corners
+
+The concave corners where a surface merges into a bar or the frame: the dock, the sidebars, the island, menus. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_windows` — Window corners
+
+The corners of the compositor's windows (niri, Hyprland, MangoWM; sway has none). Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_widgets` — Desktop widget corners
+
+The corners of the widgets on the desktop. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
+
+#### `theme.shape.radius_dock` — Dock corners
+
+The dock's own corners, floating or joined. Auto: the corner radius.
+
+- type: `int` · default: `-1`
+- range: `-1..=64`, step `1` (px)
+- only while `theme.shape.corners != "none"`
 
 #### `theme.shape.squircle` — Squircle curve
 
@@ -708,13 +775,20 @@ Smooth drop shadows under the shell's surfaces — sidebars, the dock, cards, th
 - forced to `"off"` while `a11y.high_contrast` is on
 - since schema v7
 
+#### `theme.material.sheet_shadow` — Frame and panel shadows
+
+What the frame, the bars, the sidebars and the dock cast onto what lies beside them. Automatic: as Elevation. Follow the light, or Static along the shadow direction. Inward: evenly all round into the window cut into the frame, with no direction. Off: none.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"follow"` | `"static"` | `"inward"` | `"off"`
+- forced to `"off"` while `a11y.high_contrast` is on
+
 #### `theme.material.elevation_strength` — Elevation strength
 
-How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own strength above).
+How deep the surfaces' shadows are, the frame's and the panels' too: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own strength above).
 
 - type: `float` · default: `1.0`
 - range: `0.0..=2.0`, step `0.05`
-- only while `theme.material.elevation != "off"`
 - since schema v7
 
 #### `theme.material.elevation_pointer` — Elevation follows the pointer
@@ -752,6 +826,13 @@ The shell's surfaces, the wallpaper (baked into the picture), both, or an overla
 
 - type: `choice` · default: `"shell"`
 - choices: `"shell"` | `"wallpaper"` | `"shell_wallpaper"` | `"everything"`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.terminals` — Terminals too
+
+The terminals among the apps that follow take the material: as a shader that keeps off the text where the terminal has one (Ghostty), else as a faint background picture (Kitty, WezTerm). Alacritty, Foot, Rio and Ratty can only take colours. Off: every terminal has colours alone.
+
+- type: `bool` · default: `true`
 - only while `theme.texture.kind != "none"`
 
 #### `theme.texture.strength` — Strength

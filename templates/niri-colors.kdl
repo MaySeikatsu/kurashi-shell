@@ -5,11 +5,12 @@
 
 layout {
 
-    // "Window frames" on: the border (active and inactive colours) in place of the focus ring.
+    // "Window frames" on: the border (active and inactive colours) in place of the focus ring. The active colour is
+    // `theme.window_frame_color`.
     focus-ring {
         {{frame.niri.ring}}
         width {{shape.border}}
-        active-color   "{{colors.primary.default.hex}}"
+        active-color   "{{frame.active.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
         urgent-color   "{{colors.error.default.hex}}"
     }
@@ -17,7 +18,7 @@ layout {
     border {
         {{frame.niri.border}}
         width {{shape.border}}
-        active-color   "{{colors.primary.default.hex}}"
+        active-color   "{{frame.active.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
         urgent-color   "{{colors.error.default.hex}}"
     }
@@ -27,7 +28,7 @@ layout {
     }
 
     tab-indicator {
-        active-color   "{{colors.primary.default.hex}}"
+        active-color   "{{frame.active.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
         urgent-color   "{{colors.error.default.hex}}"
     }

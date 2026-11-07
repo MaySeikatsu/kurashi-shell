@@ -28,7 +28,7 @@ PanelWindow {
     readonly property real contentP: Math.max(0, Math.min(1, (grow - 0.4) / 0.6))
     property bool closing: false
     // The sheet's corners (the shell's large radius, a step rounder as the launcher's card).
-    readonly property real radius: Theme.rLg + 4
+    readonly property real radius: Theme.rLg
     // The material (K63, K61): the sheet is a shell surface on the continuous sheet — its Reliefs register by this layer's
     // place on the output (all four anchors: its origin is the output's), all sampling this one tile set (Relief reads
     // `tileSheet` on its window). The pointer lamp and the spotlight's aim follow the pointer anywhere over the layer.

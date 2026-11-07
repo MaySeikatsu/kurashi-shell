@@ -15,7 +15,7 @@ User (session 13, item f): terminal textures. BACKLOG I174.
 | **Windows Terminal** | `experimental.pixelShaderPath` (HLSL, the terminal as a texture) and `backgroundImage` | The precedent for terminal shaders (retro/CRT effects). Not on Linux. |
 | **kitty** | No user shaders. `background_image` (PNG; `background_image_layout tiled`), `background_tint` | A *baked tile* as a tiled background image could carry the material (the daemon already bakes previews). The light would be baked in and there would be no text margin. Idea, not built (see "Not done"). |
 | **WezTerm** | No user shaders (WebGPU/OpenGL internally). `background` layers with images, gradients and `hsb` | Same as kitty: a baked tile is possible, no live relief. |
-| **foot, alacritty, GNOME Terminal / Ptyxis, Konsole** | Colours and alpha only. Konsole's colour scheme can name a wallpaper picture | Colours only, as K49 already exports them. |
+| **foot, alacritty, ratty, GNOME Terminal / Ptyxis, Konsole** | Colours and alpha only. Konsole's colour scheme can name a wallpaper picture | Colours only, as K49 already exports them. |
 | **Rio** | RetroArch `.slangp` filters (CRT and the like) | Possible, but a niche terminal. Not now. |
 | **Compositors** | Hyprland `decoration:screen_shader` (the whole screen). niri, sway: none | I164: a later Hyprland adapter. The `everything` scope already overlays apps. |
 
@@ -117,3 +117,23 @@ shell's tile. On a lower-scale output the grain draws a little coarser.
 | Shots: two kinds × light/dark beside plain, `ls --color`, htop-like text, zoomed crop | met: `tools/shots/ghostty/{kami,stone}-{light,dark}.png` (plain left, material right) and `*-zoom.png` (plain above) |
 | Budget measured | **not met**: estimate only (above) |
 | Settings shows the shader's state | **not met**: needs CONTRACT-CHANGE row 401 |
+
+## Every terminal (session 24, I420, K99)
+User: a Settings switch to stop terminals inheriting the texture; a shader where there is a hook; a baked tile elsewhere, at low strength because it cannot avoid text; colours for the rest; say honestly who gets what.
+
+| Terminal (tested through Nix, session 24, on nested niri) | Gets | Evidence |
+|---|---|---|
+| Ghostty 1.3 | Shader (as before), keeps off text | A theme's `custom-shader` runs before the user's own, both load (`ghostty +show-config`): a user's shader then works on the relief. Their own stays theirs. |
+| Kitty 0.49.2 | Tiled picture: `background_image`, layout `tiled`, tint 0, at 45 % of the relief | Its `options/definition.py` for the keys; seen rendered. Needs a reload: kitty reads it at start or SIGUSR1. |
+| WezTerm (2026-10-26) | Tiled picture: `background` layer with `repeat_x`, `repeat_y` and the tile's px, from a Lua module `require('kurashi').apply(config)` | Its `docs/config/lua/config/background.md`; seen rendered. Lua cannot be included by line: a module and one line. |
+| Rio 0.5.28 | Colours only | Its `rio-backend` source for `window.background-image`, `ImageProperties {path, opacity}` (no tiling). **Tested: the picture draws over the text**: opacity 1 hides it, lower dims it and the window goes black underneath. So no picture until that changes (I429). Rio has `theme` plus `themes/<name>.toml` with `[colors]`. |
+| Alacritty | Colours only | No image option. |
+| Foot 1.28 | Colours only | Its `foot.ini(5)` has no image. **Also a bug fixed here**: foot 1.28 rejects `[colors]` ("invalid section name"), so the shell's theme was refused: it writes `[colors-dark]` and `[colors-light]` now (`foot --check-config`). |
+| Ratty 0.6.0 | Colours only | `src/config.rs`: one `ratty.toml`, no include. So the shell writes `ratty/ratty.toml` while it has none or it is the shell's; a file of the user's stays theirs, Settings says to copy `[theme]` from `kurashi-theme.toml` beside it. |
+
+- **Switch**: `theme.texture.terminals` (default on, as Ghostty had it). Off: no shader line (a stale file becomes the pass-through), no picture line, colours only.
+- **Settings** says per terminal, under Apps that follow: `svc.theme_export` `targets[].material` = `{how: shader | image | colours | off, why?}`, each with a sentence. Picture targets name the file; the tile is written whole, and only when its parameters change.
+- **Strength**: `TERMINAL_STRENGTH` 0.45 of the shell's `texture.amp`, so text keeps its contrast; relief shadows off; no lamp, no beam. Ghostty keeps its full relief, as it keeps off text.
+- **Not verified**: Alacritty's file loaded in Alacritty (template unchanged, not re-run); Kitty's and WezTerm's text contrast measured (seen, not measured); a live change while each runs.
+- **I421** stays an idea: terminal shaders from animations.
+

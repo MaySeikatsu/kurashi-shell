@@ -36,3 +36,5 @@
   --zen-themed-toolbar-bg: {{colors.surface_container_low.default.hex}} !important;
   --zen-dialog-background: {{colors.surface_container.default.hex}} !important;
 }
+/* The shell's corners, material and translucency for this browser (K100), by what is set in Settings. */
+{{browser.extras}}

@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use kurashi_theme::{
     Axes, Colorblind, ContrastLevel, Density, FontProvider, Material, MotionRequest, Scheme, Shape,
-    Source, ThemeInput,
+    Source, SurfaceRadii, ThemeInput,
 };
 use serde_json::{Value, json};
 
@@ -29,6 +29,12 @@ pub(crate) fn s(store: &ConfigStore, key: &str) -> String {
         .and_then(|p| p.value.as_str().map(String::from))
         .unwrap_or_default()
 }
+/// A surface's own corner radius (K96): `None` while it is Auto (below 0, the schema's default).
+fn own_radius(store: &ConfigStore, key: &str) -> Option<f64> {
+    let v = f(store, key, -1.0);
+    (v >= 0.0).then_some(v)
+}
+
 pub(crate) fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
     store
         .get(key, None)
@@ -255,6 +261,13 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Shape::Rounded,
         },
         radius: f(store, "theme.shape.radius", 18.0),
+        radius_of: SurfaceRadii {
+            frame: own_radius(store, "theme.shape.radius_frame"),
+            joins: own_radius(store, "theme.shape.radius_joins"),
+            windows: own_radius(store, "theme.shape.radius_windows"),
+            widgets: own_radius(store, "theme.shape.radius_widgets"),
+            dock: own_radius(store, "theme.shape.radius_dock"),
+        },
         squircle: f(store, "theme.shape.squircle", 0.77),
         material: if s(store, "theme.material.kind") == "solid" {
             Material::Solid
@@ -282,6 +295,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => "outline".into(),
         },
         elevation: s(store, "theme.material.elevation"),
+        sheet_shadow: s(store, "theme.material.sheet_shadow"),
         elevation_strength: f(store, "theme.material.elevation_strength", 1.0),
         elevation_pointer: b(store, "theme.material.elevation_pointer"),
         ..Axes::default()
@@ -541,6 +555,22 @@ fn shadow_tokens(store: &ConfigStore, t: &mut serde_json::Map<String, Value>, in
             serde_json::json!([r(u[0]), r(u[1]), r(k)]),
         );
     }
+    // The sheet's direction by its own mode (I427): inward has none. Its mode can differ from the surfaces' above.
+    let sheet = t
+        .get("elevation.sheet")
+        .and_then(Value::as_str)
+        .unwrap_or("off")
+        .to_owned();
+    let (su, sk) = light_dir
+        .filter(|_| sheet == "follow")
+        .and_then(kurashi_theme::tokens::shadow_from_light)
+        .unwrap_or_else(|| (kurashi_theme::tokens::shadow_unit(spec.angle), 1.0));
+    let dir = if sheet == "inward" {
+        serde_json::json!([0, 0, 0])
+    } else {
+        serde_json::json!([r(su[0]), r(su[1]), r(sk)])
+    };
+    t.insert("elevation.sheet_dir".into(), dir);
 }
 
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the

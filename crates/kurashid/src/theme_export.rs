@@ -80,6 +80,108 @@ fn write_if_changed(path: &Path, text: &str) -> std::io::Result<bool> {
     Ok(true)
 }
 
+/// [`write_if_changed`] for a picture: encoded and swapped in whole, so a terminal never reads half of one.
+fn write_png(path: &Path, img: &image::RgbaImage) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("kurashi-tmp");
+    img.save_with_format(&tmp, image::ImageFormat::Png)
+        .map_err(std::io::Error::other)?;
+    std::fs::rename(&tmp, path)
+}
+
+/// What a terminal's picture is baked from (K99): the shell's tile, at a fraction of its relief, over the surface colour.
+#[derive(Clone)]
+pub struct TerminalRelief {
+    pub tile: std::sync::Arc<kurashi_texture::Tile>,
+    pub shading: kurashi_texture::Shading,
+    pub scale: f32,
+    /// The terminal's background: `color.surface`, 0…1.
+    pub surface: [f32; 3],
+}
+
+/// Baked and written, unless the same parameters made this path before (a theme change re-exports every target; a repaint of
+/// a tile costs noticeable time). Returns the size across a tile in device px, as the terminal must be told.
+fn bake_terminal_image(dest: &Path, r: &TerminalRelief) -> std::io::Result<u32> {
+    use std::collections::HashMap;
+    use std::hash::{Hash, Hasher};
+    use std::sync::{Mutex, OnceLock};
+    static MADE: OnceLock<Mutex<HashMap<PathBuf, u64>>> = OnceLock::new();
+    let px = (r.tile.logical * r.scale).round().max(1.0) as u32;
+    let (w, h) = (px, px);
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    format!("{:?}{:?}{} {w}x{h}", r.shading, r.surface, r.scale).hash(&mut hash);
+    r.tile
+        .rgba
+        .iter()
+        .step_by(997)
+        .for_each(|b| b.hash(&mut hash));
+    let key = hash.finish();
+    let made = MADE.get_or_init(|| Mutex::new(HashMap::new()));
+    if made.lock().expect("terminal images").get(dest) == Some(&key) && dest.is_file() {
+        return Ok(px);
+    }
+    let ground = image::Rgba([
+        (r.surface[0] * 255.0).round() as u8,
+        (r.surface[1] * 255.0).round() as u8,
+        (r.surface[2] * 255.0).round() as u8,
+        255,
+    ]);
+    let img = kurashi_texture::bake(
+        &image::RgbaImage::from_pixel(w, h, ground),
+        &r.tile,
+        &r.shading,
+        1.0,
+        r.scale,
+    );
+    write_png(dest, &img)?;
+    made.lock()
+        .expect("terminal images")
+        .insert(dest.to_path_buf(), key);
+    Ok(px)
+}
+
+/// `$HOME`: where Zen and Firefox keep their profiles.
+fn browser_home() -> PathBuf {
+    std::env::var_os("HOME").map_or_else(|| PathBuf::from("/"), PathBuf::from)
+}
+
+/// The line a profile's `userChrome.css` needs for the file at `path`.
+fn browser_import(path: &str) -> String {
+    format!("@import url(\"file://{path}\");")
+}
+
+/// The action `theme.export.link {target, profile, on}`: the user's click in Settings, the import and its prefs in that profile
+/// or out of it. The profile is looked up by name in the browser's own `profiles.ini`, so nothing else can be named.
+pub fn link_profile(
+    target: &str,
+    profile: &str,
+    on: bool,
+    translucent: bool,
+    pages: bool,
+) -> Result<(), String> {
+    if !export::is_browser(target) {
+        return Err(format!("not a browser: {target}"));
+    }
+    let (home, config) = (browser_home(), config_home());
+    let root = crate::browsers::root_of(target, &home, &config).ok_or("no root")?;
+    let found = crate::browsers::profiles(&root);
+    let pr = found
+        .iter()
+        .find(|p| p.name == profile)
+        .ok_or_else(|| format!("no profile {profile}"))?;
+    let css = config.join(format!("kurashi/apps/{target}.css"));
+    let line = browser_import(&css.to_string_lossy());
+    let prefs = export::browser_prefs(target, translucent, pages);
+    crate::browsers::set_link(&pr.dir, &line, &prefs, on).map_err(|e| e.to_string())
+}
+
+/// Whether Ratty's one config is the shell's to write: absent, or written by it before.
+fn ratty_config_is_ours(path: &Path) -> bool {
+    std::fs::read_to_string(path).map_or(true, |t| t.starts_with("# Written by kurashid"))
+}
+
 /// Whether an INI file holds `e`: the key and the value under the entry's section, spacing aside.
 fn has_entry(text: &str, e: &Entry) -> bool {
     let mut section = String::new();
@@ -222,6 +324,8 @@ pub struct Run<'a> {
     pub motion_speed: f64,
     /// `theme.window_frame`.
     pub window_frame: bool,
+    /// `theme.window_frame_color`.
+    pub window_frame_color: &'a str,
     /// `theme.inactive_opacity` while `theme.inactive_transparent` is on.
     pub inactive_opacity: Option<f64>,
     /// `theme.window_animations`.
@@ -231,6 +335,13 @@ pub struct Run<'a> {
     pub desktop: &'a Desktop,
     /// The material's tile parameters (`theme.texture.kind`, …) for a target's generated shader (ghostty, W37).
     pub material: &'a ghostty_shader::Material,
+    /// What the terminals' pictures bake from, or why there are none (`switch`, `kind`, `scope`, `pending`).
+    pub terminal: &'a Result<TerminalRelief, &'static str>,
+    /// What the browsers' tile bakes from, or why there is none.
+    pub browser: &'a Result<TerminalRelief, &'static str>,
+    /// `theme.browser_translucent`, `theme.browser_translucent_pages`.
+    pub browser_translucent: bool,
+    pub browser_translucent_pages: bool,
 }
 
 /// Renders and applies every chosen target; returns the `svc.theme_export` document.
@@ -247,6 +358,7 @@ pub fn export(run: &Run) -> Value {
         motion_speed: run.motion_speed,
         config_dir: &config_dir,
         window_frame: run.window_frame,
+        window_frame_color: run.window_frame_color,
         inactive_opacity: run.inactive_opacity,
         animations: run.animations,
         titlebars: run.titlebars,
@@ -296,14 +408,95 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
     let mut entry = json!({"name": t.name});
     let mut unknown = BTreeSet::new();
     let mut own;
-    let values = match t.shader {
-        Some(rel) => {
+    // How this terminal takes the material, and what Settings says about it (K99, CONTRACT-CHANGE row 401).
+    let way = export::terminal_way(t.name);
+    let why_off = |why: &str| json!({"how": "off", "why": why});
+    let mut material = None;
+    let mut image_lines = None;
+    match way {
+        Some(export::TerminalWay::Colours) => material = Some(json!({"how": "colours"})),
+        Some(export::TerminalWay::Tile(rel)) => {
+            let dest = run.home.join(rel);
+            let picture = match run.terminal {
+                Ok(r) => match bake_terminal_image(&dest, r) {
+                    Ok(px) => {
+                        material = Some(json!({"how": "image", "path": dest.to_string_lossy()}));
+                        Some((dest.to_string_lossy().into_owned(), px))
+                    }
+                    Err(e) => {
+                        tracing::warn!(target = %t.name, error = %e, "terminal picture not written");
+                        material = Some(why_off("write"));
+                        None
+                    }
+                },
+                Err(why) => {
+                    material = Some(why_off(why));
+                    None
+                }
+            };
+            image_lines = Some(export::terminal_image(
+                t.name,
+                picture.as_ref().map(|(p, px)| (p.as_str(), *px)),
+            ));
+        }
+        Some(export::TerminalWay::Shader) | None => {}
+    }
+    // A browser's corners, tile and translucency (K100).
+    let browser_extra = export::is_browser(t.name).then(|| {
+        let picture = match run.browser {
+            Ok(r) => {
+                let dest = run.home.join(format!("kurashi/apps/{}-tile.png", t.name));
+                match bake_terminal_image(&dest, r) {
+                    Ok(px) => Some((dest.to_string_lossy().into_owned(), px)),
+                    Err(e) => {
+                        tracing::warn!(target = %t.name, error = %e, "browser tile not written");
+                        None
+                    }
+                }
+            }
+            Err(_) => None,
+        };
+        let tokens = run.theme["tokens"].as_object().cloned().unwrap_or_default();
+        export::browser_extras(
+            t.name,
+            &tokens,
+            p,
+            picture.as_ref().map(|(p, px)| (p.as_str(), *px)),
+            run.browser_translucent,
+            run.browser_translucent && run.browser_translucent_pages,
+        )
+    });
+    let values = match (t.shader, image_lines, browser_extra) {
+        (_, _, Some(extra)) => {
             own = values.clone();
-            shader(run, rel, &mut own);
+            own.insert("browser.extras".into(), extra);
             &own
         }
-        None => values,
+        (Some(rel), _, None) => {
+            own = values.clone();
+            shader(run, rel, &mut own);
+            material = Some(
+                if own
+                    .get(ghostty_shader::PLACEHOLDER)
+                    .is_some_and(|l| !l.is_empty())
+                {
+                    json!({"how": "shader"})
+                } else {
+                    why_off(run.terminal.as_ref().err().copied().unwrap_or("kind"))
+                },
+            );
+            &own
+        }
+        (None, Some(lines), None) => {
+            own = values.clone();
+            own.insert("terminal.image".into(), lines);
+            &own
+        }
+        (None, None, None) => values,
     };
+    if let Some(m) = material {
+        entry["material"] = m;
+    }
     match &t.output {
         Output::File { template, path } => {
             let dest = match path.strip_prefix("@data/") {
@@ -322,6 +515,17 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
                     if held {
                         entry["error"] = json!("theme.export.unfilled");
                     } else {
+                        // Ratty has one config and no include: the shell keeps it while it is the shell's.
+                        if t.name == "ratty" {
+                            let config = run.home.join("ratty/ratty.toml");
+                            if ratty_config_is_ours(&config) {
+                                if let Err(e) = write_if_changed(&config, &rendered) {
+                                    tracing::warn!(error = %e, "ratty config not written");
+                                }
+                            } else {
+                                entry["own_config"] = json!({"file": config.to_string_lossy()});
+                            }
+                        }
                         match write_if_changed(&dest, &rendered) {
                             Ok(changed) => entry["written"] = json!(changed),
                             Err(e) => {
@@ -403,6 +607,37 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
         }
         entry["include"] = inc;
     }
+    // A browser: its profiles on this machine, from its own profiles.ini, and whether each has the import (K100). A linked
+    // profile's prefs follow the toggles: that block is the shell's.
+    if export::is_browser(t.name)
+        && let Some(path) = entry["path"].as_str().map(str::to_owned)
+    {
+        let home = browser_home();
+        let root = crate::browsers::root_of(t.name, &home, run.home);
+        let root = root.unwrap_or_else(|| home.clone());
+        let line = browser_import(&path);
+        let prefs = export::browser_prefs(
+            t.name,
+            run.browser_translucent,
+            run.browser_translucent && run.browser_translucent_pages,
+        );
+        let rows: Vec<Value> = crate::browsers::profiles(&root)
+            .into_iter()
+            .map(|pr| {
+                let linked = crate::browsers::linked(&pr.dir, &line);
+                if linked && let Err(e) = crate::browsers::sync_prefs(&pr.dir, &prefs, true) {
+                    tracing::warn!(error = %e, "browser prefs not written");
+                }
+                json!({
+                    "name": pr.name,
+                    "default": pr.default,
+                    "dir": pr.dir.to_string_lossy(),
+                    "linked": linked,
+                })
+            })
+            .collect();
+        entry["profiles"] = json!({"root": root.to_string_lossy(), "line": line, "list": rows});
+    }
     // A superseded file is kept as a stub while an old include may still name it: niri stops at a missing include.
     if let Some((old, old_line)) = t.legacy {
         let stub = run.home.join(old);
@@ -441,11 +676,62 @@ fn material_of(store: &ConfigStore) -> ghostty_shader::Material {
             .unwrap_or(0.0)
     };
     ghostty_shader::Material {
+        terminals_off: store
+            .get("theme.texture.terminals", None)
+            .and_then(|p| p.value.as_bool())
+            == Some(false),
         kind: text("theme.texture.kind"),
         wrinkles: num("theme.texture.wrinkles"),
         cracks: num("theme.texture.cracks"),
         crack_style: text("theme.texture.crack_style"),
     }
+}
+
+/// Asks for an export now, after something the document says changed outside the config (a profile linked).
+fn poke() -> Arc<tokio::sync::Notify> {
+    static POKE: std::sync::OnceLock<Arc<tokio::sync::Notify>> = std::sync::OnceLock::new();
+    POKE.get_or_init(|| Arc::new(tokio::sync::Notify::new()))
+        .clone()
+}
+
+/// `theme.export.link {target, profile, on}` (K100): Settings' Link and Unlink.
+pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc<ConfigStore>) {
+    actions.register(
+        "theme.export.link",
+        "action.theme.export.link",
+        move |args: Value| {
+            let store = store.clone();
+            async move {
+                use crate::actions::ActionError;
+                let word = |k: &str| {
+                    args.get(k)
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                        .ok_or_else(|| ActionError::Invalid(crate::wiring::ARGS_INVALID.into()))
+                };
+                let (target, profile) = (word("target")?, word("profile")?);
+                let on = args.get("on").and_then(Value::as_bool).unwrap_or(true);
+                let flag = |k: &str| {
+                    store
+                        .get(k, None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(false)
+                };
+                let (translucent, pages) = (
+                    flag("theme.browser_translucent"),
+                    flag("theme.browser_translucent") && flag("theme.browser_translucent_pages"),
+                );
+                tokio::task::spawn_blocking(move || {
+                    link_profile(&target, &profile, on, translucent, pages)
+                })
+                .await
+                .map_err(|e| ActionError::Unavailable(e.to_string()))?
+                .map_err(ActionError::Unavailable)?;
+                poke().notify_one();
+                Ok(None)
+            }
+        },
+    );
 }
 
 /// `svc.theme_export`, kept current after each theme document or config change.
@@ -493,6 +779,11 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                 let (home, data) = config_and_data();
                 let bundled = crate::i18n::data_dir().join("templates");
                 let material = material_of(&store);
+                let frame_color = store
+                    .get("theme.window_frame_color", None)
+                    .and_then(|p| p.value.as_str().map(str::to_owned))
+                    .unwrap_or_else(|| "accent".to_owned());
+                let tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
                 export(&Run {
                     theme: &theme,
                     targets: &targets,
@@ -502,6 +793,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     icon_theme: &icon_theme,
                     motion_speed,
                     window_frame: flag("theme.window_frame"),
+                    window_frame_color: &frame_color,
                     inactive_opacity,
                     animations: store
                         .get("theme.window_animations", None)
@@ -510,6 +802,10 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     titlebars: flag("theme.window_titlebars"),
                     desktop: &desktop,
                     material: &material,
+                    terminal: &crate::texture::terminal_relief(&store, &tokens),
+                    browser: &crate::texture::browser_relief(&store, &tokens),
+                    browser_translucent: flag("theme.browser_translucent"),
+                    browser_translucent_pages: flag("theme.browser_translucent_pages"),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -520,17 +816,21 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
         return;
     };
     let mut events = hub.events();
+    let poke = poke();
     rt.spawn(async move {
         loop {
-            match events.recv().await {
-                Ok(msg) => match msg.as_ref() {
-                    kurashi_ipc::ServerMsg::Snap { doc, .. }
-                    | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                        if doc == crate::theme::DOC || doc == crate::config::DOC => {}
-                    _ => continue,
+            tokio::select! {
+                msg = events.recv() => match msg {
+                    Ok(msg) => match msg.as_ref() {
+                        kurashi_ipc::ServerMsg::Snap { doc, .. }
+                        | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                            if doc == crate::theme::DOC || doc == crate::config::DOC => {}
+                        _ => continue,
+                    },
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 },
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                () = poke.notified() => {}
             }
             // Files are small; still off the runtime's threads.
             let run = run.clone();
@@ -605,11 +905,16 @@ mod tests {
             icon_theme: icon,
             motion_speed: 1.0,
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,
             desktop,
             material,
+            terminal: &Err("kind"),
+            browser: &Err("kind"),
+            browser_translucent: false,
+            browser_translucent_pages: false,
         })
     }
 
@@ -953,11 +1258,16 @@ mod tests {
                 icon_theme: "",
                 motion_speed: 1.0,
                 window_frame: frame,
+                window_frame_color: "accent",
                 inactive_opacity: opacity,
                 animations: motion,
                 titlebars: bars,
                 desktop: &desktop,
                 material: &ghostty_shader::Material::default(),
+                terminal: &Err("kind"),
+                browser: &Err("kind"),
+                browser_translucent: false,
+                browser_translucent_pages: false,
             });
             for name in APPS {
                 let e = entry(&doc, name);
@@ -1004,8 +1314,9 @@ mod tests {
             assert_eq!(hypr.contains("hyprbars {"), bars, "{hypr}");
             assert_eq!(sway.contains("default_border normal 2"), bars, "{sway}");
             let fx = entry(&doc, "firefox");
+            // (per profile since K100: no include of its own, the import stands beside the list of profiles)
             assert_eq!(
-                fx["include"]["line"],
+                fx["profiles"]["line"],
                 format!(
                     "@import url(\"file://{}/kurashi/apps/firefox.css\");",
                     home.display()

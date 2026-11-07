@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import "../components/bar/framegeom.js" as FG
 import "../core"
 import "../components"
 import "../components/launcher"
@@ -96,23 +97,48 @@ PanelWindow {
     readonly property real tallH: card.height - listH + Math.max(listH, maxListH) + 2 * morph.shade
     readonly property real fixedX: Number(bars.valueOf("launcher.place_x", 50)) / 100
     readonly property real fixedY: Number(bars.valueOf("launcher.place_y", 50)) / 100
+    // I428, dynamic: a launcher opened at a button on a bar stands on that bar, joined to it as the dock is, and merges with what
+    // stands beside it when it opens near a corner, with no room for a fillet there (Caelestia's popouts). Not a look's own start menu.
+    readonly property var outLay: ShellLayout.of(scr ? scr.name : "")
+    function holeSide(e) { return FG.holeSide(outLay, e, Theme.barH) }
+    readonly property bool joinsAt: place === "at" && !!startAt && !skin && Theme.decor("surface.join", true) !== false
+        && FG.edgeOf(outLay, atEdge).bar === true && FG.edgeOf(outLay, atEdge).draw === "dynamic"
+    readonly property bool sideways: atEdge === "left" || atEdge === "right"
+    readonly property real mergeRoom: 2 * Theme.rJoin + Theme.pad
+    // Where the card would stand along the bar, against what stands at each end.
+    readonly property real wantAlong: !startAt ? 0 : sideways ? startAt.y : startAt.x + (startAt.w - card.width) / 2
+    readonly property bool mergesStart: joinsAt && wantAlong < holeSide(sideways ? "top" : "left") + mergeRoom
+    readonly property bool mergesEnd: joinsAt && !mergesStart && wantAlong + (sideways ? card.height : card.width)
+        > (sideways ? scrH - holeSide("bottom") : scrW - holeSide("right")) - mergeRoom
     // The window's top and left on the output, for `at` beside a side bar and for the places on the output.
     readonly property real standX: {
         var room = Math.max(0, scrW - implicitWidth)
         if (place === "fixed") return Math.round(room * fixedX)
         if (place !== "at" || !startAt) return Math.round(room / 2)
+        if (joinsAt) {
+            if (atEdge === "left") return holeSide("left") - morph.shade
+            if (atEdge === "right") return scrW - holeSide("right") - card.width - morph.shade
+            if (mergesStart) return holeSide("left") - morph.shade
+            if (mergesEnd) return scrW - holeSide("right") - card.width - morph.shade
+        }
         if (atEdge === "left") return Math.round(startAt.x + startAt.w + hangGap - morph.shade)
         if (atEdge === "right") return Math.round(startAt.x - hangGap - implicitWidth + morph.shade)
         if (Theme.decor("start.menu", "button") === "center") return Math.round(room / 2)
         // A start menu's corner stands at its button; another card is centred under what opened it.
         var x = skin ? startAt.x - morph.shade : startAt.x + (startAt.w - implicitWidth) / 2
-        return Math.round(Math.max(Math.max(0, Theme.gap - morph.shade), Math.min(room, x)))
+        return Math.round(Math.max(Math.max(0, holeSide("left") + Theme.gap - morph.shade),
+            Math.min(room - holeSide("right") - Theme.gap + morph.shade, x)))
     }
     readonly property real standY: {
         var room = Math.max(0, scrH - tallH)
         if (place === "fixed") return Math.round(room * fixedY)
         if (place === "island") return Math.max(0, (bars.atBottom ? 0 : bars.topInset) - morph.shade)
         if (place !== "at" || !startAt) return Math.round(room / 2)
+        if (joinsAt) {
+            if (atEdge === "top") return holeSide("top") - morph.shade
+            if (mergesStart) return holeSide("top") - morph.shade
+            if (mergesEnd) return scrH - holeSide("bottom") - card.height - morph.shade
+        }
         if (atEdge === "left" || atEdge === "right") return Math.round(Math.max(0, Math.min(room, startAt.y - morph.shade)))
         return Math.max(0, startAt.y + startAt.h + hangGap - morph.shade)
     }
@@ -371,6 +397,7 @@ PanelWindow {
     margins.left: hangsOnBar ? 0 : standX
     margins.top: hangsOnBar || footAnchored ? 0 : standY
     margins.bottom: hangsOnBar || !footAnchored ? 0
+        : joinsAt ? holeSide("bottom") - morph.shade
         : Math.max(0, (startAt ? scrH - startAt.y + hangGap : bars.bottomInset) - morph.shade)
     implicitWidth: morph.width
     implicitHeight: morph.height
@@ -428,6 +455,9 @@ PanelWindow {
         id: morph
         surface: "launcher"
         outName: lp.scr ? lp.scr.name : ""
+        // (room for the fillets round a card that stands on its bar; its corners there are the bar's)
+        shade: lp.joinsAt ? Math.max(Theme.softR, Theme.rJoin + 2) : Theme.softR
+        cardRNear: morph.morph || lp.joinsAt ? 0 : Theme.rLg
         onBar: lp.place === "island"
         flip: lp.skinEdge !== "top"
         open: lp.want
@@ -462,13 +492,29 @@ PanelWindow {
                 visible: !morph.morph
                 anchors.fill: parent
                 anchors.bottomMargin: Theme.shadowDy
-                radius: Theme.rLg + 4
+                radius: Theme.rLg
                 level: 4
+                cutTop: lp.joinsAt && (lp.atEdge === "top" || (lp.sideways && lp.mergesStart))
+                cutBottom: lp.joinsAt && (lp.atEdge === "bottom" || (lp.sideways && lp.mergesEnd))
+                cutLeft: lp.joinsAt && (lp.atEdge === "left" || (!lp.sideways && lp.mergesStart))
+                cutRight: lp.joinsAt && (lp.atEdge === "right" || (!lp.sideways && lp.mergesEnd))
+            }
+            // I428: standing on its bar, one sheet with it; else the block.
+            JoinedCard {
+                visible: lp.joinsAt && !morph.morph
+                x: -morph.shade
+                y: -morph.shade
+                width: card.width + 2 * morph.shade
+                height: card.height + 2 * morph.shade
+                pad: morph.shade
+                edge: lp.atEdge
+                flushStart: lp.mergesStart
+                flushEnd: lp.mergesEnd
             }
             Block {
-                visible: !morph.morph && !skinPart.ready
+                visible: !morph.morph && !skinPart.ready && !lp.joinsAt
                 anchors.fill: parent
-                radius: Theme.rLg + 4
+                radius: Theme.rLg
                 fill: Theme.panel
                 flatBorder: Theme.outline
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).

@@ -2975,7 +2975,7 @@ pub const LAYOUT_TARGET: &str = "layout.error.target";
 /// `layout.bar.move` to an edge that has a bar already.
 pub const LAYOUT_EDGE_TAKEN: &str = "layout.error.edge_taken";
 
-/// The docs whose change can move an edge surface: the values, the tokens (`space.sm`, `radius.lg`), the mods' widgets
+/// The docs whose change can move an edge surface: the values, the tokens (`space.sm`, `radius.join`, `radius.frame`), the mods' widgets
 /// and the outputs.
 const LAYOUT_INPUTS: [&str; 4] = [crate::config::DOC, "theme", "mods", crate::workspaces::DOC];
 
@@ -3122,7 +3122,8 @@ pub fn layout_globals_of(get: &dyn Fn(&str) -> Value, theme: &Value) -> kurashi_
             .as_u64()
             .map_or(250, |v| v as u32),
         gap: token("space.sm", 8),
-        join_radius: token("radius.lg", 16),
+        join_radius: token("radius.join", token("radius.lg", 16)),
+        frame_radius: token("radius.frame", token("radius.lg", 16)),
         screen_follow: get("theme.shape.screen_corners_follow")
             .as_bool()
             .unwrap_or(true),

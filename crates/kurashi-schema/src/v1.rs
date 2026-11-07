@@ -454,6 +454,35 @@ pub struct Theme {
     /// setting and only takes the colours.
     #[kurashi(default = false, section = "colors", since = 7)]
     pub window_frame: bool,
+    /// Window frame colour
+    /// The colour round the focused window, on the compositors that follow (niri, Hyprland, MangoWM, sway): the accent,
+    /// the shell's outline ink, so that frames and the shell's outlines are one colour, or a colour of the palette. Unfocused
+    /// windows keep the outline; a window asking for attention keeps the error colour.
+    #[kurashi(default = WindowFrameColor::Accent, section = "colors")]
+    pub window_frame_color: WindowFrameColor,
+    /// Material in browsers
+    /// Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads
+    /// its chrome at start: it shows after a restart.
+    #[kurashi(
+        default = true,
+        section = "colors",
+        requires = "theme.texture.kind != none"
+    )]
+    pub browser_material: bool,
+    /// Translucent browser
+    /// Zen's and Firefox's own interface lets what is under the window show. Zen needs its transparency setting, written
+    /// to a linked profile. After a restart.
+    #[kurashi(default = false, section = "colors")]
+    pub browser_translucent: bool,
+    /// Translucent pages
+    /// Pages without a background of their own show what is under the window too. Many sites assume a white page, so this
+    /// is an opt-in of its own. After a restart.
+    #[kurashi(
+        default = false,
+        section = "colors",
+        requires = "theme.browser_translucent == true"
+    )]
+    pub browser_translucent_pages: bool,
     /// See-through unfocused windows
     /// The compositors that follow make every window but the focused one a little transparent (niri, Hyprland and
     /// MangoWM; sway has no setting for it). Off: each keeps its own.
@@ -492,6 +521,23 @@ pub enum Chrome {
     Line,
     /// Bevel
     Bevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "window_frame_color")]
+pub enum WindowFrameColor {
+    /// Accent
+    Accent,
+    /// Shell outline
+    ShellOutline,
+    /// Secondary
+    Secondary,
+    /// Tertiary
+    Tertiary,
+    /// Outline
+    Outline,
+    /// Text
+    OnSurface,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -793,6 +839,12 @@ pub struct Texture {
     /// path to the screen.
     #[kurashi(default = TextureScope::Shell, requires = "theme.texture.kind != none")]
     pub scope: TextureScope,
+    /// Terminals too
+    /// The terminals among the apps that follow take the material: as a shader that keeps off the text where the terminal
+    /// has one (Ghostty), else as a faint background picture (Kitty, WezTerm). Alacritty, Foot, Rio and Ratty can only
+    /// take colours. Off: every terminal has colours alone.
+    #[kurashi(default = true, requires = "theme.texture.kind != none")]
+    pub terminals: bool,
     /// Strength
     /// How strongly the relief reads; past 1 it is strong. Under text it is capped so text stays legible.
     #[kurashi(default = 0.5, range = 0.0..=2.0, step = 0.05, requires = "theme.texture.kind != none")]
@@ -1022,8 +1074,8 @@ pub struct Shape {
     #[kurashi(default = Corners::Rounded)]
     pub corners: Corners,
     /// Screen corners follow the radius
-    /// The screen's corners take the corner radius, so the frame, the bars and the panels sit concentric in them (a
-    /// square look leaves them square). Off: they take their own size below.
+    /// The screen's corners follow the frame's: its corner radius plus its thickness on a framed screen, so the band keeps
+    /// one width round the corner (a square look leaves them square). Off: they take their own size below.
     #[kurashi(default = true, since = 5)]
     pub screen_corners_follow: bool,
     /// Screen corners
@@ -1031,11 +1083,33 @@ pub struct Shape {
     #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px", requires = "theme.shape.screen_corners_follow == false")]
     pub screen_corners: u32,
     /// Corner radius
-    /// The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and
-    /// smaller parts take steps of it; the frame's inner corners and the joins of the bar, the dock and the sidebars take
-    /// it less the frame's thickness, so curves that sit inside one another stay concentric.
+    /// The one radius every corner follows (K74, K96): panels, cards, the island's views, the frame, merging corners,
+    /// windows, the dock and desktop widgets, so they match; buttons, toggles and smaller parts take steps of it. A
+    /// surface below can take its own.
     #[kurashi(default = 18, range = 0..=48, step = 1, unit = "px", requires = "theme.shape.corners != none", since = 4)]
     pub radius: u32,
+    /// Frame corners
+    /// The corners of the window cut into the frame. The screen's outer corners go with them, this much plus the
+    /// frame's thickness. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_frame: i32,
+    /// Merging corners
+    /// The concave corners where a surface merges into a bar or the frame: the dock, the sidebars, the island, menus.
+    /// Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_joins: i32,
+    /// Window corners
+    /// The corners of the compositor's windows (niri, Hyprland, MangoWM; sway has none). Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_windows: i32,
+    /// Desktop widget corners
+    /// The corners of the widgets on the desktop. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_widgets: i32,
+    /// Dock corners
+    /// The dock's own corners, floating or joined. Auto: the corner radius.
+    #[kurashi(default = -1, range = -1..=64, step = 1, unit = "px", requires = "theme.shape.corners != none")]
+    pub radius_dock: i32,
     /// Squircle curve
     /// How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly square.
     // I300. Step 0.01, not 0.05: the default 0.77 is today's curve (k 0.88 in corner.js) and is off a 0.05 grid.
@@ -1102,10 +1176,16 @@ pub struct Material {
     /// and soft looks, off for flat and line ones. Follow the light: they fall away from it, longer when it stands low.
     #[kurashi(default = Elevation::Auto, since = 7, overridden_by = "a11y.high_contrast => off")]
     pub elevation: Elevation,
+    /// Frame and panel shadows
+    /// What the frame, the bars, the sidebars and the dock cast onto what lies beside them. Automatic: as Elevation.
+    /// Follow the light, or Static along the shadow direction. Inward: evenly all round into the window cut into the
+    /// frame, with no direction. Off: none.
+    #[kurashi(default = SheetShadow::Auto, overridden_by = "a11y.high_contrast => off")]
+    pub sheet_shadow: SheetShadow,
     /// Elevation strength
-    /// How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have
-    /// their own strength above).
-    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, since = 7, requires = "theme.material.elevation != off")]
+    /// How deep the surfaces' shadows are, the frame's and the panels' too: 0 none, 1 the look's own, 2 twice as far and
+    /// dark (the blocks' shadows have their own strength above).
+    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, since = 7)]
     pub elevation_strength: f64,
     /// Elevation follows the pointer
     /// While the light follows the pointer or the spotlight aims at it, the surfaces' shadows turn away from it too,
@@ -1117,6 +1197,21 @@ pub struct Material {
         overridden_by = "a11y.reduce_motion => false"
     )]
     pub elevation_pointer: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "sheet_shadow")]
+pub enum SheetShadow {
+    /// Automatic
+    Auto,
+    /// Follow the light
+    Follow,
+    /// Static
+    Static,
+    /// Inward
+    Inward,
+    /// Off
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

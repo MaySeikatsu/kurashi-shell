@@ -55,7 +55,7 @@ Item {
     readonly property alias cardItem: card
     // The card's corners at rest, for the owner's blur region (it must not reach past the outline): round away from the
     // bar, square where it grows out of it (the fillets beyond are the bar's); round all round in the fallback.
-    readonly property real cardRNear: morph ? 0 : Theme.rLg
+    property real cardRNear: morph ? 0 : Theme.rLg
     readonly property real cardRFar: Theme.rLg
 
     // W53.5 (`[decor] surface.join = false`): the look keeps its cards apart from the bar (they slide in as blocks).
@@ -96,7 +96,7 @@ Item {
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
     readonly property bool joined: Theme.groups && lifted
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
-    readonly property real neckR: joined ? 0 : Theme.rLg
+    readonly property real neckR: joined ? 0 : Theme.rJoin
     // Room round the card for the springs: the width's soft-limited overshoot and the landing's bulge (squash) on each
     // side, the centre's overshoot past its travel, the neck's fillets and the soft shadow.
     readonly property int slackX: 16 + Theme.softR + Math.ceil(cardW * (springs.cap + springs.squash) / 2 + Math.abs(pillDx) * springs.cap)
@@ -424,7 +424,7 @@ Item {
             hw: m.pillW
             hh: m.pillH
             hr: m.pillR
-            neckF: Theme.rLg / 2
+            neckF: Theme.rJoin
             neckScale: m.sf ? 1 : springs.neckScale
             // (liquid's thread; under a sheet form the fillets grow back from 0 over the landing, W59.9a)
             stretch: m.sheetOn ? cardHost.sheetFillets : m.sf ? m.sf.neck : 1

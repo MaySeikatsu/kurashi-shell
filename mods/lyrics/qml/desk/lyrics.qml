@@ -26,7 +26,7 @@ Item {
         visible: dc.wanted
         width: dc.width
         height: body.implicitHeight + 2 * Theme.pad + 2 * inset + Theme.shadowDy
-        radius: Theme.rLg + 4
+        radius: Theme.rWidget
         fill: Theme.surfaceAlpha
         flatBorder: Theme.outline
         Column {

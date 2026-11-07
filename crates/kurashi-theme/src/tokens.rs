@@ -185,6 +185,17 @@ pub fn build(
         };
         px(&mut t, &format!("radius.{n}"), v);
     }
+    // K96: what must match, each with its own token: `radius.lg` unless the surface has its own.
+    for (n, own) in [
+        ("frame", axes.radius_of.frame),
+        ("join", axes.radius_of.joins),
+        ("window", axes.radius_of.windows),
+        ("widget", axes.radius_of.widgets),
+        ("dock", axes.radius_of.dock),
+    ] {
+        let v = own.map_or(lg, |r| radius_steps(axes.shape, r)[3].1);
+        px(&mut t, &format!("radius.{n}"), v);
+    }
     // Genuinely circular things (knobs, avatars) keep a circle even when shape is `none`.
     px(&mut t, "radius.circle", 999.0);
     let shape = match axes.shape {
@@ -459,6 +470,12 @@ pub fn build(
         _ => "off",
     };
     t.insert("elevation.mode".into(), json!(elevation));
+    // The sheet's own (the frame, bars, sidebars, dock): the elevation's, unless told otherwise.
+    let sheet = match axes.sheet_shadow.as_str() {
+        m @ ("off" | "static" | "follow" | "inward") => m,
+        _ => elevation,
+    };
+    t.insert("elevation.sheet".into(), json!(sheet));
     t.insert("elevation.strength".into(), json!(axes.elevation_strength));
     t.insert(
         "elevation.pointer".into(),

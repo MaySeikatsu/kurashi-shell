@@ -113,6 +113,8 @@ pub struct Inputs<'a> {
     pub config_dir: &'a str,
     /// `theme.window_frame`: the compositors draw a frame round every window.
     pub window_frame: bool,
+    /// `theme.window_frame_color`: `accent`, `shell_outline` or a palette role (I423).
+    pub window_frame_color: &'a str,
     /// `theme.inactive_opacity` while `theme.inactive_transparent` is on; `None` leaves each compositor's own.
     pub inactive_opacity: Option<f64>,
     /// `theme.window_animations`: the compositors take the shell's motion. Off: each keeps its own.
@@ -149,7 +151,8 @@ pub fn values(i: &Inputs) -> Values {
         }
         .into(),
     );
-    if let Some(r) = num("radius.lg") {
+    // The windows' corners (K96): their own token, else the panels'.
+    if let Some(r) = num("radius.window").or_else(|| num("radius.lg")) {
         v.insert("shape.radius".into(), whole(r));
     }
     // The shell's outline width; flat chrome draws none, and a 0 px focus ring would hide the focused window, so 2.
@@ -157,6 +160,12 @@ pub fn values(i: &Inputs) -> Values {
         let w = whole(if o > 0.0 { o } else { 2.0 });
         v.extend(frame_lines(i.window_frame, &w));
         v.insert("shape.border".into(), w);
+    }
+    let frame = frame_colour(i);
+    for fmt in ["hex", "hex_stripped"] {
+        if let Some(c) = format(frame, fmt) {
+            v.insert(format!("frame.active.{fmt}"), c);
+        }
     }
     v.extend(opacity_lines(i.inactive_opacity));
     if let Some(ms) = num("motion.standard_ms") {
@@ -291,6 +300,34 @@ fn hyprbars(p: &Palette, family: &str, size: &str) -> String {
         close = c("error"),
         max = c("tertiary"),
     )
+}
+
+/// The colour round the focused window (`theme.window_frame_color`, I423). `shell_outline` is the shell's frame outline as
+/// `Theme.frameOutlineColor` has it, opaque: the text's ink, the accent, or the chrome's outline (flat chrome: the role).
+fn frame_colour(i: &Inputs) -> Rgb {
+    let p = i.palette;
+    let accent = role(p, "primary").unwrap_or(Rgb(128, 128, 128));
+    let by_role = |name: &str| role(p, name).unwrap_or(accent);
+    match i.window_frame_color {
+        "shell_outline" => match i.tokens.get("outline.ink").and_then(Value::as_str) {
+            Some("text") => by_role("on_surface"),
+            Some("accent") => accent,
+            _ => {
+                let drawn = i.tokens.get("chrome.outline").and_then(Value::as_f64) > Some(0.0);
+                i.tokens
+                    .get("chrome.outline_color")
+                    .and_then(Value::as_str)
+                    .filter(|_| drawn)
+                    .and_then(Rgb::parse)
+                    .unwrap_or_else(|| by_role("outline"))
+            }
+        },
+        "secondary" => by_role("secondary"),
+        "tertiary" => by_role("tertiary"),
+        "outline" => by_role("outline"),
+        "on_surface" => by_role("on_surface"),
+        _ => accent,
+    }
 }
 
 /// The compositors' frame lines (`theme.window_frame`): on → each draws its frame at `width`, niri its border in place
@@ -652,6 +689,132 @@ pub struct Target {
 }
 
 /// Written in place of a superseded file (see [`Target::legacy`]). Comments only: an empty include is valid for niri.
+/// How a terminal target takes the shell's material (I420, K99).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TerminalWay {
+    /// A shader that keeps off the text: Ghostty.
+    Shader,
+    /// A tile in a repeat: the picture's path under the config home.
+    Tile(&'static str),
+    /// No way but colours.
+    Colours,
+}
+
+/// The way of the target named `name`, if it is a terminal.
+pub fn terminal_way(name: &str) -> Option<TerminalWay> {
+    Some(match name {
+        "ghostty" => TerminalWay::Shader,
+        "kitty" => TerminalWay::Tile("kitty/kurashi-tile.png"),
+        "wezterm" => TerminalWay::Tile("wezterm/kurashi-tile.png"),
+        "rio" | "foot" | "alacritty" | "ratty" => TerminalWay::Colours,
+        _ => return None,
+    })
+}
+
+/// The `{{terminal.image}}` value of target `name` for its picture at `path` (absolute, device px across for a tile): what
+/// names it in that terminal. `None`: no picture, each says so in its own way.
+pub fn terminal_image(name: &str, picture: Option<(&str, u32)>) -> String {
+    match (name, picture) {
+        ("kitty", Some((path, _))) => format!(
+            "background_image {path}\nbackground_image_layout tiled\nbackground_image_linear no\nbackground_tint 0"
+        ),
+        ("wezterm", Some((path, px))) => format!(
+            "{{ {{ source = {{ File = '{path}' }}, repeat_x = 'Repeat', repeat_y = 'Repeat', width = {px}, height = {px}, }} }}"
+        ),
+        ("wezterm", None) => "nil".into(),
+        _ => String::new(),
+    }
+}
+
+/// The browsers that follow, and what their chrome takes (I422, K100).
+pub fn is_browser(name: &str) -> bool {
+    matches!(name, "zen" | "firefox")
+}
+
+/// `{{browser.extras}}`: Zen's corners and frame through its own variables; a tile on its sidebar and toolbar (Firefox's
+/// toolbars) at `tile` (absolute, with its size in px); translucency by what is asked.
+pub fn browser_extras(
+    name: &str,
+    tokens: &serde_json::Map<String, Value>,
+    p: &Palette,
+    tile: Option<(&str, u32)>,
+    translucent: bool,
+    translucent_pages: bool,
+) -> String {
+    let num = |k: &str, d: f64| tokens.get(k).and_then(Value::as_f64).unwrap_or(d);
+    let mut out = String::new();
+    let outline = role(p, "outline_variant").map_or_else(|| "currentColor".to_owned(), Rgb::hex);
+    if name == "zen" {
+        let radius = num("radius.window", num("radius.lg", 8.0)).round();
+        out.push_str(&format!(
+            ":root {{\n  --zen-border-radius: {radius}px !important;\n  --zen-appcontent-border: 1px solid {outline} !important;\n}}\n"
+        ));
+    }
+    let surface = |alpha: f64| {
+        let Rgb(r, g, b) = role(p, "surface_container_low").unwrap_or(Rgb(128, 128, 128));
+        format!("rgba({r}, {g}, {b}, {alpha:.2})")
+    };
+    let alpha = if translucent {
+        num("color.surface_alpha", 0.85).clamp(0.3, 0.92)
+    } else {
+        1.0
+    };
+    // (A tile is opaque, and would close what translucency opens.)
+    let image = tile.filter(|_| !translucent).map(|(path, px)| {
+        format!("  background-image: url(\"file://{path}\") !important;\n  background-size: {px}px {px}px !important;\n  background-repeat: repeat !important;\n")
+    });
+    if name == "zen" {
+        // Zen sets its background per window on these layers' own element, so a variable on :root never reaches them: the
+        // layers themselves, `::after` the colour in effect and `::before` the one it fades from; its grain is the shell's now.
+        out.push_str(&format!(
+            ".zen-browser-generic-background::after {{\n  background-color: {} !important;\n{}  opacity: 1 !important;\n}}\n.zen-browser-generic-background::before {{ background: transparent !important; }}\n.zen-browser-grain {{ display: none !important; }}\n",
+            surface(alpha),
+            image.as_deref().unwrap_or("")
+        ));
+    } else {
+        if translucent {
+            let bg = surface(alpha);
+            out.push_str(&format!(
+                ":root {{\n  --toolbar-bgcolor: {bg} !important;\n  --toolbox-bgcolor: {bg} !important;\n  --lwt-accent-color: transparent !important;\n  --sidebar-background-color: {bg} !important;\n}}\n#main-window, #browser, #navigator-toolbox {{ background: transparent !important; }}\n"
+            ));
+        }
+        if let Some(img) = &image {
+            out.push_str(&format!(
+                "#navigator-toolbox, #sidebar-box, #sidebar-main {{\n{img}}}\n"
+            ));
+        }
+    }
+    if translucent_pages {
+        out.push_str("#tabbrowser-tabpanels, browser[type=\"content\"], .browserStack { background: transparent !important; }\n");
+    }
+    out
+}
+
+/// The prefs a linked profile needs (name, its JS value): user chrome, and what translucency asks of the browser.
+pub fn browser_prefs(
+    name: &str,
+    translucent: bool,
+    pages: bool,
+) -> Vec<(&'static str, &'static str)> {
+    let mut out = vec![(
+        "toolkit.legacyUserProfileCustomizations.stylesheets",
+        "true",
+    )];
+    if translucent {
+        if name == "zen" {
+            out.push(("zen.widget.linux.transparency", "true"));
+        } else {
+            out.push(("browser.tabs.allow_transparent_browser", "true"));
+        }
+    }
+    if pages {
+        out.push(("browser.tabs.allow_transparent_browser", "true"));
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
 pub const LEGACY_STUB: &str = "// Superseded (K49, W34): the shell's niri settings are in kurashi.kdl now. Replace the\n// include line that names this file with `include \"kurashi.kdl\"`.\n";
 
 /// The targets, in the order Settings lists them.
@@ -750,6 +913,42 @@ pub const TARGETS: &[Target] = &[
         legacy: None,
         shader: None,
     },
+    // WezTerm reads Lua: a module beside its config, with the colours and the picture (K99).
+    Target {
+        name: "wezterm",
+        output: Output::File {
+            template: "wezterm.lua",
+            path: "wezterm/kurashi.lua",
+        },
+        include: Some(("wezterm/wezterm.lua", "require('kurashi').apply(config)")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Rio's theme file holds colours. Its `window.background-image` is not used: on 0.5.28 it draws over the text (K99).
+    Target {
+        name: "rio",
+        output: Output::File {
+            template: "rio.toml",
+            path: "rio/themes/kurashi.toml",
+        },
+        include: Some(("rio/config.toml", "theme = \"kurashi\"")),
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
+    // Ratty has one config and no include (`theme_export.rs` keeps its file, or says why it cannot).
+    Target {
+        name: "ratty",
+        output: Output::File {
+            template: "ratty.toml",
+            path: "ratty/kurashi-theme.toml",
+        },
+        include: None,
+        lines: None,
+        legacy: None,
+        shader: None,
+    },
     Target {
         name: "ghostty",
         output: Output::File {
@@ -829,10 +1028,8 @@ pub const TARGETS: &[Target] = &[
             template: "mozilla.css",
             path: "kurashi/apps/firefox.css",
         },
-        include: Some((
-            "mozilla/firefox/<profile>/chrome/userChrome.css",
-            "@import url(\"file://{{paths.config}}/kurashi/apps/firefox.css\");",
-        )),
+        // (the import is listed per profile, from profiles.ini: `theme_export.rs`, K100)
+        include: None,
         lines: None,
         legacy: None,
         shader: None,
@@ -843,10 +1040,7 @@ pub const TARGETS: &[Target] = &[
             template: "mozilla.css",
             path: "kurashi/apps/zen.css",
         },
-        include: Some((
-            "~/.zen/<profile>/chrome/userChrome.css",
-            "@import url(\"file://{{paths.config}}/kurashi/apps/zen.css\");",
-        )),
+        include: None,
         lines: None,
         legacy: None,
         shader: None,
@@ -995,11 +1189,66 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/home/u/.config",
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,
             palette: &palette(),
         })
+    }
+
+    /// I423: the colour round the focused window. Accent stays the default; the shell's outline follows its ink.
+    #[test]
+    fn the_window_frame_takes_the_colour_asked_for() {
+        let mut p = palette();
+        p.roles.insert("tertiary".into(), Rgb(0x8f, 0x6a, 0xc1));
+        p.roles.insert("outline".into(), Rgb(0x70, 0x70, 0x70));
+        let frame = |color: &str, tokens: serde_json::Map<String, Value>| {
+            values(&Inputs {
+                tokens: &tokens,
+                scheme: "dark",
+                icon_theme: "",
+                motion_speed: 1.0,
+                config_dir: "/",
+                window_frame: true,
+                window_frame_color: color,
+                inactive_opacity: None,
+                animations: true,
+                titlebars: false,
+                palette: &p,
+            })["frame.active.hex"]
+                .clone()
+        };
+        let hex = |r: &str| role(&p, r).unwrap().hex();
+        let with = |ink: &str, outline: f64| {
+            let mut t = tokens();
+            t.insert("outline.ink".into(), ink.into());
+            t.insert("chrome.outline".into(), outline.into());
+            t.insert("chrome.outline_color".into(), "#123456".into());
+            t
+        };
+        assert_eq!(frame("accent", with("text", 1.0)), hex("primary"));
+        assert_eq!(frame("shell_outline", with("text", 1.0)), hex("on_surface"));
+        assert_eq!(frame("shell_outline", with("accent", 1.0)), hex("primary"));
+        assert_eq!(frame("shell_outline", with("outline", 1.0)), "#123456");
+        // Flat chrome draws no outline of its own: the shell falls to the role, and so does the frame.
+        assert_eq!(frame("shell_outline", with("outline", 0.0)), hex("outline"));
+        for r in ["secondary", "tertiary", "outline", "on_surface"] {
+            assert_eq!(frame(r, tokens()), hex(r));
+        }
+    }
+
+    /// Every compositor that draws frames takes it.
+    #[test]
+    fn every_compositor_template_names_the_frame_colour() {
+        for (name, text) in [
+            ("niri", include_str!("../../../templates/niri-colors.kdl")),
+            ("hyprland", include_str!("../../../templates/hyprland.conf")),
+            ("mango", include_str!("../../../templates/mango.conf")),
+            ("sway", include_str!("../../../templates/sway.conf")),
+        ] {
+            assert!(text.contains("{{frame.active.hex"), "{name}");
+        }
     }
 
     #[test]
@@ -1063,6 +1312,7 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/c",
             window_frame: false,
+            window_frame_color: "accent",
             inactive_opacity: None,
             animations: true,
             titlebars: false,

@@ -67,6 +67,11 @@ Singleton {
     readonly property int rSm: tok("radius.sm", 6)
     readonly property int rLg: tok("radius.lg", 18)
     readonly property int rFull: tok("radius.full", 999)
+    // K96: what must match, by the surface: each the one radius unless the user gave the surface its own. (`rJoin`: the
+    // fillets where a shape merges; the frame's corners and the join's as the layout publishes them, `ShellLayout`.)
+    readonly property int rJoin: tok("radius.join", rLg)
+    readonly property int rWidget: tok("radius.widget", rLg)
+    readonly property int rDock: tok("radius.dock", rLg)
     // K74 (I269): the radius of a corner that lies `inset` px inside a corner of `outer` — concentric with it, so curves
     // inside one another keep one distance all round (0 once the inset is the radius or more).
     function nested(outer, inset) { return Math.max(0, Math.round(outer - inset)) }
@@ -116,6 +121,9 @@ Singleton {
     readonly property real elevationStrength: tok("elevation.strength", 1)
     readonly property var elevationDir: tok("elevation.dir", [0, 1, 1])
     readonly property bool elevationPointer: tok("elevation.pointer", false)
+    // I427: the sheet's shadow (the frame, bars, sidebars, dock): its own mode, `inward` too, and direction.
+    readonly property string sheetMode: tok("elevation.sheet", elevationMode)
+    readonly property var sheetDir: tok("elevation.sheet_dir", elevationDir)
     // I338: what else casts while elevation is on (the look's `elevation.blocks` / `elevation.icons`, 0 while it is off),
     // and the shadows' ink: the line colour darkened, tinted toward the look rather than a neutral grey (Elevation.qml's).
     readonly property real elevBlocks: elevationMode === "off" ? 0 : decor("elevation.blocks", 0)
@@ -123,8 +131,8 @@ Singleton {
     readonly property color elevInk: Qt.rgba(line.r * 0.4, line.g * 0.4, line.b * 0.4, 1)
     // I338: the room the sheet (frame band, docked bars) keeps on its inner side for its shadow into the hole
     // (components/SheetShadow.qml: the key's distance × the longest length factor + 3 σ); 0 while elevation is off.
-    readonly property int sheetReach: elevationMode === "off" || elevationStrength <= 0 ? 0
-        : Math.ceil(8 * Math.max(0.5, elevationStrength) + 15 * Math.max(0.5, elevationStrength)) + 2
+    readonly property int sheetReach: sheetMode === "off" || elevationStrength <= 0 ? 0
+        : Math.ceil(27 * Math.max(0.5, elevationStrength)) + 2
     readonly property bool darkScheme: surface.hslLightness < 0.5
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)

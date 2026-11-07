@@ -72,8 +72,7 @@ Scope {
         readonly property int reserve: Math.max(0, Math.round(ed.reserve || 0))
         readonly property bool keepsSpace: holdsZone && reserve > 0
         // Dynamic ↔ connected morphs the fillets (the radius moves over `motion.std`), never a jump.
-        // (K74: on a framed output the hole's one radius, `frame.radius`; the layout's `join_radius` without a frame)
-        readonly property int joinR: draw === "dynamic" ? (frameOn ? frameRadius : ShellLayout.joinRadius) : 0
+        readonly property int joinR: draw === "dynamic" ? ShellLayout.joinRadius : 0
         property real aR: joinR
         Behavior on aR { enabled: Theme.springOn && g.shownAmt > 0; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
 

@@ -9,7 +9,7 @@ Block {
     default property alias body: inner.data
     height: inner.childrenRect.height + 2 * Theme.pad + 2 * inset + Theme.shadowDy
     implicitHeight: height
-    radius: Theme.rLg + 4
+    radius: Theme.rWidget
     fill: Theme.surfaceAlpha
     flatBorder: Theme.outline
     Item {
