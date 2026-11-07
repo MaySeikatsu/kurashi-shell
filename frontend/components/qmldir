@@ -39,3 +39,4 @@ LoadingText 1.0 LoadingText.qml
 FieldLine 1.0 FieldLine.qml
 Caret 1.0 Caret.qml
 KineticWheel 1.0 KineticWheel.qml
+JoinedCard 1.0 JoinedCard.qml

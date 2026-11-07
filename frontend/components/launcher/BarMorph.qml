@@ -55,7 +55,7 @@ Item {
     readonly property alias cardItem: card
     // The card's corners at rest, for the owner's blur region (it must not reach past the outline): round away from the
     // bar, square where it grows out of it (the fillets beyond are the bar's); round all round in the fallback.
-    readonly property real cardRNear: morph ? 0 : Theme.rLg
+    property real cardRNear: morph ? 0 : Theme.rLg
     readonly property real cardRFar: Theme.rLg
 
     // W53.5 (`[decor] surface.join = false`): the look keeps its cards apart from the bar (they slide in as blocks).
