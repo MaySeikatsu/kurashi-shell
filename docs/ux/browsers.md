@@ -37,3 +37,6 @@ Link is a Settings button. Its name carries the profile. The browser's window is
 
 ## Another stylesheet in the profile (session 24)
 A linked profile can still look untouched: the user's profile imported Noctalia's old theme right after ours, and its `!important` rules on the same elements won. Seen in Zen: the sidebar was Noctalia's grey, and only with that line gone did ours show. Settings names any other `@import` in a linked profile's `userChrome.css` and offers to turn it off: `theme.export.others {target, profile, on}` comments the line out with a mark, and that or Unlink brings it back, byte for byte. Nothing happens without the click. Ours also goes after the other imports now, so it wins a tie. Zen's element fill (grey at 80 %) under our colour goes transparent, or it dims a translucent colour.
+
+## The tile's strength (session 24, I445)
+At 0.8 of the shell's strength the tile measured a standard deviation of 0.013 and the user saw it "barely". **Material strength in browsers** (default 1.6, 0.4–3) sets it; chrome has little text, so it takes more than a terminal (0.45). Both switches say they are off while Translucent browser is on: the tile is opaque and would close what translucency opens.

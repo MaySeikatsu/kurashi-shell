@@ -887,7 +887,11 @@ pub fn browser_relief(
     if !b(store, "theme.browser_material") {
         return Err("switch");
     }
-    relief_for_apps(store, tokens, 0.8)
+    relief_for_apps(
+        store,
+        tokens,
+        f(store, "theme.browser_material_strength", 1.6) as f32,
+    )
 }
 
 /// K88: the grade the theme asks of the wallpaper; `None` while the switch is off.
