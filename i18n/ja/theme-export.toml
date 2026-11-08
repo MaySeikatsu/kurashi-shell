@@ -62,3 +62,5 @@
 "theme.export.profile.others_on" = "オンに戻す"
 "theme.export.font.family" = "等幅フォントを使います：{family}（サイズはそのまま）。"
 "theme.export.font.unsupported" = "自分のフォントのままです：シェルからは色だけを読み込みます。"
+"theme.export.font.ui" = "シェルのフォントを使います：{family}。"
+"theme.export.font.own_file" = "自分のフォントのままです：フォントはあなた自身のファイル（Spotify の user.css、Zed の設定）にあり、シェルは書き込みません。"

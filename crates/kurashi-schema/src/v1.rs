@@ -448,11 +448,23 @@ pub struct Theme {
     /// read the file; Settings shows it.
     #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
-    /// Monospaced font in apps
-    /// The terminals among the apps that follow (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's monospaced font
-    /// (GTK, Qt, KDE) take the shell's: Monospaced font in Fonts. Each terminal keeps its size. Off: every app keeps its own.
+    /// Fonts in apps
+    /// The apps that follow take the shell's fonts: its font for GTK, Qt and KDE apps, Vesktop, Obsidian and the interface of
+    /// Zen and Firefox (and the fonts their pages fall back to); its monospaced font (Monospaced font in Fonts) for the
+    /// terminals (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's code font. Each terminal keeps its size. Apps
+    /// whose font lives in a file of your own (Spotify's user.css, Zed's settings) keep theirs, and Settings says so. Off:
+    /// every app keeps its own.
     #[kurashi(default = false, section = "colors")]
-    pub export_mono: bool,
+    pub export_fonts: bool,
+    /// Websites too
+    /// Pages in Zen and Firefox use the shell's fonts instead of their own. Sites that draw their icons with a font show
+    /// words or boxes where the icons were. After a restart of the browser.
+    #[kurashi(
+        default = false,
+        section = "colors",
+        requires = "theme.export_fonts == true"
+    )]
+    pub export_fonts_pages: bool,
     /// Window frames
     /// The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame round every window: the accent round
     /// the focused one, the outline round the others, as wide as the shell's outline. Off: each keeps its own frame

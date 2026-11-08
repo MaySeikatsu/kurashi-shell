@@ -45,4 +45,6 @@
   --h1-color: {{colors.on_surface.default.hex}};
   --h2-color: {{colors.on_surface.default.hex}};
   --code-background: {{colors.surface_container_low.default.hex}};
+  /* The shell's fonts while Fonts in apps is on (K105); nothing otherwise. */
+{{obsidian.fonts}}
 }

@@ -83,4 +83,4 @@ A placeholder with no value is reported as unknown and left in the file. A line 
   differ from the current ones. The opt-in is the only consent: nothing else is changed. It needs `gsettings` on the
   daemon's PATH and a dconf session.
 
-The shipped templates set the monospaced font only while `theme.export_mono` is on (K104): `{{ghostty.font}}`, `{{kitty.font}}`, `{{wezterm.font}}`, `{{foot.font}}`, `{{alacritty.font}}`, `{{fonts.mono_gtk}}`, `{{fonts.mono_qt}}` are each app's lines, empty (`nil` for WezTerm) while it is off, so each app keeps its own.
+The shipped templates set the fonts only while `theme.export_fonts` is on (K104, K105): `{{fonts.ui_gtk}}`, `{{fonts.ui_qt}}`, `{{vesktop.fonts}}`, `{{obsidian.fonts}}`, `{{browser.fonts}}` for the shell's font, and `{{ghostty.font}}`, `{{kitty.font}}`, `{{wezterm.font}}`, `{{foot.font}}`, `{{alacritty.font}}`, `{{fonts.mono_gtk}}`, `{{fonts.mono_qt}}` are each app's lines, empty (`nil` for WezTerm) while it is off, so each app keeps its own.

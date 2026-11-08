@@ -534,11 +534,18 @@ Write the shell's colours for these apps whenever the theme changes: GTK, Qt, KD
 - type: `string_list` · default: `[]`
 - choices: from `theme.export` (resolved at runtime)
 
-#### `theme.export_mono` — Monospaced font in apps
+#### `theme.export_fonts` — Fonts in apps
 
-The terminals among the apps that follow (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's monospaced font (GTK, Qt, KDE) take the shell's: Monospaced font in Fonts. Each terminal keeps its size. Off: every app keeps its own.
+The apps that follow take the shell's fonts: its font for GTK, Qt and KDE apps, Vesktop, Obsidian and the interface of Zen and Firefox (and the fonts their pages fall back to); its monospaced font (Monospaced font in Fonts) for the terminals (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's code font. Each terminal keeps its size. Apps whose font lives in a file of your own (Spotify's user.css, Zed's settings) keep theirs, and Settings says so. Off: every app keeps its own.
 
 - type: `bool` · default: `false`
+
+#### `theme.export_fonts_pages` — Websites too
+
+Pages in Zen and Firefox use the shell's fonts instead of their own. Sites that draw their icons with a font show words or boxes where the icons were. After a restart of the browser.
+
+- type: `bool` · default: `false`
+- only while `theme.export_fonts == true`
 
 #### `theme.window_frame` — Window frames
 

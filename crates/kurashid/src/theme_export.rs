@@ -173,7 +173,9 @@ pub fn link_profile(
         .ok_or_else(|| format!("no profile {profile}"))?;
     let css = config.join(format!("kurashi/apps/{target}.css"));
     let line = browser_import(&css.to_string_lossy());
-    let prefs = export::browser_prefs(target, translucent, pages);
+    // (the fonts follow with the export the link sets off: `poke`)
+    let prefs = export::browser_prefs(target, translucent, pages, None, false);
+    let prefs: Vec<(&str, &str)> = prefs.iter().map(|(k, v)| (*k, v.as_str())).collect();
     crate::browsers::set_link(&pr.dir, &line, &prefs, on).map_err(|e| e.to_string())
 }
 
@@ -360,8 +362,9 @@ pub struct Run<'a> {
     /// `theme.browser_translucent`, `theme.browser_translucent_pages`.
     pub browser_translucent: bool,
     pub browser_translucent_pages: bool,
-    /// `theme.export_mono` (K104).
-    pub mono: bool,
+    /// `theme.export_fonts` (K104, K105), `theme.export_fonts_pages`.
+    pub fonts: bool,
+    pub fonts_pages: bool,
 }
 
 /// Foot's own font size, from its `[main] font=…:size=N` (Foot's one font line holds the size too, so the shell's repeats it).
@@ -402,7 +405,7 @@ pub fn export(run: &Run) -> Value {
         motion_speed: run.motion_speed,
         config_dir: &config_dir,
         window_frame: run.window_frame,
-        mono: run.mono,
+        fonts: run.fonts,
         foot_size: foot_size(run.home),
         window_frame_color: run.window_frame_color,
         inactive_opacity: run.inactive_opacity,
@@ -543,14 +546,16 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
     if let Some(m) = material {
         entry["material"] = m;
     }
-    // K104: what a terminal does with the monospaced font, while Monospaced font in apps is on.
-    if run.mono
-        && let Some(takes) = export::mono_way(t.name)
+    // K104, K105: what an app does with the shell's fonts, while Fonts in apps is on.
+    if run.fonts
+        && let Some(way) = export::font_way(t.name)
     {
-        entry["font"] = if takes {
-            json!({"family": values.get("fonts.mono").cloned().unwrap_or_default()})
-        } else {
-            json!({"why": "unsupported"})
+        let fam = |k: &str| values.get(k).cloned().unwrap_or_default();
+        entry["font"] = match way {
+            export::FontWay::Mono => json!({"family": fam("fonts.mono"), "mono": true}),
+            export::FontWay::Ui => json!({"family": fam("fonts.family")}),
+            export::FontWay::Own => json!({"why": "own_file"}),
+            export::FontWay::Unsupported => json!({"why": "unsupported"}),
         };
     }
     match &t.output {
@@ -672,11 +677,18 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
         let root = crate::browsers::root_of(t.name, &home, run.home);
         let root = root.unwrap_or_else(|| home.clone());
         let line = browser_import(&path);
+        let (fam, mono) = (
+            values.get("fonts.family").cloned().unwrap_or_default(),
+            values.get("fonts.mono").cloned().unwrap_or_default(),
+        );
         let prefs = export::browser_prefs(
             t.name,
             run.browser_translucent,
             run.browser_translucent && run.browser_translucent_pages,
+            run.fonts.then_some((fam.as_str(), mono.as_str())),
+            run.fonts_pages,
         );
+        let prefs: Vec<(&str, &str)> = prefs.iter().map(|(k, v)| (*k, v.as_str())).collect();
         let rows: Vec<Value> = crate::browsers::profiles(&root)
             .into_iter()
             .map(|pr| {
@@ -887,7 +899,8 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     browser: &crate::texture::browser_relief(&store, &tokens),
                     browser_translucent: flag("theme.browser_translucent"),
                     browser_translucent_pages: flag("theme.browser_translucent_pages"),
-                    mono: flag("theme.export_mono"),
+                    fonts: flag("theme.export_fonts"),
+                    fonts_pages: flag("theme.export_fonts") && flag("theme.export_fonts_pages"),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -997,7 +1010,8 @@ mod tests {
             browser: &Err("kind"),
             browser_translucent: false,
             browser_translucent_pages: false,
-            mono: false,
+            fonts: true,
+            fonts_pages: false,
         })
     }
 
@@ -1351,7 +1365,8 @@ mod tests {
                 browser: &Err("kind"),
                 browser_translucent: false,
                 browser_translucent_pages: false,
-                mono: false,
+                fonts: false,
+                fonts_pages: false,
             });
             for name in APPS {
                 let e = entry(&doc, name);
@@ -1515,7 +1530,7 @@ mod tests {
             schemas.join("org.gnome.desktop.interface.gschema.xml"),
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<schemalist>\n  <schema id=\"org.gnome.desktop.interface\" \
              path=\"/org/gnome/desktop/interface/\">\n    <key name=\"color-scheme\" type=\"s\"><default>'default'\
-             </default></key>\n    <key name=\"font-name\" type=\"s\"><default>'Cantarell 11'</default></key>\n    \
+             </default></key>\n    <key name=\"font-name\" type=\"s\"><default>'Cantarell 11'</default></key>\n    <key name=\"monospace-font-name\" type=\"s\"><default>'Source Code Pro 10'</default></key>\n    \
              <key name=\"icon-theme\" type=\"s\"><default>'Adwaita'</default></key>\n  </schema>\n</schemalist>\n",
         )
         .unwrap();
@@ -1646,7 +1661,7 @@ mod tests {
         );
         let g = entry(&doc, "gsettings");
         assert_eq!(g["set"], json!(["color-scheme", "icon-theme"]), "{doc}");
-        assert_eq!(g["unknown"], json!(["fonts.family"]), "{doc}");
+        assert!(g["unknown"].is_null(), "{doc}");
         let keyfile =
             std::fs::read_to_string(config.join("glib-2.0/settings/keyfile")).unwrap_or_default();
         assert!(!keyfile.contains("font-name"), "{keyfile}");

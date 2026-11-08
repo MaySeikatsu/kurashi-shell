@@ -347,3 +347,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S24.12 | Handwriting: options, Open in Settings and the launcher, a widget, where the panel opens (I438, K102) | ✅ functional · 🟡 UX (user to judge) | feat/s25-handwriting |
 | S24.13 | The shell's monospaced font for terminals and the desktop, opt-in (I441, K104) | ✅ functional · 🟡 UX (user to judge Monaspace Radon) | feat/s25-terminal-fonts |
 | S24.14 | Zen's tile strength and the switches' reason under translucency (I445) | ✅ functional · 🟡 UX (user to judge after a restart of Zen) | main |
+| S24.15 | Fonts in apps: the shell's font and monospaced font everywhere they can go; Websites too (I447, K105) | ✅ functional · 🟡 UX (user to judge) | main |

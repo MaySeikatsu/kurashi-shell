@@ -65,4 +65,6 @@
   --scrollbar-thin-thumb: {{colors.outline.default.hex}};
   --scrollbar-auto-thumb: {{colors.outline.default.hex}};
   --scrollbar-auto-track: transparent;
+  /* The shell's fonts while Fonts in apps is on (K105); nothing otherwise. */
+{{vesktop.fonts}}
 }

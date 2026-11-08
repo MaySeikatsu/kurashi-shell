@@ -113,8 +113,8 @@ pub struct Inputs<'a> {
     pub config_dir: &'a str,
     /// `theme.window_frame`: the compositors draw a frame round every window.
     pub window_frame: bool,
-    /// `theme.export_mono`: the terminals and the desktop's monospaced font take `font.family_mono`.
-    pub mono: bool,
+    /// `theme.export_fonts`: the apps take the shell's font and its monospaced font (`font.family_mono`).
+    pub fonts: bool,
     /// Foot's own font size (its `[main] font=…:size=`), which Foot's one font line has to repeat; 11 when it names none.
     pub foot_size: Option<f64>,
     /// `theme.window_frame_color`: `accent`, `shell_outline` or a palette role (I423).
@@ -141,9 +141,9 @@ pub fn values(i: &Inputs) -> Values {
     if let Some(px) = num("font.size.body") {
         v.insert("fonts.size".into(), pt(px));
     }
-    // `theme.typography.mono` (CONTRACT-CHANGE rows 221, 343): the first installed of its chain. The apps take it only with
-    // `theme.export_mono`; otherwise the font lines below are empty, which the line targets leave out and the file targets
-    // leave blank, so each app keeps its own.
+    // `theme.typography.mono` (CONTRACT-CHANGE rows 221, 343): the first installed of its chain. The apps take the fonts only
+    // with `theme.export_fonts`; otherwise the font lines below are empty, which the line targets leave out and the file
+    // targets leave blank, so each app keeps its own.
     let mono = i
         .tokens
         .get("font.family_mono")
@@ -151,7 +151,26 @@ pub fn values(i: &Inputs) -> Values {
         .unwrap_or("monospace")
         .to_owned();
     v.insert("fonts.mono".into(), mono.clone());
-    for (k, line) in mono_lines(&mono, i.mono, num("font.size.body"), i.foot_size) {
+    // (a font the theme does not name is never invented: its lines stay empty, and the app keeps its own)
+    let has_mono = i
+        .tokens
+        .get("font.family_mono")
+        .is_some_and(Value::is_string);
+    for (k, line) in mono_lines(
+        &mono,
+        i.fonts && has_mono,
+        num("font.size.body"),
+        i.foot_size,
+    ) {
+        v.insert(k.into(), line);
+    }
+    let family = i.tokens.get("font.family").and_then(Value::as_str);
+    for (k, line) in ui_font_lines(
+        family.unwrap_or_default(),
+        &mono,
+        i.fonts && family.is_some(),
+        num("font.size.body"),
+    ) {
         v.insert(k.into(), line);
     }
     v.insert("icons.theme".into(), i.icon_theme.into());
@@ -418,6 +437,11 @@ pub fn mono_lines(
             "fonts.mono_qt",
             format!("{f},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular"),
         ),
+        // (qt5ct's QFont string: Qt 5's weight scale, 50 for regular, and one field fewer)
+        (
+            "fonts.mono_qt5",
+            format!("{f},{size},-1,5,50,0,0,0,0,0,0,0,0,0,0,1"),
+        ),
     ];
     lines
         .into_iter()
@@ -430,6 +454,79 @@ pub fn mono_lines(
             (k, if on { v } else { off })
         })
         .collect()
+}
+
+/// The lines of the shell's own font for the apps that are not terminals (K105), empty while `on` is false: the desktop's
+/// (GTK, Qt, KDE) at the shell's body size, and the CSS of Vesktop, Obsidian and the browsers' interface.
+pub fn ui_font_lines(
+    family: &str,
+    mono: &str,
+    on: bool,
+    body_px: Option<f64>,
+) -> Vec<(&'static str, String)> {
+    let size = body_px.map_or_else(|| "10".to_owned(), pt);
+    let f = family.replace(['"', '\\'], "");
+    let m = mono.replace(['"', '\\'], "");
+    let lines = [
+        ("fonts.ui_gtk", format!("{f} {size}")),
+        (
+            "fonts.ui_qt",
+            format!("{f},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1,Regular"),
+        ),
+        (
+            "fonts.ui_qt5",
+            format!("{f},{size},-1,5,50,0,0,0,0,0,0,0,0,0,0,1"),
+        ),
+        (
+            "vesktop.fonts",
+            format!(
+                "  --font-primary: \"{f}\", sans-serif;\n  --font-display: \"{f}\", sans-serif;\n  --font-headline: \"{f}\", sans-serif;\n  --font-code: \"{m}\", monospace;"
+            ),
+        ),
+        (
+            "obsidian.fonts",
+            format!(
+                "  --font-interface-theme: \"{f}\";\n  --font-text-theme: \"{f}\";\n  --font-monospace-theme: \"{m}\";"
+            ),
+        ),
+        (
+            "browser.fonts",
+            format!(
+                "/* The shell's font on the interface (K105). */\n:root, #navigator-toolbox, #sidebar-box, #sidebar-main, menupopup, panel, tooltip {{\n  font-family: \"{f}\", sans-serif !important;\n}}"
+            ),
+        ),
+    ];
+    lines
+        .into_iter()
+        .map(|(k, v)| (k, if on { v } else { String::new() }))
+        .collect()
+}
+
+/// What an app does with the shell's fonts while Fonts in apps is on (K104, K105).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FontWay {
+    /// The shell's font.
+    Ui,
+    /// The shell's monospaced font (a terminal).
+    Mono,
+    /// Its font lives in a file of the user's own (Spotify's user.css, Zed's settings): it keeps it.
+    Own,
+    /// It reads only colours from the shell (Rio's theme file, Ratty).
+    Unsupported,
+}
+
+pub fn font_way(name: &str) -> Option<FontWay> {
+    match mono_way(name) {
+        Some(true) => return Some(FontWay::Mono),
+        Some(false) => return Some(FontWay::Unsupported),
+        None => {}
+    }
+    match name {
+        "gtk3" | "gtk4" | "gsettings" | "qt" | "qt5" | "kde" | "vesktop" | "obsidian" | "zen"
+        | "firefox" => Some(FontWay::Ui),
+        "spicetify" | "zed" => Some(FontWay::Own),
+        _ => None,
+    }
 }
 
 /// Whether a terminal takes the monospaced font (K104): Rio reads only colours from a theme file, and Ratty's config has no
@@ -862,24 +959,49 @@ pub fn browser_extras(
 }
 
 /// The prefs a linked profile needs (name, its JS value): user chrome, and what translucency asks of the browser.
+/// `fonts`: the shell's font and monospaced font, the families pages fall back to (K105); `force`: pages use them instead of
+/// their own (`browser.display.use_document_fonts`).
 pub fn browser_prefs(
     name: &str,
     translucent: bool,
     pages: bool,
-) -> Vec<(&'static str, &'static str)> {
+    fonts: Option<(&str, &str)>,
+    force: bool,
+) -> Vec<(&'static str, String)> {
+    let js = |s: &str| format!("\"{}\"", s.replace(['"', '\\'], ""));
     let mut out = vec![(
         "toolkit.legacyUserProfileCustomizations.stylesheets",
-        "true",
+        "true".to_owned(),
     )];
     if translucent {
         if name == "zen" {
-            out.push(("zen.widget.linux.transparency", "true"));
+            out.push(("zen.widget.linux.transparency", "true".to_owned()));
         } else {
-            out.push(("browser.tabs.allow_transparent_browser", "true"));
+            out.push(("browser.tabs.allow_transparent_browser", "true".to_owned()));
         }
     }
     if pages {
-        out.push(("browser.tabs.allow_transparent_browser", "true"));
+        out.push(("browser.tabs.allow_transparent_browser", "true".to_owned()));
+    }
+    if let Some((family, mono)) = fonts {
+        for script in ["x-western", "x-unicode"] {
+            let key = |kind: &str| -> &'static str {
+                match (kind, script) {
+                    ("sans-serif", "x-western") => "font.name.sans-serif.x-western",
+                    ("serif", "x-western") => "font.name.serif.x-western",
+                    ("monospace", "x-western") => "font.name.monospace.x-western",
+                    ("sans-serif", _) => "font.name.sans-serif.x-unicode",
+                    ("serif", _) => "font.name.serif.x-unicode",
+                    _ => "font.name.monospace.x-unicode",
+                }
+            };
+            out.push((key("sans-serif"), js(family)));
+            out.push((key("serif"), js(family)));
+            out.push((key("monospace"), js(mono)));
+        }
+        if force {
+            out.push(("browser.display.use_document_fonts", "0".to_owned()));
+        }
     }
     out.sort_unstable();
     out.dedup();
@@ -1217,6 +1339,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn the_shells_font_in_the_apps_only_when_on() {
+        let on: std::collections::BTreeMap<_, _> =
+            ui_font_lines("Kalam", "Monaspace Radon", true, Some(16.0))
+                .into_iter()
+                .collect();
+        assert_eq!(on["fonts.ui_gtk"], "Kalam 12");
+        assert!(
+            on["vesktop.fonts"].contains("--font-primary: \"Kalam\"")
+                && on["vesktop.fonts"].contains("--font-code: \"Monaspace Radon\"")
+        );
+        assert!(on["obsidian.fonts"].contains("--font-interface-theme: \"Kalam\""));
+        assert!(on["browser.fonts"].contains("font-family: \"Kalam\", sans-serif !important"));
+        assert!(
+            ui_font_lines("Kalam", "M", false, None)
+                .iter()
+                .all(|(_, v)| v.is_empty())
+        );
+        assert!(
+            entries("[org.gnome.desktop.interface]\nfont-name=''\n").is_empty(),
+            "an off line leaves the desktop's font alone"
+        );
+        assert_eq!(font_way("vesktop"), Some(FontWay::Ui));
+        assert_eq!(font_way("ghostty"), Some(FontWay::Mono));
+        assert_eq!(font_way("spicetify"), Some(FontWay::Own));
+        assert_eq!(font_way("rio"), Some(FontWay::Unsupported));
+        let prefs = browser_prefs(
+            "zen",
+            false,
+            false,
+            Some(("Kalam", "Monaspace Radon")),
+            true,
+        );
+        assert!(prefs.contains(&("font.name.sans-serif.x-western", "\"Kalam\"".to_owned())));
+        assert!(prefs.contains(&(
+            "font.name.monospace.x-unicode",
+            "\"Monaspace Radon\"".to_owned()
+        )));
+        assert!(prefs.contains(&("browser.display.use_document_fonts", "0".to_owned())));
+        assert!(
+            !browser_prefs("zen", false, false, Some(("Kalam", "M")), false)
+                .iter()
+                .any(|(k, _)| *k == "browser.display.use_document_fonts")
+        );
+        assert_eq!(browser_prefs("zen", false, false, None, true).len(), 1);
+    }
+
+    #[test]
     fn the_monospaced_font_only_when_on_each_app_in_its_syntax() {
         let on: std::collections::BTreeMap<_, _> =
             mono_lines("JetBrains Mono", true, Some(13.0), Some(12.5))
@@ -1294,7 +1463,7 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/home/u/.config",
             window_frame: false,
-            mono: false,
+            fonts: false,
             foot_size: None,
             window_frame_color: "accent",
             inactive_opacity: None,
@@ -1318,7 +1487,7 @@ mod tests {
                 motion_speed: 1.0,
                 config_dir: "/",
                 window_frame: true,
-                mono: false,
+                fonts: false,
                 foot_size: None,
                 window_frame_color: color,
                 inactive_opacity: None,
@@ -1421,7 +1590,7 @@ mod tests {
             motion_speed: 1.0,
             config_dir: "/c",
             window_frame: false,
-            mono: false,
+            fonts: false,
             foot_size: None,
             window_frame_color: "accent",
             inactive_opacity: None,
