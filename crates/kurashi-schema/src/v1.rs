@@ -466,14 +466,28 @@ pub struct Theme {
     #[kurashi(default = WindowFrameColor::Accent, section = "colors")]
     pub window_frame_color: WindowFrameColor,
     /// Material in browsers
-    /// Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads
-    /// its chrome at start: it shows after a restart.
+    /// Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A tile is opaque,
+    /// so it is left out while Translucent browser is on. A browser reads its chrome at start: it shows after a restart.
     #[kurashi(
         default = true,
         section = "colors",
-        requires = "theme.texture.kind != none"
+        requires = "theme.texture.kind != none",
+        requires = "theme.browser_translucent == false"
     )]
     pub browser_material: bool,
+    /// Material strength in browsers
+    /// How strongly the tile reads on the browser's chrome, against the shell's own: chrome has little text on it, so it can
+    /// take more than a terminal. After a restart of the browser.
+    #[kurashi(
+        default = 1.6,
+        range = 0.4..=3.0,
+        step = 0.1,
+        section = "colors",
+        requires = "theme.texture.kind != none",
+        requires = "theme.browser_translucent == false",
+        requires = "theme.browser_material == true"
+    )]
+    pub browser_material_strength: f64,
     /// Translucent browser
     /// Zen's and Firefox's own interface lets what is under the window show. Zen needs its transparency setting, written
     /// to a linked profile. After a restart.

@@ -556,10 +556,21 @@ The colour round the focused window, on the compositors that follow (niri, Hyprl
 
 #### `theme.browser_material` — Material in browsers
 
-Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A browser reads its chrome at start: it shows after a restart.
+Zen and Firefox take the material on their sidebar and toolbar, as a tile, with the shell's corners. A tile is opaque, so it is left out while Translucent browser is on. A browser reads its chrome at start: it shows after a restart.
 
 - type: `bool` · default: `true`
 - only while `theme.texture.kind != "none"`
+- only while `theme.browser_translucent == false`
+
+#### `theme.browser_material_strength` — Material strength in browsers
+
+How strongly the tile reads on the browser's chrome, against the shell's own: chrome has little text on it, so it can take more than a terminal. After a restart of the browser.
+
+- type: `float` · default: `1.6`
+- range: `0.4..=3.0`, step `0.1`
+- only while `theme.texture.kind != "none"`
+- only while `theme.browser_translucent == false`
+- only while `theme.browser_material == true`
 
 #### `theme.browser_translucent` — Translucent browser
 

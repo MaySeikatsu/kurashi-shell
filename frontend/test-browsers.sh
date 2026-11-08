@@ -54,6 +54,16 @@ echo "link: the import first, the prefs marked, the rest kept, the other profile
 Z=$C/kurashi/apps/zen.css
 for _ in $(seq 100); do [ -s "$C/kurashi/apps/zen-tile.png" ] && grep -q 'zen-tile.png' "$Z" && break; sleep 0.2; done
 grep -q 'zen-tile.png' "$Z" || fail "no tile in zen.css"
+# (I445: the strength setting reaches the tile; the default reads twice what the old 0.8 did)
+sd() { magick "$C/kurashi/apps/zen-tile.png" -colorspace gray -format "%[fx:standard_deviation*10000]" info: | cut -d. -f1; }
+SD=$(sd)
+"$SB" act set theme.browser_material_strength 0.8 > /dev/null || fail "theme.browser_material_strength refused"
+for _ in $(seq 100); do [ "$(sd)" != "$SD" ] && break; sleep 0.2; done
+WEAK=$(sd)
+[ "$SD" -ge $(( WEAK * 3 / 2 )) ] || fail "the default tile ($SD) is not plainly stronger than at 0.8 ($WEAK)"
+"$SB" act reset theme.browser_material_strength > /dev/null
+for _ in $(seq 100); do [ "$(sd)" = "$SD" ] && break; sleep 0.2; done
+echo "tile: strength $SD/10000 at the default, $WEAK at 0.8"
 grep -q '.zen-browser-generic-background::after' "$Z" || fail "not on Zen's layers"
 grep -q '.zen-browser-generic-background { background-color: transparent' "$Z" || fail "Zen's grey stays under the colour"
 grep -q -- '--zen-border-radius: 9px' "$Z" || fail "no corners: $(grep -n radius "$Z" | head -3)"
