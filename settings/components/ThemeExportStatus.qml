@@ -93,7 +93,7 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: ex.appName(t.modelData.name)
             }
-            // K104: what a terminal does with the monospaced font, while Monospaced font in apps is on.
+            // K104, K105: what an app does with the shell's fonts, while Fonts in apps is on.
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType
@@ -105,8 +105,8 @@ Column {
                 color: Theme.dim
                 font.pixelSize: Theme.fs - 2
                 font.family: Theme.fam(text, Theme.families)
-                text: !fnt ? "" : fnt.family ? I18n.fmt("theme.export.font.family", { family: fnt.family })
-                    : I18n.tr("theme.export.font.unsupported")
+                text: !fnt ? "" : fnt.family ? I18n.fmt(fnt.mono ? "theme.export.font.family" : "theme.export.font.ui", { family: fnt.family })
+                    : I18n.tr("theme.export.font." + (fnt.why === "own_file" ? "own_file" : "unsupported"))
             }
             // A terminal: what it takes of the material, honestly (K99).
             Text {

@@ -24,8 +24,8 @@ printf '[Install123]\nDefault=ccc.me\nLocked=1\n\n[Profile0]\nName=me\nIsRelativ
 printf '/* mine */\n#foo { color: red }\n' > "$FAKE/.zen/aaa.default/chrome/userChrome.css"
 printf 'user_pref("mine", 1);\n' > "$FAKE/.zen/aaa.default/user.js"
 CFG=$OUT/config.toml
-conf() { # conf <translucent true|false> <pages true|false>
-  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport = ["zen","firefox"]\nbrowser_translucent = %s\nbrowser_translucent_pages = %s\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "$1" "$2" > "$CFG"
+conf() { # conf <translucent true|false> <pages true|false> [fonts true|false] [websites true|false]
+  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport = ["zen","firefox"]\nexport_fonts = %s\nexport_fonts_pages = %s\nbrowser_translucent = %s\nbrowser_translucent_pages = %s\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "${3:-false}" "${4:-false}" "$1" "$2" > "$CFG"
 }
 conf false false
 HOME="$FAKE" "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
@@ -78,6 +78,27 @@ conf false false; "$SB" config "$CFG"
 for _ in $(seq 100); do grep -q 'zen.widget.linux.transparency' "$ZJS" || break; sleep 0.2; done
 grep -q 'zen.widget.linux.transparency' "$ZJS" && fail "the pref stayed after the toggle"
 echo "css: Zen's layers, corners, a tile; translucent drops it and asks for the pref; a toggle moves it"
+
+# K105: the shell's fonts on the interface and as the pages' fall-backs; forced on pages only with Websites too.
+grep -q 'font-family' "$Z" && fail "a font in zen.css while Fonts in apps is off"
+grep -q 'font.name.sans-serif' "$ZJS" && fail "font prefs while Fonts in apps is off"
+conf false false true false; "$SB" config "$CFG"
+for _ in $(seq 100); do grep -q 'font.name.sans-serif.x-western' "$ZJS" && break; sleep 0.2; done
+grep -q 'font.name.sans-serif.x-western' "$ZJS" || fail "no page fonts in the linked profile"
+grep -q 'font.name.monospace.x-western' "$ZJS" || fail "no monospaced page font"
+grep -q 'font-family: "' "$Z" || fail "no font on Zen's interface"
+grep -q 'use_document_fonts' "$ZJS" && fail "pages forced without Websites too"
+fam=$("$SB" act --json sub svc.theme_export --count 0 2>/dev/null | head -1 | jq -r '.data.targets[] | select(.name=="zen") | .font.family // empty')
+[ -n "$fam" ] || fail "Settings is not told Zen takes the font"
+grep -q "font.name.sans-serif.x-western\", \"$fam\"" "$ZJS" || fail "the page font is not the shell's ($fam): $(grep font.name "$ZJS" | head -2)"
+conf false false true true; "$SB" config "$CFG"
+for _ in $(seq 100); do grep -q 'browser.display.use_document_fonts", 0' "$ZJS" && break; sleep 0.2; done
+grep -q 'browser.display.use_document_fonts", 0' "$ZJS" || fail "Websites too did not force the pages"
+conf false false; "$SB" config "$CFG"
+for _ in $(seq 100); do grep -q 'font.name' "$ZJS" || break; sleep 0.2; done
+grep -q 'font.name\|use_document_fonts' "$ZJS" && fail "the font prefs stayed after Fonts in apps went off"
+grep -q 'font-family' "$Z" && fail "the interface font stayed"
+echo "fonts: $fam on Zen's interface and as its pages' fall-backs; forced only with Websites too; gone when off"
 
 # Another shell's stylesheet imported in the same profile: Settings is told, the click turns it off with a mark, and Unlink puts it back.
 ORIG=$(cat "$ZCSS")

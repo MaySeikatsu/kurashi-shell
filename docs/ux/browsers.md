@@ -40,3 +40,6 @@ A linked profile can still look untouched: the user's profile imported Noctalia'
 
 ## The tile's strength (session 24, I445)
 At 0.8 of the shell's strength the tile measured a standard deviation of 0.013 and the user saw it "barely". **Material strength in browsers** (default 1.6, 0.4–3) sets it; chrome has little text, so it takes more than a terminal (0.45). Both switches say they are off while Translucent browser is on: the tile is opaque and would close what translucency opens.
+
+## Fonts (K105)
+With Fonts in apps on, the interface takes the shell's font, and a linked profile's pages fall back to it (`font.name.*` for Western and Unicode text) and to its monospaced font. Pages that name their own fonts keep them unless **Websites too** is on (`browser.display.use_document_fonts = 0`), which can turn a site's icon font into words or boxes, so it stays a separate opt-in. A restart of the browser shows either.

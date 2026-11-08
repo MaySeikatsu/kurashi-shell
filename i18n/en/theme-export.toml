@@ -62,3 +62,5 @@
 "theme.export.profile.others_on" = "Turn it back on"
 "theme.export.font.family" = "Takes the monospaced font: {family}, at its own size."
 "theme.export.font.unsupported" = "Keeps its own font: it reads only colours from the shell."
+"theme.export.font.ui" = "Takes the shell's font: {family}."
+"theme.export.font.own_file" = "Keeps its own font: it lives in a file of yours (Spotify's user.css, Zed's settings), which the shell does not write."

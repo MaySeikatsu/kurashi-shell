@@ -17,7 +17,7 @@ fail() { echo "test-terminals: $*" >&2; "$SB" stop >/dev/null 2>&1; exit 1; }
 trap '"$SB" stop >/dev/null 2>&1' EXIT
 CFG=$OUT/config.toml
 conf() { # conf <terminals true|false> [mono true|false]
-  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport_mono = %s\nexport = ["foot","kitty","alacritty","ghostty","wezterm","rio","ratty"]\n\n[theme.typography]\nmono = ["JetBrains Mono", "DejaVu Sans Mono", "monospace"]\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\nterminals = %s\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "${2:-false}" "$1" > "$CFG"
+  printf '[idle]\nenabled = false\n\n[theme]\nstyle = "washi"\nexport_fonts = %s\nexport = ["foot","kitty","alacritty","ghostty","wezterm","rio","ratty"]\n\n[theme.typography]\nmono = ["JetBrains Mono", "DejaVu Sans Mono", "monospace"]\n\n[theme.texture]\nkind = "paper"\nscope = "shell"\nterminals = %s\n\n[desktop]\nenabled = false\n\n[modules.windows]\npreviews = false\n[modules.workspaces]\npreviews = false\n' "${2:-false}" "$1" > "$CFG"
 }
 conf true
 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
