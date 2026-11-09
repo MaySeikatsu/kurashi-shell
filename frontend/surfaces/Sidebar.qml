@@ -96,6 +96,11 @@ Scope {
         return null
     }
     function num(v, d) { return typeof v === "number" && !isNaN(v) ? v : d }
+    // B46: the tab (its id) each output's pages-mode column showed last. View state of this side only: no key, no daemon.
+    // Written on a choice, read when the column is made (the Loader makes it again each time the sidebar opens).
+    property var pages: ({})
+    function pageOf(out) { return pages[out] !== undefined ? String(pages[out]) : "" }
+    function rememberPage(out, id) { pages[out] = String(id) }
 
     Variants {
         model: Quickshell.screens
@@ -165,6 +170,29 @@ Scope {
             property int pendingW: -1
             onDocWChanged: if (pendingW >= 0 && docW === pendingW) { pendingW = -1; if (!resizing) liveW = -1 }
             readonly property int colW: liveW >= 0 ? clampW(liveW) : docW
+
+            // The column's content, made inside this output's scope so the output is known when it is made: the page memory
+            // (B46) and the header's pin (B47) are per output. (A Loader has no initialProperties: the components carry it.)
+            Component {
+                id: pagesC
+                LeftColumn {
+                    tabs: sb.sections; side: sb.side
+                    outName: col.out
+                    // B46: the page this output's column showed last (the Loader makes the column again each time the sidebar
+                    // opens, so the memory lives on the Sidebar; per output: the key).
+                    pageId: sb.pageOf(col.out)
+                    onPageChosen: page => sb.rememberPage(col.out, page)
+                }
+            }
+            Component {
+                id: stackC
+                RightColumn {
+                    sections: sb.sections
+                    pinSide: sb.side
+                    outName: col.out
+                    fromTop: cfg.atTop && !cfg.atBottom
+                }
+            }
 
             // ---- when it is out ----
             readonly property bool toggledHere: sb.toggled && sb.toggledOn === out
@@ -818,6 +846,8 @@ Scope {
                                 id: pinBtn
                                 visible: !content.pinInHeader
                                 sidebarSide: sb.side
+                                // B47: this column's output (the pin reads and writes its slot).
+                                outName: col.out
                                 anchors.top: parent.top
                                 x: sb.side === "right" ? parent.width - width : 0
                             }
@@ -825,7 +855,7 @@ Scope {
                                 id: colLoader
                                 anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
                                 focus: true
-                                sourceComponent: sb.mode === "pages" ? leftC : rightC
+                                sourceComponent: sb.mode === "pages" ? pagesC : stackC
                             }
                         }
                         }
@@ -934,18 +964,5 @@ Scope {
                 }
             }
         }
-    }
-    Component {
-        id: rightC
-        RightColumn {
-            sections: sb.sections
-            pinSide: sb.side
-            outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : ""
-            fromTop: cfg.atTop && !cfg.atBottom
-        }
-    }
-    Component {
-        id: leftC
-        LeftColumn { tabs: sb.sections; side: sb.side; outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : "" }
     }
 }

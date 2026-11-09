@@ -2209,6 +2209,7 @@ Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: 
 Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
 
 - type: `bool` · default: `false`
+- per-output
 - since schema v7
 
 #### `sidebar.right.reserve` — Keep space
@@ -2267,6 +2268,7 @@ Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: 
 Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
 
 - type: `bool` · default: `false`
+- per-output
 - since schema v7
 
 #### `sidebar.left.reserve` — Keep space

@@ -2058,7 +2058,7 @@ macro_rules! sidebar_side {
             /// Pinned
             /// Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to
             /// the visibility above, which pinning leaves as it is.
-            #[kurashi(default = false, module = $module, since = 7)]
+            #[kurashi(default = false, module = $module, per_output, since = 7)]
             pub pinned: bool,
             /// Keep space
             /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps
