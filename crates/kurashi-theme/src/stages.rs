@@ -669,10 +669,13 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         c: accent.c.max(0.04),
         ..accent
     };
+    // The palette's own text colour (a wallpaper's white) where it can stay: the ground moves toward the side that text
+    // needs, as far as 4.5:1 with it; pure white or black only when the palette's own cannot reach that nearby.
+    let own_ink = p.get("on_surface");
     let reach = |ink: Rgb, step: f64| -> Option<Lch> {
         let mut g = base;
         for _ in 0..100 {
-            if contrast(ink, g.rgb()) >= 7.0 {
+            if contrast(ink, g.rgb()) >= 4.5 {
                 return Some(g);
             }
             g.l += step;
@@ -682,22 +685,33 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         }
         None
     };
-    let ground = match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
-        (Some(a), Some(b)) => {
-            if (a.l - base.l).abs() <= (b.l - base.l).abs() {
-                a
-            } else {
-                b
+    let own_step = if own_ink.luminance() > 0.5 {
+        -0.01
+    } else {
+        0.01
+    };
+    let ground = match reach(own_ink, own_step) {
+        // Kept while the colour does not have to go far (a fifth of the lightness scale).
+        Some(g) if (g.l - base.l).abs() <= 0.2 => g,
+        _ => match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
+            (Some(a), Some(b)) => {
+                if (a.l - base.l).abs() <= (b.l - base.l).abs() {
+                    a
+                } else {
+                    b
+                }
             }
-        }
-        (Some(a), None) => a,
-        (None, Some(b)) => b,
-        (None, None) => base,
+            (Some(a), None) => a,
+            (None, Some(b)) => b,
+            (None, None) => base,
+        },
     };
     let surface = ground.rgb();
     let mut raw = RawRoles::new();
     raw.insert("surface".into(), surface);
-    let ink = if contrast(WHITE, surface) >= contrast(BLACK, surface) {
+    let ink = if contrast(own_ink, surface) >= 4.5 {
+        own_ink
+    } else if contrast(WHITE, surface) >= contrast(BLACK, surface) {
         WHITE
     } else {
         BLACK
@@ -711,7 +725,7 @@ pub fn strong_chrome(p: Palette) -> StageOut {
     ];
     // Containers step away from the text's side (lighter on a dark ground, darker on a light one), but only as far as the
     // text keeps 4.5:1 on them: a step that would cost it is shortened, so the text never has to change colour.
-    let dark_ground = ink == WHITE;
+    let dark_ground = ink.luminance() > surface.luminance();
     for (k, d0) in steps {
         let mut d = d0;
         let mut c = surface;
@@ -734,19 +748,32 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         "on_surface_variant".into(),
         ensure_contrast(ink.mix(surface, 0.25), surface, 4.5),
     );
-    raw.insert("outline".into(), ink.mix(surface, 0.45));
-    raw.insert("outline_variant".into(), ink.mix(surface, 0.7));
+    // Lines keep the palette's own colour (Mixed: one of the picture's), moved only as far as 3:1 needs.
+    let outline = lift(p.get("outline"), surface, 3.0);
+    raw.insert("outline".into(), outline);
+    raw.insert("outline_variant".into(), outline.mix(surface, 0.5));
     // The accent: what stands out on the new ground; 3:1 at least (a control is a graphic, WCAG 1.4.11).
-    let cands = [
-        p.get("secondary"),
-        p.get("tertiary"),
-        p.get("surface"),
-        p.get("on_surface"),
-    ];
-    let new_accent = cands
+    // The accent: of the palette's other colours, the one whose hue stands furthest from the ground's (a blue on a pink
+    // ground), moved only as far as 3:1 needs; a grey palette keeps the old ground or the text as its accent.
+    let gap = |c: Rgb| {
+        let l = Lch::of(c);
+        if l.c < 0.03 {
+            return -1.0;
+        }
+        let d = (l.h - ground.h).rem_euclid(360.0);
+        d.min(360.0 - d)
+    };
+    let new_accent = ["secondary", "tertiary"]
         .iter()
-        .copied()
-        .find(|c| contrast(*c, surface) >= 3.0)
+        .map(|r| p.get(r))
+        .filter(|c| gap(*c) >= 0.0)
+        .max_by(|a, b| gap(*a).total_cmp(&gap(*b)))
+        .map(|c| lift(c, surface, 3.0))
+        .or_else(|| {
+            [p.get("surface"), p.get("on_surface")]
+                .into_iter()
+                .find(|c| contrast(*c, surface) >= 3.0)
+        })
         .unwrap_or(ink);
     raw.insert("accent".into(), new_accent);
     for r in ["secondary", "tertiary", "success", "warning", "error"] {

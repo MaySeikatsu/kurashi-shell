@@ -729,7 +729,8 @@ pub fn build(
             "quick.tile.on.fg",
             ensure_contrast(g("on_surface"), tile, 4.5),
         );
-        let sel = g("secondary").mix(g("surface_container_high"), if p.dark { 0.7 } else { 0.65 });
+        // A selection shows the secondary as itself, a little into its container.
+        let sel = g("secondary").mix(g("surface_container_high"), 0.25);
         col(&mut t, "color.selected", sel);
         col(
             &mut t,

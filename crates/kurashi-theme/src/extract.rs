@@ -296,19 +296,32 @@ pub fn lift(c: Rgb, bg: Rgb, min: f64) -> Rgb {
         return c;
     }
     let lch = Lch::of(c);
-    let up = Lch::of(bg).l < 0.5;
-    for i in 1..=100 {
-        let d = f64::from(i) * 0.01;
-        let l = if up { lch.l + d } else { lch.l - d };
-        if !(0.0..=1.0).contains(&l) {
-            break;
+    // Lighter or darker, whichever reaches `min` with the smaller change (a beige on a pink of its own lightness turns
+    // a pale beige rather than a brown when that is nearer).
+    let walk = |step: f64| -> Option<(f64, Rgb)> {
+        for i in 1..=100 {
+            let l = lch.l + step * f64::from(i);
+            if !(0.0..=1.0).contains(&l) {
+                return None;
+            }
+            let t = lch.with(l, lch.c).rgb();
+            if contrast(t, bg) >= min {
+                return Some(((l - lch.l).abs(), t));
+            }
         }
-        let t = lch.with(l, lch.c).rgb();
-        if contrast(t, bg) >= min {
-            return t;
+        None
+    };
+    match (walk(0.01), walk(-0.01)) {
+        (Some(a), Some(b)) => {
+            if a.0 <= b.0 {
+                a.1
+            } else {
+                b.1
+            }
         }
+        (Some(a), None) | (None, Some(a)) => a.1,
+        (None, None) => ensure_contrast(c, bg, min),
     }
-    ensure_contrast(c, bg, min)
 }
 
 fn accent_roles(roles: &mut RawRoles, name: &str, c: Rgb, surface: Rgb, dark: bool) {
@@ -427,15 +440,9 @@ fn mixed_scheme(sw: &[Swatch], dark: bool) -> RawRoles {
     let t = ink(sw, g, dark);
     let surface = g.rgb();
     let picks = hues(sw, 5);
-    // The accent: the most vivid pick (one that stands apart from a coloured ground); the rest by prominence go to
-    // secondary, tertiary and the lines, so each of the picture's colours shows somewhere.
-    let apart = |p: &Lch| g.c < 0.04 || hue_gap(p.h, g.h) >= 20.0;
-    let accent = picks
-        .iter()
-        .copied()
-        .filter(apart)
-        .max_by(|a, b| a.c.total_cmp(&b.c))
-        .or_else(|| picks.first().copied());
+    // The accent: the picture's most prominent colour (its share, lifted by chroma: the order `hues` gives), whatever the
+    // ground's hue; the rest by prominence go to secondary, tertiary and the lines, so each colour shows somewhere.
+    let accent = picks.first().copied();
     let rest: Vec<Lch> = picks
         .iter()
         .copied()
