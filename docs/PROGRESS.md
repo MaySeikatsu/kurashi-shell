@@ -348,3 +348,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S24.13 | The shell's monospaced font for terminals and the desktop, opt-in (I441, K104) | ✅ functional · 🟡 UX (user to judge Monaspace Radon) | feat/s25-terminal-fonts |
 | S24.14 | Zen's tile strength and the switches' reason under translucency (I445) | ✅ functional · 🟡 UX (user to judge after a restart of Zen) | main |
 | S24.15 | Fonts in apps: the shell's font and monospaced font everywhere they can go; Websites too (I447, K105) | ✅ functional · 🟡 UX (user to judge) | main |
+| S26.1 | Common palettes with their variants and the authors' terminal colours; palettes by category (I451, I452, K106) | ✅ functional · 🟡 UX (user to judge the list) | feat/s26-extraction |
+| S26.2 | Wallpaper extraction modes: Tone-matched, Vibrant, Prominent, Mixed; colours spread over the controls (I455, K107) | ✅ functional · ✅ UX (live, iterated with the user) | feat/s26-extraction |
+| S26.3 | Chrome fill: neutral or strong colour; apps follow (I456, I459, K108) | ✅ functional · ✅ UX (live) | feat/s26-extraction |
+| S26.4 | The chrome's gradient as one sheet: linear, radial, watercolour, the wallpaper under it; auto angle (I460, K109) | ✅ functional · 🟡 UX (floating pill / translucent dock not washed) | feat/s26-extraction |
+| S26.5 | App icons and the launcher logo in the theme's colours (K110) | ✅ functional · 🟡 UX (user to judge) | feat/s26-extraction |
+| S26.6 | Settings: the pen, the wash, a sticky page header (K111) | ✅ functional · 🟡 UX (user to judge) | feat/s26-extraction |
+| S26.7 | Sidebar keeps its page; a pin per output (B46, B47, W65) | ✅ functional · ✅ UX | main |
+| S26.8 | Bar fit: no overlap, overflow, icon polish (B48, W66, K112) | ✅ functional · 🟡 UX (user to judge; side bars partly, B51) | fix/s26-bar-fit |
+| S26.9 | OpenDyslexic among the shipped fonts | ✅ | feat/s26-extraction |
