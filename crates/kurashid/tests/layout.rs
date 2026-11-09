@@ -337,3 +337,39 @@ async fn layout_toggle_of_a_sidebar_drives_sidebar_toggle() {
     );
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// B47: a pin on one output (`sidebar.left.pinned` on DP-1) pins that output's left sidebar only; the unnamed outputs
+/// (the `"*"` entry) stay hidden. Then a global pin, and an unpin on DP-1 alone (its own `false`, not a reset, which would
+/// fall back to the global pin) holds there while the global pin keeps the rest.
+#[tokio::test]
+async fn a_sidebar_pin_on_one_output_pins_that_output_only() {
+    let (store, hub, _actions, root) = open();
+    let _ = hub.subscribe("runtime.layout").unwrap();
+    let visibility =
+        |d: &Value, out: &str| d["outputs"][out]["sidebars"]["left"]["visibility"].clone();
+    store
+        .apply(&[set("sidebar.left.pinned", json!(true), Some("DP-1"))])
+        .unwrap();
+    eventually(&hub, "DP-1's left sidebar pinned", |d| {
+        visibility(d, "DP-1") == json!("always")
+    })
+    .await;
+    assert_eq!(visibility(&layout(&hub), "*"), json!("hidden"));
+
+    store
+        .apply(&[set("sidebar.left.pinned", json!(true), None)])
+        .unwrap();
+    eventually(&hub, "the global pin", |d| {
+        visibility(d, "*") == json!("always")
+    })
+    .await;
+    store
+        .apply(&[set("sidebar.left.pinned", json!(false), Some("DP-1"))])
+        .unwrap();
+    eventually(&hub, "DP-1 unpinned", |d| {
+        visibility(d, "DP-1") == json!("hidden")
+    })
+    .await;
+    assert_eq!(visibility(&layout(&hub), "*"), json!("always"));
+    let _ = std::fs::remove_dir_all(&root);
+}

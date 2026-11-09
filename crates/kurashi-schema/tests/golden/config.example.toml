@@ -1387,7 +1387,7 @@
 #
 # Pinned — Kept open, the windows beside it, while pinned (the pin in the sidebar's
 # corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
-#   since schema v7
+#   per-output · since schema v7
 # pinned = false
 #
 # Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
@@ -1428,7 +1428,7 @@
 #
 # Pinned — Kept open, the windows beside it, while pinned (the pin in the sidebar's
 # corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
-#   since schema v7
+#   per-output · since schema v7
 # pinned = false
 #
 # Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
