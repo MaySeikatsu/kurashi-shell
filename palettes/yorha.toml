@@ -2,6 +2,7 @@
 # after shellseikatsu `_nierPalette()` (W25, K50). Meant for the look `yorha` (frame `yorha`).
 name = "yorha"
 kind = "pair"
+category = "inspired"
 description = "Parchment and olive ink (decor yorha)"
 
 [light]

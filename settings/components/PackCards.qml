@@ -22,7 +22,7 @@ Item {
     property bool cancellable: true
 
     // The order the categories show in (K53's list); a category the daemon adds later goes after them.
-    readonly property var order: ["modern", "inspired", "retro", "fiction", "custom"]
+    readonly property var order: ["kurashi", "common", "modern", "inspired", "retro", "fiction", "custom"]
     readonly property var lead: pc.choices.filter(function (c) { return !c.group })
     readonly property var categories: {
         var counts = {}

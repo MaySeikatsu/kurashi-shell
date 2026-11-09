@@ -3,6 +3,7 @@
 # baseline (palette `wallpaper` gives the dynamic one). Meant for decor `material`.
 name = "material"
 kind = "pair"
+category = "inspired"
 description = "Material 3 baseline (decor material)"
 
 [dark]

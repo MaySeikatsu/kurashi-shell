@@ -6,6 +6,7 @@
 # the tooltip yellow and the desk.
 name = "win95"
 kind = "pair"
+category = "inspired"
 description = "Silver, navy and teal (decor win95)"
 
 [light]

@@ -2,6 +2,7 @@
 # Virtual Singer unit theme, INSPIRATION.md). Meant for chrome `keycap` (decor `sekai`).
 name = "sekai"
 kind = "pair"
+category = "kurashi"
 description = "Pop pastels with ink outlines (decor sekai)"
 
 [dark]

@@ -289,6 +289,7 @@ pub fn from_wallpaper(w: &Wallpaper) -> Result<(PaletteSet, Rgb), ThemeError> {
         name: "wallpaper".into(),
         dark: Some(roles(&theme.schemes.dark, "#e0a33b")),
         light: Some(roles(&theme.schemes.light, "#b07a14")),
+        ..Default::default()
     };
     Ok((set, rgb_of(seed)))
 }

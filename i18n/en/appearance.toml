@@ -40,6 +40,8 @@
 "config.choice.look.yorha" = "YoRHa (NieR: Automata)"
 "config.choice.look.hallownest" = "Hallownest (Hollow Knight)"
 "config.choice.look.souls" = "Souls (Dark Souls gold)"
+"appearance.category.kurashi" = "Kurashi"
+"appearance.category.common" = "Common"
 "appearance.category.modern" = "Modern"
 "appearance.category.inspired" = "Inspired"
 "appearance.category.retro" = "Retro"

@@ -459,5 +459,6 @@ pub fn palette(w: &Wallpaper, mode: Mode) -> Result<PaletteSet, ThemeError> {
         name: format!("wallpaper-{}", mode.name()),
         dark: Some(dark),
         light: Some(light),
+        ..Default::default()
     })
 }

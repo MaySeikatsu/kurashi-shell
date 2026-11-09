@@ -27,7 +27,7 @@ pub use fonts::{FakeFonts, FcList, FontProvider};
 pub use input::*;
 /// The motion engine (K83): the daemon offers its packs and forms from here.
 pub use kurashi_motion;
-pub use palette::{Palette, PaletteSet, bundled, bundled_names};
+pub use palette::{Palette, PaletteSet, bundled, bundled_category, bundled_names};
 pub use tokens::TokenMap;
 
 #[derive(Debug, thiserror::Error)]

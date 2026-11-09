@@ -10,6 +10,7 @@
 # 和色 wa-iro — the default. Sumi ink / washi paper with beni, ai, matcha, yamabuki.
 name = "wa-iro"
 kind = "pair"
+category = "kurashi"
 description = "Traditional Japanese colours (DESIGN-SYSTEM §6)"
 
 [dark]

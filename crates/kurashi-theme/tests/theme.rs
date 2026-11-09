@@ -1135,3 +1135,31 @@ fn motion_sweep_every_style_and_profile() {
         resolve(&i, &fonts()).unwrap().tokens
     });
 }
+
+#[test]
+fn every_bundled_palette_has_a_category_and_common_ones_their_terminal_colours() {
+    // I452: the list groups palettes by category; I454: the common palettes carry their authors' terminal colours.
+    for name in bundled_names() {
+        let set = bundled(name).unwrap();
+        let cat = set.meta.category.as_deref();
+        assert!(
+            matches!(cat, Some("kurashi" | "common" | "inspired")),
+            "{name}: category {cat:?}"
+        );
+        if cat == Some("common") {
+            let t = set
+                .dark_terminal
+                .as_ref()
+                .unwrap_or_else(|| panic!("{name}: no [dark.terminal]"));
+            assert_eq!(
+                t.background,
+                set.dark.as_ref().unwrap()["surface"],
+                "{name}: ground"
+            );
+        }
+    }
+    let gruvbox = bundled("gruvbox").unwrap();
+    let t = gruvbox.dark_terminal.unwrap();
+    assert_eq!(t.colors[1].hex(), "#cc241d");
+    assert_eq!(t.colors[11].hex(), "#fabd2f");
+}

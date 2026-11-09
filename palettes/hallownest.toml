@@ -4,6 +4,7 @@
 # Palace: pale stone and void-black ink. Meant for the look `hallownest`.
 name = "hallownest"
 kind = "pair"
+category = "inspired"
 description = "White on void black with a blue haze (style hallownest)"
 
 [dark]

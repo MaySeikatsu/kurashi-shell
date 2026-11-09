@@ -1,6 +1,7 @@
 # 夜 sekai-night — the night unit's violet, in the same ink-outlined pop style as `sekai` (K42).
 name = "sekai-night"
 kind = "pair"
+category = "kurashi"
 description = "Violet pastels with ink outlines (decor sekai)"
 
 [dark]
