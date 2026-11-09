@@ -304,4 +304,7 @@ pub struct Wash {
     pub size: f64,
     /// One canvas over every output.
     pub span_all: bool,
+    /// Stops ordered darkest first, so the darker side lies at the gradient's start (the auto angle puts the start where
+    /// the wallpaper is lightest).
+    pub dark_first: bool,
 }

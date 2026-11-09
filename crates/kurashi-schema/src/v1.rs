@@ -795,6 +795,16 @@ pub struct ChromeGradient {
     /// into each other.
     #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.chrome_fill == gradient")]
     pub pattern: GradientPattern,
+    /// Angle from the wallpaper
+    /// The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the
+    /// wallpaper is darker, so the chrome stands out from the picture behind it (no dark on dark, no light on light).
+    /// Without a wallpaper picture the angle below is used.
+    #[kurashi(
+        default = true,
+        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.pattern == linear"
+    )]
+    pub auto_angle: bool,
     /// Angle
     /// The direction a linear gradient runs in.
     #[kurashi(
@@ -803,7 +813,8 @@ pub struct ChromeGradient {
         step = 5,
         unit = "°",
         requires = "theme.colors.chrome_fill == gradient",
-        requires = "theme.colors.gradient.pattern == linear"
+        requires = "theme.colors.gradient.pattern == linear",
+        requires = "theme.colors.gradient.auto_angle == false"
     )]
     pub angle: u32,
     /// Range of tones

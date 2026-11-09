@@ -826,7 +826,11 @@ pub fn wash_tokens(
     let Some(w) = w else {
         return vec![("chrome.wash.on".into(), json!(false))];
     };
-    let stops: Vec<String> = wash_stops(p, w).iter().map(|c| c.hex()).collect();
+    let mut stops = wash_stops(p, w);
+    if w.dark_first {
+        stops.sort_by(|a, b| a.luminance().total_cmp(&b.luminance()));
+    }
+    let stops: Vec<String> = stops.iter().map(|c| c.hex()).collect();
     vec![
         ("chrome.wash.on".into(), json!(true)),
         ("chrome.wash.mode".into(), json!(w.pattern)),
@@ -839,4 +843,43 @@ pub fn wash_tokens(
         ),
         ("chrome.wash.stops".into(), json!(stops)),
     ]
+}
+
+/// The direction (degrees, x right, y down, as the Wash's angle) from the picture's light toward its dark: a linear
+/// gradient at this angle starts (its darkest stop) where the picture is lightest (I460, `auto_angle`). The centroids of
+/// what is lighter and what is darker than the mean, weighed by how much; `None` for a picture lit evenly.
+pub fn light_axis(w: &Wallpaper) -> Option<f64> {
+    let lum: Vec<f64> = w
+        .rgba
+        .chunks_exact(4)
+        .map(|p| Rgb(p[0], p[1], p[2]).luminance())
+        .collect();
+    if lum.is_empty() || w.width == 0 {
+        return None;
+    }
+    let mean = lum.iter().sum::<f64>() / lum.len() as f64;
+    let (mut lx, mut ly, mut lw, mut dx, mut dy, mut dw) = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    for (i, l) in lum.iter().enumerate() {
+        let x = (i as u32 % w.width) as f64;
+        let y = (i as u32 / w.width) as f64;
+        let d = l - mean;
+        if d > 0.0 {
+            lx += x * d;
+            ly += y * d;
+            lw += d;
+        } else {
+            dx -= x * d;
+            dy -= y * d;
+            dw -= d;
+        }
+    }
+    if lw <= 1e-6 || dw <= 1e-6 {
+        return None;
+    }
+    let (vx, vy) = (dx / dw - lx / lw, dy / dw - ly / lw);
+    // Less than a twentieth of the picture apart: no side is lighter enough to turn toward.
+    if vx.hypot(vy) < 0.05 * f64::from(w.width.max(w.height)) {
+        return None;
+    }
+    Some(vy.atan2(vx).to_degrees().rem_euclid(360.0))
 }

@@ -1550,14 +1550,14 @@ PanelWindow {
         // texture, which is redrawn when the path changes (while the shape morphs) and never at rest.
         Shape {
             id: maskShape
-            visible: reliefBox.on
+            visible: reliefBox.masked
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 strokeWidth: -1
                 strokeColor: "transparent"
                 fillColor: "white"
-                PathSvg { path: reliefBox.on ? shape.fillPath : "" }
+                PathSvg { path: reliefBox.masked ? shape.fillPath : "" }
             }
         }
         // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
@@ -1566,11 +1566,11 @@ PanelWindow {
             x: -100000
             width: parent.width
             height: parent.height
-            sourceItem: reliefBox.on ? maskShape : null
+            sourceItem: reliefBox.masked ? maskShape : null
             hideSource: true
         }
         Connections {
-            target: reliefBox.on ? shape : null
+            target: reliefBox.masked ? shape : null
             function onFillPathChanged() { shapeMask.scheduleUpdate() }
         }
     }
@@ -1580,9 +1580,29 @@ PanelWindow {
     // the translucent fill, weighed by the fill's opacity so it is shaded about once); the body carries its sheet as it
     // grows (`shapeCarry`: the body's foot and centre against the card's at rest, 0 once grown). The sheet registers by
     // window pixel, so the Stage's mirror for a bottom bar does not move it.
+    // I460 prototype: the wash over the panel's shape (head, fillets, body), under the views.
+    Item {
+        visible: Theme.washOn && shape.visible && shape.w > 2 && shape.h > 2
+        opacity: stage.shapeFade
+        width: stage.morphW
+        height: stage.morphH
+        transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
+        Loader {
+            anchors.fill: parent
+            active: parent.visible
+            sourceComponent: Wash {
+                anchors.fill: parent
+                mask: shapeMask
+                fill: Qt.alpha(stage.shapeFill, 1)
+                strength: stage.shapeFill.a
+            }
+        }
+    }
     Item {
         id: reliefBox
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
+        // The shape's mask serves the relief or the wash (I460).
+        readonly property bool masked: (Theme.texShell || Theme.washOn) && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
         opacity: stage.shapeFade
@@ -1720,6 +1740,18 @@ PanelWindow {
             anchors.fill: parent
             active: !stage.morphDraws && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
             sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
+        }
+        // I460 prototype: the wash on the card's fill.
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.washOn && !stage.morphDraws && !stage.ownChrome
+            sourceComponent: Wash {
+                anchors.fill: parent
+                radius: Math.max(0, card.radius - Theme.outlineW)
+                fill: Qt.alpha(Theme.panel, 1)
+                strength: Theme.panel.a
+            }
         }
         // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
         // island morphs, where the shape draws the card.

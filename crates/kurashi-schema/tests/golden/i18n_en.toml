@@ -171,6 +171,8 @@
 "config.choice.gradient_pattern.linear" = "Linear"
 "config.choice.gradient_pattern.radial" = "Radial"
 "config.choice.gradient_pattern.watercolour" = "Watercolour"
+"config.theme.colors.gradient.auto_angle.label" = "Angle from the wallpaper"
+"config.theme.colors.gradient.auto_angle.help" = "The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the wallpaper is darker, so the chrome stands out from the picture behind it (no dark on dark, no light on light). Without a wallpaper picture the angle below is used."
 "config.theme.colors.gradient.angle.label" = "Angle"
 "config.theme.colors.gradient.angle.help" = "The direction a linear gradient runs in."
 "config.theme.colors.gradient.spread.label" = "Range of tones"

@@ -447,6 +447,14 @@ Linear runs from one edge to the other; radial from the middle out; watercolour 
 - choices: `"linear"` | `"radial"` | `"watercolour"`
 - only while `theme.colors.chrome_fill == "gradient"`
 
+#### `theme.colors.gradient.auto_angle` — Angle from the wallpaper
+
+The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the wallpaper is darker, so the chrome stands out from the picture behind it (no dark on dark, no light on light). Without a wallpaper picture the angle below is used.
+
+- type: `bool` · default: `true`
+- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.pattern == "linear"`
+
 #### `theme.colors.gradient.angle` — Angle
 
 The direction a linear gradient runs in.
@@ -455,6 +463,7 @@ The direction a linear gradient runs in.
 - range: `0..=359`, step `5` (°)
 - only while `theme.colors.chrome_fill == "gradient"`
 - only while `theme.colors.gradient.pattern == "linear"`
+- only while `theme.colors.gradient.auto_angle == false`
 
 #### `theme.colors.gradient.spread` — Range of tones
 

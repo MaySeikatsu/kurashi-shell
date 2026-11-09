@@ -211,7 +211,14 @@ fn scheme_name(s: Scheme) -> &'static str {
 
 /// Whether the theme needs the wallpaper's picture: palette `wallpaper` or scheme `wallpaper` (K34, K55).
 fn wants_picture(store: &ConfigStore) -> bool {
-    s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+    // I460: the gradient's angle follows the wallpaper's light.
+    let auto_angle = s(store, "theme.colors.chrome_fill") == "gradient"
+        && store
+            .get("theme.colors.gradient.auto_angle", None)
+            .and_then(|p| p.value.as_bool())
+            .unwrap_or(true);
+    auto_angle
+        || s(store, "theme.colors.palette") == WALLPAPER_PALETTE
         || s(store, "theme.colors.scheme") == WALLPAPER_PALETTE
         || crate::texture::wants_wallpaper(store)
 }
@@ -356,7 +363,16 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
                 "" => "linear".into(),
                 p => p.to_owned(),
             },
-            angle: f(store, "theme.colors.gradient.angle", 35.0),
+            angle: picture
+                .filter(|_| {
+                    store
+                        .get("theme.colors.gradient.auto_angle", None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(true)
+                })
+                .and_then(|p| kurashi_theme::stages::wallpaper_file(p).ok())
+                .and_then(|e| kurashi_theme::stages::light_axis(&e.pixels))
+                .unwrap_or_else(|| f(store, "theme.colors.gradient.angle", 35.0)),
             spread: f(store, "theme.colors.gradient.spread", 12.0) / 100.0,
             softness: f(store, "theme.colors.gradient.softness", 85.0) / 100.0,
             size: f(store, "theme.colors.gradient.size", 420.0),
@@ -364,6 +380,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
                 .get("theme.colors.gradient.span_outputs", None)
                 .and_then(|p| p.value.as_bool())
                 .unwrap_or(true),
+            dark_first: true,
         }),
         ink: match s(store, "theme.colors.ink").as_str() {
             "" | "palette" => kurashi_theme::Ink::Palette,

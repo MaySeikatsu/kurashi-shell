@@ -407,9 +407,18 @@
 #   "gradient"
 # pattern = "linear"
 #
+# Angle from the wallpaper — The gradient turns so its darker side lies where the
+# wallpaper is lighter and its lighter side where the wallpaper is darker, so the chrome
+# stands out from the picture behind it (no dark on dark, no light on light). Without a
+# wallpaper picture the angle below is used.
+#   only while theme.colors.chrome_fill == "gradient" · only while
+#   theme.colors.gradient.pattern == "linear"
+# auto_angle = true
+#
 # Angle — The direction a linear gradient runs in.
 #   range: 0..=359, step 5 (°) · only while theme.colors.chrome_fill == "gradient" · only
-#   while theme.colors.gradient.pattern == "linear"
+#   while theme.colors.gradient.pattern == "linear" · only while
+#   theme.colors.gradient.auto_angle == false
 # angle = 35
 #
 # Range of tones — How far the darker and the lighter tone lie apart; text stays legible

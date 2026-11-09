@@ -1188,6 +1188,7 @@ fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
                     softness: 0.85,
                     size: 420.0,
                     span_all: true,
+                    dark_first: true,
                 }),
                 ..base
             },
@@ -1239,4 +1240,30 @@ fn strong_chrome_keeps_a_soft_colour_soft_and_light_under_dark_text() {
         out.get("on_surface").luminance() < 0.1,
         "dark text on a light sage"
     );
+}
+
+#[test]
+fn the_gradients_auto_angle_runs_from_the_pictures_light_to_its_dark() {
+    // I460: a picture light on the left, dark on the right: the gradient starts (darkest stop) on the left, angle ≈ 0°.
+    let (w, h) = (64u32, 32u32);
+    let mut rgba = vec![];
+    for _y in 0..h {
+        for x in 0..w {
+            let v = if x < w / 2 { 230 } else { 20 };
+            rgba.extend_from_slice(&[v, v, v, 255]);
+        }
+    }
+    let a = stages::light_axis(&Wallpaper {
+        width: w,
+        height: h,
+        rgba,
+    })
+    .unwrap();
+    assert!(!(5.0..=355.0).contains(&a), "{a}");
+    let flat = Wallpaper {
+        width: 8,
+        height: 8,
+        rgba: vec![128; 8 * 8 * 4],
+    };
+    assert!(stages::light_axis(&flat).is_none());
 }

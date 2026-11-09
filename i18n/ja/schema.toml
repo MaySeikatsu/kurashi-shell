@@ -163,6 +163,8 @@
 "config.choice.gradient_pattern.linear" = "リニア"
 "config.choice.gradient_pattern.radial" = "放射状"
 "config.choice.gradient_pattern.watercolour" = "水彩"
+"config.theme.colors.gradient.auto_angle.label" = "角度を壁紙に合わせる"
+"config.theme.colors.gradient.auto_angle.help" = "壁紙の明るいところにグラデーションの暗い側、暗いところに明るい側が来るよう向きを変え、クロームを後ろの絵から浮かせます（暗いところに暗い色、明るいところに明るい色を避けます）。壁紙の絵がないときは下の角度を使います。"
 "config.theme.colors.gradient.angle.label" = "角度"
 "config.theme.colors.gradient.angle.help" = "リニアのグラデーションが流れる向き。"
 "config.theme.colors.gradient.spread.label" = "トーンの幅"
