@@ -431,6 +431,13 @@ One accent: buttons, sliders, switches and tiles all in the accent. Spread: the 
 - type: `choice` · default: `"auto"`
 - choices: `"auto"` | `"one"` | `"spread"`
 
+#### `theme.colors.app_icons` — App icons
+
+The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+
+- type: `choice` · default: `"original"`
+- choices: `"original"` | `"ink"` | `"tones"` | `"palette"`
+
 #### `theme.colors.chrome_fill` — Chrome fill
 
 What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so they stay legible. The gradient below can run over either (I456).
@@ -1999,6 +2006,14 @@ A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on 
 - type: `string` · default: `""`
 - only while `launcher.button_logo == "own"`
 - since schema v7
+
+#### `launcher.logo_tint` — Logo colour
+
+The OS logo or your image as the look draws it, as it is, in the text's colour, in the palette's colours as sectors (as the PS2 look does with its four), or in the palette's tones (its drawing kept, dark to light).
+
+- type: `choice` · default: `"look"`
+- choices: `"look"` | `"original"` | `"ink"` | `"palette"` | `"tones"`
+- only while `launcher.button_logo != "look"`
 
 ## Desktop
 

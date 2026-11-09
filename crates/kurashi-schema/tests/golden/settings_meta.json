@@ -1127,6 +1127,37 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.app_icon_tint.original",
+                  "value": "original"
+                },
+                {
+                  "label": "config.choice.app_icon_tint.ink",
+                  "value": "ink"
+                },
+                {
+                  "label": "config.choice.app_icon_tint.tones",
+                  "value": "tones"
+                },
+                {
+                  "label": "config.choice.app_icon_tint.palette",
+                  "value": "palette"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "original",
+              "help": "config.theme.colors.app_icons.help",
+              "key": "theme.colors.app_icons",
+              "label": "config.theme.colors.app_icons.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
                   "label": "config.choice.chrome_fill.neutral",
                   "value": "neutral"
                 },
@@ -6151,6 +6182,52 @@
               "restart": false,
               "since": 7,
               "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.logo_tint.look",
+                  "value": "look"
+                },
+                {
+                  "label": "config.choice.logo_tint.original",
+                  "value": "original"
+                },
+                {
+                  "label": "config.choice.logo_tint.ink",
+                  "value": "ink"
+                },
+                {
+                  "label": "config.choice.logo_tint.palette",
+                  "value": "palette"
+                },
+                {
+                  "label": "config.choice.logo_tint.tones",
+                  "value": "tones"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "launcher.button_logo",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "look"
+                }
+              ],
+              "default": "look",
+              "help": "config.launcher.logo_tint.help",
+              "key": "launcher.logo_tint",
+              "label": "config.launcher.logo_tint.label",
+              "modules": [
+                "launcher"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
             }
           ]
         }

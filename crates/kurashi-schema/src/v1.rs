@@ -737,6 +737,11 @@ pub struct Colors {
     /// show as themselves. Automatic spreads them under the wallpaper's Mixed colours.
     #[kurashi(default = ControlColours::Auto)]
     pub controls: ControlColours,
+    /// App icons
+    /// The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the
+    /// palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+    #[kurashi(default = AppIconTint::Original)]
+    pub app_icons: AppIconTint,
     /// Chrome fill
     /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
     /// palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so
@@ -1931,6 +1936,39 @@ pub struct Launcher {
     /// A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
     #[kurashi(default = String::new(), requires = "launcher.button_logo == own", since = 7)]
     pub button_icon: String,
+    /// Logo colour
+    /// The OS logo or your image as the look draws it, as it is, in the text's colour, in the palette's colours as
+    /// sectors (as the PS2 look does with its four), or in the palette's tones (its drawing kept, dark to light).
+    #[kurashi(default = LogoTint::Look, requires = "launcher.button_logo != look", module = "launcher")]
+    pub logo_tint: LogoTint,
+}
+
+/// The launcher logo's colour (session 26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum LogoTint {
+    /// As the look draws it
+    Look,
+    /// Original
+    Original,
+    /// Text colour
+    Ink,
+    /// Palette colours
+    Palette,
+    /// Palette tones
+    Tones,
+}
+
+/// The app icons' colour (session 26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum AppIconTint {
+    /// Original
+    Original,
+    /// Text colour
+    Ink,
+    /// Palette tones
+    Tones,
+    /// Palette colours
+    Palette,
 }
 
 // --- bar modules' own options (I408, docs/ux/module-menu.md) ---------------------------------------

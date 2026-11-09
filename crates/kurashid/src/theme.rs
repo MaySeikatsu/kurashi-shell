@@ -736,6 +736,16 @@ pub fn document_with(
             shadow_tokens(store, &mut tokens, &input);
             // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".
             tokens.insert("os.logo".into(), json!(os_logo()));
+            // Session 26: the app icons' tint (`theme.colors.app_icons`), read by the frontend's IconTint.
+            let apps = s(store, "theme.colors.app_icons");
+            tokens.insert(
+                "icons.apps".into(),
+                json!(if apps.is_empty() {
+                    "original".to_owned()
+                } else {
+                    apps
+                }),
+            );
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()

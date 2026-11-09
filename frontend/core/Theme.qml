@@ -430,4 +430,7 @@ Singleton {
         return [Qt.hsla(surface.hslHue, surface.hslSaturation, Math.max(0, surface.hslLightness - spread), 1),
             Qt.hsla(surface.hslHue, surface.hslSaturation, Math.min(1, surface.hslLightness + spread), 1)]
     }
+
+    // Session 26: the app icons' tint (`theme.colors.app_icons`): original | ink | tones | palette (components/IconTint.qml).
+    readonly property string iconTint: String(tok("icons.apps", "original"))
 }

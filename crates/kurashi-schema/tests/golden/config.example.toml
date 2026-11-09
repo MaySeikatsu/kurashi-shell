@@ -363,6 +363,12 @@
 #   choices: "auto" | "one" | "spread"
 # controls = "auto"
 #
+# App icons — The icons of apps in the dock, the bar's window list and the tray: as they
+# are, in the text's colour, in the palette's tones (each icon's drawing kept, dark to light
+# in the palette's colours) or in its colours as sectors.
+#   choices: "original" | "ink" | "tones" | "palette"
+# app_icons = "original"
+#
 # Chrome fill — What the bar, frame, panels and cards — and the apps that follow the
 # theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the
 # palette's strong colour. Text and controls are chosen again so they stay legible. The
@@ -1248,6 +1254,13 @@
 # stays on this machine.
 #   only while launcher.button_logo == "own" · since schema v7
 # button_icon = ""
+#
+# Logo colour — The OS logo or your image as the look draws it, as it is, in the text's
+# colour, in the palette's colours as sectors (as the PS2 look does with its four), or in
+# the palette's tones (its drawing kept, dark to light).
+#   choices: "look" | "original" | "ink" | "palette" | "tones" · only while
+#   launcher.button_logo != "look"
+# logo_tint = "look"
 
 # [modules.workspaces]
 #

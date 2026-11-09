@@ -886,6 +886,9 @@ Scope {
                                             sourceSize: Qt.size(96, 96)
                                             asynchronous: true
                                             visible: cell.src !== "" && status === Image.Ready
+                                            // Session 26: the app icons' tint (`theme.colors.app_icons`).
+                                            layer.enabled: Theme.iconTint !== "original" && visible
+                                            layer.effect: IconTint { mode: Theme.iconTint }
                                             scale: hover.hovered && Theme.springOn ? 1.15 : 1
                                             Behavior on scale {
                                                 enabled: Theme.springOn && win.visible
