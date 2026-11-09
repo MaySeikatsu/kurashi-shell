@@ -168,6 +168,10 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   `choices:<source>` → `ModCtx::choices(source, fn)`; `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
   marks the contribution as needing setup (row 72; `runtime.slots` `reason`). See `docs/ux/COMPOSITION.md` for the slot list.
 - **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
+- A bar widget may take part in the bar's fit (K112, `docs/ux/bar-fit.md`; CONTRACT-CHANGE row 695 (a)): optional inputs
+  `compact` (bool: draw the short form) and `room` (px it may take), optional outputs `fullWidth`, `compactWidth`,
+  `elastic` (bool) and `minWidth`, and `snapW(px)` for a widget that draws in steps. ModWidget hands them over as it
+  does `vertical`; a widget without them is fixed at its width.
 
 ### Host processes (K38)
 A native mod can run a process of its own — the web dock's web engine — that the daemon starts, stops and supervises,
