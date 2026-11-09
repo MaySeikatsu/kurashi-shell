@@ -19,7 +19,11 @@
 # Checks print ok / FAIL; any FAIL, QML error or kurashid panic makes the run exit 1.
 # Shots: frontend/shots/launcher/w26/{clip,clip-confirm,emoji,keys}-{sekai,none}.png (the launcher card);
 #   frontend/shots/morph/launcher-<look>-<profile>-<edge>-{open-40,open-120,open-250,rest,close-40,close-120}.png.
-# LAUNCHER_PHASES=modes|morph|icons (any of them, space-separated) picks the phases (all three by default).
+#   6. W67 (I424, docs/ux/launcher.md "Results while typing"): typing re-sorts a keyed model. Fixture apps only (the
+#      host's are hidden from the daemon); motion off: `fi`, Down Down, then `fir` — every row in both lists keeps its delegate
+#      (the KURASHI_LAUNCHER_LOG=1 creation counter) and ends where the daemon ranks it, the chosen row stays selected (unchosen: the best hit);
+#      with motion on, a burst of 8 keystrokes (2 of them Backspace) ends with the daemon's list and no stale delegate.
+# LAUNCHER_PHASES=modes|morph|icons|resort (any of them, space-separated) picks the phases (all four by default).
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c frontend/test-launcher.sh [sandbox-name]
 set -euo pipefail
@@ -32,7 +36,7 @@ DECORS=${DECORS:-sekai none}
 [ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The launcher card, hanging from the top bar under the island (W34) on the 2560 x 1440 output.
 CARD_GEOM=${CARD_GEOM:-"930,0 700x720"}
-PHASES=${LAUNCHER_PHASES:-modes morph icons}
+PHASES=${LAUNCHER_PHASES:-modes morph icons resort}
 COLD_GAP_MS=${COLD_GAP_MS:-100}
 MOUT=$ROOT/frontend/shots/morph
 AT=${MORPH_AT:-40 120 250}
@@ -189,7 +193,7 @@ start_all() { # start_all <decor> [config line ...]
   # (it hangs from the island here: W34's morph; where else it opens is test-module-menu's)
   { printf 'theme.style = "%s"\nlauncher.place = "island"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
-  env PATH="$FAKE:$PATH" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
+  env PATH="$FAKE:$PATH" ${DAEMON_DATA_DIRS:+XDG_DATA_DIRS=$DAEMON_DATA_DIRS} DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
   DPID=$!
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
@@ -415,6 +419,117 @@ PY
   check "$(rows '>' | grep -q '"id": "settings:bar"' && echo 0 || echo 1)" "an empty > lists no page rows"
   out=$(K act launcher.launch '{"id":"settings:nope"}' 2>&1) && st=0 || st=$?
   check "$([ "$st" != 0 ] && grep -qi 'page' <<<"$out" && echo 1 || echo 0)" "a link to a page Settings lacks is refused ($out)"
+fi
+# W67 (I424): the apps the daemon sees are these only (its XDG_DATA_DIRS is an empty folder), so `fi`, `fir` and `file`
+# rank the same on every machine; the daemon's own reply (`rows`) is the oracle for every order.
+resort_fixture() {
+  local apps=$XDG_DATA_HOME/applications n
+  mkdir -p "$apps" "$R/no-data-dirs"
+  for n in "Files" "Firefox" "Fish Tank" "Fire Alarm" "Wifi Setup" "Finder" "Fiddle" "File Roller" "Profile Editor"; do
+    printf '[Desktop Entry]\nType=Application\nName=%s\nExec=true\n' "$n" > "$apps/kurashi-resort-$(echo "$n" | tr 'A-Z ' 'a-z-').desktop"
+  done
+}
+if [[ " $PHASES " == *" resort "* ]]; then
+  echo "== resort: rows that stay keep their delegate, the selection its row"
+  # The frontend's log from line $2: its replies (`launcher-rows {q, sel, keys}`) and its delegates (made / gone, serials).
+  RS=$R/resort.py
+  cat > "$RS" <<'PY'
+import json, re, sys
+log, start, cmd = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+rows, alive = [], {}
+for l in open(log, errors="replace").read().splitlines()[start:]:
+    m = re.search(r"launcher-rows (\{.*\})\s*$", l)
+    if m:
+        rows.append(json.loads(m.group(1)))
+        continue
+    m = re.search(r"launcher-row (made|gone) (\d+) (.*?)\s*$", l)
+    if m:
+        if m.group(1) == "made": alive[int(m.group(2))] = m.group(3)
+        else: alive.pop(int(m.group(2)), None)
+if cmd == "last":
+    sys.exit(0 if rows and rows[-1]["q"] == sys.argv[4] else 1)
+by = {}
+for s, k in alive.items(): by.setdefault(k, []).append(s)
+print(json.dumps({"last": rows[-1] if rows else None, "alive": by, "replies": len(rows)}))
+PY
+  # The daemon's rows for a query, keyed as Launcher.qml keys them (`keyOf`, repeats counted).
+  dkeys() {
+    rows "$1" | python3 -I -c '
+import json, sys
+seen, out = {}, []
+for l in sys.stdin:
+    if not l.strip(): continue
+    r = json.loads(l); kind = r.get("kind") or ""
+    k = kind if kind in ("calc", "web") else (kind + ":" + r["id"] if r.get("id") else kind + ":" + (r.get("name") or "") + "\x1f" + (r.get("generic") or "") + "\x1f" + (r.get("group") or ""))
+    n = seen.get(k, 0); seen[k] = n + 1
+    out.append(k + ("#%d" % n if n else ""))
+print(json.dumps(out))'
+  }
+  wait_rows() { # wait_rows <from line> <query>: until the frontend has shown the reply to <query>
+    for _ in $(seq 80); do python3 -I "$RS" "$R/qs.log" "$1" last "$2" && return 0; sleep 0.1; done; return 1
+  }
+  export KURASHI_LAUNCHER_LOG=1
+  DAEMON_DATA_DIRS=$R/no-data-dirs PRE_START=resort_fixture start_all sekai 'theme.motion.profile = "none"'
+  unset KURASHI_LAUNCHER_LOG
+  from=$(wc -l < "$R/qs.log")
+  K act launcher.toggle >/dev/null
+  wait_rows "$from" "" || true
+  kp f i
+  check "$(wait_rows "$from" fi && echo 1 || echo 0)" "resort: the reply to fi is shown"
+  kp down down
+  sleep 0.5
+  python3 -I "$RS" "$R/qs.log" "$from" state > "$R/resort-fi.json"
+  kp r
+  check "$(wait_rows "$from" fir && echo 1 || echo 0)" "resort: the reply to fir is shown"
+  sleep 0.5
+  python3 -I "$RS" "$R/qs.log" "$from" state > "$R/resort-fir.json"
+  dkeys fi > "$R/resort-fi-daemon.json"
+  dkeys fir > "$R/resort-fir-daemon.json"
+  python3 -I - "$R" > "$R/resort-checks.txt" <<'PY'
+import json, sys
+R = sys.argv[1]
+a, b = (json.load(open(f"{R}/resort-{q}.json")) for q in ("fi", "fir"))
+da, db = (json.load(open(f"{R}/resort-{q}-daemon.json")) for q in ("fi", "fir"))
+ka, kb = a["last"]["keys"], b["last"]["keys"]
+# (only the rows on screen have delegates, cacheBuffer 0: the list's first 7)
+shared = [k for k in ka if k in kb]
+seen = [k for k in shared if ka.index(k) < 7 and kb.index(k) < 7]
+moved = [k for k in shared if ka.index(k) != kb.index(k)]
+picked = ka[ka.index(a["last"]["sel"]) + 2] if a["last"]["sel"] in ka and ka.index(a["last"]["sel"]) + 2 < len(ka) else ""
+def out(ok, label): print(("1 " if ok else "0 ") + label)
+out(ka == da and kb == db, f"fi and fir show the daemon's order (fi {len(ka)} rows, fir {len(kb)})")
+out(len(moved) > 0 and picked in moved, f"the fixture re-sorts: {len(moved)} of {len(shared)} shared rows move, the picked one ({picked}) among them")
+out(len(seen) > 0 and all(len(a["alive"].get(k, [])) == 1 and a["alive"].get(k) == b["alive"].get(k) for k in seen),
+    "every row shown in both lists kept its delegate: " + ", ".join(f"{k.split(':')[-1]} #{(a['alive'].get(k) or ['?'])[0]} {ka.index(k)}→{kb.index(k)}" for k in seen))
+out(sorted(k for k, s in b["alive"].items() for _ in s) == sorted(kb[:7]), "no other delegate is alive after fir")
+out(a["last"]["sel"] == ka[0], f"before a choice the best hit is selected ({a['last']['sel']})")
+out(b["last"]["sel"] == (picked if picked in kb else kb[0]), f"the selection followed its row ({b['last']['sel']}, picked {picked})")
+PY
+  while read -r ok label; do check "$ok" "resort: $label"; done < "$R/resort-checks.txt"
+  # Motion on (the style's own profile): a burst of 8 keystrokes, 30 ms apart, two of them Backspace.
+  printf 'theme.style = "sekai"\nlauncher.place = "island"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  for _ in $(seq 50); do [ "$(K sub theme --count 0 --json | jq -r '.data.tokens["motion.spring.on"]')" = true ] && break; sleep 0.1; done
+  check "$([ "$(K sub theme --count 0 --json | jq -r '.data.tokens["motion.spring.on"]')" = true ] && echo 1 || echo 0)" "resort: motion is on for the burst"
+  K act ui.close >/dev/null; sleep 1
+  from=$(wc -l < "$R/qs.log")
+  K act launcher.toggle >/dev/null
+  wait_rows "$from" "" || true
+  sleep 0.6
+  for k in f i r e backspace backspace l e; do echo "$k" >&3; sleep 0.03; done
+  check "$(wait_rows "$from" file && echo 1 || echo 0)" "resort: the burst ends on the reply to file"
+  sleep 1.2
+  python3 -I "$RS" "$R/qs.log" "$from" state > "$R/resort-burst.json"
+  dkeys file > "$R/resort-burst-daemon.json"
+  check "$(python3 -I - "$R" <<'PY'
+import json, sys
+R = sys.argv[1]
+s, d = json.load(open(f"{R}/resort-burst.json")), json.load(open(f"{R}/resort-burst-daemon.json"))
+keys = s["last"]["keys"]
+alive = sorted(k for k, v in s["alive"].items() for _ in v)
+print(1 if keys == d and alive == sorted(d[:7]) and len(d) > 0 and s["last"]["sel"] == d[0] else 0)
+PY
+)" "resort: after the burst the list is the daemon's for file ($(jq -c '.last.keys | map(split(":")[-1])' "$R/resort-burst.json")), no stale or doubled delegate, the best hit selected"
+  K act ui.close >/dev/null; sleep 0.5
 fi
 stop_keys
 stop_shell
