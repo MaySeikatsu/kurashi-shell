@@ -6,7 +6,8 @@
 //
 // spec = { width, margin, gap, overflowW, zones: { start: Z, center: Z, end: Z } }
 //   Z = { runGap, runs: [ { pieceGap, pieces: [ { hostGap, hosts: [H] } ] } ] }  — the ZoneRow's own nesting and gaps
-//   H = { key, id, full, compact, min, elastic }  — present modules only; `compact` = `full` without a compact form
+//   H = { key, id, full, compact, min, elastic, snap? }  — present modules only; `compact` = `full` without a compact
+//       form; `snap(px)`: the width an elastic module that draws in steps takes in that room (≤ px)
 // → { levels: {key: 0 full | 1 compact | 2 in the overflow}, rooms: {key: px} (elastic), widths: {start, center, end},
 //     centerX (the centre's left edge, in the row's coordinates), parked: {start, center, end} (counts), fits }
 
@@ -158,6 +159,16 @@ function allocate(spec) {
             w[name] = widthOf(name, finalOf)
         }
     }
+    // An elastic module that draws in steps (the window list: whole buttons) takes the step its room holds, so the zone
+    // is as wide as it will draw and the centre's place is exact.
+    var snapped = false
+    for (e = 0; e < el.length; e++) {
+        var hs = all[el[e].key]
+        if (!hs.snap) continue
+        var sn = Math.min(rooms[el[e].key], Math.max(0, Math.floor(hs.snap(rooms[el[e].key]))))
+        if (sn !== rooms[el[e].key]) { rooms[el[e].key] = sn; snapped = true }
+    }
+    if (snapped) w = { start: widthOf("start", finalOf), center: widthOf("center", finalOf), end: widthOf("end", finalOf) }
     var cx = -1
     if (w.center > 0) {
         var lo = spec.margin + (w.start > 0 ? w.start + spec.gap : 0)

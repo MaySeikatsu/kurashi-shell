@@ -15,11 +15,12 @@ Item {
     property bool open: false
     signal clicked()
 
-    // The width the fit reserves for it: the glyph, a gap and two digits, in a pill as tall as a control.
+    // The width the fit reserves for it: the glyph, a gap and two digits, and a gap a side.
     function widthFor() { return Math.round(Theme.iconSize * Theme.iconScale) + Theme.xs + Math.ceil(digitsM.advanceWidth) + 2 * Theme.gap }
     TextMetrics { id: digitsM; text: "99"; font.pixelSize: Theme.fsCaption; font.weight: Theme.wBold; font.family: Theme.fam(text, Theme.families) }
     width: widthFor()
-    height: Theme.controlH - 4
+    // (as tall as the keyboard chip: its pressed square stays inside the group's block)
+    height: Theme.barH - 12
 
     activeFocusOnTab: true
     Accessible.role: Accessible.Button

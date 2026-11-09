@@ -44,20 +44,14 @@ Item {
     readonly property bool shown: present && fitSlots > 0 && !parked
     visible: shown
     // What the module says for the fit: its width full and compact, whatever it draws now, and for an elastic one the
-    // least it elides to. Kept while parked (a parked mod widget is not loaded).
+    // least it elides to. While parked it is not live (a mod widget is not even loaded), so what it says then lapses: the
+    // fit keeps what it said while it was drawn (ZoneRow `spec`), and a change while parked asks for no new fit.
     readonly property bool liveElastic: !!item && item.elastic === true
     readonly property real liveFull: item ? Math.ceil(item.fullW) : 0
     readonly property real liveCompact: item ? Math.ceil(Math.min(item.fullW, item.compactW)) : 0
     readonly property real liveMin: item ? Math.ceil(Math.min(item.fullW, item.minW)) : 0
-    property bool keptElastic: false
-    property real keptFull: 0
-    property real keptCompact: 0
-    property real keptMin: 0
-    Binding on keptElastic { when: !host.parked; value: host.liveElastic; restoreMode: Binding.RestoreNone }
-    Binding on keptFull { when: !host.parked; value: host.liveFull; restoreMode: Binding.RestoreNone }
-    Binding on keptCompact { when: !host.parked; value: host.liveCompact; restoreMode: Binding.RestoreNone }
-    Binding on keptMin { when: !host.parked; value: host.liveMin; restoreMode: Binding.RestoreNone }
-    readonly property string fitKey: [present, fitSlots > 0, keptElastic, keptFull, keptCompact, keptMin].join("|")
+    readonly property string fitKey: parked ? "parked"
+        : [present, fitSlots > 0, liveElastic, liveFull, liveCompact, liveMin].join("|")
     width: item ? item.width : 0
     height: item ? item.height : 0
 

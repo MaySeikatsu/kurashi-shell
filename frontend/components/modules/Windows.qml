@@ -32,6 +32,11 @@ ModuleBase {
     // (the list's grid spaces its Repeater as one more item: n buttons draw n × (button + gap), measured 144 px for six)
     fullW: vertical ? width : wanted * (list.btn + list.spacing)
     minW: vertical ? width : list.btn + list.spacing
+    // It draws whole buttons: the width a room holds (barfit `snap`).
+    function snapW(px) {
+        var pitch = list.btn + list.spacing
+        return Math.min(m.wanted, Math.max(1, Math.floor(px / pitch))) * pitch
+    }
     present: tasks.length > 0
     busy: list.menuOpen
     width: list.width

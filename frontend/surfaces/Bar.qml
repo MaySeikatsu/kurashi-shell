@@ -894,27 +894,27 @@ Scope {
                         return h.id + "=" + [h.full, h.compact, h.min].join("/") + (h.elastic ? "e" : "")
                     }).join(",")
                 }).join(";")
-                var rows = [startRow, centerRow, endRow], changed = 0
+                var rows = [startRow, centerRow, endRow], changed = 0, what = []
                 for (var i = 0; i < rows.length; i++) {
                     var row = rows[i]
                     row.eachHost(function (h) {
                         var k = row.keyOf(h), l = r.levels[k]
                         var park = l === 2, comp = l === 1
                         var room = r.rooms[k] !== undefined ? r.rooms[k] : 1e6
-                        if (h.parked !== park) { h.parked = park; changed++ }
-                        if (h.compact !== comp) { h.compact = comp; changed++ }
-                        if (h.room !== room) { h.room = room; changed++ }
+                        if (h.parked !== park) { h.parked = park; changed++; what.push(k + ":parked=" + park) }
+                        if (h.compact !== comp) { h.compact = comp; changed++; what.push(k + ":compact=" + comp) }
+                        if (h.room !== room) { h.room = room; changed++; what.push(k + ":room=" + room) }
                     })
                     var n = r.parked[row.zone] || 0
-                    if (row.parkedN !== n) { row.parkedN = n; changed++ }
+                    if (row.parkedN !== n) { row.parkedN = n; changed++; what.push(row.zone + ":parkedN=" + n) }
                 }
-                if (fitCx !== r.centerX) { fitCx = r.centerX; changed++ }
-                if (fitCw !== r.widths.center) { fitCw = r.widths.center; changed++ }
+                if (fitCx !== r.centerX) { fitCx = r.centerX; changed++; what.push("cx=" + r.centerX) }
+                if (fitCw !== r.widths.center) { fitCw = r.widths.center; changed++; what.push("cw=" + r.widths.center) }
                 fitLast = r
                 if (bar.overflowZone !== "" && (r.parked[bar.overflowZone] || 0) === 0) bar.closeOverflow()
                 if (changed > 0) {
                     // (test only: a fit that wrote something; at rest there is none — test-bar-fit's idle check)
-                    if (bar.zoneLog) console.log("BARFITRUN " + bar.outName + " " + bar.edge + " " + changed)
+                    if (bar.zoneLog) console.log("BARFITRUN " + bar.outName + " " + bar.edge + " " + what.join(" ") + " | " + (r.said || ""))
                     bar.requestZones()
                 }
             }
@@ -922,9 +922,7 @@ Scope {
             OverflowButton { id: overflowM; visible: false; enabled: false }
             Component.onDestruction: if (bar.fitRoot === hl) bar.fitRoot = null
             function parkedEntries(zone) {
-                var row = zone === "start" ? startRow : zone === "center" ? centerRow : endRow, out = []
-                row.eachHost(function (h) { if (h.parked && h.present) out.push(h.entry) })
-                return out
+                return (zone === "start" ? startRow : zone === "center" ? centerRow : endRow).parkedEntries()
             }
             function overflowItemOf(zone) {
                 return (zone === "start" ? startRow : zone === "center" ? centerRow : endRow).overflowItem

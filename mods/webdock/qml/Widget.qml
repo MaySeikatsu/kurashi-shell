@@ -36,8 +36,9 @@ Item {
         if (available) Store.act("webdock.toggle", outName !== "" ? { output: outName } : {})
     }
 
-    implicitWidth: w.vertical ? Theme.barH : Theme.controlH
-    implicitHeight: w.vertical ? Theme.barH : Theme.controlH
+    // W66: a square as thick as the bar, as the quick settings button (the same room round the icon as its neighbours)
+    implicitWidth: Theme.barH
+    implicitHeight: Theme.barH
     opacity: available ? 1 : Theme.staleOpacity
     activeFocusOnTab: true
     Accessible.role: Accessible.Button

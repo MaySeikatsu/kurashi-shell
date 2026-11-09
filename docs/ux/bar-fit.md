@@ -57,7 +57,7 @@ user added most recently in practice (zones fill from the ends) and the ones who
 the hand finds blind (launcher, workspaces, clock, quick settings, sidebars). A per-module priority would be a schema
 key (`modules.<id>.priority`); until the lead takes it (CONTRACT-CHANGE), the rule above is the frontend's default.
 
-**The overflow**: the "…" opens a card under it (above it on a bottom bar) with the hidden modules, drawn exactly as on
+**The overflow**: the "…" and the count stand in a group block of their own, as every run does; it opens a card under it (above it on a bottom bar) with the hidden modules, drawn exactly as on
 the bar at full width: each works as it does there (click, wheel, right-click menu). It is an overlay made only while
 open: a click outside, Esc, or a card a module opens closes it.
 
@@ -91,15 +91,30 @@ The overflow card appears without a transition (it is a utility flyout, like the
 
 ## Budget (Ma)
 No timer, no polling. The allocation runs once on the next turn after a module's width, presence or the bar's width
-changes, writes only what changed, and settles (a second run with the same inputs writes nothing). A module in the
-overflow is not live on the bar (its subscriptions follow the overflow card); the card is not made while closed. Idle
-bar: 0 frames, unchanged (test-bars `idle`).
+changes, writes only what changed, and settles (a second run with the same inputs writes nothing; test-bar-fit counts the
+runs at rest: none). A module in the overflow is not live on the bar (a mod widget is not even loaded; its subscriptions
+follow the overflow card while it is open); the fit counts what it said the last time it was drawn — its presence and
+widths — or its lapsed data would bring it back at once and send it away again. The card is not made while closed.
+
+**Known limit (Shōjiki):** while a module is in the overflow nothing watches it, so one that stops being present there
+(a recording that ends) still counts in the "…" until the bar lays out again; the card itself shows only what is there.
 
 ## Fit with the rest
 - Island and Stage: the island keeps its origin; a card from a module in the overflow comes out of the overflow card's
   place (the module there registers the origin).
 - Module menu (I408): unchanged; a right click in the overflow card opens the same menu.
 - Settings › Layout: nothing new; a zone that does not fit is drawn so, not refused.
+
+## Module polish (session 26, measured on niri at 1:1, `magick` ink boxes)
+- **Pictures of their job**: quick settings draws `tune` (the sliders the panel holds; the half disc "◐" read as a theme
+  switch); the web dock `web_asset` (a browser window, filled and lit while the dock is open, a dot while it is kept;
+  the hand-drawn dock edge read as nothing). Both from the icon subset.
+- **One icon size**: every bar icon is the theme's `Theme.iconSize × icon.scale` (the handwriting pen was 0.56 × the bar,
+  the timer's ring `fs + 4`, the quick glyph a text at `fs + 2`, the web dock a 16 px drawing).
+- **On the midline**: the icons' ink centres stand within 0.5 px of the group face's middle (15.5 on a 32 px bar: the
+  face is raised by half its shadow); the quick glyph stood 1.5 px low.
+- **Even spacing**: ink to ink 29–31 px across the end group (it was 21–33): the web dock is a bar-thick square like quick
+  settings, the clock and the keyboard chip keep `Theme.gap` a side as the icons beside them do.
 
 ## Definition of done
 - [ ] No two modules' rects intersect at 1280 px with a long title, sysmon and many end modules (test-bar-fit).

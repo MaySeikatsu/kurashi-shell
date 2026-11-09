@@ -46,7 +46,7 @@ Item {
     property bool compact: false
     readonly property bool timeShown: w.showing && !w.ended && !w.compact
     TextMetrics { id: timeM; text: w.showing && !w.ended ? w.timeText : ""; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families); font.features: ({"tnum": 1}) }
-    readonly property real markW: w.showing && !w.ended ? Theme.fs + 4 : timerIcon.implicitWidth
+    readonly property real markW: w.showing && !w.ended ? Math.round(Theme.iconSize * Theme.iconScale) : timerIcon.implicitWidth
     readonly property real fullWidth: markW + (w.showing && !w.ended ? Theme.xs + Math.ceil(timeM.advanceWidth) : 0) + Theme.gap * 2
     readonly property real compactWidth: markW + Theme.gap * 2
     implicitWidth: w.vertical ? Theme.barH : row.implicitWidth + Theme.gap * 2
@@ -68,8 +68,8 @@ Item {
         Ring {
             visible: w.showing && !w.ended
             anchors.verticalCenter: parent.verticalCenter
-            width: Theme.fs + 4
-            height: Theme.fs + 4
+            width: Math.round(Theme.iconSize * Theme.iconScale)
+            height: width
             share: w.share
             stroke: w.paused ? Theme.dim : (w.onBreak ? Theme.tertiary : Theme.accent)
             track: Theme.outline

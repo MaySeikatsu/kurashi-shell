@@ -28,10 +28,13 @@ Row {
             var r = runRep.itemAt(i)
             if (r && r.visible && r.grouped) out.push([zr.x + r.x + r.gx, zr.x + r.x + r.gx + r.gw])
         }
+        var ov = overflowFirst ? ovFirst.item : ovLast.item
+        if (ov && Theme.groups) out.push([zr.x + ov.x - Theme.gap - 2, zr.x + ov.x + ov.width + Theme.gap + 2])
         return out
     }
     // The overflow button, when it stands here (its width is the fit's `overflowW`).
-    readonly property Item overflowItem: overflowFirst ? (ovFirst.item || null) : (ovLast.item || null)
+    readonly property Item overflowItem: overflowFirst ? (ovFirst.item ? ovFirst.item.button : null)
+        : (ovLast.item ? ovLast.item.button : null)
 
     Loader {
         id: ovFirst
@@ -134,15 +137,24 @@ Row {
         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
         sourceComponent: overflowButton
     }
+    // (a group of its own, as every run: its block under chromes with groups)
     Component {
         id: overflowButton
-        OverflowButton {
-            id: ob
-            count: zr.parkedN
-            zone: zr.zone
-            output: zr.owner.outName
-            open: zr.owner.overflowZone === zr.zone
-            onClicked: zr.owner.openOverflow(zr.zone, ob)
+        Item {
+            readonly property Item button: ob
+            width: ob.width
+            height: zr.height
+            BarGroup { around: ob }
+            OverflowButton {
+                id: ob
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                count: zr.parkedN
+                zone: zr.zone
+                output: zr.owner.outName
+                open: zr.owner.overflowZone === zr.zone
+                onClicked: zr.owner.openOverflow(zr.zone, ob)
+            }
         }
     }
 
@@ -163,6 +175,20 @@ Row {
         }
     }
     function keyOf(h) { return zr.zone + "/" + h.mid }
+    // What each module said the last time it was drawn (by key): a parked module is not live, so the fit counts this for
+    // it — presence and widths alike (its data lapses while it is not watched, and would unpark it at once).
+    property var said: ({})
+    function saidOf(h) {
+        var k = keyOf(h)
+        if (!h.parked) said[k] = { present: h.present, full: h.liveFull, compact: h.liveCompact, min: h.liveMin,
+                                   elastic: h.liveElastic }
+        return said[k] || { present: false, full: 0, compact: 0, min: 0, elastic: false }
+    }
+    function parkedEntries() {
+        var out = []
+        eachHost(function (h) { if (h.parked && saidOf(h).present) out.push(h.entry) })
+        return out
+    }
     function spec() {
         var runsOut = []
         for (var i = 0; i < runRep.count; i++) {
@@ -175,9 +201,12 @@ Row {
                 var hostsOut = []
                 for (var k = 0; k < p.hostRepeater.count; k++) {
                     var h = p.hostRepeater.itemAt(k)
-                    if (!h || !h.present || h.fitSlots <= 0) continue
-                    hostsOut.push({ key: keyOf(h), id: h.mid, full: h.keptFull, compact: h.keptCompact, min: h.keptMin,
-                                    elastic: h.keptElastic })
+                    if (!h) continue
+                    var s = saidOf(h)
+                    if (!s.present || h.fitSlots <= 0) continue
+                    var it = h.item
+                    hostsOut.push({ key: keyOf(h), id: h.mid, full: s.full, compact: s.compact, min: s.min, elastic: s.elastic,
+                                    snap: s.elastic && it && typeof it.snapW === "function" ? it.snapW : null })
                 }
                 piecesOut.push({ hostGap: p.spacing, hosts: hostsOut })
             }
