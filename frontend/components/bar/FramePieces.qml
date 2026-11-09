@@ -185,6 +185,11 @@ Item {
             color: Theme.surfaceAlpha
             Loader {
                 anchors.fill: parent
+                active: Theme.washOn
+                sourceComponent: Wash { anchors.fill: parent; fill: Qt.alpha(Theme.surfaceAlpha, 1); strength: Theme.surfaceAlpha.a }
+            }
+            Loader {
+                anchors.fill: parent
                 active: Theme.texShell
                 sourceComponent: Relief { anchors.fill: parent }
             }
@@ -194,6 +199,11 @@ Item {
         x: fp.cover.x; y: fp.cover.y; width: fp.cover.w; height: fp.cover.h
         visible: fp.drawSheet && fp.cover.h > 0 && fp.cover.w > 0
         color: Theme.surfaceAlpha
+        Loader {
+            anchors.fill: parent
+            active: Theme.washOn && parent.visible
+            sourceComponent: Wash { anchors.fill: parent; fill: Qt.alpha(Theme.surfaceAlpha, 1); strength: Theme.surfaceAlpha.a }
+        }
         Loader {
             anchors.fill: parent
             active: Theme.texShell && parent.visible
@@ -316,6 +326,23 @@ Item {
         height: r
         rotation: turn
         Quarter { fill: Theme.surfaceAlpha; r: fil.r }
+        Loader {
+            anchors.fill: parent
+            active: Theme.washOn && fil.r > 0
+            sourceComponent: Item {
+                Quarter { id: wwhite; r: fil.r }
+                StillCopy {
+                    id: wsrc
+                    x: -100000
+                    width: fil.r
+                    height: fil.r
+                    sourceItem: wwhite
+                    hideSource: true
+                    Component.onCompleted: scheduleUpdate()
+                }
+                Wash { anchors.fill: parent; mask: wsrc; fill: Qt.alpha(Theme.surfaceAlpha, 1); strength: Theme.surfaceAlpha.a }
+            }
+        }
         Loader {
             anchors.fill: parent
             active: Theme.texShell && fil.r > 0

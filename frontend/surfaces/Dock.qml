@@ -469,18 +469,18 @@ Scope {
                         x: -100000
                         width: win.width
                         height: win.height
-                        sourceItem: joinedRelief.on ? joinedMaskShape : null
+                        sourceItem: joinedRelief.masked ? joinedMaskShape : null
                         hideSource: true
                     }
                     Connections {
-                        target: joinedRelief.on ? joinedShape : null
+                        target: joinedRelief.masked ? joinedShape : null
                         function onFillPathChanged() { joinedMask.scheduleUpdate() }
                     }
                     // A relief made again by a theme change (texture, sheet) gets a fresh mask: the grab above runs only
                     // when the path changes, and an empty mask hides the material (I298, not reproduced; a guess).
                     Connections {
                         target: joinedRelief
-                        function onOnChanged() { if (joinedRelief.on) Qt.callLater(joinedMask.scheduleUpdate) }
+                        function onMaskedChanged() { if (joinedRelief.masked) Qt.callLater(joinedMask.scheduleUpdate) }
                     }
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-dock"
@@ -675,14 +675,36 @@ Scope {
                             // `joinedMask`'s texture, redrawn when the path changes (the fillets morph) and never at rest.
                             Shape {
                                 id: joinedMaskShape
-                                visible: joinedRelief.on
+                                visible: joinedRelief.masked
                                 anchors.fill: parent
                                 preferredRendererType: Shape.CurveRenderer
                                 ShapePath {
                                     strokeWidth: -1
                                     strokeColor: "transparent"
                                     fillColor: "white"
-                                    PathSvg { path: joinedRelief.on ? joinedShape.fillPath : "" }
+                                    PathSvg { path: joinedRelief.masked ? joinedShape.fillPath : "" }
+                                }
+                            }
+                        }
+                        // I460 prototype: the wash over the joined dock's fill, clipped to its shape.
+                        Item {
+                            visible: dock.joined && Theme.washOn && joinedShape.shown
+                            width: win.width
+                            height: win.height
+                            transform: Scale {
+                                xScale: dock.edge === "left" ? -1 : 1
+                                yScale: dock.edge === "bottom" ? -1 : 1
+                                origin.x: win.width / 2
+                                origin.y: win.height / 2
+                            }
+                            Loader {
+                                anchors.fill: parent
+                                active: parent.visible
+                                sourceComponent: Wash {
+                                    anchors.fill: parent
+                                    mask: joinedMask
+                                    fill: Qt.alpha(joinedShape.fill, 1)
+                                    strength: joinedShape.fill.a
                                 }
                             }
                         }
@@ -692,6 +714,8 @@ Scope {
                         Item {
                             id: joinedRelief
                             readonly property bool on: dock.joined && Theme.texShell && joinedShape.shown
+                            // The shape's mask is made for the relief or the wash (I460).
+                            readonly property bool masked: dock.joined && (Theme.texShell || Theme.washOn) && joinedShape.shown
                             visible: on
                             width: win.width
                             height: win.height

@@ -2,6 +2,7 @@ pragma Singleton
 import QtQml
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 // The only reader of `theme.tokens` (rule 4). Components ask for tokens by name and never branch
 // on theme/profile names. Fallbacks only cover a daemon that has not delivered the theme yet.
@@ -393,4 +394,40 @@ Singleton {
     property bool hosted: false
     readonly property bool surfaceRelief: hosted && texShell && !texText
     readonly property bool textRelief: hosted && texShell && texText
+
+    // ---- I460 wash (session 26 PROTOTYPE): the chrome's colour as one continuous sheet (components/Wash.qml). The real
+    // version takes `chrome.wash.*` tokens from the daemon (stops from the wallpaper's tones, schema keys); until then the
+    // prototype reads $XDG_RUNTIME_DIR/kurashi/wash.json (watched) and derives its stops from the palette's own roles.
+    FileView {
+        id: washFile
+        path: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/kurashi/wash.json"
+        watchChanges: true
+        onFileChanged: reload()
+        printErrors: false
+    }
+    readonly property var washCfg: {
+        var t = washFile.text()
+        if (!t) return ({})
+        try { return JSON.parse(t) } catch (e) { return ({}) }
+    }
+    readonly property bool washOn: tok("chrome.wash.on", washCfg.on === true)
+    readonly property string washSpan: tok("chrome.wash.span", washCfg.span || "output")
+    readonly property string washMode: tok("chrome.wash.mode", washCfg.mode || "linear")
+    readonly property real washAngle: tok("chrome.wash.angle", washCfg.angle !== undefined ? washCfg.angle : 35)
+    readonly property real washScale: tok("chrome.wash.scale", washCfg.scale || 420)
+    readonly property real washSoftness: tok("chrome.wash.softness", washCfg.softness !== undefined ? washCfg.softness : 0.8)
+    readonly property point washCenter: Qt.point(washCfg.cx !== undefined ? washCfg.cx : 0.5, washCfg.cy !== undefined ? washCfg.cy : 0.5)
+    readonly property real washReach: washCfg.reach || 0.6
+    // Stops at the ground's own lightness, so text chosen for the ground stays legible over every stop: "tones" = the
+    // ground's colour darker and lighter; "colours" = the palette's accent, secondary and tertiary hues on the ground.
+    function washAtGround(c) { return Qt.hsla(c.hslHue, Math.min(1, c.hslSaturation), surface.hslLightness, 1) }
+    readonly property var washStops: {
+        var d = tok("chrome.wash.stops", null)
+        if (d && d.length >= 2) return d.map(function (x) { return Qt.color(x) })
+        var spread = washCfg.spread !== undefined ? washCfg.spread : 0.12
+        if (washCfg.colours === "colours")
+            return [surface, washAtGround(accent), washAtGround(secondary), washAtGround(tertiary)]
+        return [Qt.hsla(surface.hslHue, surface.hslSaturation, Math.max(0, surface.hslLightness - spread), 1),
+            Qt.hsla(surface.hslHue, surface.hslSaturation, Math.min(1, surface.hslLightness + spread), 1)]
+    }
 }

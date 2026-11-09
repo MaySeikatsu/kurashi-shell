@@ -194,6 +194,16 @@ Item {
                 }
             }
         }
+        // I460 prototype: the wash over a ground's fill (the surface and the lower containers: cards, panels; not buttons).
+        Loader {
+            anchors.fill: parent
+            anchors.margins: rim.lineW
+            active: Theme.washOn && !blk.bare && !blk.sq && blk.ringW <= 0 && face.shownFill.a > 0.99
+                && (Qt.colorEqual(blk.fill, Theme.surface) || Qt.colorEqual(blk.fill, Theme.container)
+                    || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_low", "#000"))
+                    || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_lowest", "#000")))
+            sourceComponent: Wash { radius: Math.max(0, face.r - rim.lineW); fill: face.shownFill }
+        }
         // Under the content: the press flash of a chrome without sink or shrink (line), and the material's relief (K59).
         Loader {
             id: under

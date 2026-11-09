@@ -769,15 +769,30 @@ Scope {
                             // is redrawn when the path changes (while the column moves) and never at rest.
                             Shape {
                                 id: maskShape
-                                visible: reliefBox.on
+                                visible: reliefBox.masked
                                 anchors.fill: parent
                                 preferredRendererType: Shape.CurveRenderer
                                 ShapePath {
                                     strokeWidth: -1
                                     strokeColor: "transparent"
                                     fillColor: "white"
-                                    PathSvg { path: reliefBox.on ? shape.fillPath : "" }
+                                    PathSvg { path: reliefBox.masked ? shape.fillPath : "" }
                                 }
+                            }
+                        }
+                        // I460 prototype: the wash over the column's fill, clipped to its shape, under the content.
+                        Item {
+                            z: 0
+                            visible: Theme.washOn && shape.shown
+                            x: box.x
+                            y: box.y
+                            width: win.boxW
+                            height: win.height
+                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            Loader {
+                                anchors.fill: parent
+                                active: parent.visible
+                                sourceComponent: Wash { anchors.fill: parent; mask: shapeMask; fill: Qt.alpha(shape.fill, 1); strength: shape.fill.a }
                             }
                         }
                         // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the
@@ -785,6 +800,8 @@ Scope {
                         Item {
                             id: reliefBox
                             readonly property bool on: Theme.texShell && shape.shown
+                            // The shape's mask is made for the relief or the wash (I460).
+                            readonly property bool masked: (Theme.texShell || Theme.washOn) && shape.shown
                             readonly property point carry: win.shapeCarry
                             z: Theme.texText ? 2 : 0
                             visible: on
@@ -893,11 +910,11 @@ Scope {
                         x: -100000
                         width: win.boxW
                         height: win.height
-                        sourceItem: reliefBox.on ? maskShape : null
+                        sourceItem: reliefBox.masked ? maskShape : null
                         hideSource: true
                     }
                     Connections {
-                        target: reliefBox.on ? shape : null
+                        target: reliefBox.masked ? shape : null
                         function onFillPathChanged() { shapeMask.scheduleUpdate() }
                     }
 

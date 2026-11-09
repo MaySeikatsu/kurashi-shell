@@ -634,6 +634,16 @@ Scope {
                                 animate: false
                             }
                         }
+                        // I460 prototype: the wash over the strip's fill (a floating pill's Block carries its own).
+                        Loader {
+                            anchors.fill: parent
+                            active: !bb.clearStrip && !bar.drawFloating && Theme.washOn
+                            sourceComponent: Wash {
+                                anchors.fill: parent
+                                fill: Qt.alpha(Theme.surfaceAlpha, 1)
+                                strength: bHost.sheetSolid ? 1 : Theme.surfaceAlpha.a
+                            }
+                        }
                         // K59: the strip's material, under its rules (a floating pill's Block carries its own).
                         Loader {
                             anchors.fill: parent
