@@ -212,7 +212,7 @@ fn scheme_name(s: Scheme) -> &'static str {
 /// Whether the theme needs the wallpaper's picture: palette `wallpaper` or scheme `wallpaper` (K34, K55).
 fn wants_picture(store: &ConfigStore) -> bool {
     // I460: the gradient's angle follows the wallpaper's light.
-    let auto_angle = s(store, "theme.colors.chrome_fill") == "gradient"
+    let auto_angle = b(store, "theme.colors.gradient.on")
         && store
             .get("theme.colors.gradient.auto_angle", None)
             .and_then(|p| p.value.as_bool())
@@ -362,11 +362,8 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
-        strong_chrome: matches!(
-            s(store, "theme.colors.chrome_fill").as_str(),
-            "strong" | "gradient"
-        ),
-        wash: (s(store, "theme.colors.chrome_fill") == "gradient").then(|| kurashi_theme::Wash {
+        strong_chrome: s(store, "theme.colors.chrome_fill") == "strong",
+        wash: b(store, "theme.colors.gradient.on").then(|| kurashi_theme::Wash {
             tones: s(store, "theme.colors.gradient.colours") != "colours",
             pattern: match s(store, "theme.colors.gradient.pattern").as_str() {
                 "" => "linear".into(),

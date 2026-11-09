@@ -1133,10 +1133,6 @@
                 {
                   "label": "config.choice.chrome_fill.strong",
                   "value": "strong"
-                },
-                {
-                  "label": "config.choice.chrome_fill.gradient",
-                  "value": "gradient"
                 }
               ],
               "control": "select",
@@ -1149,6 +1145,19 @@
               "restart": false,
               "since": 1,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.gradient.on.help",
+              "key": "theme.colors.gradient.on",
+              "label": "config.theme.colors.gradient.on.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
             },
             {
               "advanced": false,
@@ -1165,11 +1174,11 @@
               "control": "select",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 }
               ],
               "default": "tones",
@@ -1204,11 +1213,11 @@
               "control": "select",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 }
               ],
               "default": "linear",
@@ -1225,11 +1234,11 @@
               "control": "toggle",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 },
                 {
                   "key": "theme.colors.gradient.pattern",
@@ -1253,11 +1262,11 @@
               "control": "slider",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 },
                 {
                   "key": "theme.colors.gradient.pattern",
@@ -1292,11 +1301,11 @@
               "control": "slider",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 },
                 {
                   "key": "theme.colors.gradient.colours",
@@ -1324,11 +1333,11 @@
               "control": "slider",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 }
               ],
               "default": 85,
@@ -1349,11 +1358,11 @@
               "control": "slider",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 },
                 {
                   "key": "theme.colors.gradient.pattern",
@@ -1381,11 +1390,11 @@
               "control": "toggle",
               "couplings": [
                 {
-                  "key": "theme.colors.chrome_fill",
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "gradient"
+                  "value": true
                 }
               ],
               "default": true,

@@ -739,9 +739,8 @@ pub struct Colors {
     pub controls: ControlColours,
     /// Chrome fill
     /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
-    /// palette's grey, black or white. Strong colour: the palette's strong colour. Gradient: the strong colour running
-    /// from one tone to another across the screen (or every screen), in the pattern below. Text and controls are chosen
-    /// again so they stay legible (I456, I460).
+    /// palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so
+    /// they stay legible. The gradient below can run over either (I456).
     #[kurashi(default = ChromeFill::Neutral)]
     pub chrome_fill: ChromeFill,
     #[kurashi(nested)]
@@ -794,22 +793,25 @@ pub enum ChromeFill {
     Neutral,
     /// Strong colour
     Strong,
-    /// Gradient
-    Gradient,
 }
 
 /// I460: the chrome's gradient, one continuous sheet that every ground shows its own part of.
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct ChromeGradient {
+    /// Gradient
+    /// The chrome's fill — neutral or the strong colour — runs from one tone or colour to another across the screen (or
+    /// every screen), in the pattern below; text stays legible over all of it (I460).
+    #[kurashi(default = false)]
+    pub on: bool,
     /// Gradient colours
     /// Tones: the strong colour from darker to lighter. Colours: the palette's accent, secondary and tertiary run into
     /// each other (with the wallpaper's Mixed colours, the picture's own).
-    #[kurashi(default = GradientColours::Tones, requires = "theme.colors.chrome_fill == gradient")]
+    #[kurashi(default = GradientColours::Tones, requires = "theme.colors.gradient.on == true")]
     pub colours: GradientColours,
     /// Pattern
     /// Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed
     /// into each other; the wallpaper under it gives every spot the colour of the picture right behind it, softened.
-    #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.chrome_fill == gradient")]
+    #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.gradient.on == true")]
     pub pattern: GradientPattern,
     /// Angle from the wallpaper
     /// The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the
@@ -817,7 +819,7 @@ pub struct ChromeGradient {
     /// Without a wallpaper picture the angle below is used.
     #[kurashi(
         default = true,
-        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.on == true",
         requires = "theme.colors.gradient.pattern == linear"
     )]
     pub auto_angle: bool,
@@ -828,7 +830,7 @@ pub struct ChromeGradient {
         range = 0..=359,
         step = 5,
         unit = "°",
-        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.on == true",
         requires = "theme.colors.gradient.pattern == linear",
         requires = "theme.colors.gradient.auto_angle == false"
     )]
@@ -840,13 +842,13 @@ pub struct ChromeGradient {
         range = 2..=30,
         step = 1,
         unit = "%",
-        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.on == true",
         requires = "theme.colors.gradient.colours == tones"
     )]
     pub spread: u32,
     /// Softness
     /// How gently one colour runs into the next (under the wallpaper pattern: how much the picture is blurred).
-    #[kurashi(default = 85, range = 0..=100, step = 5, unit = "%", requires = "theme.colors.chrome_fill == gradient")]
+    #[kurashi(default = 85, range = 0..=100, step = 5, unit = "%", requires = "theme.colors.gradient.on == true")]
     pub softness: u32,
     /// Pool size
     /// How large the watercolour's pools are.
@@ -855,13 +857,13 @@ pub struct ChromeGradient {
         range = 120..=1600,
         step = 20,
         unit = "px",
-        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.on == true",
         requires = "theme.colors.gradient.pattern == watercolour"
     )]
     pub size: u32,
     /// Across all screens
     /// One gradient over every screen together, as they stand side by side; off, each screen has its own.
-    #[kurashi(default = true, requires = "theme.colors.chrome_fill == gradient")]
+    #[kurashi(default = true, requires = "theme.colors.gradient.on == true")]
     pub span_outputs: bool,
 }
 

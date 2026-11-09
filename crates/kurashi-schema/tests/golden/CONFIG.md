@@ -433,10 +433,16 @@ One accent: buttons, sliders, switches and tiles all in the accent. Spread: the 
 
 #### `theme.colors.chrome_fill` — Chrome fill
 
-What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the palette's strong colour. Gradient: the strong colour running from one tone to another across the screen (or every screen), in the pattern below. Text and controls are chosen again so they stay legible (I456, I460).
+What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so they stay legible. The gradient below can run over either (I456).
 
 - type: `choice` · default: `"neutral"`
-- choices: `"neutral"` | `"strong"` | `"gradient"`
+- choices: `"neutral"` | `"strong"`
+
+#### `theme.colors.gradient.on` — Gradient
+
+The chrome's fill — neutral or the strong colour — runs from one tone or colour to another across the screen (or every screen), in the pattern below; text stays legible over all of it (I460).
+
+- type: `bool` · default: `false`
 
 #### `theme.colors.gradient.colours` — Gradient colours
 
@@ -444,7 +450,7 @@ Tones: the strong colour from darker to lighter. Colours: the palette's accent, 
 
 - type: `choice` · default: `"tones"`
 - choices: `"tones"` | `"colours"`
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 
 #### `theme.colors.gradient.pattern` — Pattern
 
@@ -452,14 +458,14 @@ Linear runs from one edge to the other; radial from the middle out; watercolour 
 
 - type: `choice` · default: `"linear"`
 - choices: `"linear"` | `"radial"` | `"watercolour"` | `"wallpaper"`
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 
 #### `theme.colors.gradient.auto_angle` — Angle from the wallpaper
 
 The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the wallpaper is darker, so the chrome stands out from the picture behind it (no dark on dark, no light on light). Without a wallpaper picture the angle below is used.
 
 - type: `bool` · default: `true`
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 - only while `theme.colors.gradient.pattern == "linear"`
 
 #### `theme.colors.gradient.angle` — Angle
@@ -468,7 +474,7 @@ The direction a linear gradient runs in.
 
 - type: `int` · default: `35`
 - range: `0..=359`, step `5` (°)
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 - only while `theme.colors.gradient.pattern == "linear"`
 - only while `theme.colors.gradient.auto_angle == false`
 
@@ -478,7 +484,7 @@ How far the darker and the lighter tone lie apart; text stays legible on both.
 
 - type: `int` · default: `12`
 - range: `2..=30`, step `1` (%)
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 - only while `theme.colors.gradient.colours == "tones"`
 
 #### `theme.colors.gradient.softness` — Softness
@@ -487,7 +493,7 @@ How gently one colour runs into the next (under the wallpaper pattern: how much 
 
 - type: `int` · default: `85`
 - range: `0..=100`, step `5` (%)
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 
 #### `theme.colors.gradient.size` — Pool size
 
@@ -495,7 +501,7 @@ How large the watercolour's pools are.
 
 - type: `int` · default: `420`
 - range: `120..=1600`, step `20` (px)
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 - only while `theme.colors.gradient.pattern == "watercolour"`
 
 #### `theme.colors.gradient.span_outputs` — Across all screens
@@ -503,7 +509,7 @@ How large the watercolour's pools are.
 One gradient over every screen together, as they stand side by side; off, each screen has its own.
 
 - type: `bool` · default: `true`
-- only while `theme.colors.chrome_fill == "gradient"`
+- only while `theme.colors.gradient.on == true`
 
 #### `theme.colors.contrast` — Contrast
 
