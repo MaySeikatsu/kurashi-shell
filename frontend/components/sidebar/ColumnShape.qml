@@ -157,11 +157,10 @@ Shape {
     // K62: with a pen in effect the pen draws the outline along its centre line (one closed line; the open sides lie
     // past the neighbour's edge).
     readonly property bool penOn: Theme.penOutline
-    function penPaths() {
+    // The pen's line as an SVG string (PenOutline parses it only when it paints: session 26 perf).
+    function penSvgs() {
         if (!shown || !penOn) return []
-        var subs = Pen.svgPaths(path(ow / 2, true, 0)), out = []
-        for (var i = 0; i < subs.length; i++) out.push({ points: subs[i].pts, closed: subs[i].closed, width: ow })
-        return out
+        return [{ d: path(ow / 2, true, 0), width: ow }]
     }
     Loader {
         anchors.fill: parent
@@ -170,7 +169,7 @@ Shape {
             color: sh.oc
             lineWidth: sh.ow
             seed: 0x51DE3
-            paths: sh.penPaths()
+            svgs: sh.penSvgs()
         }
     }
 

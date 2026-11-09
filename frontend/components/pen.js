@@ -273,22 +273,35 @@ function run(ctx, loop, F, w, sa, sb, wf, df) {
     var ss = [sa]
     for (var k = Math.ceil(sa / step + 1e-6); k * step < sb; k++) ss.push(k * step)
     ss.push(sb)
-    var prev = null
+    // Session 26 (perf): consecutive segments of (nearly) one width are one path, stroked once with round joins, instead
+    // of a stroke() per ~1.5 px segment (thousands of calls for a long outline, each a JS → canvas round trip). Widths are
+    // taken to a quarter pixel, so a swelling line still changes width every few px; round joins and caps keep the joins
+    // as the separate round-capped segments drew them, and one opaque path never beads where segments overlap.
+    var prev = null, open = false, pathW = -1
+    function flush() {
+        if (open) ctx.stroke()
+        open = false
+    }
     for (var i = 0; i < ss.length; i++) {
         var s = ss[i], p = at(loop, s)
         var ink = F.ink(s)
-        if (ink <= 0) { prev = null; continue }
+        if (ink <= 0) { flush(); prev = null; continue }
         var o = F.off(s) + (df ? df(s) : 0)
         var cur = {
             x: p.x - p.ty * o, y: p.y + p.tx * o,
             w: Math.max(0.45, w * F.mult(s, Math.atan2(p.ty, p.tx)) * ink * (wf ? wf(s) : 1))
         }
         if (prev) {
-            ctx.beginPath()
-            ctx.moveTo(prev.x, prev.y)
+            var segW = Math.round((prev.w + cur.w) * 2) / 4
+            if (!open || segW !== pathW) {
+                flush()
+                ctx.beginPath()
+                ctx.moveTo(prev.x, prev.y)
+                ctx.lineWidth = segW
+                pathW = segW
+                open = true
+            }
             ctx.lineTo(cur.x, cur.y)
-            ctx.lineWidth = (prev.w + cur.w) / 2
-            ctx.stroke()
         } else if (i === ss.length - 1 || F.ink(ss[i + 1]) <= 0) {
             ctx.beginPath()
             ctx.arc(cur.x, cur.y, cur.w / 2, 0, 2 * Math.PI)
@@ -296,6 +309,7 @@ function run(ctx, loop, F, w, sa, sb, wf, df) {
         }
         prev = cur
     }
+    flush()
 }
 
 // A faint pass at one width (rough's second line): one path, so it is one shape at `alpha` with no beads.

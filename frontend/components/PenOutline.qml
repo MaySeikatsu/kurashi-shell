@@ -24,6 +24,10 @@ Item {
     property var points: null
     // Several lines [{points, closed, width (default lineWidth)}]; overrides `points`.
     property var paths: null
+    // Session 26 (perf): the lines as SVG path strings [{d, width, closed}], parsed and resampled only when the line is
+    // painted. A surface that morphs passes these instead of `paths`: building the points (an arc sampled every 1.5 px)
+    // on every frame cost more than painting them, and most of those frames are not painted (the cooldown below).
+    property var svgs: null
     property string line: Theme.penLine
     property real pressure: Theme.penPressure
     property real breaks: Theme.penBreaks
@@ -37,9 +41,18 @@ Item {
 
     function paint(ctx) {
         ctx.reset()
-        var w = po.width, h = po.height
+        var w = po.pw, h = po.ph
         if (w < 1 || h < 1 || po.lineWidth <= 0) return
         var lines = po.paths
+        if (!lines && po.svgs) {
+            lines = []
+            for (var q = 0; q < po.svgs.length; q++) {
+                var subs = Pen.svgPaths(po.svgs[q].d)
+                for (var u = 0; u < subs.length; u++)
+                    lines.push({ points: subs[u].pts, closed: po.svgs[q].closed === undefined ? subs[u].closed : po.svgs[q].closed,
+                        width: po.svgs[q].width })
+            }
+        }
         if (!lines) {
             var r = po.radii ? po.radii : Math.min(po.radius, w / 2, h / 2)
             if (w < 4 || h < 4) return
@@ -68,16 +81,53 @@ Item {
     // what they read, and a repaint is a commit: an idle surface must not commit, test-frame's idle check).
     readonly property string pointsKey: points ? JSON.stringify(points) : ""
     readonly property string pathsKey: paths ? JSON.stringify(paths) : ""
+    readonly property string svgsKey: svgs ? JSON.stringify(svgs) : ""
     readonly property var inputs: [width, height, radius, radii, inset, color.r, color.g, color.b, lineWidth, pointsKey,
-        pathsKey, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
-    onInputsChanged: cv.requestPaint()
+        pathsKey, svgsKey, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
+    // Session 26 (perf): the line is computed on the GUI thread (pen.js: wobble, pressure, breaks) and a surface that slides
+    // or morphs changes its inputs every frame: kami's pen cost up to 66 ms a frame (1.4 s of GUI time in 15 s of motion,
+    // against 0.08 s with a solid line). A change paints at once; changes that follow within `cooldown` ms are gathered and
+    // painted when it ends, so a moving surface repaints its line about 15 times a second and once more at rest. In
+    // between, the last painting is stretched to the item's size (the canvas keeps the size it was painted at, `pw` ×
+    // `ph`, scaled). One single-shot timer, started by a change: nothing runs at idle (Ma).
+    property real pw: 0
+    property real ph: 0
+    property bool dirty: false
+    readonly property int cooldown: 66
+    function repaintNow() {
+        po.pw = po.width
+        po.ph = po.height
+        cv.requestPaint()
+    }
+    onInputsChanged: {
+        if (cool.running) {
+            po.dirty = true
+            return
+        }
+        po.repaintNow()
+        cool.start()
+    }
+    Timer {
+        id: cool
+        interval: po.cooldown
+        onTriggered: if (po.dirty) {
+            po.dirty = false
+            po.repaintNow()
+            cool.start()
+        }
+    }
 
     Canvas {
         id: cv
         x: -po.pad
         y: -po.pad
-        width: po.width + 2 * po.pad
-        height: po.height + 2 * po.pad
+        width: po.pw + 2 * po.pad
+        height: po.ph + 2 * po.pad
+        // Stretched to the item between paints (identity at rest: pw, ph = width, height).
+        transform: Scale {
+            xScale: (po.width + 2 * po.pad) / Math.max(1, po.pw + 2 * po.pad)
+            yScale: (po.height + 2 * po.pad) / Math.max(1, po.ph + 2 * po.pad)
+        }
         // The colour's alpha is the canvas's: the ink is laid opaque, so overlapping caps never bead.
         opacity: po.color.a
         onPaint: po.paint(getContext("2d"))

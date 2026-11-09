@@ -337,13 +337,12 @@ Shape {
     // right edge, so it meets the bar's own (pen) rule; the head's outline thins out as the card opens. The ring, the
     // fill and its relief mask (`fillPath`) are untouched.
     readonly property bool penOn: Theme.penOutline
-    function penPaths() {
+    // The pen's lines as SVG strings (PenOutline parses them only when it paints: session 26 perf).
+    function penSvgs() {
         if (!visible || !penOn) return []
         var c = ow / 2, out = []
         function add(d, width, closed) {
-            var subs = Pen.svgPaths(Corner.squircled(d, Theme.squircle))
-            for (var i = 0; i < subs.length; i++)
-                out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
+            out.push({ d: Corner.squircled(d, Theme.squircle), width: width, closed: closed })
         }
         if (joined && headless) {
             if (budHn > 0) add("M " + f(neckCx + budHn + budFl) + " " + f(edgeY - c) + budContour(c, 0), ow, false)
@@ -375,7 +374,7 @@ Shape {
             color: sh.oc
             lineWidth: sh.ow
             seed: 0x15A4D
-            paths: sh.penPaths()
+            svgs: sh.penSvgs()
         }
     }
     // I160: on a strip with a head, the fill above the bar's edge in `headFill` and below it in `fill`, each cut by a
