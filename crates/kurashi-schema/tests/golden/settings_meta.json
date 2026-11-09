@@ -1168,6 +1168,10 @@
                 {
                   "label": "config.choice.gradient_pattern.watercolour",
                   "value": "watercolour"
+                },
+                {
+                  "label": "config.choice.gradient_pattern.wallpaper",
+                  "value": "wallpaper"
                 }
               ],
               "control": "select",

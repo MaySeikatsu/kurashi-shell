@@ -402,9 +402,10 @@
 # colours = "tones"
 #
 # Pattern — Linear runs from one edge to the other; radial from the middle out;
-# watercolour lays large soft pools that bleed into each other.
-#   choices: "linear" | "radial" | "watercolour" · only while theme.colors.chrome_fill ==
-#   "gradient"
+# watercolour lays large soft pools that bleed into each other; the wallpaper under it gives
+# every spot the colour of the picture right behind it, softened.
+#   choices: "linear" | "radial" | "watercolour" | "wallpaper" · only while
+#   theme.colors.chrome_fill == "gradient"
 # pattern = "linear"
 #
 # Angle from the wallpaper — The gradient turns so its darker side lies where the
@@ -427,7 +428,8 @@
 #   while theme.colors.gradient.colours == "tones"
 # spread = 12
 #
-# Softness — How gently one colour runs into the next.
+# Softness — How gently one colour runs into the next (under the wallpaper pattern: how
+# much the picture is blurred).
 #   range: 0..=100, step 5 (%) · only while theme.colors.chrome_fill == "gradient"
 # softness = 85
 #

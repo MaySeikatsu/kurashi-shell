@@ -29,7 +29,7 @@ ShaderEffect {
     // The canvas: this output alone, or the bounding box of every output (logical px) with this output's place in it.
     readonly property rect canvas: {
         if (!scr) return Qt.rect(0, 0, 1, 1)
-        if (Theme.washSpan !== "all") return Qt.rect(0, 0, scr.width, scr.height)
+        if (Theme.washSpan !== "all" || Theme.washMode === "wallpaper") return Qt.rect(0, 0, scr.width, scr.height)
         var l = Quickshell.screens, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9
         for (var i = 0; i < l.length; i++) {
             x0 = Math.min(x0, l[i].x); y0 = Math.min(y0, l[i].y)
@@ -47,7 +47,8 @@ ShaderEffect {
     readonly property vector4d uRadii: Qt.vector4d(topLeftRadius < 0 ? radius : topLeftRadius,
         topRightRadius < 0 ? radius : topRightRadius, bottomRightRadius < 0 ? radius : bottomRightRadius,
         bottomLeftRadius < 0 ? radius : bottomLeftRadius)
-    readonly property vector4d uMode: Qt.vector4d(Theme.washMode === "radial" ? 1 : (Theme.washMode === "watercolour" ? 2 : 0),
+    readonly property vector4d uMode: Qt.vector4d(Theme.washMode === "radial" ? 1 : (Theme.washMode === "watercolour" ? 2
+            : (fromWall ? (wall.status === Image.Ready ? 3 : 0) : 0)),
         Theme.washAngle, Theme.washScale, Theme.washSoftness)
     readonly property vector4d uCenter: Qt.vector4d(Theme.washCenter.x, Theme.washCenter.y, Theme.washReach, 0)
     readonly property var stops: Theme.washStops
@@ -61,6 +62,47 @@ ShaderEffect {
     readonly property vector4d uStop1: stop(1)
     readonly property vector4d uStop2: stop(2)
     readonly property vector4d uStop3: stop(3)
+    // Pattern "wallpaper" (session 26): the picture under each spot, from the wallpaper mod's document (the output's own
+    // picture and how the backend fits it). Watched only in that pattern (Ma); the picture is loaded small — softness
+    // picks how small, so the colours blur into each other — and shared by every Wash of the output (the pixmap cache
+    // keys on url and size).
+    readonly property bool fromWall: Theme.washMode === "wallpaper"
+    Watch { doc: "mod.wallpaper"; active: wash.fromWall }
+    readonly property var wallOut: {
+        if (!fromWall || !scr) return null
+        var d = Store.docs ? Store.docs["mod.wallpaper"] : null
+        return d && d.outputs ? (d.outputs[scr.name] || null) : null
+    }
+    readonly property string wallPath: wallOut && wallOut.path ? wallOut.path
+        : ((Store.docs && Store.docs["mod.wallpaper"] && Store.docs["mod.wallpaper"].theme
+            && Store.docs["mod.wallpaper"].theme.image) || "")
+    Image {
+        id: wall
+        visible: false
+        asynchronous: true
+        cache: true
+        smooth: true
+        source: wash.fromWall && wash.wallPath !== "" ? "file://" + wash.wallPath : ""
+        readonly property int side: Math.round(160 - 136 * Theme.washSoftness)
+        sourceSize: Qt.size(side, side)
+    }
+    // Cover ("crop"): the picture scaled to fill the output, centred; the rest of the fits stretch for now.
+    readonly property vector4d uWall: {
+        var iw = wall.implicitWidth, ih = wall.implicitHeight
+        var ow = canvas.width, oh = canvas.height
+        if (!fromWall || iw <= 0 || ih <= 0 || ow <= 0 || oh <= 0) return Qt.vector4d(1, 1, 0, 0)
+        var ia = iw / ih, oa = ow / oh
+        if (ia > oa) { var sx = oa / ia; return Qt.vector4d(sx, 1, (1 - sx) / 2, 0) }
+        var sy = ia / oa
+        return Qt.vector4d(1, sy, 0, (1 - sy) / 2)
+    }
+    // The text's side and the ground's luminance limit for 4.5:1 with it (WCAG: (Lt + .05) / (Lg + .05) >= 4.5).
+    readonly property real inkY: 0.2126 * lin(Theme.fg.r) + 0.7152 * lin(Theme.fg.g) + 0.0722 * lin(Theme.fg.b)
+    function lin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
+    readonly property vector4d uInk: inkY > 0.5 ? Qt.vector4d(1, (inkY + 0.05) / 4.6 - 0.05, 0, 0)
+        : Qt.vector4d(0, 4.6 * (inkY + 0.05) - 0.05, 0, 0)
+    property variant wallTex: fromWall && wall.status === Image.Ready ? wall : none
+
     // Unused sampler: a 1 px source (never sampled: uFlags.w is 0).
     property variant maskTex: mask ? mask : none
     ShaderEffectSource { id: none; width: 0; height: 0; live: false; sourceItem: Rectangle { width: 1; height: 1 } }

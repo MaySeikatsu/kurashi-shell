@@ -792,7 +792,7 @@ pub struct ChromeGradient {
     pub colours: GradientColours,
     /// Pattern
     /// Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed
-    /// into each other.
+    /// into each other; the wallpaper under it gives every spot the colour of the picture right behind it, softened.
     #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.chrome_fill == gradient")]
     pub pattern: GradientPattern,
     /// Angle from the wallpaper
@@ -829,7 +829,7 @@ pub struct ChromeGradient {
     )]
     pub spread: u32,
     /// Softness
-    /// How gently one colour runs into the next.
+    /// How gently one colour runs into the next (under the wallpaper pattern: how much the picture is blurred).
     #[kurashi(default = 85, range = 0..=100, step = 5, unit = "%", requires = "theme.colors.chrome_fill == gradient")]
     pub softness: u32,
     /// Pool size
@@ -865,6 +865,8 @@ pub enum GradientPattern {
     Radial,
     /// Watercolour
     Watercolour,
+    /// The wallpaper under it
+    Wallpaper,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

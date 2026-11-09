@@ -441,10 +441,10 @@ Tones: the strong colour from darker to lighter. Colours: the palette's accent, 
 
 #### `theme.colors.gradient.pattern` — Pattern
 
-Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed into each other.
+Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed into each other; the wallpaper under it gives every spot the colour of the picture right behind it, softened.
 
 - type: `choice` · default: `"linear"`
-- choices: `"linear"` | `"radial"` | `"watercolour"`
+- choices: `"linear"` | `"radial"` | `"watercolour"` | `"wallpaper"`
 - only while `theme.colors.chrome_fill == "gradient"`
 
 #### `theme.colors.gradient.auto_angle` — Angle from the wallpaper
@@ -476,7 +476,7 @@ How far the darker and the lighter tone lie apart; text stays legible on both.
 
 #### `theme.colors.gradient.softness` — Softness
 
-How gently one colour runs into the next.
+How gently one colour runs into the next (under the wallpaper pattern: how much the picture is blurred).
 
 - type: `int` · default: `85`
 - range: `0..=100`, step `5` (%)

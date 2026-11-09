@@ -26,8 +26,30 @@ layout(std140, binding = 0) uniform buf {
     vec4 uStop1;
     vec4 uStop2;
     vec4 uStop3;
+    vec4 uWall;     // pattern 3 (the wallpaper under it): x, y scale, z, w offset of the output in the picture's uv (crop)
+    vec4 uInk;      // x 1 = light text (white-ish), 0 = dark; y the ground's luminance limit for 4.5:1 with it
 } ubuf;
 layout(binding = 1) uniform sampler2D maskTex;
+layout(binding = 2) uniform sampler2D wallTex;
+
+vec3 toLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+vec3 toSrgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+
+// The picture's colour kept as it is, darkened (under light text) or lightened (under dark text) only as far as the text
+// needs 4.5:1 on it: in linear light, so the hue and its saturation stay.
+vec3 legible(vec3 c) {
+    vec3 l = toLin(c);
+    float y = dot(l, vec3(0.2126, 0.7152, 0.0722));
+    float lim = ubuf.uInk.y;
+    if (ubuf.uInk.x > 0.5) {
+        if (y > lim) l *= lim / max(y, 1e-4);
+    } else if (y < lim) {
+        // l + (1 - l) t reaches luminance lim at t = (lim - y) / (1 - y).
+        float t = (lim - y) / max(1.0 - y, 1e-4);
+        l = l + (1.0 - l) * t;
+    }
+    return toSrgb(clamp(l, 0.0, 1.0));
+}
 
 float hash(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -80,9 +102,14 @@ void main() {
     vec2 c = ubuf.uCanvas.xy + q;
     vec2 span = max(ubuf.uCanvas.zw, vec2(1.0));
 
-    float t;
+    float t = 0.0;
     int mode = int(ubuf.uMode.x + 0.5);
-    if (mode == 1) {
+    vec3 col;
+    if (mode == 3) {
+        // The wallpaper under this spot: the output's own picture (q on the output), as the backend crops it.
+        vec2 uv = ubuf.uWall.zw + q / max(ubuf.uCanvas.zw, vec2(1.0)) * ubuf.uWall.xy;
+        col = legible(texture(wallTex, uv).rgb);
+    } else if (mode == 1) {
         vec2 ctr = ubuf.uCenter.xy * span;
         t = length(c - ctr) / max(1.0, ubuf.uCenter.z * length(span));
     } else if (mode == 2) {
@@ -99,7 +126,8 @@ void main() {
         float hi = max(0.0, d.x * span.x) + max(0.0, d.y * span.y);
         t = (dot(c, d) - lo) / max(1.0, hi - lo);
     }
-    vec3 col = clamp(ramp(t, ubuf.uMode.w) + ubuf.uCount.yzw, 0.0, 1.0);
+    if (mode != 3) col = ramp(t, ubuf.uMode.w);
+    col = clamp(col + ubuf.uCount.yzw, 0.0, 1.0);
 
     vec2 half_ = size * 0.5;
     vec2 qq = local - half_;
