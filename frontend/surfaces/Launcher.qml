@@ -415,8 +415,8 @@ PanelWindow {
         unprime()
         listSel = false
         picked = false
-        // (the list first, then its rows: emptied the other way round, the scroll host's `overflows` read a view still
-        // sized for rows it no longer had, a binding loop)
+        // (the list first, then its rows: with the rows emptied first, the scroll host once reported a binding loop on
+        // `overflows` — seen with this order changed among other fixes, so the order is a guess at the cause)
         results = []
         rowModel.clear()
         shownKeys = []
@@ -927,7 +927,7 @@ PanelWindow {
                     // (a11y: the row as a list item; the selection is the item's, and follows it when the list re-sorts)
                     Accessible.role: kind === "keygroup" ? Accessible.Heading : Accessible.ListItem
                     Accessible.name: kind === "web" ? I18n.tr("launcher.web").replace("{q}", entry.name || "")
-                        : (kind === "note" ? I18n.tr(entry.name || "") : (entry.name || ""))
+                        : (kind === "note" ? I18n.tr(entry.name || "").replace("{path}", entry.arg || "") : (entry.name || ""))
                     Accessible.description: entry.generic || ""
                     Accessible.selectable: kind !== "keygroup"
                     Accessible.selected: selected
