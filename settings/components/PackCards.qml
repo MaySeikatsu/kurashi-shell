@@ -22,6 +22,8 @@ Item {
     property bool cancellable: true
 
     // The order the categories show in (K53's list); a category the daemon adds later goes after them.
+    // Where a search jump lands: the cards (the current one), not the first category tab.
+    readonly property Item focusTarget: cardsView
     readonly property var order: ["kurashi", "common", "modern", "inspired", "retro", "fiction", "custom"]
     readonly property var lead: pc.choices.filter(function (c) { return !c.group })
     readonly property var categories: {
@@ -146,6 +148,7 @@ Item {
             }
             // Only the open category's cards exist (the others are not built: Ma).
             DecorCards {
+                id: cardsView
                 width: parent.width
                 objectName: pc.objectName
                 choices: pc.shown
