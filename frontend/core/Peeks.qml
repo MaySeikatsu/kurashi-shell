@@ -49,4 +49,24 @@ QtObject {
         Store.act("ui.peek", {})
     }
     property Timer grace: Timer { interval: peeks.graceMs; onTriggered: peeks.drop() }
+
+    // ---- PROTOTYPE (session 27, I458): a bar module opens on hover, as Caelestia's popouts ----
+    // "preview": the small peek only (as before). "panel": the module's extended surface (its card), where it has one.
+    // "menu": the module's own menu (its right click). What a hover opened closes when the pointer has left both the
+    // module and the card for `hoverGraceMs`; what a click opened is left alone.
+    property string hoverOpens: "panel"
+    readonly property int hoverIntentMs: 220
+    readonly property int hoverGraceMs: 380
+    // The module whose card a hover opened ("" when none, or when a click opened what is open).
+    property string hoverOwner: ""
+    readonly property bool cardOpen: (ui.panel || "") !== "" || (ui.tray || "") !== "" || ui.launcher === true
+    onCardOpenChanged: if (!cardOpen) { hoverOwner = ""; hoverGrace.stop() }
+    function hoverOpened(mid) { hoverOwner = mid; hoverGrace.stop() }
+    function hoverLeft(mid) { if (hoverOwner === mid) hoverGrace.restart() }
+    function hoverHold() { hoverGrace.stop() }
+    function hoverLeave() { if (hoverOwner !== "") hoverGrace.restart() }
+    property Timer hoverGrace: Timer {
+        interval: peeks.hoverGraceMs
+        onTriggered: if (peeks.hoverOwner !== "") { peeks.hoverOwner = ""; Store.act("ui.close") }
+    }
 }

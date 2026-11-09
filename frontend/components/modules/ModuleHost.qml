@@ -79,6 +79,37 @@ Item {
         onTapped: host.openMenu()
     }
     Keys.onMenuPressed: openMenu()
+
+    // ---- PROTOTYPE (session 27, I458): open on hover ----
+    // The module's extended surface, where a hover can open it without toggling: a mod's panel, the clock's face, the
+    // quick settings card. "" for a module that has none (its hover stays the small peek).
+    readonly property string hoverSurface: isMod ? (item && item.hasPanel ? "mod" : "")
+        : (mid === "clock" ? "clock" : (mid === "quick" ? "quick" : ""))
+    HoverHandler {
+        id: hov
+        enabled: host.present && host.mid !== "" && !host.parked && Peeks.hoverOpens !== "preview"
+        onHoveredChanged: {
+            if (hovered) { if (Peeks.hoverOwner === host.mid) Peeks.hoverHold(); else hoverIntent.restart() }
+            else { hoverIntent.stop(); Peeks.hoverLeft(host.mid) }
+        }
+    }
+    Timer { id: hoverIntent; interval: Peeks.hoverIntentMs; onTriggered: host.hoverOpen() }
+    function hoverOpen() {
+        if (!hov.hovered || Peeks.hoverOwner === host.mid) return
+        // (a card a click opened stays as it is: only a hover's own card is replaced by the next module's)
+        if (Peeks.cardOpen && Peeks.hoverOwner === "") return
+        if (Peeks.hoverOpens === "menu") openMenu()
+        else if (hoverSurface === "mod") { Isl.IslandGeom.notePress(output, mid); item.activate() }
+        else if (hoverSurface === "clock") { Isl.IslandGeom.notePress(output, mid); item.activate() }
+        else if (hoverSurface === "quick") {
+            if ((Peeks.ui.panel || "") === "quick") return
+            Isl.IslandGeom.notePress(output, mid)
+            Store.act("quick.toggle")
+        }
+        else return
+        Peeks.dismiss()
+        Peeks.hoverOpened(host.mid)
+    }
     C.FocusRing {
         anchors.fill: parent
         anchors.margins: 1
