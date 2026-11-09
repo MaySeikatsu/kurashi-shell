@@ -424,6 +424,13 @@ How the wallpaper's colours become the palette. Tone-matched builds calm tones a
 - choices: `"tone_matched"` | `"vibrant"` | `"prominent"` | `"mixed"`
 - only while `theme.colors.palette == "wallpaper"`
 
+#### `theme.colors.controls` — Colours on the controls
+
+One accent: buttons, sliders, switches and tiles all in the accent. Spread: the palette's colours over them — buttons the accent, sliders the secondary, switches and quick tiles the tertiary — so a wallpaper's other colours show as themselves. Automatic spreads them under the wallpaper's Mixed colours.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"one"` | `"spread"`
+
 #### `theme.colors.chrome_fill` — Chrome fill
 
 What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the palette's strong colour. Gradient: the strong colour running from one tone to another across the screen (or every screen), in the pattern below. Text and controls are chosen again so they stay legible (I456, I460).

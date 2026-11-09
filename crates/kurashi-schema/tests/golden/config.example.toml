@@ -356,6 +356,13 @@
 #   theme.colors.palette == "wallpaper"
 # extraction = "tone_matched"
 #
+# Colours on the controls — One accent: buttons, sliders, switches and tiles all in the
+# accent. Spread: the palette's colours over them — buttons the accent, sliders the
+# secondary, switches and quick tiles the tertiary — so a wallpaper's other colours show
+# as themselves. Automatic spreads them under the wallpaper's Mixed colours.
+#   choices: "auto" | "one" | "spread"
+# controls = "auto"
+#
 # Chrome fill — What the bar, frame, panels and cards — and the apps that follow the
 # theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the
 # palette's strong colour. Gradient: the strong colour running from one tone to another

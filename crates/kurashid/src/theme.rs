@@ -307,6 +307,15 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         elevation_pointer: b(store, "theme.material.elevation_pointer"),
         ..Axes::default()
     };
+    // Session 26: the palette's colours over the controls; automatic = under the wallpaper's Mixed colours.
+    axes.spread_controls = match s(store, "theme.colors.controls").as_str() {
+        "spread" => true,
+        "one" => false,
+        _ => {
+            s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+                && s(store, "theme.colors.extraction") == "mixed"
+        }
+    };
     let chain = families("theme.typography.family");
     if !chain.is_empty() {
         axes.font_chain = chain;

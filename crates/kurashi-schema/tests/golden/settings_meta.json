@@ -1100,6 +1100,33 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.control_colours.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.control_colours.one",
+                  "value": "one"
+                },
+                {
+                  "label": "config.choice.control_colours.spread",
+                  "value": "spread"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.colors.controls.help",
+              "key": "theme.colors.controls",
+              "label": "config.theme.colors.controls.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
                   "label": "config.choice.chrome_fill.neutral",
                   "value": "neutral"
                 },

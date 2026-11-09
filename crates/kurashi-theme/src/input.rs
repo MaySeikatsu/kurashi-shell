@@ -162,6 +162,9 @@ pub struct SurfaceRadii {
 
 #[derive(Clone, Debug)]
 pub struct Axes {
+    /// The palette's colours spread over the controls (`theme.colors.controls`): sliders take the secondary, switches and
+    /// quick tiles the tertiary, selections a tint of the secondary; buttons keep the accent. Off: the accent everywhere.
+    pub spread_controls: bool,
     pub shape: Shape,
     /// The one corner radius (K74), px.
     pub radius: f64,
@@ -197,6 +200,7 @@ pub struct Axes {
 impl Default for Axes {
     fn default() -> Self {
         Axes {
+            spread_controls: false,
             shape: Shape::Rounded,
             radius: 18.0,
             radius_of: SurfaceRadii::default(),

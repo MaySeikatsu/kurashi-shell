@@ -731,6 +731,12 @@ pub struct Colors {
     /// these hues (I455).
     #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
     pub extraction: Extraction,
+    /// Colours on the controls
+    /// One accent: buttons, sliders, switches and tiles all in the accent. Spread: the palette's colours over them —
+    /// buttons the accent, sliders the secondary, switches and quick tiles the tertiary — so a wallpaper's other colours
+    /// show as themselves. Automatic spreads them under the wallpaper's Mixed colours.
+    #[kurashi(default = ControlColours::Auto)]
+    pub controls: ControlColours,
     /// Chrome fill
     /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
     /// palette's grey, black or white. Strong colour: the palette's strong colour. Gradient: the strong colour running
@@ -770,6 +776,16 @@ pub struct Colors {
     /// Used in light and dark alike, adjusted only as far as legibility needs.
     #[kurashi(default = Color::new("#2b4a8b"), requires = "theme.colors.ink == custom")]
     pub ink_custom: Color,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ControlColours {
+    /// Automatic
+    Auto,
+    /// One accent
+    One,
+    /// Spread
+    Spread,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
