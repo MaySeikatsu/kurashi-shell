@@ -977,6 +977,9 @@ PanelWindow {
                                 sourceSize: Qt.size(60, 60)
                                 asynchronous: true
                                 visible: ico.src !== "" && status === Image.Ready
+                                // The app icons' tint (`theme.colors.app_icons`, K110).
+                                layer.enabled: Theme.iconTint !== "original" && visible
+                                layer.effect: IconTint { mode: Theme.iconTint }
                             }
                             // The app's picture: its relief on its own pixels, masked by its alpha (row 285), so a transparent row's
                             // ground does not halo. A fallback tile carries its own relief (below).
@@ -1202,6 +1205,9 @@ PanelWindow {
                             sourceSize: Qt.size(64, 64)
                             asynchronous: true
                             visible: status === Image.Ready
+                            // The app icons' tint (`theme.colors.app_icons`, K110).
+                            layer.enabled: Theme.iconTint !== "original" && visible
+                            layer.effect: IconTint { mode: Theme.iconTint }
                         }
                         Rectangle {
                             anchors.fill: parent

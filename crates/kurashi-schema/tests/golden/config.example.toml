@@ -363,9 +363,10 @@
 #   choices: "auto" | "one" | "spread"
 # controls = "auto"
 #
-# App icons — The icons of apps in the dock, the bar's window list and the tray: as they
-# are, in the text's colour, in the palette's tones (each icon's drawing kept, dark to light
-# in the palette's colours) or in its colours as sectors.
+# App icons — The icons of apps in the dock, the bar's window list, the tray, the launcher
+# and notifications: as they are, in the text's colour (a picture keeps its drawing as
+# lighter and denser ink), in the palette's tones (dark to light in the palette's colours)
+# or in its colours (each part takes the palette colour nearest its own hue).
 #   choices: "original" | "ink" | "tones" | "palette"
 # app_icons = "original"
 #

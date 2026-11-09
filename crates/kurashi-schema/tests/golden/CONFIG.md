@@ -433,7 +433,7 @@ One accent: buttons, sliders, switches and tiles all in the accent. Spread: the 
 
 #### `theme.colors.app_icons` — App icons
 
-The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+The icons of apps in the dock, the bar's window list, the tray, the launcher and notifications: as they are, in the text's colour (a picture keeps its drawing as lighter and denser ink), in the palette's tones (dark to light in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
 
 - type: `choice` · default: `"original"`
 - choices: `"original"` | `"ink"` | `"tones"` | `"palette"`

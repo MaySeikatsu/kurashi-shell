@@ -84,7 +84,7 @@ void main() {
             vec3 st = stopAt(int(min(floor(fract(h / 6.0) * n), n - 1.0)));
             // Shaded by the part's lightness: darker parts of the drawing darker, highlights toward white.
             float sh = nl >= 0.0 ? nl : 0.5;
-            col = sh < 0.5 ? st * mix(0.55, 1.0, sh * 2.0) : mix(st, vec3(1.0), (sh - 0.5) * 0.5);
+            col = sh < 0.5 ? st * mix(0.72, 1.0, sh * 2.0) : mix(st, vec3(1.0), (sh - 0.5) * 0.5);
         }
     }
     fragColor = vec4(col * a, a) * keep * qt_Opacity;
