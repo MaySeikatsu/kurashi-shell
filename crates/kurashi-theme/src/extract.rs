@@ -394,19 +394,96 @@ fn material_roles(s: &MScheme, dark: bool) -> RawRoles {
     r
 }
 
-/// Mixed: the picture's own accents, as they are (lifted only as far as contrast needs), on the tone-matched
-/// scheme's calm ground and text.
-fn mixed_scheme(base: RawRoles, sw: &[Swatch], dark: bool) -> RawRoles {
-    let mut r = base;
-    let surface = r["surface"];
-    let acc = accents(sw, &[]);
-    for (i, name) in ["accent", "secondary", "tertiary"].iter().enumerate() {
-        // A grey pick keeps the scheme's own colour: Mixed is about the picture's hues.
-        let Some(p) = acc.get(i).filter(|p| p.c >= CHROMATIC) else {
-            continue;
-        };
-        accent_roles(&mut r, name, p.rgb(), surface, dark);
+/// The picture's distinct chromatic colours by prominence, up to `n`, each hue at least 30° from the others.
+fn hues(sw: &[Swatch], n: usize) -> Vec<Lch> {
+    let mut chromatic: Vec<&Swatch> = sw
+        .iter()
+        .filter(|s| s.lch.c >= CHROMATIC && s.share >= 0.002)
+        .collect();
+    chromatic.sort_by(|a, b| {
+        let score = |s: &Swatch| s.share * (0.6 + s.lch.c * 6.0);
+        score(b).total_cmp(&score(a))
+    });
+    let mut out: Vec<Lch> = vec![];
+    for s in chromatic {
+        if out.len() == n {
+            break;
+        }
+        if out.iter().all(|p| hue_gap(p.h, s.lch.h) >= 30.0) {
+            out.push(s.lch);
+        }
     }
+    out
+}
+
+/// Mixed (session 26, the user's words: "it actually takes all the prominent colors into the color palette, so they
+/// appear in the shell"): the picture's colours spread over the parts the shell shows most. The ground is the
+/// picture's own dark (light) in its hue; cards and panels lean toward a second colour of the picture; lines and
+/// outlines take a third; the accent is the most vivid colour that stands apart from the ground; secondary and
+/// tertiary the rest; text the picture's own light (dark). Every pair is lifted to its contrast as in Prominent.
+fn mixed_scheme(sw: &[Swatch], dark: bool) -> RawRoles {
+    let g = ground(sw, dark);
+    let g = g.with(g.l, g.c.clamp(0.03, 0.09));
+    let t = ink(sw, g, dark);
+    let surface = g.rgb();
+    let picks = hues(sw, 5);
+    // The accent: the most vivid pick (one that stands apart from a coloured ground); the rest by prominence go to
+    // secondary, tertiary and the lines, so each of the picture's colours shows somewhere.
+    let apart = |p: &Lch| g.c < 0.04 || hue_gap(p.h, g.h) >= 20.0;
+    let accent = picks
+        .iter()
+        .copied()
+        .filter(apart)
+        .max_by(|a, b| a.c.total_cmp(&b.c))
+        .or_else(|| picks.first().copied());
+    let rest: Vec<Lch> = picks
+        .iter()
+        .copied()
+        .filter(|p| Some(*p) != accent)
+        .collect();
+    let card = rest.first().copied().or(accent).unwrap_or(g);
+    let line = rest
+        .get(2)
+        .or(rest.get(1))
+        .or(rest.first())
+        .copied()
+        .or(accent)
+        .unwrap_or(t);
+    let mut r = RawRoles::new();
+    r.insert("surface".into(), surface);
+    let steps: [(&str, f64, f64); 5] = [
+        ("surface_container_lowest", -0.03, 0.0),
+        ("surface_container_low", 0.03, 0.18),
+        ("surface_container", 0.05, 0.26),
+        ("surface_container_high", 0.08, 0.34),
+        ("surface_container_highest", 0.11, 0.42),
+    ];
+    for (k, dl, toward) in steps {
+        let l = if dark { g.l + dl } else { g.l - dl };
+        let base = g.with(l, g.c).rgb();
+        // Toward the card colour at the container's own lightness: its hue, not its brightness.
+        let tint = card.with(l, card.c.min(0.14)).rgb();
+        r.insert(k.into(), base.mix(tint, toward));
+    }
+    let text = ensure_contrast(t.rgb(), surface, 7.0);
+    r.insert("on_surface".into(), text);
+    r.insert("on_surface_variant".into(), text.mix(surface, 0.3));
+    let outline = lift(line.with(line.l, line.c).rgb(), surface, 3.0);
+    r.insert("outline".into(), outline);
+    r.insert("outline_variant".into(), outline.mix(surface, 0.5));
+    let fallback = g.with(if dark { 0.75 } else { 0.45 }, 0.12);
+    let order = [
+        accent.unwrap_or(fallback),
+        rest.first().copied().unwrap_or(fallback),
+        rest.get(1)
+            .copied()
+            .or(rest.first().copied())
+            .unwrap_or(fallback),
+    ];
+    for (name, c) in ["accent", "secondary", "tertiary"].iter().zip(order) {
+        accent_roles(&mut r, name, c.rgb(), surface, dark);
+    }
+    standard_rest(&mut r, dark);
     r
 }
 
@@ -441,13 +518,7 @@ pub fn palette(w: &Wallpaper, mode: Mode) -> Result<PaletteSet, ThemeError> {
             )
         }
         Mode::Prominent => (prominent_scheme(&sw, true), prominent_scheme(&sw, false)),
-        Mode::Mixed => {
-            let t = material(Variant::TonalSpot);
-            (
-                mixed_scheme(material_roles(&t.schemes.dark, true), &sw, true),
-                mixed_scheme(material_roles(&t.schemes.light, false), &sw, false),
-            )
-        }
+        Mode::Mixed => (mixed_scheme(&sw, true), mixed_scheme(&sw, false)),
     };
     Ok(PaletteSet {
         name: format!("wallpaper-{}", mode.name()),

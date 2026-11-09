@@ -726,8 +726,9 @@ pub struct Colors {
     /// Wallpaper colours
     /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
     /// same, more saturated; Prominent takes the colours that are in the picture as they are (its dark and light for
-    /// ground and text, its strongest hues as accents); Mixed puts the picture's own accents on calm tones. Text stays
-    /// legible in every mode (I455).
+    /// ground and text, its strongest hues as accents); Mixed spreads all of the picture's prominent colours over the
+    /// shell (ground, cards, lines, accents). Text stays legible in every mode. The seasonal tint, when on, still shifts
+    /// these hues (I455).
     #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
     pub extraction: Extraction,
     /// Chrome in the strong colour
@@ -745,7 +746,7 @@ pub struct Colors {
     pub colorblind: Colorblind,
     /// Seasonal tint (旬)
     /// The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24
-    /// solar terms.
+    /// solar terms. It shifts every palette's accents, a wallpaper's too, so they can look unlike the picture.
     #[kurashi(default = false, advanced)]
     pub season: bool,
     #[kurashi(nested)]
