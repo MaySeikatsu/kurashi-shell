@@ -651,8 +651,8 @@ pub fn wcag(mut p: Palette, on: bool) -> StageOut {
 /// The shell's chrome in the palette's strong colour (`theme.colors.strong_chrome`): the grounds that would be a grey,
 /// black or white (bar, frame, panels, cards) become the accent's hue at a lightness that carries text, its containers
 /// steps of it; text and controls are chosen again against that ground. The accent itself moves to the colour that
-/// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Only the shell's tokens take
-/// this: apps keep the palette as it is (`ThemeOutput::palette`). Runs before wcag, which still has the last word.
+/// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Apps that follow take it too
+/// (their files are written from the theme's tokens). Runs before wcag, which still has the last word.
 pub fn strong_chrome(p: Palette) -> StageOut {
     use crate::extract::{Lch, lift};
     let accent = Lch::of(p.get("accent"));

@@ -150,7 +150,7 @@
 "config.choice.extraction.prominent" = "プロミネント"
 "config.choice.extraction.mixed" = "ミックス"
 "config.theme.colors.strong_chrome.label" = "クロームを強い色で"
-"config.theme.colors.strong_chrome.help" = "バー、フレーム、パネル、カードがグレーや黒・白の代わりにパレットの強い色になります。その上の文字と操作部品は読みやすいよう選び直されます。アプリはパレットのままです。"
+"config.theme.colors.strong_chrome.help" = "バー、フレーム、パネル、カード、そしてテーマに従うアプリが、グレーや黒・白の代わりにパレットの強い色になります。その上の文字と操作部品は読みやすいよう選び直されます。"
 "config.choice.scheme.auto" = "システムに従う"
 "config.choice.scheme.wallpaper" = "壁紙に従う"
 "config.choice.scheme.dark" = "ダーク"

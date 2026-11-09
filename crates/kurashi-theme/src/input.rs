@@ -255,7 +255,7 @@ pub struct ThemeInput {
     pub oled: bool,
     /// The text colour (K60).
     pub ink: Ink,
-    /// The shell's chrome in the palette's strong colour (I456); apps keep the palette.
+    /// Grounds in the palette's strong colour (I456), the shell's and those of the apps that follow.
     pub strong_chrome: bool,
     pub axes: Axes,
     /// The look's slots and `[decor]` metrics (W53.0a); empty = every default (today's shell).

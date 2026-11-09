@@ -82,7 +82,15 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
     push("colorblind", s.notes);
     let s = stages::ink(s.palette, &input.ink);
     push("ink", s.notes);
-    let s = stages::wcag(s.palette, input.wcag);
+    // I456: grounds in the strong colour, before wcag so legibility still has the last word.
+    let s = if input.strong_chrome {
+        let c = stages::strong_chrome(s.palette);
+        push("chrome", c.notes);
+        c.palette
+    } else {
+        s.palette
+    };
+    let s = stages::wcag(s, input.wcag);
     push("wcag", s.notes);
     Ok((s.palette, notes))
 }
@@ -90,24 +98,8 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
 /// Full resolution: palette pipeline, axis scales, component tokens, overrides.
 pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutput, ThemeError> {
     let (palette, mut notes) = resolve_palette(input)?;
-    // I456: the shell's chrome may take the strong colour; the apps' palette stays as resolved.
-    let chrome = if input.strong_chrome {
-        let s = stages::strong_chrome(palette.clone());
-        let w = stages::wcag(s.palette, input.wcag);
-        notes.extend(s.notes.into_iter().map(|text| Note {
-            stage: "chrome",
-            text,
-        }));
-        notes.extend(w.notes.into_iter().map(|text| Note {
-            stage: "wcag",
-            text,
-        }));
-        w.palette
-    } else {
-        palette.clone()
-    };
     let (tokens, tn) = tokens::build(
-        &chrome,
+        &palette,
         &input.axes,
         &input.decor,
         input.contrast == ContrastLevel::High,

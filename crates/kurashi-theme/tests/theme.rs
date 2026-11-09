@@ -1168,8 +1168,8 @@ fn every_bundled_palette_has_a_category_and_common_ones_their_terminal_colours()
 }
 
 #[test]
-fn strong_chrome_paints_the_shells_grounds_in_the_accent_hue_and_leaves_the_apps_palette() {
-    // I456: the shell's tokens take the strong colour, legible; `ThemeOutput::palette` (the apps') does not change.
+fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
+    // I456 / I459: the grounds take the strong colour, legible; the apps' files are written from these tokens too.
     for scheme in [Scheme::Dark, Scheme::Light] {
         let base = ThemeInput {
             source: Source::Palette("gruvbox".into()),
@@ -1185,7 +1185,6 @@ fn strong_chrome_paints_the_shells_grounds_in_the_accent_hue_and_leaves_the_apps
             &fonts(),
         )
         .unwrap();
-        assert_eq!(plain.palette, strong.palette, "apps keep the palette");
         let tok =
             |t: &kurashi_theme::TokenMap, k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
         let (bg, fg) = (
