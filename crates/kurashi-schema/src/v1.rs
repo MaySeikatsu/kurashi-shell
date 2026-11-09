@@ -723,6 +723,13 @@ pub struct Colors {
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
     #[kurashi(default = Scheme::Auto)]
     pub scheme: Scheme,
+    /// Wallpaper colours
+    /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
+    /// same, more saturated; Prominent takes the colours that are in the picture as they are (its dark and light for
+    /// ground and text, its strongest hues as accents); Mixed puts the picture's own accents on calm tones. Text stays
+    /// legible in every mode (I455).
+    #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
+    pub extraction: Extraction,
     /// Contrast
     /// Raises the contrast between surfaces and text.
     #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
@@ -753,6 +760,18 @@ pub struct Colors {
     /// Used in light and dark alike, adjusted only as far as legibility needs.
     #[kurashi(default = Color::new("#2b4a8b"), requires = "theme.colors.ink == custom")]
     pub ink_custom: Color,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Extraction {
+    /// Tone-matched
+    ToneMatched,
+    /// Vibrant
+    Vibrant,
+    /// Prominent
+    Prominent,
+    /// Mixed
+    Mixed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

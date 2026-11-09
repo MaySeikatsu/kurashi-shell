@@ -43,6 +43,9 @@ Item {
     readonly property string configMode: configValues["theme.colors.scheme"]
         ? String(configValues["theme.colors.scheme"].value || "") : ""
     readonly property string configScheme: configMode === "light" ? "light" : "dark"
+    // I455: the preview extracts as the theme would.
+    readonly property string configExtraction: configValues["theme.colors.extraction"]
+        ? String(configValues["theme.colors.extraction"].value || "") : ""
     readonly property string configPalette: configValues["theme.colors.palette"]
         ? String(configValues["theme.colors.palette"].value || "") : ""
     readonly property bool themeFollowsWallpaper: configPalette === "wallpaper"
@@ -255,7 +258,7 @@ Item {
         var g = gate
         var token = ++previewToken
         previewBusy = true
-        Store.act("wallpaper.preview", { path: row.path, scheme: picker.previewScheme }, function (done, err) {
+        Store.act("wallpaper.preview", { path: row.path, scheme: picker.previewScheme, extraction: picker.configExtraction }, function (done, err) {
             if (!g.open || token !== picker.previewToken) return
             picker.previewBusy = false
             if (err) { picker.themePreview = null; picker.previewError = err.msg; return }

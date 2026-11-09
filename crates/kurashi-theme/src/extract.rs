@@ -394,24 +394,18 @@ fn material_roles(s: &MScheme, dark: bool) -> RawRoles {
     r
 }
 
-/// Mixed: the vibrant scheme's tones, the picture's hues and chroma on the three accents.
+/// Mixed: the picture's own accents, as they are (lifted only as far as contrast needs), on the tone-matched
+/// scheme's calm ground and text.
 fn mixed_scheme(base: RawRoles, sw: &[Swatch], dark: bool) -> RawRoles {
     let mut r = base;
     let surface = r["surface"];
     let acc = accents(sw, &[]);
     for (i, name) in ["accent", "secondary", "tertiary"].iter().enumerate() {
-        // A grey pick keeps the vibrant scheme's colour: a hue read off a grey is noise.
+        // A grey pick keeps the scheme's own colour: Mixed is about the picture's hues.
         let Some(p) = acc.get(i).filter(|p| p.c >= CHROMATIC) else {
             continue;
         };
-        let tone = Lch::of(r[*name]).l;
-        let c = Lch {
-            l: tone,
-            c: p.c.max(0.06),
-            h: p.h,
-        }
-        .rgb();
-        accent_roles(&mut r, name, c, surface, dark);
+        accent_roles(&mut r, name, p.rgb(), surface, dark);
     }
     r
 }
@@ -448,7 +442,7 @@ pub fn palette(w: &Wallpaper, mode: Mode) -> Result<PaletteSet, ThemeError> {
         }
         Mode::Prominent => (prominent_scheme(&sw, true), prominent_scheme(&sw, false)),
         Mode::Mixed => {
-            let t = material(Variant::Vibrant);
+            let t = material(Variant::TonalSpot);
             (
                 mixed_scheme(material_roles(&t.schemes.dark, true), &sw, true),
                 mixed_scheme(material_roles(&t.schemes.light, false), &sw, false),

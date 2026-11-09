@@ -1061,6 +1061,45 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.extraction.tone_matched",
+                  "value": "tone_matched"
+                },
+                {
+                  "label": "config.choice.extraction.vibrant",
+                  "value": "vibrant"
+                },
+                {
+                  "label": "config.choice.extraction.prominent",
+                  "value": "prominent"
+                },
+                {
+                  "label": "config.choice.extraction.mixed",
+                  "value": "mixed"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.palette",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "wallpaper"
+                }
+              ],
+              "default": "tone_matched",
+              "help": "config.theme.colors.extraction.help",
+              "key": "theme.colors.extraction",
+              "label": "config.theme.colors.extraction.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
                   "label": "config.choice.contrast.standard",
                   "value": "standard"
                 },

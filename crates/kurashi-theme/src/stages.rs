@@ -50,10 +50,14 @@ pub fn source(src: &Source) -> Result<(PaletteSet, Vec<String>), ThemeError> {
             let note = e.note(None);
             Ok((e.set, vec![note]))
         }
-        Source::WallpaperFile(path) => {
+        Source::WallpaperFile(path, mode) => {
             let e = wallpaper_file(path)?;
             let note = e.note(Some(path));
-            Ok((e.set.clone(), vec![note]))
+            if *mode == crate::extract::Mode::TonalMatched {
+                return Ok((e.set.clone(), vec![note]));
+            }
+            let set = e.mode_set(*mode)?;
+            Ok((set, vec![format!("{note}; extraction {}", mode.name())]))
         }
     }
 }
@@ -99,6 +103,9 @@ pub fn is_monochrome(rgba: &[u8]) -> bool {
 #[derive(Clone, Debug)]
 pub struct Extracted {
     pub set: PaletteSet,
+    /// The decoded picture at extraction size, for the other extraction modes (I455), each made once on first use.
+    pub pixels: Wallpaper,
+    modes: Arc<Mutex<BTreeMap<&'static str, PaletteSet>>>,
     pub seed: Option<Rgb>,
     pub mono: bool,
     /// The picture's mean perceived lightness, CIE L* 0–100 (K55: scheme `wallpaper` is light from
@@ -111,6 +118,17 @@ pub struct Extracted {
 pub const LIGHT_WALLPAPER: f64 = 55.0;
 
 impl Extracted {
+    /// The palette of `mode` (not tone-matched, which is [`Extracted::set`]), made once per picture and mode.
+    pub fn mode_set(&self, mode: crate::extract::Mode) -> Result<PaletteSet, ThemeError> {
+        let mut m = self.modes.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(s) = m.get(mode.name()) {
+            return Ok(s.clone());
+        }
+        let s = crate::extract::palette(&self.pixels, mode)?;
+        m.insert(mode.name(), s.clone());
+        Ok(s)
+    }
+
     /// Whether scheme `wallpaper` resolves to light for this picture (K55).
     pub fn is_light(&self) -> bool {
         self.lightness >= LIGHT_WALLPAPER
@@ -179,6 +197,8 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
             seed: None,
             mono: true,
             lightness,
+            pixels: w.clone(),
+            modes: Arc::default(),
         });
     }
     let (set, seed) = from_wallpaper(w)?;
@@ -187,6 +207,8 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
         seed: Some(seed),
         mono: false,
         lightness,
+        pixels: w.clone(),
+        modes: Arc::default(),
     })
 }
 

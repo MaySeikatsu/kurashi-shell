@@ -317,7 +317,16 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     }
     let palette = s(store, "theme.colors.palette");
     let source = match (palette.as_str(), picture) {
-        (WALLPAPER_PALETTE, Some(path)) => Source::WallpaperFile(path.to_path_buf()),
+        (WALLPAPER_PALETTE, Some(path)) => {
+            use kurashi_theme::extract::Mode;
+            let mode = match s(store, "theme.colors.extraction").as_str() {
+                "vibrant" => Mode::Vibrant,
+                "prominent" => Mode::Prominent,
+                "mixed" => Mode::Mixed,
+                _ => Mode::TonalMatched,
+            };
+            Source::WallpaperFile(path.to_path_buf(), mode)
+        }
         (WALLPAPER_PALETTE, None) => ThemeInput::default().source,
         _ => Source::Palette(palette),
     };

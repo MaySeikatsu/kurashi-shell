@@ -75,7 +75,7 @@ pub enum Source {
     Wallpaper(Wallpaper),
     /// `wallpaper` from the picture at this path. Decoded and extracted once per path, mtime and
     /// size (`stages::wallpaper_file`), so a resolve on every config change costs no decode.
-    WallpaperFile(PathBuf),
+    WallpaperFile(PathBuf, crate::extract::Mode),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

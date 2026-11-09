@@ -331,7 +331,10 @@ fn wallpaper_file_gives_a_palette_from_fixture_pictures() {
     for scheme in [Scheme::Dark, Scheme::Light] {
         for (path, hue_ok) in &fixtures {
             let i = ThemeInput {
-                source: Source::WallpaperFile(path.clone()),
+                source: Source::WallpaperFile(
+                    path.clone(),
+                    kurashi_theme::extract::Mode::TonalMatched,
+                ),
                 scheme,
                 ..Default::default()
             };
@@ -369,7 +372,7 @@ fn a_monochrome_picture_falls_back_to_wa_iro_and_says_so() {
         [v, v, v]
     });
     let i = ThemeInput {
-        source: Source::WallpaperFile(grey),
+        source: Source::WallpaperFile(grey, kurashi_theme::extract::Mode::TonalMatched),
         ..Default::default()
     };
     let (palette, notes) = resolve_palette(&i).unwrap();

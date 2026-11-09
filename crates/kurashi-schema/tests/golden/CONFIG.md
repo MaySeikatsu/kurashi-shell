@@ -416,6 +416,14 @@ Every palette has both. Follow the system's preference, the wallpaper's brightne
 - type: `choice` · default: `"auto"`
 - choices: `"auto"` | `"wallpaper"` | `"dark"` | `"light"`
 
+#### `theme.colors.extraction` — Wallpaper colours
+
+How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the same, more saturated; Prominent takes the colours that are in the picture as they are (its dark and light for ground and text, its strongest hues as accents); Mixed puts the picture's own accents on calm tones. Text stays legible in every mode (I455).
+
+- type: `choice` · default: `"tone_matched"`
+- choices: `"tone_matched"` | `"vibrant"` | `"prominent"` | `"mixed"`
+- only while `theme.colors.palette == "wallpaper"`
+
 #### `theme.colors.contrast` — Contrast
 
 Raises the contrast between surfaces and text.
