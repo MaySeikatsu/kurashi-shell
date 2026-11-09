@@ -762,3 +762,81 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         Err(_) => out(p, vec!["strong chrome: could not be derived".into()]),
     }
 }
+
+// ---------- chrome gradient (I460) ----------
+
+/// The gradient's stops for the chrome's ground: tones of the ground's colour (darker and lighter by `spread`), or the
+/// palette's hues at the ground's lightness. Every stop keeps the text (`on_surface`) at 4.5:1 at least: a stop that
+/// would fall short is moved back toward the ground until it does.
+pub fn wash_stops(p: &Palette, w: &crate::input::Wash) -> Vec<Rgb> {
+    use crate::extract::Lch;
+    let ground = p.get("surface");
+    let ink = p.get("on_surface");
+    let g = Lch::of(ground);
+    let keep = |c: Lch| -> Rgb {
+        let mut c = c;
+        for _ in 0..60 {
+            let rgb = c.rgb();
+            if contrast(ink, rgb) >= 4.5 {
+                return rgb;
+            }
+            c.l += (g.l - c.l).clamp(-0.01, 0.01);
+            if (c.l - g.l).abs() < 0.005 {
+                break;
+            }
+        }
+        Lch { l: g.l, ..c }.rgb()
+    };
+    if w.tones {
+        let d = w.spread / 2.0;
+        return vec![keep(Lch { l: g.l - d, ..g }), keep(Lch { l: g.l + d, ..g })];
+    }
+    let mut hues: Vec<Lch> = vec![g];
+    for r in ["accent", "secondary", "tertiary"] {
+        let c = Lch::of(p.get(r));
+        if c.c < 0.03 {
+            continue;
+        }
+        let gap = |a: f64, b: f64| {
+            let d = (a - b).rem_euclid(360.0);
+            d.min(360.0 - d)
+        };
+        if hues.iter().all(|h| h.c < 0.03 || gap(h.h, c.h) >= 25.0) {
+            hues.push(c);
+        }
+    }
+    hues.into_iter()
+        .take(4)
+        .map(|h| {
+            keep(Lch {
+                l: g.l,
+                c: h.c.min(0.2),
+                h: h.h,
+            })
+        })
+        .collect()
+}
+
+/// The `chrome.wash.*` tokens the frontend's Wash reads; `chrome.wash.on` false without a gradient.
+pub fn wash_tokens(
+    p: &Palette,
+    w: Option<&crate::input::Wash>,
+) -> Vec<(String, serde_json::Value)> {
+    use serde_json::json;
+    let Some(w) = w else {
+        return vec![("chrome.wash.on".into(), json!(false))];
+    };
+    let stops: Vec<String> = wash_stops(p, w).iter().map(|c| c.hex()).collect();
+    vec![
+        ("chrome.wash.on".into(), json!(true)),
+        ("chrome.wash.mode".into(), json!(w.pattern)),
+        ("chrome.wash.angle".into(), json!(w.angle)),
+        ("chrome.wash.softness".into(), json!(w.softness)),
+        ("chrome.wash.scale".into(), json!(w.size)),
+        (
+            "chrome.wash.span".into(),
+            json!(if w.span_all { "all" } else { "output" }),
+        ),
+        ("chrome.wash.stops".into(), json!(stops)),
+    ]
+}

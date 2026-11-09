@@ -346,7 +346,25 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
-        strong_chrome: b(store, "theme.colors.strong_chrome"),
+        strong_chrome: matches!(
+            s(store, "theme.colors.chrome_fill").as_str(),
+            "strong" | "gradient"
+        ),
+        wash: (s(store, "theme.colors.chrome_fill") == "gradient").then(|| kurashi_theme::Wash {
+            tones: s(store, "theme.colors.gradient.colours") != "colours",
+            pattern: match s(store, "theme.colors.gradient.pattern").as_str() {
+                "" => "linear".into(),
+                p => p.to_owned(),
+            },
+            angle: f(store, "theme.colors.gradient.angle", 35.0),
+            spread: f(store, "theme.colors.gradient.spread", 12.0) / 100.0,
+            softness: f(store, "theme.colors.gradient.softness", 85.0) / 100.0,
+            size: f(store, "theme.colors.gradient.size", 420.0),
+            span_all: store
+                .get("theme.colors.gradient.span_outputs", None)
+                .and_then(|p| p.value.as_bool())
+                .unwrap_or(true),
+        }),
         ink: match s(store, "theme.colors.ink").as_str() {
             "" | "palette" => kurashi_theme::Ink::Palette,
             "custom" => kurashi_theme::color::Rgb::parse(&s(store, "theme.colors.ink_custom"))

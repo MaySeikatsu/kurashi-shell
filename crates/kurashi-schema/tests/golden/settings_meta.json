@@ -1098,12 +1098,234 @@
             },
             {
               "advanced": false,
-              "control": "toggle",
+              "choices": [
+                {
+                  "label": "config.choice.chrome_fill.neutral",
+                  "value": "neutral"
+                },
+                {
+                  "label": "config.choice.chrome_fill.strong",
+                  "value": "strong"
+                },
+                {
+                  "label": "config.choice.chrome_fill.gradient",
+                  "value": "gradient"
+                }
+              ],
+              "control": "select",
               "couplings": [],
-              "default": false,
-              "help": "config.theme.colors.strong_chrome.help",
-              "key": "theme.colors.strong_chrome",
-              "label": "config.theme.colors.strong_chrome.label",
+              "default": "neutral",
+              "help": "config.theme.colors.chrome_fill.help",
+              "key": "theme.colors.chrome_fill",
+              "label": "config.theme.colors.chrome_fill.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.gradient_colours.tones",
+                  "value": "tones"
+                },
+                {
+                  "label": "config.choice.gradient_colours.colours",
+                  "value": "colours"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                }
+              ],
+              "default": "tones",
+              "help": "config.theme.colors.gradient.colours.help",
+              "key": "theme.colors.gradient.colours",
+              "label": "config.theme.colors.gradient.colours.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.gradient_pattern.linear",
+                  "value": "linear"
+                },
+                {
+                  "label": "config.choice.gradient_pattern.radial",
+                  "value": "radial"
+                },
+                {
+                  "label": "config.choice.gradient_pattern.watercolour",
+                  "value": "watercolour"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                }
+              ],
+              "default": "linear",
+              "help": "config.theme.colors.gradient.pattern.help",
+              "key": "theme.colors.gradient.pattern",
+              "label": "config.theme.colors.gradient.pattern.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                },
+                {
+                  "key": "theme.colors.gradient.pattern",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "linear"
+                }
+              ],
+              "default": 35,
+              "help": "config.theme.colors.gradient.angle.help",
+              "key": "theme.colors.gradient.angle",
+              "label": "config.theme.colors.gradient.angle.label",
+              "max": 359,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 5,
+              "type": "int",
+              "unit": "°"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                },
+                {
+                  "key": "theme.colors.gradient.colours",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "tones"
+                }
+              ],
+              "default": 12,
+              "help": "config.theme.colors.gradient.spread.help",
+              "key": "theme.colors.gradient.spread",
+              "label": "config.theme.colors.gradient.spread.label",
+              "max": 30,
+              "min": 2,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 1,
+              "type": "int",
+              "unit": "%"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                }
+              ],
+              "default": 85,
+              "help": "config.theme.colors.gradient.softness.help",
+              "key": "theme.colors.gradient.softness",
+              "label": "config.theme.colors.gradient.softness.label",
+              "max": 100,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 5,
+              "type": "int",
+              "unit": "%"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                },
+                {
+                  "key": "theme.colors.gradient.pattern",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "watercolour"
+                }
+              ],
+              "default": 420,
+              "help": "config.theme.colors.gradient.size.help",
+              "key": "theme.colors.gradient.size",
+              "label": "config.theme.colors.gradient.size.label",
+              "max": 1600,
+              "min": 120,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 20,
+              "type": "int",
+              "unit": "px"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.colors.chrome_fill",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "gradient"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.colors.gradient.span_outputs.help",
+              "key": "theme.colors.gradient.span_outputs",
+              "label": "config.theme.colors.gradient.span_outputs.label",
               "per_output": false,
               "restart": false,
               "since": 1,

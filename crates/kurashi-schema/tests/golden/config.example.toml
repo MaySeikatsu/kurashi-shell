@@ -356,10 +356,13 @@
 #   theme.colors.palette == "wallpaper"
 # extraction = "tone_matched"
 #
-# Chrome in the strong colour — The bar, frame, panels and cards — and the apps that
-# follow the theme — take the palette's strong colour instead of their grey, black or
-# white; text and controls on them are chosen again so they stay legible (I456).
-# strong_chrome = false
+# Chrome fill — What the bar, frame, panels and cards — and the apps that follow the
+# theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the
+# palette's strong colour. Gradient: the strong colour running from one tone to another
+# across the screen (or every screen), in the pattern below. Text and controls are chosen
+# again so they stay legible (I456, I460).
+#   choices: "neutral" | "strong" | "gradient"
+# chrome_fill = "neutral"
 #
 # Contrast — Raises the contrast between surfaces and text.
 #   choices: "standard" | "medium" | "high" · forced to "high" while a11y.high_contrast is on
@@ -389,6 +392,45 @@
 # needs.
 #   only while theme.colors.ink == "custom"
 # ink_custom = "#2b4a8b"
+
+# [theme.colors.gradient]
+#
+# Gradient colours — Tones: the strong colour from darker to lighter. Colours: the
+# palette's accent, secondary and tertiary run into each other (with the wallpaper's Mixed
+# colours, the picture's own).
+#   choices: "tones" | "colours" · only while theme.colors.chrome_fill == "gradient"
+# colours = "tones"
+#
+# Pattern — Linear runs from one edge to the other; radial from the middle out;
+# watercolour lays large soft pools that bleed into each other.
+#   choices: "linear" | "radial" | "watercolour" · only while theme.colors.chrome_fill ==
+#   "gradient"
+# pattern = "linear"
+#
+# Angle — The direction a linear gradient runs in.
+#   range: 0..=359, step 5 (°) · only while theme.colors.chrome_fill == "gradient" · only
+#   while theme.colors.gradient.pattern == "linear"
+# angle = 35
+#
+# Range of tones — How far the darker and the lighter tone lie apart; text stays legible
+# on both.
+#   range: 2..=30, step 1 (%) · only while theme.colors.chrome_fill == "gradient" · only
+#   while theme.colors.gradient.colours == "tones"
+# spread = 12
+#
+# Softness — How gently one colour runs into the next.
+#   range: 0..=100, step 5 (%) · only while theme.colors.chrome_fill == "gradient"
+# softness = 85
+#
+# Pool size — How large the watercolour's pools are.
+#   range: 120..=1600, step 20 (px) · only while theme.colors.chrome_fill == "gradient" ·
+#   only while theme.colors.gradient.pattern == "watercolour"
+# size = 420
+#
+# Across all screens — One gradient over every screen together, as they stand side by
+# side; off, each screen has its own.
+#   only while theme.colors.chrome_fill == "gradient"
+# span_outputs = true
 
 # [theme.colors.media]
 #

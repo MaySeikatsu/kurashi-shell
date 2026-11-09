@@ -731,11 +731,15 @@ pub struct Colors {
     /// these hues (I455).
     #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
     pub extraction: Extraction,
-    /// Chrome in the strong colour
-    /// The bar, frame, panels and cards — and the apps that follow the theme — take the palette's strong colour instead
-    /// of their grey, black or white; text and controls on them are chosen again so they stay legible (I456).
-    #[kurashi(default = false)]
-    pub strong_chrome: bool,
+    /// Chrome fill
+    /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
+    /// palette's grey, black or white. Strong colour: the palette's strong colour. Gradient: the strong colour running
+    /// from one tone to another across the screen (or every screen), in the pattern below. Text and controls are chosen
+    /// again so they stay legible (I456, I460).
+    #[kurashi(default = ChromeFill::Neutral)]
+    pub chrome_fill: ChromeFill,
+    #[kurashi(nested)]
+    pub gradient: ChromeGradient,
     /// Contrast
     /// Raises the contrast between surfaces and text.
     #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
@@ -766,6 +770,90 @@ pub struct Colors {
     /// Used in light and dark alike, adjusted only as far as legibility needs.
     #[kurashi(default = Color::new("#2b4a8b"), requires = "theme.colors.ink == custom")]
     pub ink_custom: Color,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ChromeFill {
+    /// Neutral
+    Neutral,
+    /// Strong colour
+    Strong,
+    /// Gradient
+    Gradient,
+}
+
+/// I460: the chrome's gradient, one continuous sheet that every ground shows its own part of.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct ChromeGradient {
+    /// Gradient colours
+    /// Tones: the strong colour from darker to lighter. Colours: the palette's accent, secondary and tertiary run into
+    /// each other (with the wallpaper's Mixed colours, the picture's own).
+    #[kurashi(default = GradientColours::Tones, requires = "theme.colors.chrome_fill == gradient")]
+    pub colours: GradientColours,
+    /// Pattern
+    /// Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed
+    /// into each other.
+    #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.chrome_fill == gradient")]
+    pub pattern: GradientPattern,
+    /// Angle
+    /// The direction a linear gradient runs in.
+    #[kurashi(
+        default = 35,
+        range = 0..=359,
+        step = 5,
+        unit = "°",
+        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.pattern == linear"
+    )]
+    pub angle: u32,
+    /// Range of tones
+    /// How far the darker and the lighter tone lie apart; text stays legible on both.
+    #[kurashi(
+        default = 12,
+        range = 2..=30,
+        step = 1,
+        unit = "%",
+        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.colours == tones"
+    )]
+    pub spread: u32,
+    /// Softness
+    /// How gently one colour runs into the next.
+    #[kurashi(default = 85, range = 0..=100, step = 5, unit = "%", requires = "theme.colors.chrome_fill == gradient")]
+    pub softness: u32,
+    /// Pool size
+    /// How large the watercolour's pools are.
+    #[kurashi(
+        default = 420,
+        range = 120..=1600,
+        step = 20,
+        unit = "px",
+        requires = "theme.colors.chrome_fill == gradient",
+        requires = "theme.colors.gradient.pattern == watercolour"
+    )]
+    pub size: u32,
+    /// Across all screens
+    /// One gradient over every screen together, as they stand side by side; off, each screen has its own.
+    #[kurashi(default = true, requires = "theme.colors.chrome_fill == gradient")]
+    pub span_outputs: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum GradientColours {
+    /// Tones of one colour
+    Tones,
+    /// All its colours
+    Colours,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum GradientPattern {
+    /// Linear
+    Linear,
+    /// Radial
+    Radial,
+    /// Watercolour
+    Watercolour,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

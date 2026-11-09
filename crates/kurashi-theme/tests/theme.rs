@@ -1180,6 +1180,15 @@ fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
         let strong = resolve(
             &ThemeInput {
                 strong_chrome: true,
+                wash: Some(Wash {
+                    tones: true,
+                    pattern: "linear".into(),
+                    angle: 35.0,
+                    spread: 0.2,
+                    softness: 0.85,
+                    size: 420.0,
+                    span_all: true,
+                }),
                 ..base
             },
             &fonts(),
@@ -1199,6 +1208,14 @@ fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
         assert!(contrast(fg, bg) >= 4.5, "{fg} on {bg}");
         let acc = tok(&strong.tokens, "color.accent");
         assert!(contrast(acc, bg) >= 3.0, "{acc} on {bg}");
+        // I460: every gradient stop keeps the text legible.
+        let stops = strong.tokens["chrome.wash.stops"].as_array().unwrap();
+        assert_eq!(stops.len(), 2);
+        for st in stops {
+            let st = Rgb::parse(st.as_str().unwrap()).unwrap();
+            assert!(contrast(fg, st) >= 4.5, "{fg} on stop {st}");
+        }
+        assert_eq!(plain.tokens["chrome.wash.on"], false);
     }
 }
 

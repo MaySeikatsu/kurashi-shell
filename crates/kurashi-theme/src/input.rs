@@ -257,6 +257,8 @@ pub struct ThemeInput {
     pub ink: Ink,
     /// Grounds in the palette's strong colour (I456), the shell's and those of the apps that follow.
     pub strong_chrome: bool,
+    /// The chrome's gradient (I460): `Some` while the chrome fill is the gradient (with `strong_chrome` on: its ground).
+    pub wash: Option<Wash>,
     pub axes: Axes,
     /// The look's slots and `[decor]` metrics (W53.0a); empty = every default (today's shell).
     pub decor: Decor,
@@ -277,9 +279,29 @@ impl Default for ThemeInput {
             oled: false,
             ink: Ink::Palette,
             strong_chrome: false,
+            wash: None,
             axes: Axes::default(),
             decor: Decor::default(),
             overrides: BTreeMap::new(),
         }
     }
+}
+
+/// The chrome's gradient (I460, `theme.colors.gradient.*`): published as `chrome.wash.*` tokens, drawn by the frontend's
+/// Wash over every ground as one continuous sheet.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Wash {
+    /// true: tones of the ground's colour; false: the palette's colours.
+    pub tones: bool,
+    /// `linear` | `radial` | `watercolour`.
+    pub pattern: String,
+    pub angle: f64,
+    /// Lightness apart of the two tones (OKLab L, 0..0.3).
+    pub spread: f64,
+    /// 0..1.
+    pub softness: f64,
+    /// Watercolour pool size, logical px.
+    pub size: f64,
+    /// One canvas over every output.
+    pub span_all: bool,
 }

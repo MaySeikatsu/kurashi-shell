@@ -98,7 +98,7 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
 /// Full resolution: palette pipeline, axis scales, component tokens, overrides.
 pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutput, ThemeError> {
     let (palette, mut notes) = resolve_palette(input)?;
-    let (tokens, tn) = tokens::build(
+    let (mut tokens, tn) = tokens::build(
         &palette,
         &input.axes,
         &input.decor,
@@ -116,6 +116,10 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
         },
         text,
     }));
+    // I460: the chrome's gradient, for the frontend's Wash.
+    for (k, v) in stages::wash_tokens(&palette, input.wash.as_ref()) {
+        tokens.insert(k, v);
+    }
     Ok(ThemeOutput {
         tokens,
         palette,

@@ -37,6 +37,7 @@
   "chrome.soft_color": "#000000",
   "chrome.soft_dy": 6,
   "chrome.style": "soft",
+  "chrome.wash.on": false,
   "color.accent": "#0066cc",
   "color.accent_container": "#accaea",
   "color.bevel_dark": "#171718",

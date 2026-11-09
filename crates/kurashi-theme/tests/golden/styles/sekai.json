@@ -37,6 +37,7 @@
   "chrome.soft_color": "#000000",
   "chrome.soft_dy": 0,
   "chrome.style": "keycap",
+  "chrome.wash.on": false,
   "color.accent": "#e2457f",
   "color.accent_container": "#eec4d4",
   "color.bevel_dark": "#171918",
