@@ -10,6 +10,7 @@
 pub mod appearance;
 pub mod color;
 pub mod export;
+pub mod extract;
 pub mod font_mix;
 pub mod fonts;
 pub mod input;
