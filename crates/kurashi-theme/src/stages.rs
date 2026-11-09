@@ -653,6 +653,12 @@ pub fn wcag(mut p: Palette, on: bool) -> StageOut {
 /// steps of it; text and controls are chosen again against that ground. The accent itself moves to the colour that
 /// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Apps that follow take it too
 /// (their files are written from the theme's tokens). Runs before wcag, which still has the last word.
+/// Text on a strong ground: above AA (4.5:1) with room for the material's shading, which the texture's legibility cap
+/// would otherwise turn off entirely (session 26: a ground at exactly 4.5:1 left the relief at amplitude 0).
+const GROUND_TEXT: f64 = 6.0;
+/// Text on the containers and the gradient's stops, the same headroom a little smaller.
+const STEP_TEXT: f64 = 5.5;
+
 pub fn strong_chrome(p: Palette) -> StageOut {
     use crate::extract::{Lch, lift_toward};
     let accent = Lch::of(p.get("accent"));
@@ -675,7 +681,7 @@ pub fn strong_chrome(p: Palette) -> StageOut {
     let reach = |ink: Rgb, step: f64| -> Option<Lch> {
         let mut g = base;
         for _ in 0..100 {
-            if contrast(ink, g.rgb()) >= 4.5 {
+            if contrast(ink, g.rgb()) >= GROUND_TEXT {
                 return Some(g);
             }
             g.l += step;
@@ -719,7 +725,7 @@ pub fn strong_chrome(p: Palette) -> StageOut {
     let surface = ground.rgb();
     let mut raw = RawRoles::new();
     raw.insert("surface".into(), surface);
-    let ink = if contrast(own_ink, surface) >= 4.5 {
+    let ink = if contrast(own_ink, surface) >= STEP_TEXT {
         own_ink
     } else if contrast(WHITE, surface) >= contrast(BLACK, surface) {
         WHITE
@@ -748,7 +754,7 @@ pub fn strong_chrome(p: Palette) -> StageOut {
                 ground.l - d
             };
             c = Lch { l, ..ground }.rgb();
-            if contrast(ink, c) >= 4.6 || d.abs() < 0.005 {
+            if contrast(ink, c) >= STEP_TEXT || d.abs() < 0.005 {
                 break;
             }
             d *= 0.7;
@@ -826,7 +832,7 @@ pub fn wash_stops(p: &Palette, w: &crate::input::Wash) -> Vec<Rgb> {
         let mut c = c;
         for _ in 0..60 {
             let rgb = c.rgb();
-            if contrast(ink, rgb) >= 4.5 {
+            if contrast(ink, rgb) >= STEP_TEXT {
                 return rgb;
             }
             c.l += (g.l - c.l).clamp(-0.01, 0.01);

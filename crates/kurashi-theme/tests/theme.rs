@@ -1288,3 +1288,23 @@ fn strong_chrome_containers_never_cost_the_text_its_colour() {
         assert!(contrast(ink, out.get(c)) >= 4.5, "{c}");
     }
 }
+
+#[test]
+fn strong_chrome_leaves_the_material_room_to_shade() {
+    // Session 26 (live): a strong ground at exactly 4.5:1 left the texture's legibility cap no room, and the relief went
+    // to amplitude 0. The ground keeps 6:1 with its text, the containers 5.5:1.
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Dark)
+        .unwrap()
+        .palette;
+    p.set("accent", Rgb::parse("#f462a9").unwrap());
+    let out = stages::strong_chrome(p).palette;
+    let ink = out.get("on_surface");
+    assert!(contrast(ink, out.get("surface")) >= 6.0);
+    for c in [
+        "surface_container_low",
+        "surface_container",
+        "surface_container_high",
+    ] {
+        assert!(contrast(ink, out.get(c)) >= 5.5, "{c}");
+    }
+}
