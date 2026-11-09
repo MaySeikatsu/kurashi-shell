@@ -1201,3 +1201,25 @@ fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
         assert!(contrast(acc, bg) >= 3.0, "{acc} on {bg}");
     }
 }
+
+#[test]
+fn strong_chrome_keeps_a_soft_colour_soft_and_light_under_dark_text() {
+    // Session 26 (user screenshot): a sage wallpaper's accent became a dark, loud olive. The ground keeps the accent's
+    // chroma and moves its lightness the least that text needs.
+    let sage = Rgb::parse("#b5c98f").unwrap();
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Light)
+        .unwrap()
+        .palette;
+    p.set("accent", sage);
+    let out = stages::strong_chrome(p).palette;
+    let (g, a) = (
+        kurashi_theme::extract::Lch::of(out.get("surface")),
+        kurashi_theme::extract::Lch::of(sage),
+    );
+    assert!((g.c - a.c).abs() < 0.03, "chroma {} vs {}", g.c, a.c);
+    assert!((g.l - a.l).abs() < 0.08, "lightness {} vs {}", g.l, a.l);
+    assert!(
+        out.get("on_surface").luminance() < 0.1,
+        "dark text on a light sage"
+    );
+}

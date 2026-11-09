@@ -662,17 +662,38 @@ pub fn strong_chrome(p: Palette) -> StageOut {
             vec!["strong chrome: the accent is a grey, the chrome keeps its ground".into()],
         );
     }
-    let was_dark = p.dark;
-    // A mid-tone carries neither white nor black text well (a mustard ground: 3.9:1 white, 5:1 black). The ground goes
-    // as deep as white text needs for 7:1, so the colour stays strong and the text reads (AAA for body text).
-    let mut ground = Lch {
-        l: if was_dark { 0.45 } else { 0.55 },
-        c: accent.c.max(0.12),
-        h: accent.h,
+    // The accent as it is (its own chroma: a soft sage stays soft), moved in lightness only as far as text needs 7:1:
+    // toward light with dark text or toward dark with white text, whichever is the smaller move (a sage keeps its
+    // lightness under black text; a mid pink goes a little lighter or darker, not to a deep shade).
+    let base = Lch {
+        c: accent.c.max(0.04),
+        ..accent
     };
-    while ground.l > 0.2 && contrast(WHITE, ground.rgb()) < 7.0 {
-        ground.l -= 0.01;
-    }
+    let reach = |ink: Rgb, step: f64| -> Option<Lch> {
+        let mut g = base;
+        for _ in 0..100 {
+            if contrast(ink, g.rgb()) >= 7.0 {
+                return Some(g);
+            }
+            g.l += step;
+            if !(0.05..=0.98).contains(&g.l) {
+                return None;
+            }
+        }
+        None
+    };
+    let ground = match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
+        (Some(a), Some(b)) => {
+            if (a.l - base.l).abs() <= (b.l - base.l).abs() {
+                a
+            } else {
+                b
+            }
+        }
+        (Some(a), None) => a,
+        (None, Some(b)) => b,
+        (None, None) => base,
+    };
     let surface = ground.rgb();
     let mut raw = RawRoles::new();
     raw.insert("surface".into(), surface);
@@ -683,8 +704,14 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         ("surface_container_high", 0.09),
         ("surface_container_highest", 0.12),
     ];
+    // Containers step toward the ink's side less than the text needs: lighter on a dark ground, darker on a light one.
+    let dark_ground = contrast(WHITE, ground.rgb()) >= contrast(BLACK, ground.rgb());
     for (k, d) in steps {
-        let l = if was_dark { ground.l + d } else { ground.l - d };
+        let l = if dark_ground {
+            ground.l + d
+        } else {
+            ground.l - d
+        };
         raw.insert(k.into(), Lch { l, ..ground }.rgb());
     }
     let ink = if contrast(WHITE, surface) >= contrast(BLACK, surface) {
