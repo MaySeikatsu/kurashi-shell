@@ -40,15 +40,27 @@ Item {
             borderColor: rb.border.color
         }
     }
+    // By file, not by type: RoundBox is linked into other hosts (the web dock's) that have neither Wash nor PenOutline; a
+    // type named here would have to resolve there too. They load only in Settings.
     Loader {
         anchors.fill: parent
         anchors.margins: rb.lineW
         active: rb.washed
-        sourceComponent: Wash { radius: Math.max(0, rb.radius - rb.lineW); fill: rb.color }
+        source: active ? "Wash.qml" : ""
+        onLoaded: {
+            item.radius = Qt.binding(function () { return Math.max(0, rb.radius - rb.lineW) })
+            item.fill = Qt.binding(function () { return rb.color })
+        }
     }
     Loader {
         anchors.fill: parent
         active: rb.penned
-        sourceComponent: PenOutline { radius: rb.radius; color: rb.border.color; lineWidth: rb.bw; anchor: rb }
+        source: active ? "PenOutline.qml" : ""
+        onLoaded: {
+            item.radius = Qt.binding(function () { return rb.radius })
+            item.color = Qt.binding(function () { return rb.border.color })
+            item.lineWidth = Qt.binding(function () { return rb.bw })
+            item.anchor = rb
+        }
     }
 }
