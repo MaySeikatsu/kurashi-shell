@@ -85,8 +85,8 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./handwriting-fonts.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono monaspace noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond cormorant roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" "DotGothic16" "RobotoFlex" ]; }) ]);
-      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./handwriting-fonts.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono monaspace noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond cormorant roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" \"DotGothic16\" \"RobotoFlex\" ]; }) ])";
+      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./handwriting-fonts.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono monaspace noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond cormorant roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic open-dyslexic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" "DotGothic16" "RobotoFlex" ]; }) ]);
+      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./handwriting-fonts.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono monaspace noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond cormorant roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic open-dyslexic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" \"DotGothic16\" \"RobotoFlex\" ]; }) ])";
       description = ''
         Fonts the shell draws with: its icon subset (nix/icon-font.nix, W41: the names the shell draws, also installed by
         the package), and Material Symbols (Rounded, and Sharp for line chrome) for the names the subset lacks (without
@@ -101,6 +101,7 @@ in
         nix/wine-tahoma.nix, W53.2; Misaki, free to use and redistribute: nix/misaki.nix, W53.5, the 8x8 Japanese pixel
         faces); W53.6: Cormorant Garamond (OFL; Garamond for `souls`, Perpetua for `hallownest`) and DotGothic16 (OFL,
         Latin and Japanese; the pixel face of `kawaii`); PixelMplus still falls back along each look's chain.
+        Session 26: OpenDyslexic (OFL), a reading face many with dyslexia like, for the font family and the mix.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };

@@ -157,6 +157,8 @@
 "config.choice.extraction.vibrant" = "Vibrant"
 "config.choice.extraction.prominent" = "Prominent"
 "config.choice.extraction.mixed" = "Mixed"
+"config.theme.colors.strong_chrome.label" = "Chrome in the strong colour"
+"config.theme.colors.strong_chrome.help" = "The bar, frame, panels and cards take the palette's strong colour instead of their grey, black or white; text and controls on them are chosen again so they stay legible. Apps keep the palette as it is (I456)."
 "config.theme.colors.contrast.label" = "Contrast"
 "config.theme.colors.contrast.help" = "Raises the contrast between surfaces and text."
 "config.choice.contrast.standard" = "Standard"

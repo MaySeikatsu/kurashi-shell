@@ -255,6 +255,8 @@ pub struct ThemeInput {
     pub oled: bool,
     /// The text colour (K60).
     pub ink: Ink,
+    /// The shell's chrome in the palette's strong colour (I456); apps keep the palette.
+    pub strong_chrome: bool,
     pub axes: Axes,
     /// The look's slots and `[decor]` metrics (W53.0a); empty = every default (today's shell).
     pub decor: Decor,
@@ -274,6 +276,7 @@ impl Default for ThemeInput {
             wcag: true,
             oled: false,
             ink: Ink::Palette,
+            strong_chrome: false,
             axes: Axes::default(),
             decor: Decor::default(),
             overrides: BTreeMap::new(),

@@ -645,3 +645,93 @@ pub fn wcag(mut p: Palette, on: bool) -> StageOut {
     }
     out(p, notes)
 }
+
+// ---------- strong chrome (I456) ----------
+
+/// The shell's chrome in the palette's strong colour (`theme.colors.strong_chrome`): the grounds that would be a grey,
+/// black or white (bar, frame, panels, cards) become the accent's hue at a lightness that carries text, its containers
+/// steps of it; text and controls are chosen again against that ground. The accent itself moves to the colour that
+/// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Only the shell's tokens take
+/// this: apps keep the palette as it is (`ThemeOutput::palette`). Runs before wcag, which still has the last word.
+pub fn strong_chrome(p: Palette) -> StageOut {
+    use crate::extract::{Lch, lift};
+    let accent = Lch::of(p.get("accent"));
+    if accent.c < 0.03 {
+        return out(
+            p,
+            vec!["strong chrome: the accent is a grey, the chrome keeps its ground".into()],
+        );
+    }
+    let was_dark = p.dark;
+    // A mid-tone carries neither white nor black text well (a mustard ground: 3.9:1 white, 5:1 black). The ground goes
+    // as deep as white text needs for 7:1, so the colour stays strong and the text reads (AAA for body text).
+    let mut ground = Lch {
+        l: if was_dark { 0.45 } else { 0.55 },
+        c: accent.c.max(0.12),
+        h: accent.h,
+    };
+    while ground.l > 0.2 && contrast(WHITE, ground.rgb()) < 7.0 {
+        ground.l -= 0.01;
+    }
+    let surface = ground.rgb();
+    let mut raw = RawRoles::new();
+    raw.insert("surface".into(), surface);
+    let steps: [(&str, f64); 5] = [
+        ("surface_container_lowest", -0.05),
+        ("surface_container_low", 0.03),
+        ("surface_container", 0.06),
+        ("surface_container_high", 0.09),
+        ("surface_container_highest", 0.12),
+    ];
+    for (k, d) in steps {
+        let l = if was_dark { ground.l + d } else { ground.l - d };
+        raw.insert(k.into(), Lch { l, ..ground }.rgb());
+    }
+    let ink = if contrast(WHITE, surface) >= contrast(BLACK, surface) {
+        WHITE
+    } else {
+        BLACK
+    };
+    raw.insert("on_surface".into(), ink);
+    raw.insert(
+        "on_surface_variant".into(),
+        ensure_contrast(ink.mix(surface, 0.25), surface, 4.5),
+    );
+    raw.insert("outline".into(), ink.mix(surface, 0.45));
+    raw.insert("outline_variant".into(), ink.mix(surface, 0.7));
+    // The accent: what stands out on the new ground; 3:1 at least (a control is a graphic, WCAG 1.4.11).
+    let cands = [
+        p.get("secondary"),
+        p.get("tertiary"),
+        p.get("surface"),
+        p.get("on_surface"),
+    ];
+    let new_accent = cands
+        .iter()
+        .copied()
+        .find(|c| contrast(*c, surface) >= 3.0)
+        .unwrap_or(ink);
+    raw.insert("accent".into(), new_accent);
+    for r in ["secondary", "tertiary", "success", "warning", "error"] {
+        raw.insert(r.into(), lift(p.get(r), surface, 3.0));
+    }
+    for r in ["scrim", "shadow", "desk"] {
+        raw.insert(r.into(), p.get(r));
+    }
+    let next = Palette {
+        name: p.name.clone(),
+        dark: surface.luminance() < 0.18,
+        roles: raw,
+    };
+    match next.complete() {
+        Ok(np) => out(
+            np,
+            vec![format!(
+                "strong chrome: the shell's grounds in the accent's hue ({}), accent now {}",
+                surface.hex(),
+                new_accent.hex()
+            )],
+        ),
+        Err(_) => out(p, vec!["strong chrome: could not be derived".into()]),
+    }
+}

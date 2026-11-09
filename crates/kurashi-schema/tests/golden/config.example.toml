@@ -355,6 +355,11 @@
 #   theme.colors.palette == "wallpaper"
 # extraction = "tone_matched"
 #
+# Chrome in the strong colour — The bar, frame, panels and cards take the palette's strong
+# colour instead of their grey, black or white; text and controls on them are chosen again
+# so they stay legible. Apps keep the palette as it is (I456).
+# strong_chrome = false
+#
 # Contrast — Raises the contrast between surfaces and text.
 #   choices: "standard" | "medium" | "high" · forced to "high" while a11y.high_contrast is on
 # contrast = "standard"

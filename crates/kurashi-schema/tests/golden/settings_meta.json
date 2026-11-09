@@ -1098,6 +1098,19 @@
             },
             {
               "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.strong_chrome.help",
+              "key": "theme.colors.strong_chrome",
+              "label": "config.theme.colors.strong_chrome.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.contrast.standard",

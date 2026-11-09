@@ -1166,3 +1166,39 @@ fn every_bundled_palette_has_a_category_and_common_ones_their_terminal_colours()
     assert_eq!(t.colors[1].hex(), "#cc241d");
     assert_eq!(t.colors[11].hex(), "#fabd2f");
 }
+
+#[test]
+fn strong_chrome_paints_the_shells_grounds_in_the_accent_hue_and_leaves_the_apps_palette() {
+    // I456: the shell's tokens take the strong colour, legible; `ThemeOutput::palette` (the apps') does not change.
+    for scheme in [Scheme::Dark, Scheme::Light] {
+        let base = ThemeInput {
+            source: Source::Palette("gruvbox".into()),
+            scheme,
+            ..Default::default()
+        };
+        let plain = resolve(&base, &fonts()).unwrap();
+        let strong = resolve(
+            &ThemeInput {
+                strong_chrome: true,
+                ..base
+            },
+            &fonts(),
+        )
+        .unwrap();
+        assert_eq!(plain.palette, strong.palette, "apps keep the palette");
+        let tok =
+            |t: &kurashi_theme::TokenMap, k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+        let (bg, fg) = (
+            tok(&strong.tokens, "color.surface"),
+            tok(&strong.tokens, "color.on_surface"),
+        );
+        assert_ne!(bg, tok(&plain.tokens, "color.surface"));
+        assert!(
+            kurashi_theme::extract::Lch::of(bg).c > 0.08,
+            "a strong ground: {bg}"
+        );
+        assert!(contrast(fg, bg) >= 4.5, "{fg} on {bg}");
+        let acc = tok(&strong.tokens, "color.accent");
+        assert!(contrast(acc, bg) >= 3.0, "{acc} on {bg}");
+    }
+}

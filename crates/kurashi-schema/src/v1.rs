@@ -730,6 +730,11 @@ pub struct Colors {
     /// legible in every mode (I455).
     #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
     pub extraction: Extraction,
+    /// Chrome in the strong colour
+    /// The bar, frame, panels and cards take the palette's strong colour instead of their grey, black or white; text
+    /// and controls on them are chosen again so they stay legible. Apps keep the palette as it is (I456).
+    #[kurashi(default = false)]
+    pub strong_chrome: bool,
     /// Contrast
     /// Raises the contrast between surfaces and text.
     #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]

@@ -346,6 +346,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
+        strong_chrome: b(store, "theme.colors.strong_chrome"),
         ink: match s(store, "theme.colors.ink").as_str() {
             "" | "palette" => kurashi_theme::Ink::Palette,
             "custom" => kurashi_theme::color::Rgb::parse(&s(store, "theme.colors.ink_custom"))

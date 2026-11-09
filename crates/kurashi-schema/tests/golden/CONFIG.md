@@ -424,6 +424,12 @@ How the wallpaper's colours become the palette. Tone-matched builds calm tones a
 - choices: `"tone_matched"` | `"vibrant"` | `"prominent"` | `"mixed"`
 - only while `theme.colors.palette == "wallpaper"`
 
+#### `theme.colors.strong_chrome` — Chrome in the strong colour
+
+The bar, frame, panels and cards take the palette's strong colour instead of their grey, black or white; text and controls on them are chosen again so they stay legible. Apps keep the palette as it is (I456).
+
+- type: `bool` · default: `false`
+
 #### `theme.colors.contrast` — Contrast
 
 Raises the contrast between surfaces and text.
