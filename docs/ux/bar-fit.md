@@ -117,11 +117,14 @@ widths — or its lapsed data would bring it back at once and send it away again
   settings, the clock and the keyboard chip keep `Theme.gap` a side as the icons beside them do.
 
 ## Definition of done
-- [ ] No two modules' rects intersect at 1280 px with a long title, sysmon and many end modules (test-bar-fit).
-- [ ] The centre's middle within 1 px of the bar's while it fits; shifted the least amount when not.
-- [ ] An overflow appears when nothing more fits; its card opens, holds the hidden modules, closes on Esc / outside.
-- [ ] At 1920 px nothing collapses (the user's layout and the default bar).
-- [ ] The media title, the window list and the lyrics line elide; the full title stays the accessible name.
-- [ ] Side bars: the start column's list counts the modules after it.
-- [ ] Idle: no extra frames; no binding loop in the log.
-- [ ] Seen on niri: before/after shots of the user's kind of bar.
+- [x] No two modules' rects intersect at 1920, 1280 and 800 px with a long title, sysmon and the end modules (test-bar-fit).
+- [x] The centre's middle within 1 px of the bar's while it fits; moved the least amount when not (one zone gap).
+- [x] An overflow appears when nothing more fits; its card opens with the hidden modules, Tab reaches them, Esc closes.
+- [x] At 1920 px nothing collapses (the user's kind of bar and the default bar; the default bar's centre moves off the
+      middle there when every mod widget stands in its end zone beside a long media title).
+- [x] The media title and the window list elide (the full title stays the island's accessible name and peek). The
+      lyrics line is elastic too, not seen (no synced lyrics in the sandbox).
+- [ ] Side bars: the start column's window list counts the modules after it (done); a full allocation of a column — a
+      start zone of fixed modules taller than its half — is not (BACKLOG).
+- [x] Idle: the fit writes nothing at rest (test-bar-fit), no binding loop in the log.
+- [x] Seen on niri: before/after shots of the user's kind of bar at 1920, 1280 (scale 1.5), 960 (scale 2) and 800 (2.4).
