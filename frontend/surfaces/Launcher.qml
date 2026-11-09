@@ -861,7 +861,7 @@ PanelWindow {
                 // The keyed rows (W67, `show()`); the current row is set by `syncCurrent()`, not bound (see there).
                 model: lp.mode !== "emoji" && !lp.startGrid ? rowModel : null
                 Accessible.role: Accessible.List
-                Accessible.name: I18n.tr("launcher.placeholder")
+                Accessible.name: I18n.tr("launcher.results")
                 highlightMoveDuration: 0
                 // W67 (docs/ux/launcher.md "Results while typing", Caelestia's AppList): a row that stays slides to its new
                 // place, a new one fades and grows in, a dropped one fades out. Interrupted, a row continues from where it
