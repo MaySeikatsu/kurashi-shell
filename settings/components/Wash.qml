@@ -1,0 +1,1 @@
+../../frontend/components/Wash.qml
