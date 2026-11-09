@@ -31,6 +31,25 @@ ModuleBase {
     width: vertical ? thickness : loader.width
     height: vertical ? slotH : loader.height
     clip: vertical
+    // B48 (docs/ux/bar-fit.md; CONTRACT-CHANGE: the widget's fit, optional): a widget may declare `compact` (in: draw the
+    // short form), `room` (in: its most width), `fullWidth` / `compactWidth` (out: its widths, whatever it draws now),
+    // `elastic` and `minWidth` (out: it elides to `room`, down to that). One that declares none is fixed.
+    readonly property var wi: loader.item
+    fullW: !vertical && wi && wi.fullWidth !== undefined ? wi.fullWidth : width
+    compactW: !vertical && wi && wi.compactWidth !== undefined ? wi.compactWidth : fullW
+    elastic: !vertical && !!wi && wi.elastic === true
+    minW: !vertical && wi && wi.minWidth !== undefined ? wi.minWidth : fullW
+    Binding {
+        target: m.wi
+        property: "compact"
+        value: m.compact && !m.vertical
+        when: !!m.wi && m.wi.compact !== undefined
+    }
+    // (handed over on change, not by a Binding: its property name, quoted, would read as an icon name — the icon subset's
+    // check counts every quoted Material ligature)
+    function handRoom() { if (m.wi && m.wi.room !== undefined && m.wi.room !== m.room) m.wi.room = m.room }
+    onRoomChanged: handRoom()
+    onWiChanged: handRoom()
     function geo() { return [["slot-" + m.mod, m], ["widget-" + m.mod, loader.item]] }
     function measure() {
         if (loader.item && ("vertical" in loader.item) && loader.item.implicitHeight > 0)

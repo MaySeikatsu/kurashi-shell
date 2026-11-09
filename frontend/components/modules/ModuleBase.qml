@@ -42,6 +42,17 @@ Item {
     // Enter on the host's tab stop: the module's expanded view (the card its glance opens), else its primary action. A
     // module that has neither leaves it empty.
     function activate() {}
+    // ---- the bar's fit (B48, docs/ux/bar-fit.md) ----
+    // In: draw the short form (the icon, without its text), and an elastic module's most width along the row (px).
+    property bool compact: false
+    property real room: 1e6
+    // Out: the width it takes full and compact — whatever it draws now, so the fit never chases its own answer — and
+    // whether it is elastic (it elides to `room`), with the least it elides to. A module without a short form keeps the
+    // defaults (its width, either way).
+    property real fullW: width
+    property real compactW: fullW
+    property bool elastic: false
+    property real minW: fullW
     // Test only (KURASHI_BAR_GEOMETRY): [[name, item], …] the host logs.
     function geo() { return [] }
 

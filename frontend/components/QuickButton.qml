@@ -51,16 +51,15 @@ Item {
             ColorAnimation { duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
         }
     }
-    Text {
+    // W66: the sliders of quick settings (what the panel holds), as a control centre reads elsewhere; the half disc was a
+    // theme switch's picture (session 26, the user). The text glyph stands in without the icon font.
+    Icon {
         id: glyph
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
+        name: "tune"
+        glyph: "◐"
+        filled: q.open
         color: q.open ? Theme.fgOnAccent : Theme.fg
-        font.pixelSize: Theme.fs + 2
-        font.family: Theme.fam(text, Theme.families)
-        text: "◐"
     }
     // The relief over the square and the glyph, under the focus ring (the square's own size, 3 px in).
     Loader {

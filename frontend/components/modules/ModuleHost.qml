@@ -23,8 +23,12 @@ Item {
     property bool anchored: true
     property var link: null
     property int fitSlots: 1000000
-    // The window list's room along the host (px); see Windows.qml.
+    // B48 (docs/ux/bar-fit.md): the bar's fit — what the host's row gives it. `room`: an elastic module's most width
+    // (the window list, the island's media title, a mod's line); `compact`: draw the short form (the icon); `parked`: in
+    // the bar's overflow, not drawn here and not live (its widths are kept from when it was).
     property real room: 1e6
+    property bool compact: false
+    property bool parked: false
     property bool keys: false
     signal trayMenuRequested(string id)
 
@@ -36,14 +40,25 @@ Item {
     readonly property bool busy: !!item && item.busy === true
     function geo() { return item ? item.geo() : [] }
 
-    visible: present && fitSlots > 0
+    // (what the host's row counts: present, given a slot, not in the overflow)
+    readonly property bool shown: present && fitSlots > 0 && !parked
+    visible: shown
+    // What the module says for the fit: its width full and compact, whatever it draws now, and for an elastic one the
+    // least it elides to. While parked it is not live (a mod widget is not even loaded), so what it says then lapses: the
+    // fit keeps what it said while it was drawn (ZoneRow `spec`), and a change while parked asks for no new fit.
+    readonly property bool liveElastic: !!item && item.elastic === true
+    readonly property real liveFull: item ? Math.ceil(item.fullW) : 0
+    readonly property real liveCompact: item ? Math.ceil(Math.min(item.fullW, item.compactW)) : 0
+    readonly property real liveMin: item ? Math.ceil(Math.min(item.fullW, item.minW)) : 0
+    readonly property string fitKey: parked ? "parked"
+        : [present, fitSlots > 0, liveElastic, liveFull, liveCompact, liveMin].join("|")
     width: item ? item.width : 0
     height: item ? item.height : 0
 
     // ---- the tab stop (keys) ----
     readonly property string a11yName: !item ? "" : (item.a11yName !== "" ? item.a11yName
         : (isMod ? mid : I18n.tr("layout.module." + mid)))
-    activeFocusOnTab: keys && present && fitSlots > 0 && !(item && item.ownsFocus)
+    activeFocusOnTab: keys && shown && !(item && item.ownsFocus)
     Accessible.role: keys ? Accessible.Button : Accessible.NoRole
     Accessible.name: keys ? a11yName : ""
     Accessible.focusable: activeFocusOnTab
@@ -78,14 +93,14 @@ Item {
         target: host
         key: host.mid !== "" ? "module:" + host.mid : ""
         output: host.output
-        enabled: !host.vertical && host.present
+        enabled: !host.vertical && host.present && !host.parked
     }
     // (on a side edge its menu stands beside it, I408: a key of its own, a card still comes out as it did there)
     Isl.AnchorReport {
         target: host
         key: host.mid !== "" ? "side:" + host.mid : ""
         output: host.output
-        enabled: host.vertical && host.present
+        enabled: host.vertical && host.present && !host.parked
     }
     PointHandler {
         acceptedButtons: Qt.AllButtons
@@ -104,17 +119,17 @@ Item {
         sourceComponent: host.isMod ? modWidget : (host.core[host.mid] || null)
     }
 
-    Component { id: workspaces; Workspaces { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: windows; Windows { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; room: host.room } }
-    Component { id: island; Island { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: volume; Volume { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: recorder; Recorder { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: keyboard; Keyboard { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: clock; Clock { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: quick; Quick { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: tray; Tray { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; onMenuRequested: id => host.trayMenuRequested(id) } }
-    Component { id: sidebarLeft; SidebarToggle { side: "left"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: sidebarRight; SidebarToggle { side: "right"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: launcher; Launcher { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
-    Component { id: modWidget; ModWidget { mod: host.entry.mod || ""; provide: host.entry.provide || ""; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus } }
+    Component { id: workspaces; Workspaces { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: windows; Windows { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: island; Island { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: volume; Volume { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: recorder; Recorder { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: keyboard; Keyboard { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: clock; Clock { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: quick; Quick { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: tray; Tray { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room; onMenuRequested: id => host.trayMenuRequested(id) } }
+    Component { id: sidebarLeft; SidebarToggle { side: "left"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: sidebarRight; SidebarToggle { side: "right"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: launcher; Launcher { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: modWidget; ModWidget { mod: host.entry.mod || ""; provide: host.entry.provide || ""; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
 }

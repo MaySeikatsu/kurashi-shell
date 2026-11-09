@@ -42,6 +42,8 @@
 "frontend.quick.open" = "Quick settings"
 # W19-side-bars
 "frontend.bar.hidden" = "{n} more hidden"
+"frontend.bar.overflow" = "{n} more modules: no room on the bar"
+"frontend.bar.overflow.card" = "Modules with no room on the bar"
 "frontend.bar.short.cpu" = "CPU"
 "frontend.bar.short.mem" = "RAM"
 "frontend.bar.short.temp" = "Temp"

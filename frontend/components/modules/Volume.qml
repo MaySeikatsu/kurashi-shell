@@ -20,11 +20,18 @@ ModuleBase {
     // Each mutation names this control (intents' origin: the slider ignores its own echo while dragging).
     readonly property string origin: "qs:" + m.output + ":" + Math.floor(Math.random() * 1e6)
     readonly property int columnH: 110
+    // B48 (docs/ux/bar-fit.md): compact, the speaker alone (a click mutes, the wheel still steps the level).
+    readonly property bool iconOn: (Theme.groups || compact) && usable
+    // (the speaker's width from an unseen copy that is always laid out: a hidden Text is not)
+    readonly property real speakerW: speakerM.implicitWidth
+    Icon { id: speakerM; opacity: 0; name: "volume_up"; glyph: "🔊"; filled: true; Accessible.ignored: true }
+    fullW: vertical ? width : (Theme.groups && usable ? speakerW + row.spacing : 0) + sliderH.width
+    compactW: vertical || !usable ? fullW : speakerW
     width: vertical ? thickness : row.implicitWidth
     height: vertical ? columnH : row.implicitHeight
     slotHeights: [columnH]
     // The slider is its own tab stop while there is audio to set (arrows step it); without, the host says why.
-    ownsFocus: usable
+    ownsFocus: usable && !(compact && !vertical)
     a11yName: a11y
     function geo() { return [["slider", vertical ? sliderV : sliderH]] }
 
@@ -50,16 +57,19 @@ ModuleBase {
         spacing: Theme.pad
         // The volume's icon (chromes with groups): a click mutes, as the media key does.
         Icon {
-            visible: Theme.groups && m.usable
+            id: speaker
+            visible: m.iconOn
             anchors.verticalCenter: parent.verticalCenter
             name: m.muted ? "volume_off" : "volume_up"
             glyph: m.muted ? "🔇" : "🔊"
             filled: true
             color: Theme.fg
             TapHandler { onTapped: Store.act("audio.mute.toggle") }
+            WheelHandler { enabled: m.usable && m.compact; onWheel: event => m.step(event.angleDelta.y) }
         }
         Slider {
             id: sliderH
+            visible: !(m.compact && m.usable)
             anchors.verticalCenter: parent.verticalCenter
             width: 110
             value: m.daemonVolume

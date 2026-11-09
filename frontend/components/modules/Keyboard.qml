@@ -11,7 +11,8 @@ ModuleBase {
     readonly property var layouts: d.layouts || []
     readonly property var cur: layouts.length > 0 ? layouts[Math.max(0, Math.min(layouts.length - 1, Number(d.current || 0)))] : null
     present: layouts.length > 1
-    width: vertical ? thickness - 8 : kbText.implicitWidth + 2 * Theme.xs
+    // W66: the chip keeps the gap of the icons beside it (Theme.gap a side)
+    width: vertical ? thickness - 8 : kbText.implicitWidth + 2 * Theme.gap
     height: thickness - 12
     slotHeights: present ? [height] : []
     Accessible.role: Accessible.Button

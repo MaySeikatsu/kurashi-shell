@@ -36,8 +36,9 @@ Item {
         if (available) Store.act("webdock.toggle", outName !== "" ? { output: outName } : {})
     }
 
-    implicitWidth: w.vertical ? Theme.barH : Theme.controlH
-    implicitHeight: w.vertical ? Theme.barH : Theme.controlH
+    // W66: a square as thick as the bar, as the quick settings button (the same room round the icon as its neighbours)
+    implicitWidth: Theme.barH
+    implicitHeight: Theme.barH
     opacity: available ? 1 : Theme.staleOpacity
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -47,24 +48,16 @@ Item {
     Keys.onEnterPressed: w.toggle()
     Keys.onSpacePressed: w.toggle()
 
-    Rectangle {
+    // W66: a browser window (the web apps it opens), lit and filled while the dock is open, a dot while it is kept open;
+    // the hand-drawn dock edge read as nothing in particular (session 26, the user). The icon font's own size, as every
+    // bar icon.
+    Icon {
         id: frameR
         anchors.centerIn: parent
-        width: 16
-        height: 16
-        radius: 4
-        color: "transparent"
-        border.width: 1.5
-        border.color: Theme.fg
-    }
-    Rectangle {
-        anchors.left: frameR.left
-        anchors.top: frameR.top
-        anchors.bottom: frameR.bottom
-        anchors.margins: 3
-        width: 4
-        radius: 1
-        color: w.open ? Theme.accent : Theme.dim
+        name: "web_asset"
+        glyph: "▭"
+        filled: w.open
+        color: w.open ? Theme.accent : Theme.fg
     }
     Rectangle {
         visible: w.pinned
@@ -72,10 +65,8 @@ Item {
         height: 5
         radius: 3
         color: Theme.accent
-        anchors.right: frameR.right
-        anchors.top: frameR.top
-        anchors.rightMargin: -2
-        anchors.topMargin: -2
+        x: frameR.x + frameR.width / 2 + frameR.font.pixelSize / 2 - 3
+        y: frameR.y + frameR.height / 2 - frameR.font.pixelSize / 2 - 1
     }
 
     FocusRing {

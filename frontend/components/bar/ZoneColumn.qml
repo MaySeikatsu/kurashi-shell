@@ -11,11 +11,23 @@ Column {
     // Where the window list's room ends (the next zone's top, in this column's parent).
     property real roomEnd: 0
     spacing: Theme.pad
+    // B48: what the pieces after piece `i` take (their heights and gaps): the window list's room ends before them, not at
+    // the next zone (it ran under them). Read from the later pieces only, so the list's own height is not in it.
+    function tailAfter(i) {
+        var t = 0
+        for (var k = i + 1; k < pieceRep.count; k++) {
+            var p = pieceRep.itemAt(k)
+            if (p && p.presentN > 0) t += zc.spacing + p.height
+        }
+        return t
+    }
     Repeater {
+        id: pieceRep
         model: zc.pieces
         delegate: Column {
             id: piece
             required property var modelData
+            required property int index
             property int presentN: 0
             function recount() {
                 var n = 0
@@ -35,7 +47,7 @@ Column {
                     owner: zc.owner
                     entry: modelData
                     anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
-                    room: zc.roomEnd - (zc.y + piece.y) - Theme.gap
+                    room: zc.roomEnd - (zc.y + piece.y) - Theme.gap - zc.tailAfter(piece.index)
                     onPresentChanged: piece.recount()
                 }
             }
