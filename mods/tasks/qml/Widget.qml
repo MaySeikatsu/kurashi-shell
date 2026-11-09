@@ -29,6 +29,13 @@ Item {
     }
     function openPanel() { Store.act("mod.panel.open", { id: "tasks", panel: "tasks" }) }
 
+    // B48 (docs/ux/bar-fit.md, the widget's fit): compact — a crowded bar — the checklist alone; the count stays the
+    // accessible name. The widths from metrics (a hidden text is not laid out).
+    property bool compact: false
+    readonly property bool countOn: w.showCount && w.countText !== ""
+    TextMetrics { id: countM; text: w.countText; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families); font.features: ({"tnum": 1}) }
+    readonly property real compactWidth: checkIcon.implicitWidth + Theme.gap * 2
+    readonly property real fullWidth: compactWidth + (countOn ? Theme.xs + Math.ceil(countM.advanceWidth) : 0)
     implicitWidth: w.vertical ? Theme.barH : row.implicitWidth + Theme.gap * 2
     implicitHeight: w.vertical ? col.implicitHeight : Theme.controlH
     activeFocusOnTab: true
@@ -46,6 +53,7 @@ Item {
         anchors.centerIn: parent
         spacing: Theme.xs
         Icon {
+            id: checkIcon
             anchors.verticalCenter: parent.verticalCenter
             name: "checklist"
             glyph: "☑"
@@ -53,7 +61,7 @@ Item {
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            visible: w.showCount && w.countText !== ""
+            visible: w.countOn && !w.compact
             color: w.failed ? Theme.error : Theme.fg
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)

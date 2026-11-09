@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import qs.components
 import "format.js" as F
 
 // The bar widget (docs/ux/sysmon.md "Design"): the stats Settings chose, "CPU 12 % · RAM 41 %", with tabular
@@ -179,7 +180,13 @@ Item {
         font.features: ({"tnum": 1})
     }
 
-    implicitWidth: widget.vertical ? widget.theme.barH : row.implicitWidth + widget.theme.gap * 2
+    // B48 (docs/ux/bar-fit.md, the widget's fit): compact — a crowded bar — draws the chip glyph alone, tinted by the
+    // level; the figures stay its accessible name and the peek's. The full row stays laid out (unseen) so its width is
+    // known whatever is drawn.
+    property bool compact: false
+    readonly property real fullWidth: row.implicitWidth + widget.theme.gap * 2
+    readonly property real compactWidth: chip.implicitWidth + widget.theme.gap * 2
+    implicitWidth: widget.vertical ? widget.theme.barH : (widget.compact ? compactWidth : fullWidth)
     implicitHeight: widget.vertical ? vcol.implicitHeight : widget.theme.barH
     // Paused: the figures are from before the pause, dimmed as the panel dims them.
     opacity: widget.paused ? widget.theme.staleOpacity : 1
@@ -195,9 +202,20 @@ Item {
     }
 
     // Children of the Row take no anchors (the Row positions them); the sparkline's box is the one anchored child.
+    // (unseen rather than hidden while full: it stays laid out, so its width is known)
+    Icon {
+        id: chip
+        visible: !widget.vertical
+        opacity: widget.compact ? 1 : 0
+        anchors.centerIn: parent
+        name: widget.paused ? "pause" : "memory"
+        glyph: "▦"
+        color: widget.level === "critical" ? widget.theme.error : (widget.level === "activity" ? widget.activityInk : widget.theme.fg)
+    }
     Row {
         id: row
         visible: !widget.vertical
+        opacity: widget.compact ? 0 : 1
         anchors.centerIn: parent
         spacing: widget.theme.gap
 

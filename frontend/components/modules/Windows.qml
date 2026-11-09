@@ -25,8 +25,13 @@ ModuleBase {
     readonly property bool previews: cfg.valueOf("modules.windows.previews", true) === true
     Watch { doc: "svc.previews"; active: m.live && m.previews }
     HoverHandler { onHoveredChanged: if (hovered && m.previews) Store.act("preview.refresh", { output: m.output }) }
-    // The room the host leaves it, along its edge (px); the list fits as many buttons as it holds.
-    property real room: 1e6
+    // B48: elastic — the room the bar's fit gives it along its edge (px, ModuleBase `room`); the list fits as many buttons
+    // as it holds, the rest under "+N". Full: every window (or `max`); least: the "+N" button alone.
+    readonly property int wanted: m.most > 0 ? Math.min(tasks.length, m.most) : tasks.length
+    elastic: !vertical && tasks.length > 1
+    // (the list's grid spaces its Repeater as one more item: n buttons draw n × (button + gap), measured 144 px for six)
+    fullW: vertical ? width : wanted * (list.btn + list.spacing)
+    minW: vertical ? width : list.btn + list.spacing
     present: tasks.length > 0
     busy: list.menuOpen
     width: list.width
@@ -42,7 +47,7 @@ ModuleBase {
         pills: m.pills
         live: m.live
         maxCount: {
-            var fits = Math.max(1, Math.floor((m.room + spacing) / (btn + spacing)))
+            var fits = Math.max(1, Math.floor(m.room / (btn + spacing)))
             return m.most > 0 ? Math.min(fits, m.most) : fits
         }
         middleCloses: cfg.valueOf("modules.windows.middle_close", true) === true

@@ -135,6 +135,15 @@ Item {
     // While the pointer is on the island the pill grows a few px (with the peek), on a spring.
     readonly property real grow: pointerIn && !vertical ? 1 : 0
     readonly property real pillW: faceW + 2 * Theme.pad + tailW + 2 * chromeIn + grow * 2 * Theme.xs + lead
+    // B48 (docs/ux/bar-fit.md): the media title's most width — a bar's fit lowers it in a tight zone (modules/Island.qml) —
+    // and what the title takes at its cap and now (0 under another face).
+    property real textRoom: 320
+    readonly property real textNat: media.current && media.item ? media.item.textNat : 0
+    readonly property real textShown: media.current && media.item ? media.item.textShown : 0
+    // The pill without the title and without the hover's growth, from its parts (not from the pill's width, which follows
+    // a title change a frame late).
+    readonly property real textChrome: (media.current && media.item ? media.item.rowChrome : faceW) + 2 * Theme.pad + tailW
+        + 2 * chromeIn + lead + extrasW
 
     // W53.5: the look's island part (`[slots] island`, decor/island/<Name>.qml, contract IslandBase): drawn over the pill,
     // it may ask for its own corner (`radius` ≥ 0) and keep room at the pill's start for a mark (`lead`, top and bottom
@@ -241,7 +250,7 @@ Item {
             // A face exists only while it is current or still fading out: the idle faces cost
             // ~1 MiB per bar, i.e. per output (B7, docs/BENCH.md).
             FaceSlot { id: clock; face: "clock"; sourceComponent: ClockFace { current: clock.current; animate: isl.animate; vertical: isl.vertical } }
-            FaceSlot { id: media; face: "media"; sourceComponent: MediaFace { current: media.current; animate: isl.animate; vertical: isl.vertical } }
+            FaceSlot { id: media; face: "media"; sourceComponent: MediaFace { current: media.current; animate: isl.animate; vertical: isl.vertical; maxText: isl.textRoom } }
             FaceSlot { id: volume; face: "volume"; sourceComponent: VolumeFace { current: volume.current; animate: isl.animate; vertical: isl.vertical } }
             FaceSlot { id: bright; face: "brightness"; sourceComponent: BrightnessFace { current: bright.current; animate: isl.animate; vertical: isl.vertical } }
             FaceSlot { id: notifs; face: "notifications"; sourceComponent: NotificationsFace { current: notifs.current; animate: isl.animate; vertical: isl.vertical } }

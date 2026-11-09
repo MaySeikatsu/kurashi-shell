@@ -8,6 +8,11 @@ ModuleBase {
     id: m
     Watch { doc: "svc.recorder"; active: m.live }
     present: (Store.docs["svc.recorder"] || ({})).recording === true
+    // B48: compact, the dot alone (the label stays the accessible name).
+    // (measured on metrics: a hidden Text is not laid out)
+    TextMetrics { id: recM; text: I18n.tr("power.bar.rec"); font.pixelSize: Theme.fsCaption; font.weight: Theme.wBold; font.family: Theme.fam(text, Theme.families) }
+    fullW: vertical ? width : 10 + Theme.xs + Math.ceil(recM.advanceWidth) + 2 * Theme.xs
+    compactW: vertical ? width : 10 + 2 * Theme.xs
     width: vertical ? thickness : dotRow.implicitWidth + 2 * Theme.xs
     height: vertical ? thickness - 6 : thickness - 12
     slotHeights: present ? [height] : []
@@ -30,6 +35,8 @@ ModuleBase {
             color: Theme.error
         }
         Text {
+            id: recT
+            visible: m.vertical || !m.compact
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting

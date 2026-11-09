@@ -8,6 +8,7 @@ import "../components/island"
 import "../components/sidebar"
 import "../components/bar"
 import "../components/bar/framegeom.js" as FG
+import "../components/bar/barfit.js" as Fit
 import "../components/modules" as M
 import "../components/decor" as Decor
 import "../components/motion"
@@ -164,7 +165,7 @@ Scope {
     // the pointer resting on the edge is EdgeReveal's (the strip stays under the bar, row 524).
     property bool pointerOn: false
     property bool focused: false
-    readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel
+    readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel || overflowZone !== ""
         || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
     readonly property bool wantShown: on && (visibility === "always" || forced
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
@@ -782,6 +783,24 @@ Scope {
             out.push("BARZONE " + outName + " " + edge + " " + zone + " " + h.mid + " "
                 + [o.x + p.x, o.y + p.y, o.x + p.x + h.width, o.y + p.y + h.height].map(Math.round).join(" "))
         }
+        // B48: the row's fit — the centre's span, what went compact and what into the overflow; the overflow buttons.
+        var f = zoneRoot.fitLast
+        if (f) {
+            var lv = function (n) { return Object.keys(f.levels).filter(function (k) { return f.levels[k] === n }).join(",") || "-" }
+            out.push("BARFIT " + outName + " " + edge + " width " + Math.round(zoneRoot.width) + " gap " + zoneRoot.fitGap
+                + " cx " + Math.round(zoneRoot.fitCx)
+                + " cw " + Math.round(zoneRoot.fitCw) + " fits " + f.fits + " compact " + lv(1) + " parked " + lv(2)
+                + " rooms " + (Object.keys(f.rooms).map(function (k) { return k + "=" + f.rooms[k] }).join(",") || "-")
+                + " said " + (f.said || "-"))
+            var zs = ["start", "center", "end"]
+            for (var z = 0; z < zs.length; z++) {
+                var ob = zoneRoot.overflowItemOf(zs[z])
+                if (!ob || !ob.visible) continue
+                var q = ob.mapToItem(null, 0, 0)
+                out.push("BARZONE " + outName + " " + edge + " " + zs[z] + " overflow "
+                    + [o.x + q.x, o.y + q.y, o.x + q.x + ob.width, o.y + q.y + ob.height].map(Math.round).join(" "))
+            }
+        }
         // The rule's segments along the edge (line chrome; "-" while it draws none), in px from the bar's own start.
         out.push("BARRULE " + outName + " " + edge + " " + (w.ruleSegs.length > 0
             ? w.ruleSegs.map(function (g) { return Math.round(g[0]) + "-" + Math.round(g[1]) }).join(",") : "-"))
@@ -810,7 +829,7 @@ Scope {
             anchors.fill: parent
             // The group blocks along the bar (I305: the strip's rule breaks under them).
             readonly property var groupSpans: startRow.groupSpans.concat(centerRow.groupSpans, endRow.groupSpans)
-            Component.onCompleted: { bar.zoneRoot = hl; bar.requestZones() }
+            Component.onCompleted: { bar.zoneRoot = hl; bar.fitRoot = hl; bar.requestFit(); bar.requestZones() }
             opacity: bar.stale ? Theme.staleOpacity : 1
             Behavior on opacity {
                 enabled: bar.shownAmt > 0
@@ -822,8 +841,7 @@ Scope {
                 zone: "start"
                 runs: bar.runsOf("start", bar.zones.start || [])
                 height: hl.height
-                limit: centerRow.width > 0 ? centerRow.x : endRow.x
-                anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset }
+                anchors { left: parent.left; leftMargin: hl.margin }
             }
             // Disconnected glyph: instantiated only while stale (nothing at idle), after the start zone.
             Loader {
@@ -842,7 +860,9 @@ Scope {
                 zone: "center"
                 runs: bar.runsOf("center", bar.zones.center || [])
                 height: hl.height
-                anchors.horizontalCenter: parent.horizontalCenter
+                // B48: where the fit put it — the bar's middle while it fits, else moved the least amount (its drawn width
+                // centred in the span the fit gave it); the middle before the first fit.
+                x: hl.fitCx >= 0 ? hl.fitCx + Math.round((hl.fitCw - width) / 2) : Math.round((hl.width - width) / 2)
             }
             ZoneRow {
                 id: endRow
@@ -850,8 +870,100 @@ Scope {
                 zone: "end"
                 runs: bar.runsOf("end", bar.zones.end || [])
                 height: hl.height
-                anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset }
+                anchors { right: parent.right; rightMargin: hl.margin }
             }
+
+            // ---- B48: one allocation for the row (components/bar/barfit.js, docs/ux/bar-fit.md) ----
+            // Run on the next turn after a module's widths, presence or the bar's width change (bar.requestFit); it writes
+            // only what changed, so the run its own answer causes writes nothing and the row settles. No timer (Ma).
+            readonly property real margin: Theme.pad + bar.groupInset
+            property real fitCx: -1
+            property real fitCw: 0
+            property var fitLast: null
+            readonly property real fitGap: startRow.spacing
+            onWidthChanged: bar.requestFit()
+            function refit() {
+                if (width <= 0) return
+                var spec = {
+                    width: width, margin: margin, gap: startRow.spacing, overflowW: overflowM.widthFor(),
+                    zones: { start: startRow.spec(), center: centerRow.spec(), end: endRow.spec() }
+                }
+                var r = Fit.allocate(spec)
+                if (bar.zoneLog) r.said = ["start", "center", "end"].map(function (z) {
+                    return Fit.hostsOf(spec.zones[z]).map(function (h) {
+                        return h.id + "=" + [h.full, h.compact, h.min].join("/") + (h.elastic ? "e" : "")
+                    }).join(",")
+                }).join(";")
+                var rows = [startRow, centerRow, endRow], changed = 0
+                for (var i = 0; i < rows.length; i++) {
+                    var row = rows[i]
+                    row.eachHost(function (h) {
+                        var k = row.keyOf(h), l = r.levels[k]
+                        var park = l === 2, comp = l === 1
+                        var room = r.rooms[k] !== undefined ? r.rooms[k] : 1e6
+                        if (h.parked !== park) { h.parked = park; changed++ }
+                        if (h.compact !== comp) { h.compact = comp; changed++ }
+                        if (h.room !== room) { h.room = room; changed++ }
+                    })
+                    var n = r.parked[row.zone] || 0
+                    if (row.parkedN !== n) { row.parkedN = n; changed++ }
+                }
+                if (fitCx !== r.centerX) { fitCx = r.centerX; changed++ }
+                if (fitCw !== r.widths.center) { fitCw = r.widths.center; changed++ }
+                fitLast = r
+                if (bar.overflowZone !== "" && (r.parked[bar.overflowZone] || 0) === 0) bar.closeOverflow()
+                if (changed > 0) {
+                    // (test only: a fit that wrote something; at rest there is none — test-bar-fit's idle check)
+                    if (bar.zoneLog) console.log("BARFITRUN " + bar.outName + " " + bar.edge + " " + changed)
+                    bar.requestZones()
+                }
+            }
+            // (the overflow button's width, before any is made)
+            OverflowButton { id: overflowM; visible: false; enabled: false }
+            Component.onDestruction: if (bar.fitRoot === hl) bar.fitRoot = null
+            function parkedEntries(zone) {
+                var row = zone === "start" ? startRow : zone === "center" ? centerRow : endRow, out = []
+                row.eachHost(function (h) { if (h.parked && h.present) out.push(h.entry) })
+                return out
+            }
+            function overflowItemOf(zone) {
+                return (zone === "start" ? startRow : zone === "center" ? centerRow : endRow).overflowItem
+            }
+        }
+    }
+
+    // ---- B48: the fit's trigger, and the overflow card ----
+    property Item fitRoot: null
+    property bool fitQueued: false
+    function requestFit() {
+        if (vertical || fitQueued) return
+        fitQueued = true
+        Qt.callLater(bar.runFit)
+    }
+    function runFit() {
+        fitQueued = false
+        if (fitRoot) fitRoot.refit()
+    }
+    // The zone whose overflow card is open ("" none), its modules and the button's box on the output.
+    property string overflowZone: ""
+    property var overflowEntries: []
+    property rect overflowAt: Qt.rect(0, 0, 0, 0)
+    function openOverflow(zone, btn) {
+        if (overflowZone === zone) { closeOverflow(); return }
+        if (!fitRoot || !btn) return
+        var o = winOrigin, p = btn.mapToItem(null, 0, 0)
+        overflowAt = Qt.rect(o.x + p.x, o.y + p.y, btn.width, btn.height)
+        overflowEntries = fitRoot.parkedEntries(zone)
+        overflowZone = zone
+    }
+    function closeOverflow() { overflowZone = ""; overflowEntries = [] }
+    LazyLoader {
+        active: bar.overflowZone !== "" && bar.on
+        BarOverflow {
+            owner: bar
+            entries: bar.overflowEntries
+            at: bar.overflowAt
+            onDismissed: bar.closeOverflow()
         }
     }
 

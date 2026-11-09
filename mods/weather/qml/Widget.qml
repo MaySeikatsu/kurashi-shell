@@ -77,6 +77,14 @@ Item {
         Store.act("weather.refresh", {})
     }
 
+    // B48 (docs/ux/bar-fit.md, the widget's fit): compact — a crowded bar — the condition's glyph alone; the temperature
+    // stays the accessible name. Both widths from metrics (a hidden text is not laid out).
+    property bool compact: false
+    readonly property string shownText: w.compact && w.hasNow ? w.vGlyph : w.label
+    TextMetrics { id: fullM; text: w.label; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families) }
+    TextMetrics { id: glyphM; text: w.hasNow ? w.vGlyph : w.label; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families) }
+    readonly property real fullWidth: Math.ceil(fullM.advanceWidth) + Theme.gap * 2
+    readonly property real compactWidth: Math.ceil(glyphM.advanceWidth) + Theme.gap * 2
     implicitWidth: w.vertical ? Theme.barH : label_t.implicitWidth + Theme.gap * 2
     implicitHeight: w.vertical ? col.implicitHeight : Theme.controlH
     activeFocusOnTab: true
@@ -95,7 +103,7 @@ Item {
         id: label_t
         visible: !w.vertical
         anchors.centerIn: parent
-        text: w.label
+        text: w.shownText
         color: Theme.fg
         opacity: w.dim ? Theme.staleOpacity : 1
         font.pixelSize: Theme.fs

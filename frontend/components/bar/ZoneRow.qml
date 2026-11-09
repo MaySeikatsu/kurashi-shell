@@ -6,14 +6,18 @@ import "../decor"
 // One zone of a top or bottom bar as a row of runs (surfaces/Bar.qml `runsOf`): each run one group block under chromes with
 // groups — the island alone (its pill is its block), the window list a group of its own, every other stretch one group —
 // `Theme.pad` + the groups' padding apart. A run's pieces are one module each, or a stretch of tight ones (the workspace
-// keys and the sidebar button beside them). Runs and pieces with nothing present take no room (no spacing for them).
+// keys and the sidebar button beside them). Runs and pieces with nothing shown take no room (no spacing for them).
+// B48 (docs/ux/bar-fit.md): the bar lays its three zones out as one (components/bar/barfit.js); this row hands it its view
+// (`spec`) and is handed back each module's `compact`, `room` and `parked`.
 Row {
     id: zr
     required property var owner
     property string zone: "start"
     property var runs: []
-    // Where the window list's room ends (the next zone's left edge, in this row's parent): the start zone's list fits up to it.
-    property real limit: 0
+    // How many of this zone's modules the bar's fit put in the overflow; the "…" button stands at the zone's inner end
+    // while there are any (the start and centre zones' last place, the end zone's first).
+    property int parkedN: 0
+    readonly property bool overflowFirst: zone === "end"
     // W53.3 (`[decor] bar.gap`): a look's own gap between runs and modules (11's taskbar packs its keys 4 px apart).
     readonly property int barGap: Theme.decor("bar.gap", -1)
     spacing: barGap >= 0 ? barGap : Theme.pad + 2 * zr.owner.groupInset
@@ -26,7 +30,16 @@ Row {
         }
         return out
     }
+    // The overflow button, when it stands here (its width is the fit's `overflowW`).
+    readonly property Item overflowItem: overflowFirst ? (ovFirst.item || null) : (ovLast.item || null)
 
+    Loader {
+        id: ovFirst
+        active: zr.overflowFirst && zr.parkedN > 0
+        visible: active
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        sourceComponent: overflowButton
+    }
     Repeater {
         id: runRep
         model: zr.runs
@@ -34,6 +47,7 @@ Row {
             id: run
             required property var modelData
             property int presentN: 0
+            property alias pieceRepeater: pieceRep
             // A group block, or the island's pill (its own block, I305).
             readonly property bool isle: modelData.kind === "island"
             readonly property bool grouped: grp.visible || (isle && Theme.groups && inner.width > 0)
@@ -85,9 +99,10 @@ Row {
                         id: piece
                         required property var modelData
                         property int presentN: 0
+                        property alias hostRepeater: hostRep
                         function recount() {
                             var n = 0
-                            for (var i = 0; i < hostRep.count; i++) { var h = hostRep.itemAt(i); if (h && h.present) n++ }
+                            for (var i = 0; i < hostRep.count; i++) { var h = hostRep.itemAt(i); if (h && h.shown) n++ }
                             if (n !== presentN) { presentN = n; run.recount() }
                         }
                         visible: presentN > 0
@@ -96,23 +111,78 @@ Row {
                         Repeater {
                             id: hostRep
                             model: piece.modelData.entries
-                            onItemAdded: Qt.callLater(piece.recount)
-                            onItemRemoved: Qt.callLater(piece.recount)
+                            onItemAdded: { Qt.callLater(piece.recount); zr.owner.requestFit() }
+                            onItemRemoved: { Qt.callLater(piece.recount); zr.owner.requestFit() }
                             delegate: ZoneHost {
                                 required property var modelData
                                 owner: zr.owner
                                 entry: modelData
                                 anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                                // The window list's room: from where it stands to the next zone, less the gaps.
-                                room: zr.zone === "start"
-                                    ? zr.limit - (zr.x + run.x) - Theme.pad - 2 * zr.owner.groupInset
-                                    : (zr.parent ? zr.parent.width / 4 : 0)
-                                onPresentChanged: piece.recount()
+                                // (`room`, `compact` and `parked` are the bar's fit's, written by Bar.qml's refit)
+                                onShownChanged: piece.recount()
                             }
                         }
                     }
                 }
             }
         }
+    }
+    Loader {
+        id: ovLast
+        active: !zr.overflowFirst && zr.parkedN > 0
+        visible: active
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        sourceComponent: overflowButton
+    }
+    Component {
+        id: overflowButton
+        OverflowButton {
+            id: ob
+            count: zr.parkedN
+            zone: zr.zone
+            output: zr.owner.outName
+            open: zr.owner.overflowZone === zr.zone
+            onClicked: zr.owner.openOverflow(zr.zone, ob)
+        }
+    }
+
+    // ---- the fit's view of this zone (barfit.js `Z`): its runs, pieces and present modules, with the gaps it lays them
+    // out with; and the hosts the answer is written to ----
+    function eachHost(fn) {
+        for (var i = 0; i < runRep.count; i++) {
+            var r = runRep.itemAt(i)
+            if (!r) continue
+            for (var j = 0; j < r.pieceRepeater.count; j++) {
+                var p = r.pieceRepeater.itemAt(j)
+                if (!p) continue
+                for (var k = 0; k < p.hostRepeater.count; k++) {
+                    var h = p.hostRepeater.itemAt(k)
+                    if (h) fn(h)
+                }
+            }
+        }
+    }
+    function keyOf(h) { return zr.zone + "/" + h.mid }
+    function spec() {
+        var runsOut = []
+        for (var i = 0; i < runRep.count; i++) {
+            var r = runRep.itemAt(i)
+            if (!r) continue
+            var piecesOut = []
+            for (var j = 0; j < r.pieceRepeater.count; j++) {
+                var p = r.pieceRepeater.itemAt(j)
+                if (!p) continue
+                var hostsOut = []
+                for (var k = 0; k < p.hostRepeater.count; k++) {
+                    var h = p.hostRepeater.itemAt(k)
+                    if (!h || !h.present || h.fitSlots <= 0) continue
+                    hostsOut.push({ key: keyOf(h), id: h.mid, full: h.keptFull, compact: h.keptCompact, min: h.keptMin,
+                                    elastic: h.keptElastic })
+                }
+                piecesOut.push({ hostGap: p.spacing, hosts: hostsOut })
+            }
+            runsOut.push({ pieceGap: zr.barGap >= 0 ? zr.barGap : Theme.pad, pieces: piecesOut })
+        }
+        return { runGap: zr.spacing, runs: runsOut }
     }
 }

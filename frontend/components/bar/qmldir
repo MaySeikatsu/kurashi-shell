@@ -6,3 +6,5 @@ ZoneRow 1.0 ZoneRow.qml
 ZoneColumn 1.0 ZoneColumn.qml
 BarGroup 1.0 BarGroup.qml
 FillRegion 1.0 FillRegion.qml
+OverflowButton 1.0 OverflowButton.qml
+BarOverflow 1.0 BarOverflow.qml

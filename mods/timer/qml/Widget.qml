@@ -41,6 +41,14 @@ Item {
         if (w.showing) Store.act("timer.add", { id: w.nearest.id, minutes: up ? 1 : -1 }, function () {})
     }
 
+    // B48 (docs/ux/bar-fit.md, the widget's fit): compact — a crowded bar — the ring alone; the time left stays the
+    // accessible name. The widths from metrics (a hidden text is not laid out).
+    property bool compact: false
+    readonly property bool timeShown: w.showing && !w.ended && !w.compact
+    TextMetrics { id: timeM; text: w.showing && !w.ended ? w.timeText : ""; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families); font.features: ({"tnum": 1}) }
+    readonly property real markW: w.showing && !w.ended ? Theme.fs + 4 : timerIcon.implicitWidth
+    readonly property real fullWidth: markW + (w.showing && !w.ended ? Theme.xs + Math.ceil(timeM.advanceWidth) : 0) + Theme.gap * 2
+    readonly property real compactWidth: markW + Theme.gap * 2
     implicitWidth: w.vertical ? Theme.barH : row.implicitWidth + Theme.gap * 2
     implicitHeight: w.vertical ? col.implicitHeight : Theme.controlH
     activeFocusOnTab: true
@@ -67,6 +75,7 @@ Item {
             track: Theme.outline
         }
         Icon {
+            id: timerIcon
             visible: !w.showing || w.ended
             anchors.verticalCenter: parent.verticalCenter
             name: w.ended ? "alarm" : "timer"
@@ -74,7 +83,7 @@ Item {
             color: w.ended ? Theme.accent : Theme.fg
         }
         Text {
-            visible: w.showing && !w.ended
+            visible: w.timeShown
             anchors.verticalCenter: parent.verticalCenter
             color: w.paused ? Theme.dim : Theme.fg
             font.pixelSize: Theme.fs

@@ -16,7 +16,8 @@ FaceBase {
     readonly property string art: d.art_url ?? ""
     readonly property string full: title === "" ? I18n.tr("island.media.idle")
         : (artist === "" ? title : title + " — " + artist)
-    readonly property int maxText: 320
+    // The title's most width (B48: a bar's fit lowers it in a tight zone, through the island's `textRoom`).
+    property real maxText: 320
     Watch { doc: "svc.media"; active: f.live }
 
     wantW: row.implicitWidth
@@ -46,6 +47,7 @@ FaceBase {
         // Play state only while something is loaded; with no player the face is idle, not paused. Playing: the level bars
         // move (W21; only while this face is live and motion is on); paused: they rest beside a pause icon.
         Icon {
+            id: playIcon
             visible: f.title === "" || f.d.playing !== true
             anchors.verticalCenter: parent.verticalCenter
             name: f.title === "" ? "music_note" : "pause"
@@ -55,6 +57,7 @@ FaceBase {
             color: f.title === "" ? Theme.dim : Theme.accent
         }
         LevelBars {
+            id: bars
             visible: f.title !== ""
             anchors.verticalCenter: parent.verticalCenter
             running: f.d.playing === true && f.live && f.current && f.animate
@@ -68,10 +71,21 @@ FaceBase {
             color: Theme.fg
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
+            id: titleT
             width: Math.min(implicitWidth, f.maxText)
             elide: Text.ElideRight
             text: f.full
         }
+    }
+    // B48 (docs/ux/bar-fit.md): the title as the bar's fit sees it — what it takes at its cap, and now.
+    readonly property real textNat: f.vertical ? 0 : Math.min(titleT.implicitWidth, 320)
+    readonly property real textShown: f.vertical ? 0 : titleT.width
+    // The row without its title, from its parts (the row's own width follows a title change a frame late).
+    readonly property real rowChrome: {
+        var parts = [cover.visible ? cover.width : -1, playIcon.visible ? playIcon.implicitWidth : -1, bars.visible ? bars.width : -1]
+        var w = 0, n = 1
+        for (var i = 0; i < parts.length; i++) if (parts[i] >= 0) { w += parts[i]; n++ }
+        return w + (n - 1) * row.spacing
     }
     Column {
         id: col
