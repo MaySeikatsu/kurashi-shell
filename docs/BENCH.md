@@ -756,6 +756,29 @@ commits of each layer surface over the idle window; pass A reads the daemon's CP
 - Configs for the second row: `mods.enabled = ["timer"]`, `bar.enabled = false`, `desktop.enabled = false`,
   `island.main.faces = ["clock"]`; the countdown starts from the measured command (`timer.start`, 600 s) before the frontend runs.
 
+### 2026-11-09 — session 26, first look before the performance pass (machine A, real stack, not a gate)
+`tools/bench/measure.py --daemon real --passes abm --idle 15 --cycles 10` with a motion script, base `c5d728eb` against
+`05b47e2c` (PR #26), interleaved, two rounds (r1/r2). Raw files: `tools/bench/results/s26-perf/` on machine A (not in git).
+The pass stopped here (I463); the numbers are for the restart, not acceptance.
+
+| | base default | branch default | base kami | branch kami | kami + linear | kami + watercolour |
+|---|---|---|---|---|---|---|
+| CPU in motion, frontend % | 11.4 / 11.2 | 11.6 / 11.5 | 22.4 / 22.4 | 22.7 / 23.1 | 24.4 / 26.8 | 25.3 / 25.6 |
+| commits/s in motion | 37.7 / 37.5 | 37.9 / 37.7 | 48.9 / 48.7 | 49.3 / 48.9 | 49.3 / 48.5 | 49.1 / 48.6 |
+| morph frame p99, ms | 16.7 / 16.5 | 16.8 / 17.0 | 18.6 / 18.7 | 18.5 / 18.6 | 18.5 / 20.4 | 19.0 / 18.7 |
+| popup latency, ms | 21.4 / 20.6 | 20.8 / 20.0 | 21.5 / 21.3 | 20.9 / 21.2 | 22.6 / 24.4 | 22.3 / 22.8 |
+| startup, ms | 959 / 1005 | 1003 / 1003 | 941 / 951 | 1015 / 1020 | 995 / 1079 | 1007 / 1035 |
+| PSS 1 output, MiB | 254 / 201 | 202 / 202 | 200 / 200 | 199 / 200 | 200 / 192 | 222 / 193 |
+| PSS 3 outputs, MiB | 328 / 289 | 288 / 287 | 301 / 286 | 276 / 295 | 295 / 288 | 309 / 282 |
+| idle commits/s (15 s) | 0 / 0 | **1.73 / 1.8** | 0 / 0 | 0 / 0 | 0 / 0 | 2.53 / 0 |
+| idle wakeups/s | 0.2 / 0.1 | 0.1 / 0.1 | 0.1 / 0.1 | 4.5 / 0.1 | 0.1 / **26.2** | 0.1 / **29.8** |
+| GPU, MiB | 40 | 40 | 45 | 45 | 45 | 45 |
+
+The daemon is the same everywhere (0 wakeups, 44 to 46 MiB). Bold cells are B57 and B58. PSS moves 50 MiB between rounds
+of the same commit, so it tells nothing here. GUI-thread polish over the motion script on kami (sum, frames of 17 ms or
+more, longest): 1645 ms, 36, 75 ms; the pen repainting at most every 66 ms: 1059, 22, 68; segments of one width as one
+path: 976, 16, 66; with the points built only when it paints: 1026, 14, 62 (`3d141df5`, B56); without the pen: 75, 1, 23.
+
 ### 2026-11-01 — I330: every style at rest (machine A, real stack, `sh tools/bench/styles.sh`, session 18)
 One `measure.py` run per style (passes a and b, 20 s idle, load gate 1.5), config = the style alone, idle locking off,
 the K82 tree (feat/s18-depth-and-joins). The user's own session ran beside it (labelled loaded where the gate waited).
