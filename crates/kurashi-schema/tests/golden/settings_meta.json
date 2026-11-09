@@ -6714,7 +6714,7 @@
               "modules": [
                 "sidebar_right"
               ],
-              "per_output": false,
+              "per_output": true,
               "restart": false,
               "since": 7,
               "type": "bool"
@@ -6899,7 +6899,7 @@
               "modules": [
                 "sidebar_left"
               ],
-              "per_output": false,
+              "per_output": true,
               "restart": false,
               "since": 7,
               "type": "bool"

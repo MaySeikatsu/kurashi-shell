@@ -16,7 +16,9 @@
 # Part two (`morph`, below; W44/K71 supersedes W34's grow-from-the-button): the edge sidebars slide in from their screen
 # edge and back — frozen mid-slide frames, the join's pixels, click outside, 20 cycles' USS, idle frames; shots in
 # frontend/shots/sidebar/slide/.
-# SIDEBARS_PARTS="bars morph" (default) picks the parts; without a test-mods daemon the side-bar scenes are skipped (said so).
+# Part three (`pages`, W65 / B46, B47): a pages-mode sidebar reopens on the tab it showed last, and a pin clicked on one
+# output pins that output only (two outputs; the keys' and the pin's places from the geometry log).
+# SIDEBARS_PARTS="bars morph pages" (default) picks the parts; without a test-mods daemon the side-bar scenes are skipped (said so).
 #   KURASHI_BIN_DIR=<dir with kurashid (--features test-mods) and kurashi> \
 #     timeout 1800 nix develop -c frontend/test-sidebars.sh [sandbox-name]
 set -euo pipefail
@@ -551,7 +553,7 @@ scene() {
   fi
 }
 
-want_part() { [[ " ${SIDEBARS_PARTS:-bars morph} " == *" $1 "* ]]; }
+want_part() { [[ " ${SIDEBARS_PARTS:-bars morph pages} " == *" $1 "* ]]; }
 
 if want_part bars; then
   if [ "$TEST_MODS" = 1 ]; then
@@ -864,6 +866,114 @@ PY
   problems=$(qs_problems | grep -v "wl_\|zwlr\|xdg_\|wp_\|ext_" || true)
   [ -z "$problems" ] && check 1 "morph: the frontend logs no QML error or warning" \
     || { echo "$problems" | head -5; check 0 "morph: the frontend logs QML errors or warnings"; }
+  stop_scene
+fi
+
+# ---- W65 (B46, B47): a pages-mode sidebar reopens on the tab it showed last; a pin holds on its own output ----
+# Two outputs (HEADLESS-1 at the origin, HEADLESS-2 beside it), the AI and timer mods on, the left sidebar's sections
+# [mod:ai:ai, mod:timer:timer] in pages mode (the default motion: each open waits for its rest). (a) It opens on the first tab; a click on the second tab's key
+# shows it; closed and opened again it shows the second tab. (b) A pin clicked on HEADLESS-1 pins HEADLESS-1's left sidebar
+# (the pin reads pinned there, the daemon's layout says always there and hidden on HEADLESS-2, no window comes up on
+# HEADLESS-2, the global pin stays off); a second click unpins it there. The keys' and the pin's places come from the
+# frontend's geometry log (KURASHI_SIDEBAR_GEOMETRY=1: sidebar-tabkey, sidebar-pin).
+if want_part pages; then
+  echo "== pages and pins: two outputs, the AI and timer mods"
+  stop_scene
+  "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "no second output"
+  timeout 20 swaymsg output HEADLESS-1 resolution 1920x1080 >/dev/null || fail "HEADLESS-1 did not take 1920x1080"
+  timeout 20 swaymsg output HEADLESS-1 pos 0 0 >/dev/null || fail "HEADLESS-1 did not move to the origin"
+  timeout 20 swaymsg output HEADLESS-2 pos 1920 0 >/dev/null || fail "HEADLESS-2 did not move beside HEADLESS-1"
+  start_daemon C.UTF-8
+  K act mod.enable '{"id":"ai"}' >/dev/null || fail "mod.enable ai failed"
+  K act mod.enable '{"id":"timer"}' >/dev/null || fail "mod.enable timer failed"
+  K set 'sidebar.left.sections=["mod:ai:ai","mod:timer:timer"]' >/dev/null || fail "the left sidebar's sections were refused"
+  K set 'sidebar.left.mode="pages"' >/dev/null || fail "the left sidebar's pages mode was refused"
+  : > "$R/qs.log"
+  bare=$(screen_hash)
+  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  SCENE_PIDS+=("$!")
+  wait_frontend "$R/qs.log" 0 4 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
+  rm -f "$W/ptr"; mkfifo "$W/ptr"
+  python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$W/ptr" >> "$W/ptr.log" 2>&1 &
+  SCENE_PIDS+=("$!")
+  exec 7> "$W/ptr"
+  ptr() { echo "$*" >&7; sleep 0.5; }
+  # The sidebar's log lines, and what the frontend shows of them.
+  open_left() { # toggles the left sidebar on HEADLESS-1; 1 once its window is up
+    local n; n=$(nlines "sidebar-rest left HEADLESS-1")
+    toggle left
+    wait_more "sidebar-rest left HEADLESS-1" "$n" 120
+  }
+  shown() { grep 'sidebar-tab ' "$R/qs.log" | tail -1 | grep -q "sidebar-tab $1 true"; }
+  shows_tab() { for _ in $(seq 60); do shown "$1" && return 0; sleep 0.1; done; return 1; }
+  # The frontend's lines carry colour codes: strip them, then the fields after the log's tag.
+  clean_log() { sed 's/\x1b\[[0-9;]*m//g' "$R/qs.log"; }
+  # tab_key <index>: the key's logged x y w h (output coordinates as logged; the x is offset, see below).
+  tab_key() { clean_log | grep "sidebar-tabkey HEADLESS-1 left $1 " | tail -1 | sed 's/.*sidebar-tabkey //' | awk '{ print $5, $6, $7, $8 }'; }
+  # pin_line: "HEADLESS-1 left x y w h pinned <bool>".
+  pin_line() { clean_log | grep "sidebar-pin HEADLESS-1 left " | tail -1 | sed 's/.*sidebar-pin //'; }
+  pin_y() { pin_line | awk '{ print $4 }'; }
+  pin_pinned() { pin_line | grep -q 'pinned true'; }
+  # The visible column is its frame (output coordinates, sidebar-geom). The keys' logged y is output-true, their logged x is
+  # offset by the window's own placement, so the x of a key is taken from the frame: the frame's left edge, the pad (the pin's
+  # logged y less the frame's top: 44 - 32) and the keys' spacing (their logged x, relative to the first key).
+  frame_at() { clean_log | grep "sidebar-geom HEADLESS-1 left " | tail -1 | sed 's/.* frame //' | cut -d' ' -f1 | cut -d, -f"$1"; }
+  pad() { echo $(( $(pin_y) - $(frame_at 2) )); }
+  pin_click() {
+    ptr click $(( $(frame_at 1) + $(pad) + 16 )) $(( $(pin_y) + 16 )) left
+  }
+  tab_click() { # tab_click <index>: the middle of the key
+    local k=$1 x0 y0 w0 h0 x y w h
+    read -r x0 y0 w0 h0 <<< "$(tab_key 0)"
+    read -r x y w h <<< "$(tab_key "$k")"
+    ptr click $(( $(frame_at 1) + $(pad) + (x - x0) + w / 2 )) $(( y + h / 2 )) left
+  }
+
+  # (a) the page memory.
+  open_left || fail "the left sidebar did not come to rest"
+  shows_tab mod:ai:ai && check 1 "left: it opens on its first tab" \
+    || check 0 "left: it does not open on its first tab ($(grep 'sidebar-tab ' "$R/qs.log" | tail -1))"
+  for _ in $(seq 60); do [ -n "$(tab_key 1)" ] && break; sleep 0.1; done
+  tab_click 1
+  shows_tab mod:timer:timer && check 1 "left: a click on the second tab shows it" \
+    || check 0 "left: a click on the second tab does not show it ($(grep 'sidebar-tab ' "$R/qs.log" | tail -1))"
+  n=$(nlines "sidebar-window down left HEADLESS-1")
+  K act sidebar.close >/dev/null
+  wait_more "sidebar-window down left HEADLESS-1" "$n" 80 || fail "the left sidebar did not close"
+  open_left || fail "the left sidebar did not open again"
+  shows_tab mod:timer:timer && check 1 "left: closed and opened again, it shows the tab it showed last" \
+    || check 0 "left: closed and opened again, it does not show the tab it showed last ($(grep 'sidebar-tab ' "$R/qs.log" | tail -1))"
+
+  # (b) the pin: a click on HEADLESS-1's pin pins that output's left sidebar and no other.
+  for _ in $(seq 60); do [ -n "$(pin_line)" ] && break; sleep 0.1; done
+  pin_click
+  for _ in $(seq 60); do pin_pinned && break; sleep 0.1; done
+  pin_pinned && check 1 "left: a pin clicked on HEADLESS-1 reads pinned there" \
+    || check 0 "left: a pin clicked on HEADLESS-1 does not read pinned ($(pin_line))"
+  sleep 1   # (a window that a wrong, global pin would bring up is up within this)
+  layout_vis=$(ipc runtime.layout | python3 -c 'import json, sys
+d = json.load(sys.stdin)["outputs"]
+print(d.get("HEADLESS-1", {}).get("sidebars", {}).get("left", {}).get("visibility"), d.get("HEADLESS-2", {}).get("sidebars", {}).get("left", {}).get("visibility", d["*"]["sidebars"]["left"]["visibility"]))' 2>/dev/null || echo "? ?")
+  [ "$layout_vis" = "always hidden" ] && check 1 "pages: the layout pins HEADLESS-1's left sidebar and not HEADLESS-2's ($layout_vis)" \
+    || check 0 "pages: the layout says '$layout_vis' for HEADLESS-1 and HEADLESS-2, not 'always hidden'"
+  grep -q 'sidebar-window up left HEADLESS-2' "$R/qs.log" \
+    && check 0 "pages: a window came up on HEADLESS-2 (the pin is on every output)" \
+    || check 1 "pages: no window came up on HEADLESS-2"
+  global=$(K --json get sidebar.left.pinned | python3 -c 'import json, sys; print(json.load(sys.stdin)["value"])' 2>/dev/null || echo "?")
+  if [ "$global" = False ] || [ "$global" = false ]; then check 1 "pages: the global pin stays off"
+  else check 0 "pages: the global pin reads '$global'"; fi
+  pin_click
+  for _ in $(seq 60); do pin_pinned || break; sleep 0.1; done
+  if pin_pinned; then check 0 "pages: a second click does not unpin it on HEADLESS-1"
+  else check 1 "pages: a second click unpins it on HEADLESS-1"; fi
+  n=$(nlines "sidebar-window down left HEADLESS-1")
+  K act sidebar.close >/dev/null
+  wait_more "sidebar-window down left HEADLESS-1" "$n" 80 || check 0 "pages: the left sidebar did not close"
+
+  problems=$(qs_problems | grep -v "wl_\|zwlr\|xdg_\|wp_\|ext_" || true)
+  [ -z "$problems" ] && check 1 "pages: the frontend logs no QML error or warning" \
+    || { echo "$problems" | head -5; check 0 "pages: the frontend logs QML errors or warnings"; }
+  exec 7>&-
   stop_scene
 fi
 [ "$FAILS" = 0 ] || fail "$FAILS check(s) failed"
