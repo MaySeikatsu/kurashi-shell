@@ -233,7 +233,7 @@ Item {
                 width: parent.width
                 height: tile.btnH
                 radius: tile.corner
-                color: tile.lit ? Theme.accent : Theme.containerHigh
+                color: tile.lit ? onBadge : Theme.containerHigh
                 border.width: tile.failed ? 2 : 1
                 border.color: tile.failed ? Theme.error : Qt.alpha(Theme.fg, tile.lit ? 0.0 : 0.08)
                 opacity: tile.inert ? 0.5 : (hit.pressed ? 0.85 : 1)

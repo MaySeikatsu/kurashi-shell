@@ -47,17 +47,40 @@ Item {
         return out
     }
     readonly property var shownTabs: rows.filter(function (r) { return r.state === "ok" })
-    property int current: 0
-    readonly property int cur: Math.max(0, Math.min(current, shownTabs.length - 1))
+    // The page shown, by its tab's id (`mod:ai:ai`, a core section's name), not its index: a reordered section keeps it. The
+    // column is made again each time the sidebar opens, so the page last chosen lives with the sidebar (Sidebar.qml pageOf,
+    // B46); a tab that is not shown now (its mod off or not loaded) falls back to the first shown one, and the choice is
+    // kept for when it is back. Only a choice writes it (`choose`), never the fallback.
+    property string pageId: ""
+    signal pageChosen(string page)
+    function indexOfPage(id) {
+        for (var i = 0; i < shownTabs.length; i++) if (shownTabs[i].value === id) return i
+        return -1
+    }
+    readonly property int cur: Math.max(0, indexOfPage(pageId))
     readonly property var tab: shownTabs.length > 0 ? shownTabs[cur] : null
     // Test only (KURASHI_SIDEBAR_GEOMETRY=1, frontend/test-sidebar-panel.sh): which tab shows, and its component.
     readonly property string shownLog: (tab ? tab.value : "none") + " " + (tab ? panel.resolved !== "" : false)
         + " " + rows.map(function (r) { return r.value + "=" + r.state }).join(",")
     onShownLogChanged: if (Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1") console.log("sidebar-tab " + shownLog)
     Component.onCompleted: if (Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1") console.log("sidebar-tab " + shownLog)
+    // Test only (KURASHI_SIDEBAR_GEOMETRY=1, frontend/test-sidebars.sh pages part): where a tab's key is in the window, so the
+    // test can click it on its output (the column's window sits at the output's origin on the left).
+    readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
+    function logTab(i, key) {
+        if (!geometryLog || i >= shownTabs.length) return
+        var p = key.mapToItem(null, 0, 0)
+        console.log("sidebar-tabkey " + outName + " " + side + " " + i + " " + shownTabs[i].value + " " + Math.round(p.x) + " "
+            + Math.round(p.y) + " " + Math.round(key.width) + " " + Math.round(key.height))
+    }
+    function choose(i) {
+        if (i < 0 || i >= shownTabs.length) return
+        pageId = shownTabs[i].value
+        pageChosen(pageId)
+    }
     function step(n) {
         if (shownTabs.length < 2) return
-        current = (cur + n + shownTabs.length) % shownTabs.length
+        choose((cur + n + shownTabs.length) % shownTabs.length)
     }
     Keys.onPressed: event => {
         if (!(event.modifiers & Qt.ControlModifier)) return
@@ -76,13 +99,17 @@ Item {
         Repeater {
             model: lc.shownTabs
             delegate: KeyButton {
+                id: tabKey
                 required property var modelData
                 required property int index
                 side: 30
                 label: modelData.name
                 primary: index === lc.cur
                 a11y: modelData.name
-                onClicked: lc.current = index
+                onClicked: lc.choose(index)
+                onXChanged: lc.logTab(index, tabKey)
+                onYChanged: lc.logTab(index, tabKey)
+                Component.onCompleted: lc.logTab(index, tabKey)
             }
         }
     }

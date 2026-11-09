@@ -132,7 +132,8 @@ Item {
     function flash() { if (r.visible) flashAnim.restart() }
     // The keyboard focus goes to the row's control: a search hit or a breadcrumb reached by the keyboard lands on the setting.
     function focusControl(): void {
-        const first = r.firstTabStop(ctl.item ? ctl.item : slot)
+        // A control may name where a jump lands (PackCards: its cards, past the category tabs in front of them).
+        const first = ctl.item && ctl.item.focusTarget ? ctl.item.focusTarget : r.firstTabStop(ctl.item ? ctl.item : slot)
         if (first) first.forceActiveFocus()
     }
     function firstTabStop(item) {

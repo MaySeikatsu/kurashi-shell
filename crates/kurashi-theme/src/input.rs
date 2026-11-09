@@ -75,7 +75,7 @@ pub enum Source {
     Wallpaper(Wallpaper),
     /// `wallpaper` from the picture at this path. Decoded and extracted once per path, mtime and
     /// size (`stages::wallpaper_file`), so a resolve on every config change costs no decode.
-    WallpaperFile(PathBuf),
+    WallpaperFile(PathBuf, crate::extract::Mode),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -162,6 +162,9 @@ pub struct SurfaceRadii {
 
 #[derive(Clone, Debug)]
 pub struct Axes {
+    /// The palette's colours spread over the controls (`theme.colors.controls`): sliders take the secondary, switches and
+    /// quick tiles the tertiary, selections a tint of the secondary; buttons keep the accent. Off: the accent everywhere.
+    pub spread_controls: bool,
     pub shape: Shape,
     /// The one corner radius (K74), px.
     pub radius: f64,
@@ -197,6 +200,7 @@ pub struct Axes {
 impl Default for Axes {
     fn default() -> Self {
         Axes {
+            spread_controls: false,
             shape: Shape::Rounded,
             radius: 18.0,
             radius_of: SurfaceRadii::default(),
@@ -255,6 +259,10 @@ pub struct ThemeInput {
     pub oled: bool,
     /// The text colour (K60).
     pub ink: Ink,
+    /// Grounds in the palette's strong colour (I456), the shell's and those of the apps that follow.
+    pub strong_chrome: bool,
+    /// The chrome's gradient (I460): `Some` while the chrome fill is the gradient (with `strong_chrome` on: its ground).
+    pub wash: Option<Wash>,
     pub axes: Axes,
     /// The look's slots and `[decor]` metrics (W53.0a); empty = every default (today's shell).
     pub decor: Decor,
@@ -274,9 +282,33 @@ impl Default for ThemeInput {
             wcag: true,
             oled: false,
             ink: Ink::Palette,
+            strong_chrome: false,
+            wash: None,
             axes: Axes::default(),
             decor: Decor::default(),
             overrides: BTreeMap::new(),
         }
     }
+}
+
+/// The chrome's gradient (I460, `theme.colors.gradient.*`): published as `chrome.wash.*` tokens, drawn by the frontend's
+/// Wash over every ground as one continuous sheet.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Wash {
+    /// true: tones of the ground's colour; false: the palette's colours.
+    pub tones: bool,
+    /// `linear` | `radial` | `watercolour`.
+    pub pattern: String,
+    pub angle: f64,
+    /// Lightness apart of the two tones (OKLab L, 0..0.3).
+    pub spread: f64,
+    /// 0..1.
+    pub softness: f64,
+    /// Watercolour pool size, logical px.
+    pub size: f64,
+    /// One canvas over every output.
+    pub span_all: bool,
+    /// Stops ordered darkest first, so the darker side lies at the gradient's start (the auto angle puts the start where
+    /// the wallpaper is lightest).
+    pub dark_first: bool,
 }

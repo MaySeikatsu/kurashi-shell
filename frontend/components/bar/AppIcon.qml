@@ -25,6 +25,9 @@ Item {
         sourceSize: Qt.size(64, 64)
         asynchronous: true
         visible: ai.src !== "" && status === Image.Ready
+        // Session 26: the app icons' tint (`theme.colors.app_icons`).
+        layer.enabled: Theme.iconTint !== "original" && visible
+        layer.effect: IconTint { mode: Theme.iconTint }
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

@@ -96,6 +96,11 @@ Scope {
         return null
     }
     function num(v, d) { return typeof v === "number" && !isNaN(v) ? v : d }
+    // B46: the tab (its id) each output's pages-mode column showed last. View state of this side only: no key, no daemon.
+    // Written on a choice, read when the column is made (the Loader makes it again each time the sidebar opens).
+    property var pages: ({})
+    function pageOf(out) { return pages[out] !== undefined ? String(pages[out]) : "" }
+    function rememberPage(out, id) { pages[out] = String(id) }
 
     Variants {
         model: Quickshell.screens
@@ -165,6 +170,29 @@ Scope {
             property int pendingW: -1
             onDocWChanged: if (pendingW >= 0 && docW === pendingW) { pendingW = -1; if (!resizing) liveW = -1 }
             readonly property int colW: liveW >= 0 ? clampW(liveW) : docW
+
+            // The column's content, made inside this output's scope so the output is known when it is made: the page memory
+            // (B46) and the header's pin (B47) are per output. (A Loader has no initialProperties: the components carry it.)
+            Component {
+                id: pagesC
+                LeftColumn {
+                    tabs: sb.sections; side: sb.side
+                    outName: col.out
+                    // B46: the page this output's column showed last (the Loader makes the column again each time the sidebar
+                    // opens, so the memory lives on the Sidebar; per output: the key).
+                    pageId: sb.pageOf(col.out)
+                    onPageChosen: page => sb.rememberPage(col.out, page)
+                }
+            }
+            Component {
+                id: stackC
+                RightColumn {
+                    sections: sb.sections
+                    pinSide: sb.side
+                    outName: col.out
+                    fromTop: cfg.atTop && !cfg.atBottom
+                }
+            }
 
             // ---- when it is out ----
             readonly property bool toggledHere: sb.toggled && sb.toggledOn === out
@@ -741,15 +769,30 @@ Scope {
                             // is redrawn when the path changes (while the column moves) and never at rest.
                             Shape {
                                 id: maskShape
-                                visible: reliefBox.on
+                                visible: reliefBox.masked
                                 anchors.fill: parent
                                 preferredRendererType: Shape.CurveRenderer
                                 ShapePath {
                                     strokeWidth: -1
                                     strokeColor: "transparent"
                                     fillColor: "white"
-                                    PathSvg { path: reliefBox.on ? shape.fillPath : "" }
+                                    PathSvg { path: reliefBox.masked ? shape.fillPath : "" }
                                 }
+                            }
+                        }
+                        // I460 prototype: the wash over the column's fill, clipped to its shape, under the content.
+                        Item {
+                            z: 0
+                            visible: Theme.washOn && shape.shown
+                            x: box.x
+                            y: box.y
+                            width: win.boxW
+                            height: win.height
+                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            Loader {
+                                anchors.fill: parent
+                                active: parent.visible
+                                sourceComponent: Wash { anchors.fill: parent; mask: shapeMask; fill: Qt.alpha(shape.fill, 1); strength: shape.fill.a }
                             }
                         }
                         // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the
@@ -757,6 +800,8 @@ Scope {
                         Item {
                             id: reliefBox
                             readonly property bool on: Theme.texShell && shape.shown
+                            // The shape's mask is made for the relief or the wash (I460).
+                            readonly property bool masked: (Theme.texShell || Theme.washOn) && shape.shown
                             readonly property point carry: win.shapeCarry
                             z: Theme.texText ? 2 : 0
                             visible: on
@@ -818,6 +863,8 @@ Scope {
                                 id: pinBtn
                                 visible: !content.pinInHeader
                                 sidebarSide: sb.side
+                                // B47: this column's output (the pin reads and writes its slot).
+                                outName: col.out
                                 anchors.top: parent.top
                                 x: sb.side === "right" ? parent.width - width : 0
                             }
@@ -825,7 +872,7 @@ Scope {
                                 id: colLoader
                                 anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
                                 focus: true
-                                sourceComponent: sb.mode === "pages" ? leftC : rightC
+                                sourceComponent: sb.mode === "pages" ? pagesC : stackC
                             }
                         }
                         }
@@ -863,11 +910,11 @@ Scope {
                         x: -100000
                         width: win.boxW
                         height: win.height
-                        sourceItem: reliefBox.on ? maskShape : null
+                        sourceItem: reliefBox.masked ? maskShape : null
                         hideSource: true
                     }
                     Connections {
-                        target: reliefBox.on ? shape : null
+                        target: reliefBox.masked ? shape : null
                         function onFillPathChanged() { shapeMask.scheduleUpdate() }
                     }
 
@@ -934,18 +981,5 @@ Scope {
                 }
             }
         }
-    }
-    Component {
-        id: rightC
-        RightColumn {
-            sections: sb.sections
-            pinSide: sb.side
-            outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : ""
-            fromTop: cfg.atTop && !cfg.atBottom
-        }
-    }
-    Component {
-        id: leftC
-        LeftColumn { tabs: sb.sections; side: sb.side; outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : "" }
     }
 }

@@ -393,4 +393,21 @@ Singleton {
     property bool hosted: false
     readonly property bool surfaceRelief: hosted && texShell && !texText
     readonly property bool textRelief: hosted && texShell && texText
+
+    // ---- I460 the chrome's gradient (K109): the daemon's `chrome.wash.*` tokens, drawn by components/Wash.qml ----
+    readonly property bool washOn: tok("chrome.wash.on", false) === true
+    readonly property string washSpan: String(tok("chrome.wash.span", "output"))
+    readonly property string washMode: String(tok("chrome.wash.mode", "linear"))
+    readonly property real washAngle: tok("chrome.wash.angle", 35)
+    readonly property real washScale: tok("chrome.wash.scale", 420)
+    readonly property real washSoftness: tok("chrome.wash.softness", 0.85)
+    readonly property point washCenter: Qt.point(0.5, 0.5)
+    readonly property real washReach: 0.6
+    readonly property var washStops: {
+        var d = tok("chrome.wash.stops", null)
+        if (d && d.length >= 2) return d.map(function (x) { return Qt.color(x) })
+        return [surface, surface]
+    }
+    // Session 26: the app icons' tint (`theme.colors.app_icons`): original | ink | tones | palette (components/IconTint.qml).
+    readonly property string iconTint: String(tok("icons.apps", "original"))
 }

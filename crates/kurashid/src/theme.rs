@@ -211,7 +211,14 @@ fn scheme_name(s: Scheme) -> &'static str {
 
 /// Whether the theme needs the wallpaper's picture: palette `wallpaper` or scheme `wallpaper` (K34, K55).
 fn wants_picture(store: &ConfigStore) -> bool {
-    s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+    // I460: the gradient's angle follows the wallpaper's light.
+    let auto_angle = b(store, "theme.colors.gradient.on")
+        && store
+            .get("theme.colors.gradient.auto_angle", None)
+            .and_then(|p| p.value.as_bool())
+            .unwrap_or(true);
+    auto_angle
+        || s(store, "theme.colors.palette") == WALLPAPER_PALETTE
         || s(store, "theme.colors.scheme") == WALLPAPER_PALETTE
         || crate::texture::wants_wallpaper(store)
 }
@@ -300,6 +307,15 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         elevation_pointer: b(store, "theme.material.elevation_pointer"),
         ..Axes::default()
     };
+    // Session 26: the palette's colours over the controls; automatic = under the wallpaper's Mixed colours.
+    axes.spread_controls = match s(store, "theme.colors.controls").as_str() {
+        "spread" => true,
+        "one" => false,
+        _ => {
+            s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+                && s(store, "theme.colors.extraction") == "mixed"
+        }
+    };
     let chain = families("theme.typography.family");
     if !chain.is_empty() {
         axes.font_chain = chain;
@@ -317,7 +333,16 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     }
     let palette = s(store, "theme.colors.palette");
     let source = match (palette.as_str(), picture) {
-        (WALLPAPER_PALETTE, Some(path)) => Source::WallpaperFile(path.to_path_buf()),
+        (WALLPAPER_PALETTE, Some(path)) => {
+            use kurashi_theme::extract::Mode;
+            let mode = match s(store, "theme.colors.extraction").as_str() {
+                "vibrant" => Mode::Vibrant,
+                "prominent" => Mode::Prominent,
+                "mixed" => Mode::Mixed,
+                _ => Mode::TonalMatched,
+            };
+            Source::WallpaperFile(path.to_path_buf(), mode)
+        }
         (WALLPAPER_PALETTE, None) => ThemeInput::default().source,
         _ => Source::Palette(palette),
     };
@@ -337,6 +362,32 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
+        strong_chrome: s(store, "theme.colors.chrome_fill") == "strong",
+        wash: b(store, "theme.colors.gradient.on").then(|| kurashi_theme::Wash {
+            tones: s(store, "theme.colors.gradient.colours") != "colours",
+            pattern: match s(store, "theme.colors.gradient.pattern").as_str() {
+                "" => "linear".into(),
+                p => p.to_owned(),
+            },
+            angle: picture
+                .filter(|_| {
+                    store
+                        .get("theme.colors.gradient.auto_angle", None)
+                        .and_then(|p| p.value.as_bool())
+                        .unwrap_or(true)
+                })
+                .and_then(|p| kurashi_theme::stages::wallpaper_file(p).ok())
+                .and_then(|e| kurashi_theme::stages::light_axis(&e.pixels))
+                .unwrap_or_else(|| f(store, "theme.colors.gradient.angle", 35.0)),
+            spread: f(store, "theme.colors.gradient.spread", 12.0) / 100.0,
+            softness: f(store, "theme.colors.gradient.softness", 85.0) / 100.0,
+            size: f(store, "theme.colors.gradient.size", 420.0),
+            span_all: store
+                .get("theme.colors.gradient.span_outputs", None)
+                .and_then(|p| p.value.as_bool())
+                .unwrap_or(true),
+            dark_first: true,
+        }),
         ink: match s(store, "theme.colors.ink").as_str() {
             "" | "palette" => kurashi_theme::Ink::Palette,
             "custom" => kurashi_theme::color::Rgb::parse(&s(store, "theme.colors.ink_custom"))
@@ -685,6 +736,16 @@ pub fn document_with(
             shadow_tokens(store, &mut tokens, &input);
             // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".
             tokens.insert("os.logo".into(), json!(os_logo()));
+            // Session 26: the app icons' tint (`theme.colors.app_icons`), read by the frontend's IconTint.
+            let apps = s(store, "theme.colors.app_icons");
+            tokens.insert(
+                "icons.apps".into(),
+                json!(if apps.is_empty() {
+                    "original".to_owned()
+                } else {
+                    apps
+                }),
+            );
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()

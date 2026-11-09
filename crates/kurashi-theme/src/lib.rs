@@ -10,6 +10,7 @@
 pub mod appearance;
 pub mod color;
 pub mod export;
+pub mod extract;
 pub mod font_mix;
 pub mod fonts;
 pub mod input;
@@ -26,7 +27,7 @@ pub use fonts::{FakeFonts, FcList, FontProvider};
 pub use input::*;
 /// The motion engine (K83): the daemon offers its packs and forms from here.
 pub use kurashi_motion;
-pub use palette::{Palette, PaletteSet, bundled, bundled_names};
+pub use palette::{Palette, PaletteSet, bundled, bundled_category, bundled_names};
 pub use tokens::TokenMap;
 
 #[derive(Debug, thiserror::Error)]
@@ -81,7 +82,15 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
     push("colorblind", s.notes);
     let s = stages::ink(s.palette, &input.ink);
     push("ink", s.notes);
-    let s = stages::wcag(s.palette, input.wcag);
+    // I456: grounds in the strong colour, before wcag so legibility still has the last word.
+    let s = if input.strong_chrome {
+        let c = stages::strong_chrome(s.palette);
+        push("chrome", c.notes);
+        c.palette
+    } else {
+        s.palette
+    };
+    let s = stages::wcag(s, input.wcag);
     push("wcag", s.notes);
     Ok((s.palette, notes))
 }
@@ -89,7 +98,7 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
 /// Full resolution: palette pipeline, axis scales, component tokens, overrides.
 pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutput, ThemeError> {
     let (palette, mut notes) = resolve_palette(input)?;
-    let (tokens, tn) = tokens::build(
+    let (mut tokens, tn) = tokens::build(
         &palette,
         &input.axes,
         &input.decor,
@@ -107,6 +116,10 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
         },
         text,
     }));
+    // I460: the chrome's gradient, for the frontend's Wash.
+    for (k, v) in stages::wash_tokens(&palette, input.wash.as_ref()) {
+        tokens.insert(k, v);
+    }
     Ok(ThemeOutput {
         tokens,
         palette,

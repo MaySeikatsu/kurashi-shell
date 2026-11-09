@@ -5,6 +5,7 @@
 # the derivations. Meant for look `aqua`.
 name = "aqua"
 kind = "pair"
+category = "inspired"
 description = "Mac OS X pinstripes and Aqua blue gel (decor aqua)"
 
 [light]

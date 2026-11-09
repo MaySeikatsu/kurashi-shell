@@ -54,10 +54,10 @@ Item {
         width: Theme.ringW > 0 ? 46 : 40
         height: Theme.ringW > 0 ? 26 : 22
         radius: Math.min(height / 2, Theme.rFull)
-        color: sw.checked ? Theme.accent : Theme.containerHigh
+        color: sw.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.containerHigh
         // Keycap chrome (K42): the track keeps its ink outline in both states.
         border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
-        border.color: Theme.outlineW > 0 ? Theme.outlineColor : (sw.checked ? Theme.accent : Theme.outline)
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : (sw.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.outline)
         opacity: sw.enabled ? 1 : 0.5
 
         // The relief over the track, under the knob (the outline stays flat).

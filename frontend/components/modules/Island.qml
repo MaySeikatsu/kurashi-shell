@@ -17,6 +17,17 @@ ModuleBase {
     readonly property var bindings: Store.docs["bindings"] || ({})
     width: isl.width
     height: isl.height
+    // B48 (docs/ux/bar-fit.md): elastic while the media title shows — it elides to the bar's `room`, to 80 px of title at
+    // least. The widths are the pill's target (not its spring) without the hover's growth, so the fit never chases them.
+    readonly property real chromeW: isl.textChrome
+    readonly property real leastText: Math.min(isl.textNat, 80)
+    elastic: !vertical && isl.textNat > leastText
+    fullW: vertical ? width : Math.ceil(chromeW + isl.textNat)
+    minW: vertical ? width : Math.ceil(chromeW + leastText)
+    function fitText() { isl.textRoom = Math.max(m.leastText, Math.min(320, Math.floor(m.room - m.chromeW))) }
+    // (on the next turn: the pill's parts settle one after another; the room is read once they have)
+    onRoomChanged: Qt.callLater(fitText)
+    onChromeWChanged: Qt.callLater(fitText)
     function geo() { return [["island", isl]] }
     // The face it shows, and that face's line when the daemon gives one (its peek's text).
     readonly property string faceName: I18n.tr("island.face." + (m.island.face || "clock"))

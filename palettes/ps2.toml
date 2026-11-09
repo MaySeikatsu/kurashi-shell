@@ -2,6 +2,7 @@
 # `_ps2Palette()` (W25, K50). Meant for decor `ps2` (frame `ps2`).
 name = "ps2"
 kind = "pair"
+category = "inspired"
 description = "Void black and tower blue (decor ps2)"
 
 [dark]

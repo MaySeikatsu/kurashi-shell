@@ -424,6 +424,68 @@ Flickable {
         return x.id !== p.pageId
     })
 
+    // Session 26: the page's header stays at the top once it has scrolled away — the page's name and the section in view —
+    // so rows do not run out into nothing at the top edge. An outlined strip on the ground (the pen, the wash and the
+    // relief as every box of Settings), above the rows.
+    readonly property real stickyH: 38
+    readonly property bool stickyOn: !p.searching && p.contentY > col.y + pageHead.y + pageHead.height
+    property string stickySection: ""
+    function findSection() {
+        if (!stickyOn) return
+        var y = p.contentY - col.y + stickyH + Theme.gap
+        var d = col.childAt(Theme.pad, y)
+        var t = ""
+        if (d) {
+            var inner = d.childAt(Theme.pad, y - d.y)
+            if (inner && inner.title !== undefined) t = inner.title
+            else if (d.title !== undefined) t = d.title
+        }
+        if (t !== stickySection) stickySection = t
+    }
+    onContentYChanged: findSection()
+    onStickyOnChanged: findSection()
+    Item {
+        id: sticky
+        z: 10
+        visible: p.stickyOn
+        x: Theme.pad
+        y: p.contentY
+        width: p.width - 2 * Theme.pad
+        height: p.stickyH + Theme.gap
+        // The ground behind the strip, so rows pass under it instead of showing through the gap above it.
+        Rectangle { anchors.fill: parent; anchors.leftMargin: -Theme.pad; anchors.rightMargin: -Theme.pad; color: Theme.surface }
+        Loader {
+            anchors.fill: parent
+            anchors.leftMargin: -Theme.pad
+            anchors.rightMargin: -Theme.pad
+            active: Theme.washOn && sticky.visible
+            sourceComponent: Wash { fill: Theme.surface }
+        }
+        RoundBox {
+            id: stickyFace
+            y: Theme.gap / 2
+            width: parent.width
+            height: p.stickyH
+            radius: Theme.rSm
+            color: Theme.surface
+            border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+            border.color: Theme.outlineW > 0 ? Theme.line : Theme.outline
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                anchors.verticalCenter: parent.verticalCenter
+                x: Theme.pad
+                width: parent.width - 2 * Theme.pad
+                elide: Text.ElideRight
+                color: Theme.fg
+                font.family: Theme.fam(text, Theme.families)
+                font.pixelSize: Theme.fs + 1
+                font.weight: Theme.wBold
+                text: p.heading + (p.stickySection !== "" ? "  ·  " + p.stickySection : "")
+            }
+        }
+    }
+
     Column {
         id: col
         x: Theme.pad
@@ -432,6 +494,7 @@ Flickable {
         spacing: Theme.pad
 
         PageHeader {
+            id: pageHead
             visible: !p.searching
             width: col.width
             text: p.heading

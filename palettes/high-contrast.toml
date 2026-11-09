@@ -10,6 +10,7 @@
 # High contrast — pure black/white grounds, saturated accents, strong outlines.
 name = "high-contrast"
 kind = "pair"
+category = "kurashi"
 description = "Maximum legibility; pairs with accessibility.high_contrast"
 
 [dark]

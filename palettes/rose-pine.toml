@@ -5,6 +5,10 @@ name = "rose-pine"
 kind = "pair"
 description = "Rosé Pine dusk and dawn"
 
+category = "common"
+family = "Rosé Pine"
+variant = "Main"
+
 [dark]
 surface = "#191724"                   # base
 surface_container_lowest = "#13111c"
@@ -23,6 +27,15 @@ warning = "#f6c177"                   # gold
 error = "#eb6f92"                     # love
 success = "#3e8fb0"                   # pine (moon)
 
+[dark.terminal]
+background = "#191724"
+foreground = "#e0def4"
+cursor = "#524f67"
+cursor_text_color = "#e0def4"
+selection_background = "#403d52"
+selection_foreground = "#e0def4"
+colors = ["#26233a", "#eb6f92", "#31748f", "#f6c177", "#9ccfd8", "#c4a7e7", "#ebbcba", "#e0def4", "#6e6a86", "#eb6f92", "#31748f", "#f6c177", "#9ccfd8", "#c4a7e7", "#ebbcba", "#e0def4"]
+
 [light]
 surface = "#faf4ed"                   # base
 surface_container_lowest = "#fffaf3"  # surface
@@ -40,3 +53,12 @@ tertiary = "#d7827e"                  # rose
 warning = "#ea9d34"                   # gold
 error = "#b4637a"                     # love
 success = "#286983"                   # pine
+
+[light.terminal]
+background = "#faf4ed"
+foreground = "#575279"
+cursor = "#cecacd"
+cursor_text_color = "#575279"
+selection_background = "#dfdad9"
+selection_foreground = "#575279"
+colors = ["#f2e9e1", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279", "#9893a5", "#b4637a", "#286983", "#ea9d34", "#56949f", "#907aa9", "#d7827e", "#575279"]

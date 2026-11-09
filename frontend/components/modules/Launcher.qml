@@ -34,7 +34,13 @@ ModuleBase {
         if (logo === "os" && name !== "") return Quickshell.iconPath(name, true)
         return ""
     }
-    readonly property string tint: logo === "os" ? String(Theme.decor("start.logo_tint", "none")) : "none"
+    // The logo's colour (`launcher.logo_tint`, session 26): the look's (its `[decor] start.logo_tint` on the OS logo), the
+    // picture as it is, the text's colour, or the palette's colours as sectors (the PS2 look's sweep) or tones.
+    readonly property string tintChoice: String(cfg.valueOf("launcher.logo_tint", "look"))
+    readonly property string tint: tintChoice === "look"
+        ? (logo === "os" ? String(Theme.decor("start.logo_tint", "none")) : "none")
+        : (tintChoice === "original" ? "none" : tintChoice)
+    readonly property bool shaderTint: tint === "palette" || tint === "tones"
     readonly property bool owned: logoSource !== "" && ownImg.status === Image.Ready
     readonly property Item face: owned ? own : (dressed ? dress : plain)
     width: face.width
@@ -76,9 +82,10 @@ ModuleBase {
             smooth: true
             // Synchronous: a small icon, and the tint's mask layer is made from it once it has loaded.
             // Drawn as is, or as the mask of its tint below (then hidden here, kept as a layer for the mask).
-            visible: m.tint === "none"
+            visible: m.tint === "none" || m.shaderTint
             // Always layered (a 22 px icon): a layer switched on later, on an item already hidden, never renders.
             layer.enabled: true
+            layer.effect: m.shaderTint ? paletteTint : null
             onStatusChanged: if (status === Image.Error) console.warn("launcher: the button logo " + source + " did not load; the look's mark stays")
         }
         // The tint: the logo's alpha over the text's ink, or over a conic sweep of the four console colours.
@@ -102,9 +109,10 @@ ModuleBase {
                 }
             }
         }
+        Component { id: paletteTint; IconTint { mode: m.tint } }
         MultiEffect {
             anchors.fill: ownImg
-            visible: m.tint !== "none" && m.owned
+            visible: m.tint !== "none" && !m.shaderTint && m.owned
             source: tintFill
             maskEnabled: true
             maskSource: ownImg

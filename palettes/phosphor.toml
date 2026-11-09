@@ -4,6 +4,7 @@
 # continuous-feed "green-bar" paper (K53: every palette authors both).
 name = "phosphor"
 kind = "pair"
+category = "inspired"
 description = "Green phosphor on black (terminal)"
 
 [dark]

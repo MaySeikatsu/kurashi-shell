@@ -75,9 +75,12 @@ Item {
     }
     // The material on the fill (the dock's and the sidebar's pattern, K59): a relief cut by a mask redrawn when the path changes.
     readonly property bool textured: visible && Theme.texShell && shape.shown
+    // I460: the wash needs the same mask.
+    readonly property bool washed: visible && Theme.washOn && shape.shown
+    readonly property bool masked: textured || washed
     Shape {
         id: maskShape
-        visible: jc.textured
+        visible: jc.masked
         anchors.fill: parent
         transform: jc.scaling
         preferredRendererType: Shape.CurveRenderer
@@ -85,7 +88,7 @@ Item {
             strokeWidth: -1
             strokeColor: "transparent"
             fillColor: "white"
-            PathSvg { path: jc.textured ? shape.fillPath : "" }
+            PathSvg { path: jc.masked ? shape.fillPath : "" }
         }
     }
     StillCopy {
@@ -93,14 +96,19 @@ Item {
         x: -100000
         width: jc.width
         height: jc.height
-        sourceItem: jc.textured ? maskShape : null
+        sourceItem: jc.masked ? maskShape : null
         hideSource: true
     }
     Connections {
-        target: jc.textured ? shape : null
+        target: jc.masked ? shape : null
         function onFillPathChanged() { maskCopy.scheduleUpdate() }
     }
-    onTexturedChanged: if (textured) Qt.callLater(maskCopy.scheduleUpdate)
+    onMaskedChanged: if (masked) Qt.callLater(maskCopy.scheduleUpdate)
+    Loader {
+        anchors.fill: parent
+        active: jc.washed
+        sourceComponent: Wash { anchors.fill: parent; mask: maskCopy; fill: Qt.alpha(jc.fill, 1); strength: jc.fill.a }
+    }
     Loader {
         anchors.fill: parent
         active: jc.textured

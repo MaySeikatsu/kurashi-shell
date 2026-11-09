@@ -4,6 +4,7 @@
 # §9.1); dark is the stream at night. Meant for the look `kawaii`.
 name = "kawaii"
 kind = "pair"
+category = "inspired"
 description = "Pastel orchid, violet and mint (style kawaii)"
 
 [light]

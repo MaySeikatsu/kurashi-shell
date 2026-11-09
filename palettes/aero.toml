@@ -4,6 +4,7 @@
 # variables. Meant for look `aero`.
 name = "aero"
 kind = "pair"
+category = "inspired"
 description = "Aero glass blue-white (decor aero)"
 
 [light]

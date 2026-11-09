@@ -723,6 +723,33 @@ pub struct Colors {
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
     #[kurashi(default = Scheme::Auto)]
     pub scheme: Scheme,
+    /// Wallpaper colours
+    /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
+    /// same, more saturated; Prominent takes the colours that are in the picture as they are (its dark and light for
+    /// ground and text, its strongest hues as accents); Mixed spreads all of the picture's prominent colours over the
+    /// shell (ground, cards, lines, accents). Text stays legible in every mode. The seasonal tint, when on, still shifts
+    /// these hues (I455).
+    #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
+    pub extraction: Extraction,
+    /// Colours on the controls
+    /// One accent: buttons, sliders, switches and tiles all in the accent. Spread: the palette's colours over them —
+    /// buttons the accent, sliders the secondary, switches and quick tiles the tertiary — so a wallpaper's other colours
+    /// show as themselves. Automatic spreads them under the wallpaper's Mixed colours.
+    #[kurashi(default = ControlColours::Auto)]
+    pub controls: ControlColours,
+    /// App icons
+    /// The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the
+    /// palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+    #[kurashi(default = AppIconTint::Original)]
+    pub app_icons: AppIconTint,
+    /// Chrome fill
+    /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
+    /// palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so
+    /// they stay legible. The gradient below can run over either (I456).
+    #[kurashi(default = ChromeFill::Neutral)]
+    pub chrome_fill: ChromeFill,
+    #[kurashi(nested)]
+    pub gradient: ChromeGradient,
     /// Contrast
     /// Raises the contrast between surfaces and text.
     #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
@@ -733,7 +760,7 @@ pub struct Colors {
     pub colorblind: Colorblind,
     /// Seasonal tint (旬)
     /// The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24
-    /// solar terms.
+    /// solar terms. It shifts every palette's accents, a wallpaper's too, so they can look unlike the picture.
     #[kurashi(default = false, advanced)]
     pub season: bool,
     #[kurashi(nested)]
@@ -753,6 +780,128 @@ pub struct Colors {
     /// Used in light and dark alike, adjusted only as far as legibility needs.
     #[kurashi(default = Color::new("#2b4a8b"), requires = "theme.colors.ink == custom")]
     pub ink_custom: Color,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ControlColours {
+    /// Automatic
+    Auto,
+    /// One accent
+    One,
+    /// Spread
+    Spread,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum ChromeFill {
+    /// Neutral
+    Neutral,
+    /// Strong colour
+    Strong,
+}
+
+/// I460: the chrome's gradient, one continuous sheet that every ground shows its own part of.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct ChromeGradient {
+    /// Gradient
+    /// The chrome's fill — neutral or the strong colour — runs from one tone or colour to another across the screen (or
+    /// every screen), in the pattern below; text stays legible over all of it (I460).
+    #[kurashi(default = false)]
+    pub on: bool,
+    /// Gradient colours
+    /// Tones: the strong colour from darker to lighter. Colours: the palette's accent, secondary and tertiary run into
+    /// each other (with the wallpaper's Mixed colours, the picture's own).
+    #[kurashi(default = GradientColours::Tones, requires = "theme.colors.gradient.on == true")]
+    pub colours: GradientColours,
+    /// Pattern
+    /// Linear runs from one edge to the other; radial from the middle out; watercolour lays large soft pools that bleed
+    /// into each other; the wallpaper under it gives every spot the colour of the picture right behind it, softened.
+    #[kurashi(default = GradientPattern::Linear, requires = "theme.colors.gradient.on == true")]
+    pub pattern: GradientPattern,
+    /// Angle from the wallpaper
+    /// The gradient turns so its darker side lies where the wallpaper is lighter and its lighter side where the
+    /// wallpaper is darker, so the chrome stands out from the picture behind it (no dark on dark, no light on light).
+    /// Without a wallpaper picture the angle below is used.
+    #[kurashi(
+        default = true,
+        requires = "theme.colors.gradient.on == true",
+        requires = "theme.colors.gradient.pattern == linear"
+    )]
+    pub auto_angle: bool,
+    /// Angle
+    /// The direction a linear gradient runs in.
+    #[kurashi(
+        default = 35,
+        range = 0..=359,
+        step = 5,
+        unit = "°",
+        requires = "theme.colors.gradient.on == true",
+        requires = "theme.colors.gradient.pattern == linear",
+        requires = "theme.colors.gradient.auto_angle == false"
+    )]
+    pub angle: u32,
+    /// Range of tones
+    /// How far the darker and the lighter tone lie apart; text stays legible on both.
+    #[kurashi(
+        default = 12,
+        range = 2..=30,
+        step = 1,
+        unit = "%",
+        requires = "theme.colors.gradient.on == true",
+        requires = "theme.colors.gradient.colours == tones"
+    )]
+    pub spread: u32,
+    /// Softness
+    /// How gently one colour runs into the next (under the wallpaper pattern: how much the picture is blurred).
+    #[kurashi(default = 85, range = 0..=100, step = 5, unit = "%", requires = "theme.colors.gradient.on == true")]
+    pub softness: u32,
+    /// Pool size
+    /// How large the watercolour's pools are.
+    #[kurashi(
+        default = 420,
+        range = 120..=1600,
+        step = 20,
+        unit = "px",
+        requires = "theme.colors.gradient.on == true",
+        requires = "theme.colors.gradient.pattern == watercolour"
+    )]
+    pub size: u32,
+    /// Across all screens
+    /// One gradient over every screen together, as they stand side by side; off, each screen has its own.
+    #[kurashi(default = true, requires = "theme.colors.gradient.on == true")]
+    pub span_outputs: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum GradientColours {
+    /// Tones of one colour
+    Tones,
+    /// All its colours
+    Colours,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum GradientPattern {
+    /// Linear
+    Linear,
+    /// Radial
+    Radial,
+    /// Watercolour
+    Watercolour,
+    /// The wallpaper under it
+    Wallpaper,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Extraction {
+    /// Tone-matched
+    ToneMatched,
+    /// Vibrant
+    Vibrant,
+    /// Prominent
+    Prominent,
+    /// Mixed
+    Mixed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1787,6 +1936,39 @@ pub struct Launcher {
     /// A PNG or SVG (an absolute path or `~/…`) for the launcher button. It stays on this machine.
     #[kurashi(default = String::new(), requires = "launcher.button_logo == own", since = 7)]
     pub button_icon: String,
+    /// Logo colour
+    /// The OS logo or your image as the look draws it, as it is, in the text's colour, in the palette's colours as
+    /// sectors (as the PS2 look does with its four), or in the palette's tones (its drawing kept, dark to light).
+    #[kurashi(default = LogoTint::Look, requires = "launcher.button_logo != look", module = "launcher")]
+    pub logo_tint: LogoTint,
+}
+
+/// The launcher logo's colour (session 26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum LogoTint {
+    /// As the look draws it
+    Look,
+    /// Original
+    Original,
+    /// Text colour
+    Ink,
+    /// Palette colours
+    Palette,
+    /// Palette tones
+    Tones,
+}
+
+/// The app icons' colour (session 26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum AppIconTint {
+    /// Original
+    Original,
+    /// Text colour
+    Ink,
+    /// Palette tones
+    Tones,
+    /// Palette colours
+    Palette,
 }
 
 // --- bar modules' own options (I408, docs/ux/module-menu.md) ---------------------------------------
@@ -2034,7 +2216,7 @@ macro_rules! sidebar_side {
             /// Pinned
             /// Kept open, the windows beside it, while pinned (the pin in the sidebar's corner); unpinned, it goes back to
             /// the visibility above, which pinning leaves as it is.
-            #[kurashi(default = false, module = $module, since = 7)]
+            #[kurashi(default = false, module = $module, per_output, since = 7)]
             pub pinned: bool,
             /// Keep space
             /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps

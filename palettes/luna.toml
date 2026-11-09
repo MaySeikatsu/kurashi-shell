@@ -5,6 +5,7 @@
 # derivations. Meant for look `luna`.
 name = "luna"
 kind = "pair"
+category = "inspired"
 description = "XP beige with Luna blue (decor luna)"
 
 [light]

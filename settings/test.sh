@@ -1052,7 +1052,8 @@ Q advanced false
 Q goto appearance
 Q advanced true
 Q focusList >/dev/null
-tab_to "slider:theme.shape.radius" 120
+# (200: session 26 put the colour rows — extraction, controls, app icons, chrome fill, the gradient — before it)
+tab_to "slider:theme.shape.radius" 200
 radius0=$(val theme.shape.radius)
 kp right
 [[ "$(Q previewState)" == theme.shape.radius=* ]] || fail "radius: Right did not preview ($(Q previewState))"

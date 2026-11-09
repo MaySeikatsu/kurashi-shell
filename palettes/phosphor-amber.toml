@@ -3,6 +3,7 @@
 # ink on cream fanfold paper (K53: every palette authors both).
 name = "phosphor-amber"
 kind = "pair"
+category = "inspired"
 description = "Amber phosphor on black (terminal)"
 
 [dark]

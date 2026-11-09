@@ -4,6 +4,7 @@
 # Meant for the look `souls`.
 name = "souls"
 kind = "pair"
+category = "inspired"
 description = "Near-black, bronze rules, burnt-orange selection (style souls)"
 
 [dark]

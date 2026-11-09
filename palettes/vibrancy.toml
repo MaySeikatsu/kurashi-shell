@@ -4,6 +4,7 @@
 # palette: aqua is Mac OS X 10.x now.)
 name = "vibrancy"
 kind = "pair"
+category = "inspired"
 description = "macOS graphite and silver with system blue (decor vibrancy)"
 
 [dark]

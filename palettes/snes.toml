@@ -8,6 +8,7 @@
 # (the 101 model: grey #d3d3d3–#d9d7d8, buttons #6841b0–#714db4).
 name = "snes"
 kind = "pair"
+category = "inspired"
 description = "RPG window blue on black, the four face colours (decor snes)"
 
 [dark]

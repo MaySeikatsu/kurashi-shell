@@ -26,7 +26,7 @@ Item {
 
     // Outlined chrome with no shadow of either kind draws its keys as boxes: the outline is the key, no fill.
     readonly property bool boxed: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0
-    readonly property color base: primary ? Theme.accent
+    readonly property color base: primary ? Theme.colorOr("button.primary.bg", Theme.accent)
         : (boxed ? "transparent" : (Theme.groups ? Theme.container : Theme.containerHigh))
     implicitWidth: row.implicitWidth + 2 * Theme.pad + 2 * blk.inset
     implicitHeight: (Theme.ringW > 0 ? 34 : (Theme.groups ? 30 : 28)) + Theme.shadowDy

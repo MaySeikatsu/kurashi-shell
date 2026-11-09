@@ -14,7 +14,7 @@ Item {
     id: s
     property real value: 0              // daemon value
     property color track: Theme.outline
-    property color fill: Theme.accent
+    property color fill: Theme.colorOr("slider.fill", Theme.accent)
     property string a11y: ""            // translated accessible name, from the caller
     property real step: 0.05
     property bool unavailable: false

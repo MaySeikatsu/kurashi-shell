@@ -844,7 +844,14 @@ fn offers_now(
     );
     let mut palettes: Vec<Offer> = kurashi_theme::bundled_names()
         .into_iter()
-        .map(|name| Offer::on(name, format!("config.choice.palette.{name}")))
+        .map(|name| {
+            let o = Offer::on(name, format!("config.choice.palette.{name}"));
+            // I452: Kurashi's own, common, inspired; the wallpaper's stays a lead card in front of them.
+            match kurashi_theme::bundled_category(name) {
+                Some(c) => o.in_group(&c),
+                None => o,
+            }
+        })
         .collect();
     // K34: the wallpaper's own colours, offered while the wallpaper mod serves its document.
     if hub.snapshot(crate::theme::WALLPAPER_DOC).is_ok() {

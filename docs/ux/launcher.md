@@ -64,7 +64,8 @@ the user's config file is the source), Klipper's QR codes.
   `Mod` shown as the configured mod key, xkb names as symbols — `,` `←` `PrtSc` `Vol +`); the selected row also shows
   the raw action (`spawn kurashi act launcher.toggle`) so a label never hides what the key does. Typing filters by
   label, keys and action. Footer: "Read-only: niri's keys from its config, and the shell's own".
-- Motion: none new — the list is replaced, the highlight moves (spring per the decor); no animation in the grid.
+- Motion: typing re-sorts the rows and the emoji grid (W67, "Results while typing" below); the highlight moves (spring per
+  the decor).
 - **App icons (W37, row 380)**: each `app` row carries `icon_path`, the file kurashid resolved from the row's icon name
   (`theme.icon_theme`, else the desktop's Qt/GTK theme; inherited themes, hicolor, pixmaps; scalable first, then from
   60 px up), cached in the daemon. The row loads it with an asynchronous `Image` (off the GUI thread), so the first open
@@ -75,6 +76,37 @@ the user's config file is the source), Klipper's QR codes.
   page and each enabled mod's page) appear only for a query that names them (`>settings bar`, `>weather`), so an empty
   `>` stays short. Enter closes the launcher first (Settings is its own window), then sends `settings.open {page}`; a
   page Settings lacks is refused with `error.settings.unknown_page`.
+
+## Results while typing (W67, I424)
+Each keystroke's reply re-sorts the rows instead of replacing them, as Caelestia's launcher does.
+- **Reference.** Caelestia (`modules/launcher/AppList.qml`): a `ScriptModel` over the same app objects every keystroke, so
+  the `ListView` sees moves; `add`/`remove` fade and scale (from 0), `move`/`displaced` slide `y` on its standard curve, and
+  every slide also takes opacity and scale to 1, so an arrival cut short still ends whole; the selection jumps to the top on
+  every change. **Taken:** the four transitions and that safeguard. **Not taken:** scaling rows from 0 (a 0.94 grow reads
+  calmer at our row height), resetting a chosen row (below). No code copied.
+- **Model.** The daemon sends fresh rows each reply, so the launcher keys them itself: the row's id (`app:<desktop id>`,
+  `command:cmd:…`, `clip:…`, `emoji:…`), else its kind and text (cheat sheet rows, groups, notes carry no id); the calculation
+  and the web row are one row each whatever they say; repeats in one list are counted. Each reply is diffed against the
+  rows shown — leaving rows removed, the others moved into place or inserted — into one `ListModel`, so a row that stays
+  keeps its delegate (its icon is not loaded again). A reply to a query already typed past is dropped. The emoji grid
+  re-sorts the same way (x and y); the start menu's grid shows on an empty field only, so nothing re-sorts there.
+- **Motion** (DESIGN-SYSTEM §9, the small-control tokens): a row that stays slides to its place over `motion.standard_ms` on
+  `motion.easing.continuous`; a new row fades and grows in (0.94 → 1) on `motion.easing.enter`; a dropped row fades out
+  over `motion.quick_ms`. A row that comes into view from past the list's edge fades in over its last 8 px instead of
+  travelling from the edge, so rows never start stacked there. Interruptible: a new reply mid-slide continues from where
+  each row is; nothing queues. The selected row's highlight travels with its row.
+- **When it moves.** Only between two replies of one open and one prefix mode: the first fill of an open (under the morph's
+  late content) and a switch of mode are new lists and cut. Hidden: no transition (the rows are emptied without one, Ma).
+  Reduce motion and the `none` profile (`motion.spring.on` false, kurashi-motion `resolve.rs`) cut every row move.
+- **Selection.** Unchosen, the selection is the best hit (the first selectable row) after every reply — Enter opens what
+  ranks first, as in Spotlight, Raycast and Caelestia. A row the user chose with the arrows (or Page keys) stays chosen
+  while it stays in the list, wherever it moves; when it drops out, the best hit again. After a clipboard action, the
+  same place (as before). Group headers stay unselectable.
+- **a11y.** The list is an `Accessible.List`; each row a list item (a group a heading) named by its text, its generic
+  name the description, `selected` on the chosen row — so the accessible selection follows the item through a re-sort.
+- **Done when** (`frontend/test-launcher.sh` phase `resort`): `fi` → `fir` keeps every shown row's delegate and ends in the
+  daemon's order, the chosen row stays chosen, the best hit is selected before a choice; a burst of 8 keys (2 Backspace)
+  with motion on ends on the daemon's list with no stale or doubled delegate. Seen on nested niri (frame sequences).
 
 ## Where it opens (I407, session 23)
 `launcher.place`, also in the launcher module's right-click menu (`docs/ux/module-menu.md`):

@@ -14,12 +14,20 @@ Item {
     readonly property real bw: rb.border.color.a > 0 ? Math.max(0, rb.border.width) : 0
     readonly property bool sq: Theme.squircle > 0 && rb.radius > 0.5 && rb.radius < Math.min(rb.width, rb.height) / 2 - 0.5
 
+    // Session 26: in Settings (Theme.hosted) a box takes the shell's pen for its outline (K62) and the chrome's wash on a
+    // ground's fill (I460), as the shell's own blocks do; the shell's boxes keep their straight line and flat fill.
+    readonly property bool penned: Theme.hosted && Theme.penOutline && rb.bw > 0
+    readonly property bool washed: Theme.hosted && Theme.washOn && rb.color.a > 0.99
+        && (Qt.colorEqual(rb.color, Theme.surface) || Qt.colorEqual(rb.color, Theme.container)
+            || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000")))
+    readonly property real lineW: rb.penned ? 0 : rb.bw
+
     Rectangle {
         anchors.fill: parent
         visible: !rb.sq
         radius: rb.radius
         color: rb.color
-        border.width: rb.bw
+        border.width: rb.lineW
         border.color: rb.border.color
     }
     Loader {
@@ -28,8 +36,31 @@ Item {
         sourceComponent: SquircleRect {
             radius: rb.radius
             color: rb.color
-            borderWidth: rb.bw
+            borderWidth: rb.lineW
             borderColor: rb.border.color
+        }
+    }
+    // By file, not by type: RoundBox is linked into other hosts (the web dock's) that have neither Wash nor PenOutline; a
+    // type named here would have to resolve there too. They load only in Settings.
+    Loader {
+        anchors.fill: parent
+        anchors.margins: rb.lineW
+        active: rb.washed
+        source: active ? "Wash.qml" : ""
+        onLoaded: {
+            item.radius = Qt.binding(function () { return Math.max(0, rb.radius - rb.lineW) })
+            item.fill = Qt.binding(function () { return rb.color })
+        }
+    }
+    Loader {
+        anchors.fill: parent
+        active: rb.penned
+        source: active ? "PenOutline.qml" : ""
+        onLoaded: {
+            item.radius = Qt.binding(function () { return rb.radius })
+            item.color = Qt.binding(function () { return rb.border.color })
+            item.lineWidth = Qt.binding(function () { return rb.bw })
+            item.anchor = rb
         }
     }
 }

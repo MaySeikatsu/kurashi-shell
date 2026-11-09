@@ -64,6 +64,13 @@ ShellRoot {
             implicitHeight: 740
             minimumSize: Qt.size(640, 420)
             color: Theme.surface
+            // I460: the chrome's wash over the window's ground (a sheet of its own from the window's corner, as the relief).
+            Loader {
+                anchors.fill: parent
+                z: -1
+                active: Theme.washOn
+                sourceComponent: Wash { fill: Theme.surface }
+            }
             // The material (K63): a window is not on the shell's continuous sheet (it has no place on the output the
             // shell knows), so its relief is a sheet of its own from its top-left corner (Light.originOf gives a window
             // without layer anchors the origin 0,0). One tile set for every Relief in it; the pointer lamp over it.
@@ -409,6 +416,12 @@ ShellRoot {
                 color: Theme.container
                 topLeftRadius: root.cornerR
                 topRightRadius: root.cornerR
+                // I460: the wash on the header, as on every ground of Settings.
+                Loader {
+                    anchors.fill: parent
+                    active: Theme.washOn
+                    sourceComponent: Wash { topLeftRadius: root.cornerR; topRightRadius: root.cornerR; fill: Theme.container }
+                }
                 Loader {
                     anchors.fill: parent
                     active: Theme.surfaceRelief

@@ -10,6 +10,7 @@
 # 簡素 kanso — neutral, low-chroma mono. Accent is just a lighter/darker grey.
 name = "kanso"
 kind = "pair"
+category = "kurashi"
 description = "Neutral mono for a quiet desktop"
 
 [dark]

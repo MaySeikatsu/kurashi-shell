@@ -5,6 +5,7 @@
 # translucency and blur come from the look. Light and dark (K53).
 name = "fluent"
 kind = "pair"
+category = "inspired"
 description = "Mica grey, Acrylic flyouts, Windows blue (decor fluent)"
 
 [light]

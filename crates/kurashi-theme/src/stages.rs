@@ -50,10 +50,14 @@ pub fn source(src: &Source) -> Result<(PaletteSet, Vec<String>), ThemeError> {
             let note = e.note(None);
             Ok((e.set, vec![note]))
         }
-        Source::WallpaperFile(path) => {
+        Source::WallpaperFile(path, mode) => {
             let e = wallpaper_file(path)?;
             let note = e.note(Some(path));
-            Ok((e.set.clone(), vec![note]))
+            if *mode == crate::extract::Mode::TonalMatched {
+                return Ok((e.set.clone(), vec![note]));
+            }
+            let set = e.mode_set(*mode)?;
+            Ok((set, vec![format!("{note}; extraction {}", mode.name())]))
         }
     }
 }
@@ -99,6 +103,9 @@ pub fn is_monochrome(rgba: &[u8]) -> bool {
 #[derive(Clone, Debug)]
 pub struct Extracted {
     pub set: PaletteSet,
+    /// The decoded picture at extraction size, for the other extraction modes (I455), each made once on first use.
+    pub pixels: Wallpaper,
+    modes: Arc<Mutex<BTreeMap<&'static str, PaletteSet>>>,
     pub seed: Option<Rgb>,
     pub mono: bool,
     /// The picture's mean perceived lightness, CIE L* 0–100 (K55: scheme `wallpaper` is light from
@@ -111,6 +118,17 @@ pub struct Extracted {
 pub const LIGHT_WALLPAPER: f64 = 55.0;
 
 impl Extracted {
+    /// The palette of `mode` (not tone-matched, which is [`Extracted::set`]), made once per picture and mode.
+    pub fn mode_set(&self, mode: crate::extract::Mode) -> Result<PaletteSet, ThemeError> {
+        let mut m = self.modes.lock().unwrap_or_else(|p| p.into_inner());
+        if let Some(s) = m.get(mode.name()) {
+            return Ok(s.clone());
+        }
+        let s = crate::extract::palette(&self.pixels, mode)?;
+        m.insert(mode.name(), s.clone());
+        Ok(s)
+    }
+
     /// Whether scheme `wallpaper` resolves to light for this picture (K55).
     pub fn is_light(&self) -> bool {
         self.lightness >= LIGHT_WALLPAPER
@@ -179,6 +197,8 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
             seed: None,
             mono: true,
             lightness,
+            pixels: w.clone(),
+            modes: Arc::default(),
         });
     }
     let (set, seed) = from_wallpaper(w)?;
@@ -187,6 +207,8 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
         seed: Some(seed),
         mono: false,
         lightness,
+        pixels: w.clone(),
+        modes: Arc::default(),
     })
 }
 
@@ -289,6 +311,7 @@ pub fn from_wallpaper(w: &Wallpaper) -> Result<(PaletteSet, Rgb), ThemeError> {
         name: "wallpaper".into(),
         dark: Some(roles(&theme.schemes.dark, "#e0a33b")),
         light: Some(roles(&theme.schemes.light, "#b07a14")),
+        ..Default::default()
     };
     Ok((set, rgb_of(seed)))
 }
@@ -621,4 +644,297 @@ pub fn wcag(mut p: Palette, on: bool) -> StageOut {
         notes.push("wcag: AA already satisfied, no changes".into());
     }
     out(p, notes)
+}
+
+// ---------- strong chrome (I456) ----------
+
+/// The shell's chrome in the palette's strong colour (`theme.colors.strong_chrome`): the grounds that would be a grey,
+/// black or white (bar, frame, panels, cards) become the accent's hue at a lightness that carries text, its containers
+/// steps of it; text and controls are chosen again against that ground. The accent itself moves to the colour that
+/// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Apps that follow take it too
+/// (their files are written from the theme's tokens). Runs before wcag, which still has the last word.
+/// Text on a strong ground: above AA (4.5:1) with room for the material's shading, which the texture's legibility cap
+/// would otherwise turn off entirely (session 26: a ground at exactly 4.5:1 left the relief at amplitude 0).
+const GROUND_TEXT: f64 = 6.0;
+/// Text on the containers and the gradient's stops, the same headroom a little smaller.
+const STEP_TEXT: f64 = 5.5;
+
+pub fn strong_chrome(p: Palette) -> StageOut {
+    use crate::extract::{Lch, lift_toward};
+    let accent = Lch::of(p.get("accent"));
+    if accent.c < 0.03 {
+        return out(
+            p,
+            vec!["strong chrome: the accent is a grey, the chrome keeps its ground".into()],
+        );
+    }
+    // The accent as it is (its own chroma: a soft sage stays soft), moved in lightness only as far as text needs 7:1:
+    // toward light with dark text or toward dark with white text, whichever is the smaller move (a sage keeps its
+    // lightness under black text; a mid pink goes a little lighter or darker, not to a deep shade).
+    let base = Lch {
+        c: accent.c.max(0.04),
+        ..accent
+    };
+    // The palette's own text colour (a wallpaper's white) where it can stay: the ground moves toward the side that text
+    // needs, as far as 4.5:1 with it; pure white or black only when the palette's own cannot reach that nearby.
+    let own_ink = p.get("on_surface");
+    let reach = |ink: Rgb, step: f64| -> Option<Lch> {
+        let mut g = base;
+        for _ in 0..100 {
+            if contrast(ink, g.rgb()) >= GROUND_TEXT {
+                return Some(g);
+            }
+            g.l += step;
+            if !(0.05..=0.98).contains(&g.l) {
+                return None;
+            }
+        }
+        None
+    };
+    // The palette's light and dark (its text and its ground, either way round: a wallpaper's white and its dark). Light
+    // text is preferred on a strong colour (the colour deepens a little for it); dark text when the colour would have to
+    // change too much (a soft sage keeps its lightness); pure white or black only when neither palette colour can do.
+    let (light_ink, dark_ink) = {
+        let (a, b) = (own_ink, p.get("surface"));
+        if a.luminance() >= b.luminance() {
+            (a, b)
+        } else {
+            (b, a)
+        }
+    };
+    let near = |g: Option<Lch>| g.filter(|g| (g.l - base.l).abs() <= 0.2);
+    let (ground, own_ink) = match (near(reach(light_ink, -0.01)), near(reach(dark_ink, 0.01))) {
+        (Some(g), _) => (g, light_ink),
+        (None, Some(g)) => (g, dark_ink),
+        (None, None) => {
+            let g = match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
+                (Some(a), Some(b)) => {
+                    if (a.l - base.l).abs() <= (b.l - base.l).abs() {
+                        a
+                    } else {
+                        b
+                    }
+                }
+                (Some(a), None) => a,
+                (None, Some(b)) => b,
+                (None, None) => base,
+            };
+            (g, own_ink)
+        }
+    };
+    let surface = ground.rgb();
+    let mut raw = RawRoles::new();
+    raw.insert("surface".into(), surface);
+    let ink = if contrast(own_ink, surface) >= STEP_TEXT {
+        own_ink
+    } else if contrast(WHITE, surface) >= contrast(BLACK, surface) {
+        WHITE
+    } else {
+        BLACK
+    };
+    let steps: [(&str, f64); 5] = [
+        ("surface_container_lowest", -0.05),
+        ("surface_container_low", 0.03),
+        ("surface_container", 0.06),
+        ("surface_container_high", 0.09),
+        ("surface_container_highest", 0.12),
+    ];
+    // Containers step away from the text's side (lighter on a dark ground, darker on a light one), but only as far as the
+    // text keeps 4.5:1 on them: a step that would cost it is shortened, so the text never has to change colour.
+    let dark_ground = ink.luminance() > surface.luminance();
+    // Colours go the text's way to their contrast: lighter under light text, darker under dark.
+    let lift = |c: Rgb, bg: Rgb, min: f64| lift_toward(c, bg, min, dark_ground);
+    for (k, d0) in steps {
+        let mut d = d0;
+        let mut c = surface;
+        for _ in 0..20 {
+            let l = if dark_ground {
+                ground.l + d
+            } else {
+                ground.l - d
+            };
+            c = Lch { l, ..ground }.rgb();
+            if contrast(ink, c) >= STEP_TEXT || d.abs() < 0.005 {
+                break;
+            }
+            d *= 0.7;
+        }
+        raw.insert(k.into(), c);
+    }
+    raw.insert("on_surface".into(), ink);
+    raw.insert(
+        "on_surface_variant".into(),
+        ensure_contrast(ink.mix(surface, 0.25), surface, 4.5),
+    );
+    // Lines keep the palette's own colour (Mixed: one of the picture's), moved only as far as 3:1 needs.
+    let outline = lift(p.get("outline"), surface, 3.0);
+    raw.insert("outline".into(), outline);
+    raw.insert("outline_variant".into(), outline.mix(surface, 0.5));
+    // The accent: what stands out on the new ground; 3:1 at least (a control is a graphic, WCAG 1.4.11).
+    // The accent: of the palette's other colours, the one whose hue stands furthest from the ground's (a blue on a pink
+    // ground), moved only as far as 3:1 needs; a grey palette keeps the old ground or the text as its accent.
+    let gap = |c: Rgb| {
+        let l = Lch::of(c);
+        if l.c < 0.03 {
+            return -1.0;
+        }
+        let d = (l.h - ground.h).rem_euclid(360.0);
+        d.min(360.0 - d)
+    };
+    let new_accent = ["secondary", "tertiary"]
+        .iter()
+        .map(|r| p.get(r))
+        .filter(|c| gap(*c) >= 0.0)
+        .max_by(|a, b| gap(*a).total_cmp(&gap(*b)))
+        .map(|c| lift(c, surface, 3.0))
+        .or_else(|| {
+            [p.get("surface"), p.get("on_surface")]
+                .into_iter()
+                .find(|c| contrast(*c, surface) >= 3.0)
+        })
+        .unwrap_or(ink);
+    raw.insert("accent".into(), new_accent);
+    for r in ["secondary", "tertiary", "success", "warning", "error"] {
+        raw.insert(r.into(), lift(p.get(r), surface, 3.0));
+    }
+    for r in ["scrim", "shadow", "desk"] {
+        raw.insert(r.into(), p.get(r));
+    }
+    let next = Palette {
+        name: p.name.clone(),
+        dark: surface.luminance() < 0.18,
+        roles: raw,
+    };
+    match next.complete() {
+        Ok(np) => out(
+            np,
+            vec![format!(
+                "strong chrome: the shell's grounds in the accent's hue ({}), accent now {}",
+                surface.hex(),
+                new_accent.hex()
+            )],
+        ),
+        Err(_) => out(p, vec!["strong chrome: could not be derived".into()]),
+    }
+}
+
+// ---------- chrome gradient (I460) ----------
+
+/// The gradient's stops for the chrome's ground: tones of the ground's colour (darker and lighter by `spread`), or the
+/// palette's hues at the ground's lightness. Every stop keeps the text (`on_surface`) at 4.5:1 at least: a stop that
+/// would fall short is moved back toward the ground until it does.
+pub fn wash_stops(p: &Palette, w: &crate::input::Wash) -> Vec<Rgb> {
+    use crate::extract::Lch;
+    let ground = p.get("surface");
+    let ink = p.get("on_surface");
+    let g = Lch::of(ground);
+    let keep = |c: Lch| -> Rgb {
+        let mut c = c;
+        for _ in 0..60 {
+            let rgb = c.rgb();
+            if contrast(ink, rgb) >= STEP_TEXT {
+                return rgb;
+            }
+            c.l += (g.l - c.l).clamp(-0.01, 0.01);
+            if (c.l - g.l).abs() < 0.005 {
+                break;
+            }
+        }
+        Lch { l: g.l, ..c }.rgb()
+    };
+    if w.tones {
+        let d = w.spread / 2.0;
+        return vec![keep(Lch { l: g.l - d, ..g }), keep(Lch { l: g.l + d, ..g })];
+    }
+    let mut hues: Vec<Lch> = vec![g];
+    for r in ["accent", "secondary", "tertiary"] {
+        let c = Lch::of(p.get(r));
+        if c.c < 0.03 {
+            continue;
+        }
+        let gap = |a: f64, b: f64| {
+            let d = (a - b).rem_euclid(360.0);
+            d.min(360.0 - d)
+        };
+        if hues.iter().all(|h| h.c < 0.03 || gap(h.h, c.h) >= 25.0) {
+            hues.push(c);
+        }
+    }
+    hues.into_iter()
+        .take(4)
+        .map(|h| {
+            keep(Lch {
+                l: g.l,
+                c: h.c.min(0.2),
+                h: h.h,
+            })
+        })
+        .collect()
+}
+
+/// The `chrome.wash.*` tokens the frontend's Wash reads; `chrome.wash.on` false without a gradient.
+pub fn wash_tokens(
+    p: &Palette,
+    w: Option<&crate::input::Wash>,
+) -> Vec<(String, serde_json::Value)> {
+    use serde_json::json;
+    let Some(w) = w else {
+        return vec![("chrome.wash.on".into(), json!(false))];
+    };
+    let mut stops = wash_stops(p, w);
+    if w.dark_first {
+        stops.sort_by(|a, b| a.luminance().total_cmp(&b.luminance()));
+    }
+    let stops: Vec<String> = stops.iter().map(|c| c.hex()).collect();
+    vec![
+        ("chrome.wash.on".into(), json!(true)),
+        ("chrome.wash.mode".into(), json!(w.pattern)),
+        ("chrome.wash.angle".into(), json!(w.angle)),
+        ("chrome.wash.softness".into(), json!(w.softness)),
+        ("chrome.wash.scale".into(), json!(w.size)),
+        (
+            "chrome.wash.span".into(),
+            json!(if w.span_all { "all" } else { "output" }),
+        ),
+        ("chrome.wash.stops".into(), json!(stops)),
+    ]
+}
+
+/// The direction (degrees, x right, y down, as the Wash's angle) from the picture's light toward its dark: a linear
+/// gradient at this angle starts (its darkest stop) where the picture is lightest (I460, `auto_angle`). The centroids of
+/// what is lighter and what is darker than the mean, weighed by how much; `None` for a picture lit evenly.
+pub fn light_axis(w: &Wallpaper) -> Option<f64> {
+    let lum: Vec<f64> = w
+        .rgba
+        .chunks_exact(4)
+        .map(|p| Rgb(p[0], p[1], p[2]).luminance())
+        .collect();
+    if lum.is_empty() || w.width == 0 {
+        return None;
+    }
+    let mean = lum.iter().sum::<f64>() / lum.len() as f64;
+    let (mut lx, mut ly, mut lw, mut dx, mut dy, mut dw) = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    for (i, l) in lum.iter().enumerate() {
+        let x = (i as u32 % w.width) as f64;
+        let y = (i as u32 / w.width) as f64;
+        let d = l - mean;
+        if d > 0.0 {
+            lx += x * d;
+            ly += y * d;
+            lw += d;
+        } else {
+            dx -= x * d;
+            dy -= y * d;
+            dw -= d;
+        }
+    }
+    if lw <= 1e-6 || dw <= 1e-6 {
+        return None;
+    }
+    let (vx, vy) = (dx / dw - lx / lw, dy / dw - ly / lw);
+    // Less than 1.5 % of the picture apart: light and dark are spread evenly, no side to turn toward.
+    if vx.hypot(vy) < 0.015 * f64::from(w.width.max(w.height)) {
+        return None;
+    }
+    Some(vy.atan2(vx).to_degrees().rem_euclid(360.0))
 }

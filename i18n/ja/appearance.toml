@@ -39,6 +39,8 @@
 "config.choice.look.yorha" = "ヨルハ（NieR:Automata）"
 "config.choice.look.hallownest" = "ハロウネスト（Hollow Knight）"
 "config.choice.look.souls" = "ソウル（Dark Souls の金）"
+"appearance.category.kurashi" = "暮らし"
+"appearance.category.common" = "定番"
 "appearance.category.modern" = "モダン"
 "appearance.category.inspired" = "インスパイア"
 "appearance.category.retro" = "レトロ"

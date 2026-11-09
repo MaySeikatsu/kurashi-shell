@@ -17,7 +17,8 @@ ModuleBase {
         var d = clock.date ? new Date(clock.date + "T12:00:00") : null
         return d ? d.toLocaleDateString(Qt.locale((Store.docs["i18n"] || {}).locale || "en"), Locale.ShortFormat) : ""
     }
-    width: vertical ? thickness : t.implicitWidth
+    // W66: on a row the gap of the icons beside it on each side (the time had none: it stood closer than they)
+    width: vertical ? thickness : t.implicitWidth + 2 * Theme.gap
     height: t.implicitHeight
     // The two lines' height, measured on a text that does not change: a hidden Text is not laid out, so its own implicit
     // height would follow the fit it feeds (a binding loop).
@@ -38,6 +39,7 @@ ModuleBase {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         antialiasing: !Theme.pixelType
         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        x: m.vertical ? 0 : Theme.gap
         width: m.vertical ? m.thickness : implicitWidth
         horizontalAlignment: m.vertical ? Text.AlignHCenter : (m.twoLines ? Text.AlignRight : Text.AlignLeft)
         color: Theme.fg

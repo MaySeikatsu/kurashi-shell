@@ -17,6 +17,6 @@ Item {
         anchors.centerIn: parent
         name: "draw"
         color: Theme.fg
-        size: Math.round(Theme.barH * 0.56)
+        // (the bar's icon size, as every module's: W66)
     }
 }

@@ -331,7 +331,10 @@ fn wallpaper_file_gives_a_palette_from_fixture_pictures() {
     for scheme in [Scheme::Dark, Scheme::Light] {
         for (path, hue_ok) in &fixtures {
             let i = ThemeInput {
-                source: Source::WallpaperFile(path.clone()),
+                source: Source::WallpaperFile(
+                    path.clone(),
+                    kurashi_theme::extract::Mode::TonalMatched,
+                ),
                 scheme,
                 ..Default::default()
             };
@@ -369,7 +372,7 @@ fn a_monochrome_picture_falls_back_to_wa_iro_and_says_so() {
         [v, v, v]
     });
     let i = ThemeInput {
-        source: Source::WallpaperFile(grey),
+        source: Source::WallpaperFile(grey, kurashi_theme::extract::Mode::TonalMatched),
         ..Default::default()
     };
     let (palette, notes) = resolve_palette(&i).unwrap();
@@ -1134,4 +1137,174 @@ fn motion_sweep_every_style_and_profile() {
         i.axes.motion.profile = p.into();
         resolve(&i, &fonts()).unwrap().tokens
     });
+}
+
+#[test]
+fn every_bundled_palette_has_a_category_and_common_ones_their_terminal_colours() {
+    // I452: the list groups palettes by category; I454: the common palettes carry their authors' terminal colours.
+    for name in bundled_names() {
+        let set = bundled(name).unwrap();
+        let cat = set.meta.category.as_deref();
+        assert!(
+            matches!(cat, Some("kurashi" | "common" | "inspired")),
+            "{name}: category {cat:?}"
+        );
+        if cat == Some("common") {
+            let t = set
+                .dark_terminal
+                .as_ref()
+                .unwrap_or_else(|| panic!("{name}: no [dark.terminal]"));
+            assert_eq!(
+                t.background,
+                set.dark.as_ref().unwrap()["surface"],
+                "{name}: ground"
+            );
+        }
+    }
+    let gruvbox = bundled("gruvbox").unwrap();
+    let t = gruvbox.dark_terminal.unwrap();
+    assert_eq!(t.colors[1].hex(), "#cc241d");
+    assert_eq!(t.colors[11].hex(), "#fabd2f");
+}
+
+#[test]
+fn strong_chrome_paints_the_grounds_in_the_accent_hue_legibly() {
+    // I456 / I459: the grounds take the strong colour, legible; the apps' files are written from these tokens too.
+    for scheme in [Scheme::Dark, Scheme::Light] {
+        let base = ThemeInput {
+            source: Source::Palette("gruvbox".into()),
+            scheme,
+            ..Default::default()
+        };
+        let plain = resolve(&base, &fonts()).unwrap();
+        let strong = resolve(
+            &ThemeInput {
+                strong_chrome: true,
+                wash: Some(Wash {
+                    tones: true,
+                    pattern: "linear".into(),
+                    angle: 35.0,
+                    spread: 0.2,
+                    softness: 0.85,
+                    size: 420.0,
+                    span_all: true,
+                    dark_first: true,
+                }),
+                ..base
+            },
+            &fonts(),
+        )
+        .unwrap();
+        let tok =
+            |t: &kurashi_theme::TokenMap, k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+        let (bg, fg) = (
+            tok(&strong.tokens, "color.surface"),
+            tok(&strong.tokens, "color.on_surface"),
+        );
+        assert_ne!(bg, tok(&plain.tokens, "color.surface"));
+        assert!(
+            kurashi_theme::extract::Lch::of(bg).c > 0.08,
+            "a strong ground: {bg}"
+        );
+        assert!(contrast(fg, bg) >= 4.5, "{fg} on {bg}");
+        let acc = tok(&strong.tokens, "color.accent");
+        assert!(contrast(acc, bg) >= 3.0, "{acc} on {bg}");
+        // I460: every gradient stop keeps the text legible.
+        let stops = strong.tokens["chrome.wash.stops"].as_array().unwrap();
+        assert_eq!(stops.len(), 2);
+        for st in stops {
+            let st = Rgb::parse(st.as_str().unwrap()).unwrap();
+            assert!(contrast(fg, st) >= 4.5, "{fg} on stop {st}");
+        }
+        assert_eq!(plain.tokens["chrome.wash.on"], false);
+    }
+}
+
+#[test]
+fn strong_chrome_keeps_a_soft_colour_soft_and_light_under_dark_text() {
+    // Session 26 (user screenshot): a sage wallpaper's accent became a dark, loud olive. The ground keeps the accent's
+    // chroma and moves its lightness the least that text needs.
+    let sage = Rgb::parse("#b5c98f").unwrap();
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Light)
+        .unwrap()
+        .palette;
+    p.set("accent", sage);
+    let out = stages::strong_chrome(p).palette;
+    let (g, a) = (
+        kurashi_theme::extract::Lch::of(out.get("surface")),
+        kurashi_theme::extract::Lch::of(sage),
+    );
+    assert!((g.c - a.c).abs() < 0.03, "chroma {} vs {}", g.c, a.c);
+    assert!((g.l - a.l).abs() < 0.08, "lightness {} vs {}", g.l, a.l);
+    assert!(
+        out.get("on_surface").luminance() < 0.1,
+        "dark text on a light sage"
+    );
+}
+
+#[test]
+fn the_gradients_auto_angle_runs_from_the_pictures_light_to_its_dark() {
+    // I460: a picture light on the left, dark on the right: the gradient starts (darkest stop) on the left, angle ≈ 0°.
+    let (w, h) = (64u32, 32u32);
+    let mut rgba = vec![];
+    for _y in 0..h {
+        for x in 0..w {
+            let v = if x < w / 2 { 230 } else { 20 };
+            rgba.extend_from_slice(&[v, v, v, 255]);
+        }
+    }
+    let a = stages::light_axis(&Wallpaper {
+        width: w,
+        height: h,
+        rgba,
+    })
+    .unwrap();
+    assert!(!(5.0..=355.0).contains(&a), "{a}");
+    let flat = Wallpaper {
+        width: 8,
+        height: 8,
+        rgba: vec![128; 8 * 8 * 4],
+    };
+    assert!(stages::light_axis(&flat).is_none());
+}
+
+#[test]
+fn strong_chrome_containers_never_cost_the_text_its_colour() {
+    // Session 26 (live): on a dark teal ground the highest container stepped so light that white text fell to 4.2:1 and
+    // the wcag stage turned every text black. The steps now stop where the text keeps 4.5:1.
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Dark)
+        .unwrap()
+        .palette;
+    p.set("accent", Rgb::parse("#2cc5c4").unwrap());
+    let out = stages::strong_chrome(p).palette;
+    let ink = out.get("on_surface");
+    for c in [
+        "surface",
+        "surface_container_low",
+        "surface_container",
+        "surface_container_high",
+        "surface_container_highest",
+    ] {
+        assert!(contrast(ink, out.get(c)) >= 4.5, "{c}");
+    }
+}
+
+#[test]
+fn strong_chrome_leaves_the_material_room_to_shade() {
+    // Session 26 (live): a strong ground at exactly 4.5:1 left the texture's legibility cap no room, and the relief went
+    // to amplitude 0. The ground keeps 6:1 with its text, the containers 5.5:1.
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Dark)
+        .unwrap()
+        .palette;
+    p.set("accent", Rgb::parse("#f462a9").unwrap());
+    let out = stages::strong_chrome(p).palette;
+    let ink = out.get("on_surface");
+    assert!(contrast(ink, out.get("surface")) >= 6.0);
+    for c in [
+        "surface_container_low",
+        "surface_container",
+        "surface_container_high",
+    ] {
+        assert!(contrast(ink, out.get(c)) >= 5.5, "{c}");
+    }
 }

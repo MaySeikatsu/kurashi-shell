@@ -72,6 +72,9 @@ Item {
         smooth: true
         source: ti.idx < ti.cands.length ? ti.cands[ti.idx] : ""
         onStatusChanged: if (status === Image.Error) ti.idx++
+        // Session 26: the app icons' tint (`theme.colors.app_icons`).
+        layer.enabled: Theme.iconTint !== "original" && status === Image.Ready
+        layer.effect: IconTint { mode: Theme.iconTint }
     }
 
     // The picture's relief: a parked, non-live copy of the picture is the mask (row 285), refreshed when the picture changes.

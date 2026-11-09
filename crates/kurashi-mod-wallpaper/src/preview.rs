@@ -5,6 +5,7 @@
 //! axes (contrast, colour-blind filter, season) are not part of the preview; the reply says so.
 
 use kurashi_mod_api::ActionError;
+use kurashi_theme::extract::Mode;
 use kurashi_theme::input::{Scheme, Source, ThemeInput};
 use serde_json::{Map, Value, json};
 
@@ -21,9 +22,16 @@ pub async fn run(args: Value) -> Result<Option<Value>, ActionError> {
         Some("light") => (Scheme::Light, "light"),
         _ => (Scheme::Dark, "dark"),
     };
+    // I455: the extraction mode the theme uses (`theme.colors.extraction`), passed by the picker; tone-matched if absent.
+    let mode = match args["extraction"].as_str() {
+        Some("vibrant") => Mode::Vibrant,
+        Some("prominent") => Mode::Prominent,
+        Some("mixed") => Mode::Mixed,
+        _ => Mode::TonalMatched,
+    };
     let done = tokio::task::spawn_blocking(move || -> Result<Value, &'static str> {
         let input = ThemeInput {
-            source: Source::WallpaperFile(path.clone()),
+            source: Source::WallpaperFile(path.clone(), mode),
             scheme,
             ..Default::default()
         };

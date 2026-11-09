@@ -18,8 +18,8 @@ import "../components/decor"
 // confirm), `>` commands, `?` the keybind cheat sheet (also action `launcher.keys`: `runtime.ui.launcher_query`).
 //
 // Same idle discipline as Stage (K16): permanently mapped but transparent, input-less and
-// focus-less while hidden, so it renders 0 frames. Typing never animates: the result list is replaced, the highlight
-// just moves.
+// focus-less while hidden, so it renders 0 frames. W67 (I424): typing re-sorts the rows as Caelestia's do — a row that
+// stays slides to its new place, a new one comes in, a dropped one leaves (a keyed model, `show()`; cut under reduce motion).
 //
 // W34 (docs/ux/motion.md): under a top or bottom bar the launcher grows out of the island pill as one shape (BarMorph:
 // the island's MorphShape, two springs, the liquid neck at the bar's edge, the pill's face in its head) and folds back
@@ -255,7 +255,7 @@ PanelWindow {
         // The launcher closes first: the lock, the session and Settings take the keyboard.
         Store.act("ui.close", {}, function () { Store.act(act, {}) })
     }
-    onSysMenuChanged: { sysSel = 0; armed = -1 }
+    onSysMenuChanged: { sysSel = 0; armed = -1; listSel = false }
     // The look's menu rows (row 591): its highlight's shape and corner, its part under each row.
     MenuStyle { id: ms }
 
@@ -314,6 +314,7 @@ PanelWindow {
     }
     function move(d) {
         if (results.length === 0) return
+        picked = true
         if (mode === "emoji") {
             var g = sel + d
             if (g >= 0 && g < results.length) sel = g
@@ -327,12 +328,107 @@ PanelWindow {
     function run(q, keep) {
         Store.query("launcher", q, function (items, e) {
             if (!lp.want) return
+            // A reply to a query already typed past is dropped: a fast typist's last list is the one that stays.
+            if (q !== field.text) return
             var old = lp.sel
-            lp.results = items || []
-            lp.sel = lp.settle(keep ? Math.min(old, lp.results.length - 1) : 0, 1)
+            var oldKey = lp.picked && lp.listSel && old >= 0 && old < lp.shownKeys.length ? lp.shownKeys[old] : ""
+            lp.applying = true
+            // (no current row while the diff applies: a view whose current row moves follows it, and laid out the list
+            // around that row's passing place — rows that stayed were scrolled out and made again)
+            list.currentIndex = -1
+            grid.currentIndex = -1
+            lp.show(items || [])
+            // A row the user chose (the arrows) stays chosen by key while it stays in the list, wherever it moves; else
+            // today's rule: the first selectable row — the best hit, which Enter opens — or the same place after a
+            // clipboard action.
+            var at = oldKey !== "" ? lp.shownKeys.indexOf(oldKey) : -1
+            if (!lp.selectable(at)) lp.picked = false
+            lp.sel = lp.selectable(at) ? at : lp.settle(keep ? Math.min(old, lp.results.length - 1) : 0, 1)
+            lp.listSel = true
+            lp.syncCurrent()
+            lp.applying = false
+            if (lp.mode === "emoji") grid.reveal()
+            else list.reveal()
             lp.err = e ? lp.errorText(e) : ""
+            if (lp.placeLog) console.log("launcher-rows " + JSON.stringify({ q: q, sel: lp.shownKeys[lp.sel] || "", keys: lp.shownKeys, motion: lp.listMotion }))
         })
     }
+
+    // ---- W67 (I424, docs/ux/launcher.md "Results while typing"): the rows are a keyed model. Each reply is diffed against
+    // the rows shown by a stable key, and only the moves, inserts and removes are applied, so a row that stays keeps its
+    // delegate and slides to its new place (Caelestia's AppList, there through ScriptModel; here the daemon sends fresh
+    // objects each time, so the key is ours). `results` stays the plain list every other binding reads.
+    ListModel { id: rowModel }
+    // key → row of the latest reply (a delegate reads its data here and latches it, so a leaving row keeps its face).
+    property var byKey: ({})
+    property var shownKeys: []
+    // Whether `sel` names a row of this list (the start menu's grid and system menu count their own items).
+    property bool listSel: false
+    // Whether the user moved the selection (arrows, Page keys) since the open or since the chosen row left the list.
+    property bool picked: false
+    onStartGridChanged: listSel = false
+    property int made: 0         // delegates made (the test's creation counter, KURASHI_LAUNCHER_LOG=1)
+    // Transitions run only between two replies of one open and one mode: the first fill of an open (under the morph's
+    // late content) or of a new prefix mode is a new list, not a re-sort; hidden, nothing animates (Ma); reduce motion
+    // and `none` (`motion.spring.on` false) cut.
+    property bool primed: false
+    property bool live: false
+    readonly property bool listMotion: live && shown && want && Theme.springOn
+    function unprime() { live = false; primed = false }
+    // A row's identity: the daemon's id (desktop id, `cmd:`, `clip:`, `emoji:` …), else its kind and text (a cheat sheet
+    // row, a group, a note carry no id). A calculation and the web row are one row each whatever they say (their ids
+    // carry the value or the query); repeats in one list get a count.
+    function keyOf(r) {
+        var kind = String(r.kind || "")
+        if (kind === "calc" || kind === "web") return kind
+        if (r.id) return kind + ":" + r.id
+        return kind + ":" + (r.name || "") + "\u001f" + (r.generic || "") + "\u001f" + (r.group || "")
+    }
+    function show(items) {
+        if (primed) live = true
+        var keys = [], map = ({}), seen = ({})
+        for (var i = 0; i < items.length; i++) {
+            var k = keyOf(items[i])
+            var n = seen[k] || 0
+            seen[k] = n + 1
+            if (n > 0) k += "#" + n
+            keys.push(k)
+            map[k] = items[i]
+        }
+        byKey = map
+        var cur = shownKeys.slice()
+        // Leaving rows first (from the end), then each place in turn: the row that belongs there moves up, or comes in.
+        for (i = cur.length - 1; i >= 0; i--)
+            if (map[cur[i]] === undefined) { rowModel.remove(i, 1); cur.splice(i, 1) }
+        for (i = 0; i < keys.length; i++) {
+            if (cur[i] === keys[i]) continue
+            var j = cur.indexOf(keys[i], i + 1)
+            if (j >= 0) { rowModel.move(j, i, 1); cur.splice(j, 1) }
+            else rowModel.insert(i, { k: keys[i] })
+            cur.splice(i, 0, keys[i])
+        }
+        shownKeys = cur
+        results = items
+        primed = true
+    }
+    function clearRows() {
+        unprime()
+        listSel = false
+        picked = false
+        // (the list first, then its rows: with the rows emptied first, the scroll host once reported a binding loop on
+        // `overflows` — seen with this order changed among other fixes, so the order is a guess at the cause)
+        results = []
+        rowModel.clear()
+        shownKeys = []
+        byKey = ({})
+    }
+    // The views' current row follows `sel` by hand: a move or remove inside the model shifts a view's currentIndex on
+    // its own, and a bound `currentIndex: sel` would not re-fire when `sel` keeps its value.
+    function syncCurrent() {
+        if (list.currentIndex !== sel) list.currentIndex = sel
+        if (grid.currentIndex !== sel) grid.currentIndex = sel
+    }
+    property bool applying: false
     function requestThumb(id) {
         if (!want || asked[id]) return
         asked[id] = true
@@ -380,8 +476,8 @@ PanelWindow {
             Store.act("ui.close")
         })
     }
-    onSelChanged: confirmClear = false
-    onModeChanged: confirmClear = false
+    onSelChanged: { confirmClear = false; syncCurrent() }
+    onModeChanged: { confirmClear = false; unprime() }
 
     screen: scr
     BarConfig { id: bars; screen: lp.scr }
@@ -457,7 +553,7 @@ PanelWindow {
             startAt = place === "at" ? by.rect : null
             openedFrom = startAt
             if (placeLog) placeLogTimer.restart()
-            results = []; sel = 0; err = ""; confirmClear = false
+            clearRows(); sel = 0; err = ""; confirmClear = false
             thumbs = ({}); asked = ({})
             // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
             if (field.text === openQuery) run(openQuery)
@@ -495,7 +591,7 @@ PanelWindow {
             !lp.footAnchored ? lp.openedFrom.y - lp.margins.top
                 : lp.openedFrom.y - (lp.scr.height - lp.margins.bottom - lp.implicitHeight),
             lp.openedFrom.w, lp.openedFrom.h) : Qt.rect(0, 0, 0, 0)
-        onHidden: { lp.results = []; lp.thumbs = ({}) }
+        onHidden: { lp.clearRows(); lp.thumbs = ({}) }
 
         // The card's content. In the morph the shape is its chrome; sliding in, it is a Block (K42, K45): a flat panel with a
         // hairline, a keycap panel with an ink outline and hard shadow, a soft glass panel with a rim and a drop shadow, or a
@@ -762,9 +858,40 @@ PanelWindow {
                 interactive: false
                 // Only the rows on screen exist, so only their thumbnails are asked for (Ma).
                 cacheBuffer: 0
-                model: lp.mode !== "emoji" && !lp.startGrid ? lp.results : []
-                currentIndex: lp.sel
+                // The keyed rows (W67, `show()`); the current row is set by `syncCurrent()`, not bound (see there).
+                model: lp.mode !== "emoji" && !lp.startGrid ? rowModel : null
+                Accessible.role: Accessible.List
+                Accessible.name: I18n.tr("launcher.results")
                 highlightMoveDuration: 0
+                // W67 (docs/ux/launcher.md "Results while typing", Caelestia's AppList): a row that stays slides to its new
+                // place, a new one fades and grows in, a dropped one fades out. Interrupted, a row continues from where it
+                // is (and an interrupted arrival still ends whole: the slides take opacity and scale to 1 too).
+                add: Transition {
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+                    NumberAnimation { property: "scale"; from: 0.94; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+                }
+                remove: Transition {
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "opacity"; to: 0; duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "scale"; to: 0.94; duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                }
+                // A row that comes into view from past an edge does not travel the whole way: several would start stacked at
+                // the edge and slide in over each other. It fades in over the last few pixels instead (read once per row,
+                // when its transition starts).
+                move: Transition { id: slide
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "y"; from: list.entryY(slide.ViewTransition.item, slide.ViewTransition.destination); duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "opacity"; from: list.entryOpacity(slide.ViewTransition.item); to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "scale"; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                }
+                displaced: slide
+                function outside(it) { return !!it && (it.y >= contentY + height - 1 || it.y + it.height <= contentY + 1) }
+                function entryY(it, d) {
+                    if (!it) return 0
+                    return outside(it) ? d.y + (it.y > d.y ? 1 : -1) * Math.min(8, Math.abs(it.y - d.y)) : it.y
+                }
+                function entryOpacity(it) { return !it ? 1 : (outside(it) ? 0 : it.opacity) }
                 // The selected row's highlight is one tonal block that springs to the row (keycap: outlined).
                 highlight: Block {
                     visible: !ms.has && ms.highlight === "capsule"
@@ -784,9 +911,27 @@ PanelWindow {
                 highlightFollowsCurrentItem: true
                 delegate: Item {
                     id: row
-                    required property var modelData
+                    // The row's key (`keyOf`) and its data, latched: a row that leaves keeps what it showed while it fades.
+                    required property string k
                     required property int index
-                    readonly property string kind: modelData.kind || ""
+                    property var entry: ({})
+                    readonly property var fresh: lp.byKey[k]
+                    onFreshChanged: if (fresh !== undefined) entry = fresh
+                    property int serial: 0
+                    Component.onCompleted: {
+                        entry = lp.byKey[k] || ({})
+                        serial = ++lp.made
+                        if (lp.placeLog) console.log("launcher-row made " + serial + " " + k)
+                    }
+                    Component.onDestruction: if (lp.placeLog) console.log("launcher-row gone " + serial + " " + k)
+                    // (a11y: the row as a list item; the selection is the item's, and follows it when the list re-sorts)
+                    Accessible.role: kind === "keygroup" ? Accessible.Heading : Accessible.ListItem
+                    Accessible.name: kind === "web" ? I18n.tr("launcher.web").replace("{q}", entry.name || "")
+                        : (kind === "note" ? I18n.tr(entry.name || "").replace("{path}", entry.arg || "") : (entry.name || ""))
+                    Accessible.description: entry.generic || ""
+                    Accessible.selectable: kind !== "keygroup"
+                    Accessible.selected: selected
+                    readonly property string kind: entry.kind || ""
                     readonly property bool isCalc: kind === "calc"
                     // Prefix modes (daemon): `:` emoji, `;` clipboard; a `note` row only explains (an i18n key, no id).
                     readonly property bool isEmoji: kind === "emoji"
@@ -799,7 +944,7 @@ PanelWindow {
                     readonly property bool copies: isCalc || isEmoji
                     readonly property bool selected: index === lp.sel
                     width: list.width
-                    height: lp.heightOf(modelData)
+                    height: lp.heightOf(entry)
 
                     // The look's row face (W53, row 591) where it leaves today's springing highlight.
                     MenuRowFace {
@@ -823,8 +968,8 @@ PanelWindow {
                             // Row 380 (I190): the file the daemon resolved from the icon theme, loaded asynchronously (off the GUI
                             // thread). Only a name it found no file for asks Qt's icon theme (~20 ms on the GUI thread per new name).
                             property string src: row.kind !== "app" ? ""
-                                : (row.modelData.icon_path ? "file://" + row.modelData.icon_path
-                                : (row.modelData.icon ? Quickshell.iconPath(row.modelData.icon, true) : ""))
+                                : (row.entry.icon_path ? "file://" + row.entry.icon_path
+                                : (row.entry.icon ? Quickshell.iconPath(row.entry.icon, true) : ""))
                             Image {
                                 id: img
                                 anchors.fill: parent
@@ -867,7 +1012,7 @@ PanelWindow {
                                     anchors.centerIn: parent
                                     visible: row.isCalc || row.isNote || row.isCommand || row.isWeb
                                     name: row.isCalc ? "calculate"
-                                        : ((row.isCommand || row.isWeb) ? (row.modelData.icon || "bolt") : "info")
+                                        : ((row.isCommand || row.isWeb) ? (row.entry.icon || "bolt") : "info")
                                     glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i"))
                                     filled: true
                                     color: row.isCalc ? Theme.fgOnAccent : Theme.dim
@@ -879,7 +1024,7 @@ PanelWindow {
                                     anchors.centerIn: parent
                                     visible: row.isEmoji
                                     font.pixelSize: 24
-                                    text: row.modelData.glyph || ""
+                                    text: row.entry.glyph || ""
                                 }
                                 Text {
                                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -891,7 +1036,7 @@ PanelWindow {
                                     font.pixelSize: Theme.fs
                                     font.weight: Theme.wBold
                                     font.family: Theme.fam(text, Theme.families)
-                                    text: (row.modelData.name || "?").charAt(0).toUpperCase()
+                                    text: (row.entry.name || "?").charAt(0).toUpperCase()
                                 }
                                 // K61 (docs/ux/texture.md "Controls"): an opaque fallback tile carries the relief over its glyph,
                                 // in a window that shares its sheet (Relief makes its own otherwise). A picture stays flat.
@@ -924,8 +1069,8 @@ PanelWindow {
                                 font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : (row.isNote ? Theme.fs - 1 : Theme.fs)
                                 font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                                 font.family: Theme.fam(text, Theme.families)
-                                text: row.isNote ? I18n.tr(row.modelData.name).replace("{path}", row.modelData.arg || "")
-                                    : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", row.modelData.name) : row.modelData.name)
+                                text: row.isNote ? I18n.tr(row.entry.name).replace("{path}", row.entry.arg || "")
+                                    : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", row.entry.name) : row.entry.name)
                             }
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -933,12 +1078,12 @@ PanelWindow {
                                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 width: parent.width
                                 horizontalAlignment: parent.centred ? Text.AlignHCenter : Text.AlignLeft
-                                visible: !!row.modelData.generic
+                                visible: !!row.entry.generic
                                 elide: Text.ElideRight
                                 color: rowFace.ink(Theme.dim)
                                 font.pixelSize: Theme.fs - 2
                                 font.family: Theme.fam(text, Theme.families)
-                                text: row.modelData.generic || ""
+                                text: row.entry.generic || ""
                             }
                         }
                         // What Enter does on the selected row: launch, or copy a calculation.
@@ -961,10 +1106,10 @@ PanelWindow {
                         active: row.kind === "clip"
                         sourceComponent: Component {
                             ClipRow {
-                                entry: row.modelData
+                                entry: row.entry
                                 selected: row.selected
-                                thumb: row.modelData.thumb || lp.thumbs[row.modelData.id] || ""
-                                onWantThumb: lp.requestThumb(row.modelData.id)
+                                thumb: row.entry.thumb || lp.thumbs[row.entry.id] || ""
+                                onWantThumb: lp.requestThumb(row.entry.id)
                             }
                         }
                     }
@@ -972,7 +1117,7 @@ PanelWindow {
                         anchors.fill: parent
                         active: row.kind === "key" || row.kind === "keygroup"
                         sourceComponent: Component {
-                            KeyRow { entry: row.modelData; selected: row.selected }
+                            KeyRow { entry: row.entry; selected: row.selected }
                         }
                     }
                     // The "clear history" row: once to ask, Enter again to clear (pins stay; DMS's confirm, inline).
@@ -1000,8 +1145,8 @@ PanelWindow {
                             font.weight: parent.asking || row.selected ? Theme.wBold : Theme.wMedium
                             font.family: Theme.fam(text, Theme.families)
                             text: (parent.asking ? I18n.tr("launcher.clip.clear_confirm")
-                                : I18n.tr((row.modelData.pins || 0) > 0 ? "launcher.clip.clear_pins" : "launcher.clip.clear"))
-                                .replace("{n}", row.modelData.count || 0).replace("{p}", row.modelData.pins || 0)
+                                : I18n.tr((row.entry.pins || 0) > 0 ? "launcher.clip.clear_pins" : "launcher.clip.clear"))
+                                .replace("{n}", row.entry.count || 0).replace("{p}", row.entry.pins || 0)
                         }
                     }
                     MouseArea {
@@ -1010,7 +1155,11 @@ PanelWindow {
                         onClicked: { lp.sel = row.index; lp.launch() }
                     }
                 }
-                onCurrentIndexChanged: {
+                // (not while a reply is applied: a move inside the model shifts currentIndex on its own, and laying the view
+                // out halfway through the diff read sizes for the old list; the reply reveals its row once applied)
+                onCurrentIndexChanged: if (!lp.applying) reveal()
+                function reveal() {
+                    if (currentIndex < 0 || count === 0) return
                     // A group's first row also shows its header.
                     if (currentIndex > 0 && lp.results[currentIndex - 1] && lp.results[currentIndex - 1].kind === "keygroup")
                         positionViewAtIndex(currentIndex - 1, ListView.Contain)
@@ -1181,25 +1330,65 @@ PanelWindow {
                 cacheBuffer: 0
                 cellWidth: width / lp.cols
                 cellHeight: lp.cellH
-                model: lp.mode === "emoji" ? lp.results : []
-                currentIndex: lp.sel
-                highlightMoveDuration: 0
-                highlightFollowsCurrentItem: true
-                highlight: Block {
-                    width: grid.cellWidth
-                    height: grid.cellHeight
-                    radius: Theme.rLg
-                    ringScale: 0
-                    softScale: 0
-                    fill: Theme.selected
-                    penSeed: 0x1A0F
+                model: lp.mode === "emoji" ? rowModel : null
+                Accessible.role: Accessible.List
+                // W67: the cells re-sort as the rows do (x and y); the selected cell carries its own block, so the
+                // selection travels with its emoji instead of jumping ahead of it.
+                add: Transition {
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+                    NumberAnimation { property: "scale"; from: 0.8; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+                }
+                remove: Transition {
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "opacity"; to: 0; duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "scale"; to: 0.8; duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                }
+                // (a cell that comes in from past the edge fades in at its place, as a list row does)
+                move: Transition { id: cellSlide
+                    enabled: lp.listMotion
+                    NumberAnimation { property: "x"; from: grid.entry(cellSlide.ViewTransition.item, cellSlide.ViewTransition.destination, "x"); duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "y"; from: grid.entry(cellSlide.ViewTransition.item, cellSlide.ViewTransition.destination, "y"); duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "opacity"; from: grid.entry(cellSlide.ViewTransition.item, null, "opacity"); to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                    NumberAnimation { property: "scale"; to: 1; duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+                }
+                displaced: cellSlide
+                function entry(it, d, p) {
+                    if (!it) return p === "opacity" ? 1 : 0
+                    var out = it.y >= contentY + height - 1 || it.y + it.height <= contentY + 1
+                    if (p === "opacity") return out ? 0 : it.opacity
+                    return out ? d[p] : it[p]
                 }
                 delegate: Item {
                     id: cell
-                    required property var modelData
+                    required property string k
                     required property int index
+                    property var entry: ({})
+                    readonly property var fresh: lp.byKey[k]
+                    onFreshChanged: if (fresh !== undefined) entry = fresh
+                    property int serial: 0
+                    Component.onCompleted: {
+                        entry = lp.byKey[k] || ({})
+                        serial = ++lp.made
+                        if (lp.placeLog) console.log("launcher-row made " + serial + " " + k)
+                    }
+                    Component.onDestruction: if (lp.placeLog) console.log("launcher-row gone " + serial + " " + k)
+                    readonly property bool selected: index === lp.sel
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: entry.name || ""
+                    Accessible.selectable: true
+                    Accessible.selected: selected
                     width: grid.cellWidth
                     height: grid.cellHeight
+                    Block {
+                        anchors.fill: parent
+                        visible: cell.selected
+                        radius: Theme.rLg
+                        ringScale: 0
+                        softScale: 0
+                        fill: Theme.selected
+                        penSeed: 0x1A0F
+                    }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
@@ -1207,15 +1396,16 @@ PanelWindow {
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: -Theme.shadowDy / 2
                         font.pixelSize: 30
-                        text: cell.modelData.glyph || ""
-                        Accessible.name: cell.modelData.name || ""
+                        text: cell.entry.glyph || ""
+                        Accessible.name: cell.entry.name || ""
                     }
                     MouseArea {
                         anchors.fill: parent
                         onClicked: { lp.sel = cell.index; lp.launch() }
                     }
                 }
-                onCurrentIndexChanged: positionViewAtIndex(currentIndex, GridView.Contain)
+                onCurrentIndexChanged: if (!lp.applying) reveal()
+                function reveal() { if (currentIndex >= 0 && count > 0) positionViewAtIndex(currentIndex, GridView.Contain) }
             }
 
             // Under the list: the mode's keys (clipboard, cheat sheet), or the selected emoji's name.

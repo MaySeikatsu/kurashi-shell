@@ -706,6 +706,39 @@ pub fn build(
         at_least(g("warning"), surface, 4.5, fg),
     );
 
+    // Session 26 (I455, "B"): the palette's colours spread over the controls, so a wallpaper's other colours show as
+    // themselves: sliders the secondary, switches and quick tiles the tertiary, selections a tint of the secondary. Each
+    // a graphic on its track or container (3:1, WCAG 1.4.11), nudged only as far as that needs; its ink at 4.5:1.
+    if axes.spread_controls {
+        let track = g("surface_container_highest");
+        let sec = ensure_contrast(g("secondary"), track, 3.0);
+        let ter = ensure_contrast(g("tertiary"), track, 3.0);
+        col(&mut t, "slider.fill", sec);
+        col(&mut t, "slider.thumb", sec);
+        col(&mut t, "toggle.track.on", ter);
+        col(&mut t, "toggle.thumb", g("on_tertiary"));
+        let tile = g("tertiary").mix(g("surface_container_high"), if p.dark { 0.55 } else { 0.5 });
+        col(&mut t, "quick.tile.on.bg", tile);
+        col(
+            &mut t,
+            "quick.tile.on.badge",
+            ensure_contrast(g("tertiary"), tile, 3.0),
+        );
+        col(
+            &mut t,
+            "quick.tile.on.fg",
+            ensure_contrast(g("on_surface"), tile, 4.5),
+        );
+        // A selection shows the secondary as itself, a little into its container.
+        let sel = g("secondary").mix(g("surface_container_high"), 0.25);
+        col(&mut t, "color.selected", sel);
+        col(
+            &mut t,
+            "color.on_selected",
+            ensure_contrast(g("on_surface"), sel, 4.5),
+        );
+    }
+
     // K67: the shadow vector at the look's own strength, straight down; the daemon resolves it again with the user's
     // strength, direction and light (`shadow_tokens`), so a theme without those (previews, the mock) still has all three.
     shadow_tokens(&mut t, &Shadow::default());

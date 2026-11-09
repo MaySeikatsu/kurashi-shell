@@ -2,6 +2,7 @@
 # blue-black card with chalk-light ink (K60). Meant for look `kami` (paper_dots, the sketch frame).
 name = "kami"
 kind = "pair"
+category = "kurashi"
 description = "Notebook paper, pencil and a red pen (style kami)"
 
 [dark]
