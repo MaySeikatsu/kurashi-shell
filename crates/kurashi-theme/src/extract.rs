@@ -291,6 +291,32 @@ fn containers(roles: &mut RawRoles, g: Lch, dark: bool) {
 
 /// The least change of lightness (hue and chroma kept, as far as the gamut allows) that gives `min` against
 /// `bg`: a red stays red instead of washing toward pink as a mix with white would.
+/// [`lift`] toward one side first: lighter (`up`) or darker, the other only when that side cannot reach `min`. Colours on
+/// a strong ground under light text go lighter, so they read as one family with the text (a light blue, not a navy).
+pub fn lift_toward(c: Rgb, bg: Rgb, min: f64, up: bool) -> Rgb {
+    if contrast(c, bg) >= min {
+        return c;
+    }
+    let lch = Lch::of(c);
+    let walk = |step: f64| -> Option<Rgb> {
+        for i in 1..=100 {
+            let l = lch.l + step * f64::from(i);
+            if !(0.0..=1.0).contains(&l) {
+                return None;
+            }
+            let t = lch.with(l, lch.c).rgb();
+            if contrast(t, bg) >= min {
+                return Some(t);
+            }
+        }
+        None
+    };
+    let (first, second) = if up { (0.01, -0.01) } else { (-0.01, 0.01) };
+    walk(first)
+        .or_else(|| walk(second))
+        .unwrap_or_else(|| ensure_contrast(c, bg, min))
+}
+
 pub fn lift(c: Rgb, bg: Rgb, min: f64) -> Rgb {
     if contrast(c, bg) >= min {
         return c;

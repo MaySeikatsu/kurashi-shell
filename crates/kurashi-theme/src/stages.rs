@@ -654,7 +654,7 @@ pub fn wcag(mut p: Palette, on: bool) -> StageOut {
 /// stands out most on it (the secondary, else the tertiary, else the old ground or ink). Apps that follow take it too
 /// (their files are written from the theme's tokens). Runs before wcag, which still has the last word.
 pub fn strong_chrome(p: Palette) -> StageOut {
-    use crate::extract::{Lch, lift};
+    use crate::extract::{Lch, lift_toward};
     let accent = Lch::of(p.get("accent"));
     if accent.c < 0.03 {
         return out(
@@ -685,26 +685,36 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         }
         None
     };
-    let own_step = if own_ink.luminance() > 0.5 {
-        -0.01
-    } else {
-        0.01
+    // The palette's light and dark (its text and its ground, either way round: a wallpaper's white and its dark). Light
+    // text is preferred on a strong colour (the colour deepens a little for it); dark text when the colour would have to
+    // change too much (a soft sage keeps its lightness); pure white or black only when neither palette colour can do.
+    let (light_ink, dark_ink) = {
+        let (a, b) = (own_ink, p.get("surface"));
+        if a.luminance() >= b.luminance() {
+            (a, b)
+        } else {
+            (b, a)
+        }
     };
-    let ground = match reach(own_ink, own_step) {
-        // Kept while the colour does not have to go far (a fifth of the lightness scale).
-        Some(g) if (g.l - base.l).abs() <= 0.2 => g,
-        _ => match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
-            (Some(a), Some(b)) => {
-                if (a.l - base.l).abs() <= (b.l - base.l).abs() {
-                    a
-                } else {
-                    b
+    let near = |g: Option<Lch>| g.filter(|g| (g.l - base.l).abs() <= 0.2);
+    let (ground, own_ink) = match (near(reach(light_ink, -0.01)), near(reach(dark_ink, 0.01))) {
+        (Some(g), _) => (g, light_ink),
+        (None, Some(g)) => (g, dark_ink),
+        (None, None) => {
+            let g = match (reach(BLACK, 0.01), reach(WHITE, -0.01)) {
+                (Some(a), Some(b)) => {
+                    if (a.l - base.l).abs() <= (b.l - base.l).abs() {
+                        a
+                    } else {
+                        b
+                    }
                 }
-            }
-            (Some(a), None) => a,
-            (None, Some(b)) => b,
-            (None, None) => base,
-        },
+                (Some(a), None) => a,
+                (None, Some(b)) => b,
+                (None, None) => base,
+            };
+            (g, own_ink)
+        }
     };
     let surface = ground.rgb();
     let mut raw = RawRoles::new();
@@ -726,6 +736,8 @@ pub fn strong_chrome(p: Palette) -> StageOut {
     // Containers step away from the text's side (lighter on a dark ground, darker on a light one), but only as far as the
     // text keeps 4.5:1 on them: a step that would cost it is shortened, so the text never has to change colour.
     let dark_ground = ink.luminance() > surface.luminance();
+    // Colours go the text's way to their contrast: lighter under light text, darker under dark.
+    let lift = |c: Rgb, bg: Rgb, min: f64| lift_toward(c, bg, min, dark_ground);
     for (k, d0) in steps {
         let mut d = d0;
         let mut c = surface;
