@@ -416,6 +416,12 @@ ShellRoot {
                 color: Theme.container
                 topLeftRadius: root.cornerR
                 topRightRadius: root.cornerR
+                // I460: the wash on the header, as on every ground of Settings.
+                Loader {
+                    anchors.fill: parent
+                    active: Theme.washOn
+                    sourceComponent: Wash { topLeftRadius: root.cornerR; topRightRadius: root.cornerR; fill: Theme.container }
+                }
                 Loader {
                     anchors.fill: parent
                     active: Theme.surfaceRelief
