@@ -1267,3 +1267,24 @@ fn the_gradients_auto_angle_runs_from_the_pictures_light_to_its_dark() {
     };
     assert!(stages::light_axis(&flat).is_none());
 }
+
+#[test]
+fn strong_chrome_containers_never_cost_the_text_its_colour() {
+    // Session 26 (live): on a dark teal ground the highest container stepped so light that white text fell to 4.2:1 and
+    // the wcag stage turned every text black. The steps now stop where the text keeps 4.5:1.
+    let mut p = stages::scheme(bundled("wa-iro").unwrap(), Scheme::Dark)
+        .unwrap()
+        .palette;
+    p.set("accent", Rgb::parse("#2cc5c4").unwrap());
+    let out = stages::strong_chrome(p).palette;
+    let ink = out.get("on_surface");
+    for c in [
+        "surface",
+        "surface_container_low",
+        "surface_container",
+        "surface_container_high",
+        "surface_container_highest",
+    ] {
+        assert!(contrast(ink, out.get(c)) >= 4.5, "{c}");
+    }
+}

@@ -697,6 +697,11 @@ pub fn strong_chrome(p: Palette) -> StageOut {
     let surface = ground.rgb();
     let mut raw = RawRoles::new();
     raw.insert("surface".into(), surface);
+    let ink = if contrast(WHITE, surface) >= contrast(BLACK, surface) {
+        WHITE
+    } else {
+        BLACK
+    };
     let steps: [(&str, f64); 5] = [
         ("surface_container_lowest", -0.05),
         ("surface_container_low", 0.03),
@@ -704,21 +709,26 @@ pub fn strong_chrome(p: Palette) -> StageOut {
         ("surface_container_high", 0.09),
         ("surface_container_highest", 0.12),
     ];
-    // Containers step toward the ink's side less than the text needs: lighter on a dark ground, darker on a light one.
-    let dark_ground = contrast(WHITE, ground.rgb()) >= contrast(BLACK, ground.rgb());
-    for (k, d) in steps {
-        let l = if dark_ground {
-            ground.l + d
-        } else {
-            ground.l - d
-        };
-        raw.insert(k.into(), Lch { l, ..ground }.rgb());
+    // Containers step away from the text's side (lighter on a dark ground, darker on a light one), but only as far as the
+    // text keeps 4.5:1 on them: a step that would cost it is shortened, so the text never has to change colour.
+    let dark_ground = ink == WHITE;
+    for (k, d0) in steps {
+        let mut d = d0;
+        let mut c = surface;
+        for _ in 0..20 {
+            let l = if dark_ground {
+                ground.l + d
+            } else {
+                ground.l - d
+            };
+            c = Lch { l, ..ground }.rgb();
+            if contrast(ink, c) >= 4.6 || d.abs() < 0.005 {
+                break;
+            }
+            d *= 0.7;
+        }
+        raw.insert(k.into(), c);
     }
-    let ink = if contrast(WHITE, surface) >= contrast(BLACK, surface) {
-        WHITE
-    } else {
-        BLACK
-    };
     raw.insert("on_surface".into(), ink);
     raw.insert(
         "on_surface_variant".into(),
@@ -877,8 +887,8 @@ pub fn light_axis(w: &Wallpaper) -> Option<f64> {
         return None;
     }
     let (vx, vy) = (dx / dw - lx / lw, dy / dw - ly / lw);
-    // Less than a twentieth of the picture apart: no side is lighter enough to turn toward.
-    if vx.hypot(vy) < 0.05 * f64::from(w.width.max(w.height)) {
+    // Less than 1.5 % of the picture apart: light and dark are spread evenly, no side to turn toward.
+    if vx.hypot(vy) < 0.015 * f64::from(w.width.max(w.height)) {
         return None;
     }
     Some(vy.atan2(vx).to_degrees().rem_euclid(360.0))
