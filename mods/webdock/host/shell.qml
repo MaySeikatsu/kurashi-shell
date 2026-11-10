@@ -83,6 +83,8 @@ ShellRoot {
         open: root.cardOpen
         edge: root.doc.edge || "right"
         size: root.doc.size || "phone"
+        // W69: absent while the phone (the default)
+        style: root.doc.page_style || "phone"
         strip: root.geo.strip || 56
         phoneWidth: root.geo.width || 412
         largePct: root.geo.large || 90

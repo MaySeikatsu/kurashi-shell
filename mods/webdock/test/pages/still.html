@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Still page</title>
+<!-- W69 (test-styles.sh): a page that never animates — no caret, no focusable field, no timer — so a card that shows it
+     and rests draws 0 frames, and the shots of the page styles hold still. Each load logs once. -->
+<style>
+body{background:#f4efe4;color:#2a2620;font:16px/1.5 serif;margin:0;padding:18px}
+h1{font:600 24px/1.2 sans-serif;margin:0 0 10px}
+.band{height:120px;border-radius:8px;background:linear-gradient(135deg,#3f6e8c,#c9873f);margin:12px 0}
+.row{display:flex;gap:10px}.row div{flex:1;height:60px;border-radius:6px}
+.a{background:#c94a4a}.b{background:#4a8f5a}.c{background:#4a62c9}
+p{margin:0 0 10px}
+</style>
+</head>
+<body>
+<h1>A still page</h1>
+<p>This page stands still: it has no caret, no animation and no timer.</p>
+<div class="band"></div>
+<div class="row"><div class="a"></div><div class="b"></div><div class="c"></div></div>
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna
+aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+<p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
+occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+<p>Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros
+bibendum elit, nec luctus magna felis sollicitudin mauris.</p>
+<script>console.log('STILL ' + (location.hash.slice(1) || 'page') + ' loaded ' + innerWidth);</script>
+</body></html>
