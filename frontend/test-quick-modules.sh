@@ -30,6 +30,7 @@
 #   7. W71 (d): the levels and the session row as bar modules (volume_level is the sound module, brightness_level has its
 #      slider, session three keys; the power key opens the menu; bar-rows); W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
 #      `quick.tiles` naming both shows the sound tile once;
+#   9. W71 (g, I474): the right sidebar's toggles follow quick.tiles and its changes (sidebar-tiles);
 #   5. idle: with the pointer away and nothing open, the shell commits no frame for 3 s (Ma; WAYLAND_DEBUG commits);
 #      the frontend logs no QML error.
 # Shots (evidence to read) in frontend/shots/quick-modules/.
@@ -568,6 +569,22 @@ wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut 
   || fail "quick.tiles [audio, wifi, volume] does not show the sound tile once: $(tiles_now)"
 close_all
 echo "ok: volume places the sound module; quick.tiles naming audio and volume shows one sound tile (volume,wifi)"
+
+# ---- 9. W71 (g, I474, I475 9): the right sidebar's toggles follow quick.tiles — its switch tiles in that order (the wide
+#      rows are the sidebar's own sections), the same controls; a change of the setting is followed while it is open ----
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["darkmode","wifi","volume_level","recorder","focus"]}}}}' >/dev/null \
+  || fail "mock.doc refused quick.tiles"
+K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || fail "sidebar.toggle refused"
+wait_until 5 sh -c "[ \"\$(grep -o 'sidebar-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'darkmode,wifi,recorder,focus' ]" \
+  || fail "the sidebar's toggles do not follow quick.tiles: $(grep -o 'sidebar-tiles .*' "$R/qs.log" | tail -1)"
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["wifi","audio","mic"]}}}}' >/dev/null || fail "mock.doc refused quick.tiles"
+wait_until 5 sh -c "[ \"\$(grep -o 'sidebar-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'wifi,volume,mic' ]" \
+  || fail "the sidebar's toggles did not follow the setting's change: $(grep -o 'sidebar-tiles .*' "$R/qs.log" | tail -1)"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/sidebar-tiles.png" || fail "grim failed on the sidebar"
+K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || true
+wait_until 3 closed || close_all
+echo "ok: the sidebar's toggles follow quick.tiles (darkmode,wifi,recorder,focus → wifi,volume,mic; sidebar-tiles)"
 
 # ---- 5. idle ----
 mv_to "$AWAY_X" "$AWAY_Y"
