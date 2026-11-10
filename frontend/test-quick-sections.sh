@@ -660,6 +660,15 @@ settle 1
 [ "$(last_event mod.wallpaper)" = "unsub mod.wallpaper" ] || fail "the wallpaper tile's document stayed subscribed after the card closed"
 echo "ok: the wallpaper tile subscribes its document while the card shows it, and unsubscribes it when the card is gone (Ma)"
 
+# 16b. W71 (e, I475 1): the phone is an advanced setting — `quick.style` carries the schema's advanced flag, so Settings
+#      offers it only with advanced settings on and a module's menu (which draws no advanced row, I408) never lists it.
+#      (The mock serves no schema document, CONTRACT-CHANGE 715: the schema's own golden is read.) The phone is made only
+#      while it is the style (B73): the steps above ran on it, the step below runs without it.
+jq -e '[.. | objects | select(.key? == "quick.style")][0].advanced == true' \
+  "$ROOT/crates/kurashi-schema/tests/golden/settings_meta.json" >/dev/null \
+  || fail "quick.style is not an advanced setting (the phone would be offered without advanced settings)"
+echo "ok: the phone is offered only with advanced settings on (quick.style is advanced)"
+
 # 17. W70 (d, docs/ux/control-centre-modules.md): the card — `quick.style = card`, the default (every step above ran on the
 #     phone, `quick.style = phone`): the Stage's card round the rows (its surface, 400 px wide), no phone; a tile switches,
 #     its arrow opens its page and Escape comes back; the card's documents are unsubscribed when it closes.

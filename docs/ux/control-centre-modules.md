@@ -144,6 +144,14 @@ its level and slider, `session` three keys as thick as the bar (compact: the pow
 B73: an id `quick.tiles` names that this shell has no tile for is named in the edit mode ("Not shown: …"), not dropped
 silently; the list keeps it.
 
+**(e) The phone is an advanced setting** (I475 1). The centre is a normal surface that joins as the others (the card,
+the default; a look's flyout where its decor says so). `quick.style = phone` carries the schema's `advanced` flag: Settings
+› Layout › Control centre offers it only with advanced settings on, and the quick button's menu (which draws no advanced
+row) no longer lists it. The looks whose decor asked for the phone (`quick.frame = phone`) open as the card, as since W70;
+what should happen to that dead decor value is CONTRACT-CHANGE 716 (drop it; no look-level default for the phone). B73: the
+phone's frame is made only while it is the style (a Loader; the rows' viewport moves between the card, the flyout and the
+phone's screen).
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).

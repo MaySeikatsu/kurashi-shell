@@ -1048,7 +1048,7 @@
           "label": "settings.section.control_centre",
           "rows": [
             {
-              "advanced": false,
+              "advanced": true,
               "choices": [
                 {
                   "label": "config.choice.quick_style.card",

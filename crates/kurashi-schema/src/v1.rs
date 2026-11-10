@@ -2374,7 +2374,7 @@ pub struct Quick {
     /// Control centre look
     /// A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own
     /// flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
-    #[kurashi(default = QuickStyle::Card, module = "quick", since = 7)]
+    #[kurashi(default = QuickStyle::Card, module = "quick", advanced, since = 7)]
     pub style: QuickStyle,
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side

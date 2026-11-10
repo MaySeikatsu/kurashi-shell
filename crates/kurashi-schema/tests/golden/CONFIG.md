@@ -424,6 +424,7 @@ A card as the shell's other cards: joined to its bar, in the look's material and
 
 - type: `choice` · default: `"card"`
 - choices: `"card"` | `"phone"`
+- advanced
 - since schema v7
 
 #### `quick.tiles` — Control centre tiles
