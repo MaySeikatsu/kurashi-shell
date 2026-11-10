@@ -23,6 +23,9 @@ SectionCard 1.0 SectionCard.qml
 FontMixPreview 1.0 FontMixPreview.qml
 ThemeExportStatus 1.0 ThemeExportStatus.qml
 PackCards 1.0 PackCards.qml
+CustomPalettes 1.0 CustomPalettes.qml
+PaletteEditor 1.0 PaletteEditor.qml
+ColorPicker 1.0 ColorPicker.qml
 StyleDiffers 1.0 StyleDiffers.qml
 SchemeStatus 1.0 SchemeStatus.qml
 SeasonStatus 1.0 SeasonStatus.qml
