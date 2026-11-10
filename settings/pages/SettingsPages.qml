@@ -518,7 +518,8 @@ Flickable {
             }
         }
     }
-    Timer { id: relax; interval: 900; onTriggered: p.push = 0 }
+    // (long enough to go on after a breath, short enough that a notch from a minute ago does not count)
+    Timer { id: relax; interval: 1800; onTriggered: p.push = 0 }
     function popOut(dir) {
         var id = solo
         push = 0
