@@ -204,6 +204,7 @@ ShellRoot {
             if (id === "") return false
             win.query = ""
             win.page = id
+            settingsPages.solo = ""
             settingsPages.pinKey = ""
             settingsPages.contentY = 0
             return true
@@ -321,6 +322,10 @@ ShellRoot {
             function held(key: string): string { const h = Store.heldUserOf(key, ""); return h ? JSON.stringify(h.value) : "none" }
             // Section cards (K48 (5)): the cards the page shows, as "page.section", in order.
             function sections(): string { return settingsPages.cardNames().join(",") }
+            // I464: the sidebar's sections of the open page: show one alone ("" = all), the one in view, the one shown alone.
+            function showSection(id: string): void { settingsPages.showSection(id) }
+            function sectionInView(): string { return settingsPages.sectionId }
+            function soloSection(): string { return settingsPages.solo }
             // Theme export (K49): each app the status under the row lists, as name:state (written, included, missing,
             // error), "none" while the document is not there; and the copy result of an app ("copied", "error", "none").
             function exportState(): string {
@@ -635,7 +640,7 @@ ShellRoot {
                                     readonly property string shownName: isMod ? win.navName(navEntry.modelData)
                                         : navEntry.modelData.id === "@changed" ? I18n.fmt("settings.ui.changed_count", { n: win.changedCount })
                                         : I18n.pageTitle(navEntry.modelData.id, navEntry.modelData.label)
-                                    function open(): void { win.page = navEntry.modelData.id; win.query = "" }
+                                    function open(): void { win.page = navEntry.modelData.id; win.query = ""; settingsPages.showSection("") }
                                     width: parent.width
                                     height: Theme.controlH + 4
                                     // Concentric with the window's corner across the column's margin (I269: the user's
@@ -709,6 +714,64 @@ ShellRoot {
                                         anchors.fill: parent
                                         shown: entry.activeFocus
                                         corner: entry.radius
+                                    }
+                                }
+                                // I464 (docs/ux/settings-sections.md): the open page's sections, under it. The one in view
+                                // is marked; a click shows that section alone, a click on the page shows all of it again.
+                                Column {
+                                    id: subs
+                                    readonly property bool shown: entry.on && !win.special && navEntry.modelData.mod === ""
+                                    // (a page of one section has nothing to choose between)
+                                    readonly property var list: shown && settingsPages.navSections.length > 1 ? settingsPages.navSections : []
+                                    visible: list.length > 0
+                                    width: parent.width
+                                    spacing: 0
+                                    Repeater {
+                                        model: subs.list
+                                        delegate: Item {
+                                            id: sub
+                                            required property var modelData
+                                            readonly property bool here: settingsPages.sectionId === modelData.id
+                                            width: subs.width
+                                            height: Theme.controlH - 6
+                                            activeFocusOnTab: true
+                                            Accessible.role: Accessible.PageTab
+                                            Accessible.name: modelData.title
+                                            function open(): void { settingsPages.showSection(modelData.id) }
+                                            Keys.onReturnPressed: event => { sub.open(); event.accepted = true }
+                                            Keys.onEnterPressed: event => { sub.open(); event.accepted = true }
+                                            Keys.onSpacePressed: event => { sub.open(); event.accepted = true }
+                                            HoverHandler { id: subHover }
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: Theme.pad + 8
+                                                radius: Theme.rSm
+                                                color: subHover.hovered ? Theme.containerHigh : "transparent"
+                                            }
+                                            // The mark of the section in view: a short bar, and a bolder name (not colour alone).
+                                            Rectangle {
+                                                x: Theme.pad + 12
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: 3
+                                                height: sub.here ? parent.height - 10 : 0
+                                                radius: 1.5
+                                                color: Theme.accent
+                                            }
+                                            Text {
+                                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                                x: Theme.pad + 24
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                width: parent.width - x - Theme.pad
+                                                elide: Text.ElideRight
+                                                color: sub.here ? Theme.fg : Theme.dim
+                                                font.weight: sub.here ? Theme.wBold : Theme.wRegular
+                                                font.pixelSize: Theme.fsCaption + 1
+                                                font.family: Theme.fam(text, Theme.families)
+                                                text: sub.modelData.title
+                                            }
+                                            MouseArea { anchors.fill: parent; onClicked: sub.open() }
+                                            FocusRing { anchors.fill: parent; anchors.leftMargin: Theme.pad + 8; shown: sub.activeFocus; corner: Theme.rSm }
+                                        }
                                     }
                                 }
                             }
