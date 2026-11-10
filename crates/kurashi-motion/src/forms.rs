@@ -268,7 +268,9 @@ mod tests {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
-        for id in ["fan", "noren", "fold", "pixelate", "glitch", "dissolve", "splat", "brush", "snake"] {
+        for id in [
+            "fan", "noren", "fold", "pixelate", "glitch", "dissolve", "splat", "brush", "snake",
+        ] {
             assert!(form(id).unwrap().available, "{id}");
         }
         // W59.9a: the last one (liquid) has landed; the shape forms reach the peek, toasts, sidebars and dock.
