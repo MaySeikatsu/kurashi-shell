@@ -4,8 +4,9 @@
 #   1. under `theme.chrome = glow` the theme says the soft shadow is light (`chrome.soft_glow`), and the bar's band
 #      holds light: many pixels tinted by the accent that are neither the outline nor the ground, far more than under
 #      `line`, in dark and in light;
-#   2. on a framed output the bar's rule is unbroken under the groups, and the frame's edge throws light over the
-#      desktop that falls with the distance;
+#   2. on a framed output the bar's rule is unbroken under the groups; the frame's edge throws light over the desktop
+#      (falling with the distance) under the Glow chrome with Automatic and under any chrome with `frame_outline =
+#      glow`, and none with `on`;
 #   3. idle: 0 frames in 3 s (the ring is static); no QML error.
 #   nix develop -c frontend/test-glow.sh [sandbox-name]
 set -euo pipefail
@@ -92,28 +93,52 @@ done
 # 2. A framed output (the user's layout: the frame on, groups on the bar's strip): the bar's rule is one unbroken line,
 #    also under the groups (no gap where a group stands), and the frame's edge throws light over the desktop that falls
 #    with the distance.
-printf '[idle]\nenabled = false\n[layout.frame]\nenabled = true\nreserve = true\nthickness = 10\n[theme]\nchrome = "glow"\nframe_outline = "on"\n[theme.texture]\nkind = "none"\n[theme.colors]\nscheme = "light"\n' > "$CONF"
-sleep 2; wait_settled 5 0.5
-grim -g "0,0 ${W_OUT}x90" -t ppm "$R/band.ppm"
-python3 -I - "$R/band.ppm" <<'PY' || fail "framed: the bar's rule is broken or the frame throws no light over the desktop"
+# framed <chrome> <frame_outline>: the framed output under that chrome and choice, settled.
+framed() {
+  printf '[idle]\nenabled = false\n[layout.frame]\nenabled = true\nreserve = true\nthickness = 10\n[theme]\nchrome = "%s"\nframe_outline = "%s"\n[theme.texture]\nkind = "none"\n[theme.colors]\nscheme = "light"\n' "$1" "$2" > "$CONF"
+  sleep 2; wait_settled 5 0.5
+}
+# frame_light <want: lit|dark> <what>: the rule is unbroken, and the light over the desktop under it is there (falling
+# with the distance) or not.
+frame_light() {
+  grim -g "0,0 ${W_OUT}x90" -t ppm "$R/band.ppm"
+  python3 -I - "$R/band.ppm" "$1" "$2" <<'PY' || fail "framed, $2: the bar's rule is broken, or the frame's light is not as it should be ($1)"
 import sys
 d = open(sys.argv[1], 'rb').read()
+want, what = sys.argv[2], sys.argv[3]
 p = d.split(b'\n', 3)
 w, h = map(int, p[1].split()); px = p[3]
 def k(x, y):
     i = (y * w + x) * 3
     return px[i] - max(px[i + 1], px[i + 2])
 x0, x1 = 80, w - 80          # clear of the frame's corners
-rows = [(sum(1 for x in range(x0, x1) if k(x, y) > 40), y) for y in range(20, h - 20)]
-n, y = max(rows)
+def off_paper(x, y):
+    i = (y * w + x) * 3
+    return min(px[i], px[i + 1], px[i + 2]) < 200
+# The rule: the first row down the band that is no longer the bar's paper anywhere (the line; under it the desktop).
 span = x1 - x0
+y = n = None
+for yy in range(12, h - 20):
+    c = sum(1 for x in range(x0, x1) if off_paper(x, yy))
+    if c >= span * 0.5:
+        y, n = yy, c
+        break
+if y is None:
+    sys.exit(f"{what}: no rule found under the bar")
 if n < span * 0.97:
-    sys.exit(f"the rule at y={y} covers {n} of {span} px: broken")
+    sys.exit(f"{what}: the rule at y={y} covers {n} of {span} px: broken")
 def mean(yy): return sum(max(0, k(x, yy)) for x in range(x0, x1)) / span
 near, far = mean(y + 4), mean(y + 14)
-print(f"ok: framed: the rule at y={y} is unbroken ({n} of {span} px); the light over the desktop is {near:.1f} at 4 px and {far:.1f} at 14 px")
-sys.exit(0 if near > 4 and near > far * 1.5 else 1)
+print(f"ok: framed, {what}: the rule at y={y} is unbroken; the light over the desktop is {near:.1f} at 4 px and {far:.1f} at 14 px")
+if want == "lit": sys.exit(0 if near > 4 and near > far * 1.5 else 1)
+sys.exit(0 if near < 2 else 1)
 PY
+}
+# The Glow chrome: Automatic lights the frame; On keeps the line without its light. The Lines chrome: Glow lights it.
+framed glow auto; frame_light lit "Glow chrome, Automatic"
+framed glow on; frame_light dark "Glow chrome, On (the line alone)"
+framed line glow; frame_light lit "Lines chrome, frame outline Glow"
+framed line on; frame_light dark "Lines chrome, On"
 
 # 3. idle and errors
 wait_settled 3 0.6
