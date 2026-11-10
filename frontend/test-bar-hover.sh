@@ -57,6 +57,7 @@ wait_frontend "$R/qs.log" || fail "the frontend did not load"
 
 # One pointer for the whole run (`--serve`): a pointer made per move is gone again when its tool exits, and the bar
 # then hears a leave half a second after every move, so nothing could rest on a module.
+rm -f "$R/ptr.fifo"
 mkfifo "$R/ptr.fifo"
 python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$R/ptr.fifo" &
 pids+=($!)
