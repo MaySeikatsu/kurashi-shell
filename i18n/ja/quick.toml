@@ -1,3 +1,15 @@
 # コントロールセンターとその各コントロールのモジュール (W70, docs/ux/control-centre-modules.md)。
 "quick.mic.none" = "マイクなし"
 "quick.airplane.none" = "利用不可"
+# モジュールとしての各コントロールの名前（設定 › レイアウト、モジュールのメニュー、端のグループ）。
+"layout.module.wifi" = "Wi-Fi"
+"layout.module.bluetooth" = "Bluetooth"
+"layout.module.audio" = "サウンド出力"
+"layout.module.mic" = "マイク"
+"layout.module.power" = "バッテリーと電源"
+"layout.module.brightness" = "明るさ"
+"layout.module.focus" = "集中（おやすみモード）"
+"layout.module.caffeine" = "スリープしない"
+"layout.module.nightlight" = "夜間モード"
+"layout.module.darkmode" = "ダークモード"
+"layout.module.airplane" = "機内モード"

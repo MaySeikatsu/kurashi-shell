@@ -753,7 +753,7 @@ pub struct Colors {
     /// Light or dark
     /// Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
-    #[kurashi(default = Scheme::Auto)]
+    #[kurashi(default = Scheme::Auto, module = "darkmode")]
     pub scheme: Scheme,
     /// Wallpaper colours
     /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
@@ -1836,7 +1836,7 @@ pub struct Notifications {
     pub server: bool,
     /// Do not disturb
     /// Store notifications silently; critical ones still show.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "focus")]
     pub dnd: bool,
     /// History size
     /// How many notifications are kept.
@@ -2103,7 +2103,7 @@ pub struct Idle {
     /// Idle actions
     /// Dim, lock, turn the screens off and suspend after a time without input. Apps that play video
     /// or calls that are on keep the screen awake (they inhibit idle).
-    #[kurashi(default = true)]
+    #[kurashi(default = true, module = "caffeine")]
     pub enabled: bool,
     /// Dim after
     /// Lowers the brightness a little before locking. 0 = never.
@@ -2123,7 +2123,7 @@ pub struct Idle {
     pub suspend_after: u32,
     /// Stay awake while media plays
     /// Music or video that plays keeps the screen on.
-    #[kurashi(default = true, requires = "idle.enabled == true")]
+    #[kurashi(default = true, requires = "idle.enabled == true", module = "caffeine")]
     pub inhibit_while_media: bool,
 }
 
@@ -2144,15 +2144,15 @@ pub enum NightSchedule {
 pub struct NightLight {
     /// Night light
     /// Warmer colours in the evening (wlsunset). Off by default.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "nightlight")]
     pub enabled: bool,
     /// Warmth
     /// Colour temperature at night; lower is warmer.
-    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true")]
+    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true", module = "nightlight")]
     pub temperature: u32,
     /// Schedule
     /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
-    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true")]
+    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true", module = "nightlight")]
     pub schedule: NightSchedule,
     /// From
     /// Start of the night colours, as HH:MM.

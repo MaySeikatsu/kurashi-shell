@@ -111,6 +111,8 @@ Item {
     }
     onPageChanged: {
         if (page !== "") shownPage = page
+        if (navOwned) QuickNav.showing(page, navTurn)
+        navTurn = false
         slideAnim.stop()
         slideAnim.to = page !== "" ? 1 : 0
         slideAnim.start()
@@ -126,8 +128,31 @@ Item {
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (quick.page === "") quick.shownPage = ""
     }
+    // W70: a control's bar module opens the card on its page (QuickNav, the stand-in for CONTRACT-CHANGE row 710): the card
+    // takes the page it was asked for when it is made, turns to the page a module asks for while it is up, and says which
+    // page it shows (a module draws itself pressed while its page is up). Only the quick card does: the power and Bluetooth
+    // faces' views (`startPage`) open where the Stage says.
+    property bool navOwned: false
+    property bool navTurn: false        // the page change under way is a module's ask
+    Connections {
+        target: QuickNav
+        enabled: quick.navOwned
+        function onSerialChanged() {
+            var p = QuickNav.take()
+            if (p === "" || p === quick.page) return
+            quick.navTurn = true
+            quick.openPage(p, null)
+        }
+    }
+    Component.onDestruction: if (navOwned && QuickNav.shown === page) QuickNav.showing("", false)
     Component.onCompleted: {
         syncTiles()
+        navOwned = startPage === ""
+        if (navOwned) {
+            startPage = QuickNav.take()
+            navTurn = startPage !== ""
+            QuickNav.showing(startPage, navTurn)
+        }
         if (startPage !== "") {
             page = startPage
             shownPage = startPage

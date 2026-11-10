@@ -1077,7 +1077,8 @@ PanelWindow {
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
     readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
-    readonly property string ownKey: contentKind === "quick" ? "quick"
+    // (W70: the quick card a control's module opened comes out under that module, I340's `module:<id>`, not the button)
+    readonly property string ownKey: contentKind === "quick" ? (openedFrom !== "" && openedFrom !== "quick" ? "" : "quick")
         : (contentKind === "tray" ? (moduleMenuShown ? shownTray : "tray:" + shownTray)
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none

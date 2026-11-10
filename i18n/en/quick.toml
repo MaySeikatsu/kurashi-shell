@@ -1,3 +1,16 @@
 # The control centre and its controls as modules (W70, docs/ux/control-centre-modules.md): the controls' own lines.
 "quick.mic.none" = "No microphone"
 "quick.airplane.none" = "Not offered"
+# The controls as modules: their names where modules are listed (Settings › Layout, a module's menu, an edge group).
+# (`layout.module.<id>` as every module's; they live here, with the controls, so this card's work stays in one domain.)
+"layout.module.wifi" = "Wi-Fi"
+"layout.module.bluetooth" = "Bluetooth"
+"layout.module.audio" = "Sound output"
+"layout.module.mic" = "Microphone"
+"layout.module.power" = "Battery and power"
+"layout.module.brightness" = "Brightness"
+"layout.module.focus" = "Focus (do not disturb)"
+"layout.module.caffeine" = "Keep awake"
+"layout.module.nightlight" = "Night light"
+"layout.module.darkmode" = "Dark mode"
+"layout.module.airplane" = "Airplane mode"

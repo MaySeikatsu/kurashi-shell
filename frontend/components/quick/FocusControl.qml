@@ -15,7 +15,7 @@ Control {
     label: I18n.tr("island.quick.tile.focus")
     glyph: "☾"
     icon: "bedtime"
-    readonly property string glanceIcon: dnd ? "do_not_disturb_on" : "do_not_disturb_off"
+    readonly property string glanceIcon: "do_not_disturb_on"
     reason: known ? "" : I18n.tr("island.quick.tile.no_notify")
     forcedBy: String(d.forced_by || "")
     on: dnd

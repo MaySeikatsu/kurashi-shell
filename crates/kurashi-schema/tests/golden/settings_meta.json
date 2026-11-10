@@ -1124,6 +1124,9 @@
               "help": "config.theme.colors.scheme.help",
               "key": "theme.colors.scheme",
               "label": "config.theme.colors.scheme.label",
+              "modules": [
+                "darkmode"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6088,6 +6091,9 @@
               "help": "config.notifications.dnd.help",
               "key": "notifications.dnd",
               "label": "config.notifications.dnd.label",
+              "modules": [
+                "focus"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6617,6 +6623,9 @@
               "help": "config.idle.enabled.help",
               "key": "idle.enabled",
               "label": "config.idle.enabled.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6738,6 +6747,9 @@
               "help": "config.idle.inhibit_while_media.help",
               "key": "idle.inhibit_while_media",
               "label": "config.idle.inhibit_while_media.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6757,6 +6769,9 @@
               "help": "config.night_light.enabled.help",
               "key": "night_light.enabled",
               "label": "config.night_light.enabled.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6780,6 +6795,9 @@
               "label": "config.night_light.temperature.label",
               "max": 6500,
               "min": 1500,
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6817,6 +6835,9 @@
               "help": "config.night_light.schedule.help",
               "key": "night_light.schedule",
               "label": "config.night_light.schedule.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,

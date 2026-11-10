@@ -28,3 +28,4 @@ CaffeineControl 1.0 CaffeineControl.qml
 NightControl 1.0 NightControl.qml
 RecordControl 1.0 RecordControl.qml
 DarkControl 1.0 DarkControl.qml
+singleton QuickNav 1.0 QuickNav.qml
