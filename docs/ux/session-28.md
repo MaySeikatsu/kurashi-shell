@@ -45,6 +45,12 @@ apps: the fillet; pixel shells: stairs.
 and was left out; an overlap style; a size of its own for the corner beyond `radius_joins`; the frame's inner corners
 keep their radius (they are not joins).
 
+**Amended the same evening (K134, I489, PR #53).** The user: the corner shapes "look stupid alone", and the connection's
+form was still the chrome's. Now: the corner shape also draws the frame's inner corners (fill, rule, pen) and the free
+corners of joined cards, dock and sidebars; and `theme.join` is the cards' draw mode: Automatic, Floating, Dynamic,
+Connected, as the bars, the dock and the sidebars have theirs. Both rows sit beside the corner rows in Appearance › Shape.
+Not done: rectangle-drawn surfaces (the floating card, toasts, desktop widgets), the blocks inside a card.
+
 ## 4. Cards follow the pointer (K130)
 **Job.** A card opened on purpose moves to the monitor the pointer goes to (`bar.popups_follow`, on by default):
 it folds where it is and opens on the other screen under the same module. Not hover-opened cards (they close on
