@@ -127,6 +127,8 @@ pub struct Inputs<'a> {
     pub titlebars: bool,
     /// The palette, for the titlebar lines (they are written whole, so their colours are filled here).
     pub palette: &'a Palette,
+    /// The terminal colours of the apps' own palette (I454, K122), or `None`: the 16 colours derived from the roles.
+    pub term: Option<&'a crate::palette::Terminal>,
 }
 
 /// The shell's values as templates name them. Typography, shape, motion and material are the tokens in effect (a
@@ -135,6 +137,14 @@ pub struct Inputs<'a> {
 pub fn values(i: &Inputs) -> Values {
     let num = |k: &str| i.tokens.get(k).and_then(Value::as_f64);
     let mut v = Values::new();
+    // I454: `{{term.*}}`, the terminals' colours: the apps' own palette's table, or the roles they always took.
+    for (k, c) in crate::apps_palette::term_values(i.palette, i.term) {
+        v.insert(format!("term.{k}.hex"), c.hex());
+        v.insert(
+            format!("term.{k}.hex_stripped"),
+            c.hex().trim_start_matches('#').to_owned(),
+        );
+    }
     if let Some(f) = i.tokens.get("font.family").and_then(Value::as_str) {
         v.insert("fonts.family".into(), f.into());
     }
@@ -856,6 +866,13 @@ pub struct Target {
 }
 
 /// Written in place of a superseded file (see [`Target::legacy`]). Comments only: an empty include is valid for niri.
+/// Whether target `name` wears the apps' own palette while `theme.colors.real_palettes` is on (I454, K122): the
+/// terminals and the tools that run inside one. The desktop's toolkits, the browsers, the editors with a window of
+/// their own and the compositors keep the shell's colours.
+pub fn wears_apps_palette(name: &str) -> bool {
+    terminal_way(name).is_some() || matches!(name, "zellij" | "fzf" | "nvim" | "helix")
+}
+
 /// How a terminal target takes the shell's material (I420, K99).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminalWay {
@@ -1470,6 +1487,7 @@ mod tests {
             animations: true,
             titlebars: false,
             palette: &palette(),
+            term: None,
         })
     }
 
@@ -1494,6 +1512,7 @@ mod tests {
                 animations: true,
                 titlebars: false,
                 palette: &p,
+                term: None,
             })["frame.active.hex"]
                 .clone()
         };
@@ -1597,6 +1616,7 @@ mod tests {
             animations: true,
             titlebars: false,
             palette: &palette(),
+            term: None,
         });
         assert_eq!(v["gsettings.color_scheme"], "default");
         assert_eq!(v["scheme"], "light");

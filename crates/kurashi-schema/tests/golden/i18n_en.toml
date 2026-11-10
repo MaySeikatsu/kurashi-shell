@@ -180,6 +180,8 @@
 "config.choice.app_icon_tint.ink" = "Text colour"
 "config.choice.app_icon_tint.tones" = "Palette tones"
 "config.choice.app_icon_tint.palette" = "Palette colours"
+"config.theme.colors.real_palettes.label" = "Terminals keep their own palette"
+"config.theme.colors.real_palettes.help" = "Terminals and the tools that run in them (fzf, Neovim, Helix, Zellij) wear a published theme as its authors made it, the 16 terminal colours included, instead of colours derived from the shell's: the palette the shell wears when it has such colours, else the published one closest to the shell's colours. Off under high contrast and the colour-blind aids, which need the shell's own colours."
 "config.theme.colors.chrome_fill.label" = "Chrome fill"
 "config.theme.colors.chrome_fill.help" = "What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so they stay legible. The gradient below can run over either (I456)."
 "config.choice.chrome_fill.neutral" = "Neutral"

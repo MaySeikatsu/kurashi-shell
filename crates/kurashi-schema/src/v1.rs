@@ -777,6 +777,13 @@ pub struct Colors {
     /// in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
     #[kurashi(default = AppIconTint::Original)]
     pub app_icons: AppIconTint,
+    /// Terminals keep their own palette
+    /// Terminals and the tools that run in them (fzf, Neovim, Helix, Zellij) wear a published theme as its authors
+    /// made it, the 16 terminal colours included, instead of colours derived from the shell's: the palette the shell
+    /// wears when it has such colours, else the published one closest to the shell's colours. Off under high contrast
+    /// and the colour-blind aids, which need the shell's own colours.
+    #[kurashi(default = false)]
+    pub real_palettes: bool,
     /// Chrome fill
     /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
     /// palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so

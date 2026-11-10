@@ -1289,6 +1289,19 @@
             },
             {
               "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.real_palettes.help",
+              "key": "theme.colors.real_palettes",
+              "label": "config.theme.colors.real_palettes.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.chrome_fill.neutral",

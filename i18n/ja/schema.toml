@@ -168,6 +168,8 @@
 "config.choice.control_colours.spread" = "散らす"
 "config.theme.colors.app_icons.label" = "アプリのアイコン"
 "config.theme.colors.app_icons.help" = "ドック、バーのウィンドウ一覧、トレイ、ランチャー、通知のアプリのアイコン：そのまま、文字の色（絵は濃淡のインクで残ります）、パレットのトーン（暗から明へパレットの色で）、またはパレットの色（各部分がその色相に近いパレットの色になります）。"
+"config.theme.colors.real_palettes.label" = "ターミナルは本来のパレットを使う"
+"config.theme.colors.real_palettes.help" = "ターミナルとその中で動くツール（fzf、Neovim、Helix、Zellij）が、シェルの色から作った色ではなく、公開されているテーマを作者の色のまま（ターミナルの16色を含む）使います。シェルのパレットにその色があればそれを、なければシェルの色に最も近い公開パレットを選びます。ハイコントラストと色覚補助ではオフになります（シェル自身の色が必要なため）。"
 "config.choice.app_icon_tint.original" = "そのまま"
 "config.choice.app_icon_tint.ink" = "文字の色"
 "config.choice.app_icon_tint.tones" = "パレットのトーン"
