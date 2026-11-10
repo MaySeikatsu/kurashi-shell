@@ -360,9 +360,12 @@ Now the well shows the picked site's page, in that card, where it opened.
   the hover grace (380 ms). A press in the page makes the card the user's (as a press in the card does: `Peeks.hoverKeep`).
 - **Keyboard:** the pin keys and the settings key are Tab stops in the Stage card (Enter opens, Menu opens the pins'
   settings); Tab from the settings key hands the keyboard to the page (`webdock.card_focus`: the host's window asks for it
-  once, as the edge card does on a keybind reveal). A click in the page gives it the keyboard (on demand). Esc inside the
-  page is the page's when it takes it (a site's dialog); an Esc the page does not take, and Esc on the navigation row,
-  **closes the card** (`webdock.card_close` → `ui.close`), as Esc does on the Stage's own keys.
+  once, as the edge card does on a keybind reveal). A click in the page gives it the keyboard (on demand). **Esc closes
+  the card** wherever the keyboard is in the page's window (`webdock.card_close` → `ui.close`), as Esc does on the Stage's
+  own keys and on a popover. As built: a window shortcut, ahead of the page — QtWebEngine 6.11 hands no unhandled Esc back
+  to its parents (measured on niri, in a text field and on the page's body), so "Esc the page did not take" cannot be
+  told; a site's own Esc (closing its dialog) is therefore not reached in the bar card. At the edge and in the sidebar the
+  page keeps Esc.
 - **a11y:** the navigation row's buttons have names (the sidebar's), "Show at the edge" names where (`webdock.side.at_edge`);
   the well's notices are text the screen reader reads; the page is the engine's own accessible tree.
 
@@ -379,14 +382,32 @@ Now the well shows the picked site's page, in that card, where it opened.
   watches the Stage window's swapped frames only while the card is open (none at rest); the geometry is sent on change
   only. No new process, no polling.
 
+### As built (W72)
+- **Focus on map:** sway and niri hand a freshly mapped on-demand layer the keyboard, so the page's window takes the keys
+  when it appears (measured: "keyboard in" on the map). That is not counted as using the page: `engaged` is a press in the
+  page or the keyboard asked for it, so a hover-opened card still closes when the pointer leaves. A click on a pin key gives
+  the keys back to the card (its Tab stops).
+- **Engine lifecycle:** a hidden page used to be frozen in the same turn as its hide; QtWebEngine refused that ("page is
+  visible") and the page stayed Active. The freeze now follows the engine's `recommendedState` (Active while visible or
+  audible), in every place the page is shown.
+- **One window type:** the bar card's window is the sidebar's `SideWindow` in its card role (`cardRole`), so the two share
+  the navigation row, the states and the page's mask.
+- **Mock:** the mock does not know the card's actions (CONTRACT-CHANGE 722); under it the well shows its notices only.
+
 ### Definition of done (W72)
-- [ ] With a pin, the bar card shows the page in its well: the host window's rect equals the well's (logs), on a top and a
-      bottom bar.
-- [ ] Close and reopen, pin back and forth, the same pin at the edge: no new load report; the losers say where it is.
-- [ ] Pointer from the module into the page keeps the card (hover mode); leaving closes it; Esc from the page closes it.
-- [ ] No pin: the empty state with "Add a site"; engine missing: its message.
-- [ ] Idle 0 frames with the card closed; no QML error or warning.
-- [ ] Shots on nested niri: bottom bar's right corner and top bar, light and dark; the empty and the error state.
+- [x] With a pin, the bar card shows the page in its well: the host window's rect equals the well's (logs), on a top and a
+      bottom bar — `mods/webdock/test/test-card.sh` (sway).
+- [x] Close and reopen, pin back and forth, the same pin at the edge: no new load report (the host's load reports
+      counted); the edge card says "This page is shown in the bar's card" while the card holds it (not shot).
+- [x] Pointer from the module into the page keeps the card (hover mode); page → card keeps it; leaving closes it; Esc
+      from the page closes it; Tab past the card's keys and a click in the page give it the keyboard (typed text arrives).
+- [x] No pin: the empty state with "Add a site"; engine missing: its message (the panel's notice, not shot).
+- [x] Idle: the card's window draws 0 frames in 3 s after the card closed; no QML error or warning in the shell or the
+      host (test-card.sh greps both logs, the engine's lifecycle warning included).
+- [x] Shots on nested niri: bottom bar's right corner and top bar, light and dark; the empty and the error state —
+      `mods/webdock/test/shots-card.sh` → `mods/webdock/shots/card/card-{bottom,top,error,empty}-{light,dark}.png`.
+- [ ] Left and right bars, a second output, HiDPI: the geometry is output-absolute and logical by construction; not
+      measured in a test.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
