@@ -124,7 +124,9 @@ Item {
         id: face
         // I471d: a torn edge, the whole face through one layer (outline, ring, fill and what stands on it).
         // Only a face with a fill of its own: on a clear one the layer's edges would be its text's.
-        layer.enabled: Theme.edgeTorn && !blk.painted && !blk.bare && blk.fill.a > 0.5 && blk.width > 14 && blk.height > 14
+        // (not a bar's group or the island's pill: they lie on the bar's sheet, whose edge is the torn one, and a layer
+        // that small would chew its text)
+        layer.enabled: Theme.edgeTorn && !blk.painted && !blk.paintAlways && !blk.bare && blk.fill.a > 0.5 && blk.width > 14 && blk.height > 14
         layer.effect: EdgeWarp {}
         // The face's corner, and the fill's inside the outline and the ring.
         readonly property real r: Math.min(blk.radius, blk.faceH / 2)
