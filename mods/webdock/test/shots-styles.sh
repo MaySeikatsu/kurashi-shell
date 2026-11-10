@@ -36,6 +36,7 @@ scheme = "$1"
 enabled = ["webdock", "weather"]
 [mods.webdock]
 page_style = "$2"
+pinned = true
 pins = [
   { id = "still", title = "Still", target = "$PAGES/still.html#still" },
   { id = "weather", title = "Weather", target = "mod:weather:weather" },
@@ -58,8 +59,6 @@ strip() { # strip <out> <in ...>: side by side, a 3 px rule between
 for scheme in ${SCHEMES:-light dark}; do
   conf "$scheme" phone phone
   "$SB" start "$OUT/config.toml" "$OUT/wall.png" > /dev/null || fail "the sandbox did not start"
-  # Kept open (pinned): no pointer rests on the dock here, and a hover leave would hide it between the steps.
-  K act webdock.pin '{"on":true}' > /dev/null
   for style in $STYLES; do
     conf "$scheme" "$style" phone
     "$SB" config "$OUT/config.toml"
