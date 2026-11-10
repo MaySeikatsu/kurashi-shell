@@ -12,7 +12,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 uGeo;     // xy the item (px), z the overshoot at each end (px), w the seed
     vec4 uColor;   // the paint (straight alpha: how thick it lies at most)
     vec4 uPaint;   // x unevenness 0..1, y the room above and below the block inside the item (px), z how far the
-                   // paint runs into its second colour 0..1
+                   // paint runs into its second colour 0..1, w the stroke's own bristle lines 0..1
     vec4 uColor2;  // the colour the paint runs into (as two wet colours meet: the gradient mode's watercolour)
     vec4 uScene;   // xy the item's place in its window (px): the two colours meet in the window's space, so strokes
                    // lying side by side agree on where
@@ -85,8 +85,9 @@ void main() {
     // grains; where a hair ran nearly dry the ground shows through in specks.
     float hair = 0.6 * vnoise(vec2(p.y / 1.1 + seed * 3.0, p.x / 240.0)) + 0.4 * vnoise(vec2(p.y / 2.7 + seed, p.x / 120.0 + 5.0));
     float grain = vnoise(p / 1.25 + seed) * 0.6 + vnoise(p / 3.1 + seed * 2.0) * 0.4;
-    col *= 1.0 + k * (0.13 * (hair - 0.5) + 0.06 * (grain - 0.5));
-    a *= 1.0 - k * 0.10 * smoothstep(0.62, 0.95, hair) * smoothstep(0.45, 0.8, grain);
+    // (uPaint.w: 0 while the shell wears a material of its own: its relief lies on the stroke instead of these lines)
+    col *= 1.0 + k * uPaint.w * (0.13 * (hair - 0.5) + 0.06 * (grain - 0.5));
+    a *= 1.0 - k * uPaint.w * 0.10 * smoothstep(0.62, 0.95, hair) * smoothstep(0.45, 0.8, grain);
     a = clamp(a, 0.0, 1.0);
     fragColor = vec4(col * a, a) * qt_Opacity;
 }

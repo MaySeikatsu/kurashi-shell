@@ -52,7 +52,7 @@ Item {
         readonly property vector4d uGeo: Qt.vector4d(width, height, ps.over,
             (ps.seed0 + ps.seedShift) % 97)
         readonly property color uColor: ps.color
-        readonly property vector4d uPaint: Qt.vector4d(Theme.edgeUneven, Math.max(2, Math.abs(ps.room)), ps.blend, 0)
+        readonly property vector4d uPaint: Qt.vector4d(Theme.edgeUneven, Math.max(2, Math.abs(ps.room)), ps.blend, Theme.texShell ? 0 : 1)
         readonly property vector4d uScene: { var o = ps.mapToItem(null, 0, 0); return Qt.vector4d(o.x + x, o.y + y, 0, 0) }
         readonly property color uColor2: Qt.rgba(ps.color2.r, ps.color2.g, ps.color2.b, 1)
         fragmentShader: Qt.resolvedUrl("../shaders/paint_stroke.frag.qsb")
