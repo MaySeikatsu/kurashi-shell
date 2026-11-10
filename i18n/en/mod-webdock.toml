@@ -112,6 +112,12 @@
 "mods.webdock.new_tabs.help" = "In the dock: the link replaces the page and Back returns. In the browser: it opens in your default browser."
 "mods.webdock.new_tabs.dock" = "In the dock"
 "mods.webdock.new_tabs.browser" = "In the browser"
+# W69: the page's frame (docs/ux/webdock.md "Page styles").
+"mods.webdock.page_style" = "Page style"
+"mods.webdock.page_style.help" = "Phone: a phone, and a tablet lying sideways in the large size. Notebook: one half of an opened spiral notebook; the page turns over the binding. Plain: the page alone on the dock's card."
+"mods.webdock.page_style.phone" = "Phone"
+"mods.webdock.page_style.notebook" = "Notebook"
+"mods.webdock.page_style.plain" = "Plain"
 
 # The hover, focus and pin actions (K40, W20-webdock-daemon) and the address refusal of add and retarget.
 "webdock.error.address" = "The address must be a web page: https, http or file"

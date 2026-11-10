@@ -112,6 +112,25 @@ impl NewTabs {
     }
 }
 
+/// How the card frames its page (`page_style`, W69; docs/ux/webdock.md "Page styles"): a phone (a tablet in the large
+/// size), one half of an opened spiral notebook, or the shell's plain card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PageStyle {
+    Phone,
+    Notebook,
+    Plain,
+}
+
+impl PageStyle {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Phone => "phone",
+            Self::Notebook => "notebook",
+            Self::Plain => "plain",
+        }
+    }
+}
+
 /// A part of the dock the pointer or the keyboard can be in (K40): the screen edge that reveals the dock, the strip
 /// and the card (the mod's own card for a site, the shell's for a view).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -236,6 +255,7 @@ pub struct Config {
     pub reserve: bool,
     pub indicator: bool,
     pub new_tabs: NewTabs,
+    pub page_style: PageStyle,
 }
 
 impl Config {
@@ -279,6 +299,11 @@ impl Config {
             new_tabs: match settings.get("new_tabs").as_ref().and_then(Value::as_str) {
                 Some("browser") => NewTabs::Browser,
                 _ => NewTabs::Dock,
+            },
+            page_style: match settings.get("page_style").as_ref().and_then(Value::as_str) {
+                Some("notebook") => PageStyle::Notebook,
+                Some("plain") => PageStyle::Plain,
+                _ => PageStyle::Phone,
             },
         }
     }
@@ -826,6 +851,10 @@ impl Dock {
         }
         if let Some(output) = &self.output {
             doc["output"] = json!(output);
+        }
+        // W69: the page style; absent while it is the phone (the default), so a document from before it reads the same.
+        if self.config.page_style != PageStyle::Phone {
+            doc["page_style"] = json!(self.config.page_style.name());
         }
         // I91: the settings the configuration forces and their sources; absent when nothing is forced (no nulls).
         if !self.forced.is_empty() {
@@ -1819,6 +1848,29 @@ mod tests {
         assert_eq!(
             view_rows(&rows, "w", View::Mobile),
             Err(DockError::NotASite)
+        );
+    }
+
+    /// W69: `page_style` is absent while it is the phone (the fixture's document) and names the style otherwise.
+    #[test]
+    fn the_page_style_is_published_unless_it_is_the_phone() {
+        assert!(dock(&[]).doc().get("page_style").is_none());
+        assert!(
+            dock(&[("page_style", json!("phone"))])
+                .doc()
+                .get("page_style")
+                .is_none()
+        );
+        for style in ["notebook", "plain"] {
+            let d = dock(&[("page_style", json!(style))]);
+            assert_eq!(d.doc()["page_style"], style);
+        }
+        // An unknown value (a hand-edited config past validation) reads as the phone.
+        assert!(
+            dock(&[("page_style", json!("scroll"))])
+                .doc()
+                .get("page_style")
+                .is_none()
         );
     }
 

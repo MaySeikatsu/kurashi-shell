@@ -44,6 +44,8 @@ PanelWindow {
     readonly property int phoneW: geo.width || 412
     readonly property int largePct: geo.large || 90
     readonly property bool large: d.size === "large"
+    // W69: the page style the cards wear (absent = phone), the host's card's too.
+    readonly property string pageStyle: d.page_style || "phone"
     readonly property bool pinned: d.pinned === true
     // I91: the settings the configuration forces, each with its source (`forced` on mod.webdock; absent when none is).
     readonly property var forced: d.forced || ({})
@@ -415,6 +417,8 @@ PanelWindow {
             anchors.fill: parent
             title: dock.shownPin ? String(dock.shownPin.title || "") : ""
             large: dock.large
+            style: dock.pageStyle
+            edge: dock.edge
             onSizeChosen: size => dock.send("webdock.size", { size: size })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
@@ -439,6 +443,8 @@ PanelWindow {
             anchors.fill: parent
             title: dock.shownPin ? String(dock.shownPin.title || "") : ""
             large: dock.large
+            style: dock.pageStyle
+            edge: dock.edge
             onSizeChosen: size => dock.send("webdock.size", { size: size })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
@@ -456,6 +462,8 @@ PanelWindow {
             anchors.fill: parent
             title: I18n.tr("webdock.dock.name")
             sizable: false
+            style: dock.pageStyle
+            edge: dock.edge
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
             Notice {

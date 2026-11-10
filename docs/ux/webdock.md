@@ -145,6 +145,147 @@ of being phone shaped." The edge dock stays exactly as it is; the sidebar is a s
 - **Done (W30):** `mods/webdock/test/test-sidebar.sh` (left tab, two `file://` pins, the page fills the well, pin switch,
   close = hidden and no frames), shots `mods/webdock/shots/sidebar-{washi,sekai}.png`.
 
+## Page styles (W69, session 27; I468)
+**User (2026-11-10):** "Add different style options for the web dock (like a half of an opened notebook, with the proper
+animation), still the phone style (when extended morphs into a tablet shape sideways), simple one that just morphs out
+of the surface showing the webpage without phone decoration." The user was away for this card: every choice below that
+they may want otherwise is listed in the card's report ("questions for the user").
+
+### How others frame a side page (from the products; not re-checked online for this card)
+- **Vivaldi / Edge / Opera side panels:** no frame at all — the page fills a pane of the browser's own chrome, with a
+  slim toolbar; the pane's edge is the window's. The frame is the app's, not a device's.
+- **Arc's Little Arc:** a small floating window with a minimal title row (address, "open in Arc"); rounded, shadowed,
+  the browser's own material; it grows out of nothing (a scale and fade), and "open in Arc" grows it into a full tab.
+- **Zen's Glance:** a link opens in a card that rises over the page from the link's place (a scale from the origin), with
+  side buttons (close, expand to a tab, split); the card is plain, the theme's radius and shadow — the closest model for
+  **plain**: the page morphs out of what was clicked and has no decoration of its own.
+- **GNOME / KDE widgets and previews with device frames:** device frames appear in previews and "responsive design" tools
+  (Firefox and Chrome devtools draw a phone outline round the page, and rotate it to landscape on a press; KDE's
+  Plasma Mobile previews), never on a live desktop widget — the frame says "this is the phone-sized view".
+- **Android desktop mode (freeform windows):** a phone app's window rotates between portrait and landscape by resizing
+  the window, not by swapping a picture; the caption bar stays on top in both.
+- **iPadOS Safari** (the tablet the phone becomes): landscape, the toolbar on top (back, forward, address, actions in
+  one row), a status row above it, the home indicator below, a thin even bezel and a small camera dot on the long top
+  edge — no pill cut-out.
+- **Notebooks as UI** (skeuomorphic note apps, iOS 6 Notes, GoodNotes' covers): a lined sheet, a binding, the cover's
+  edge round the sheet; the page turn is the one motion people read at once.
+- **Taken:** plain follows Glance and Little Arc (the page out of its origin, the theme's own card); phone keeps K42 and
+  becomes a landscape tablet the way a freeform window rotates (one continuous resize of the frame); notebook draws a
+  binding and a cover from the theme's tones and opens with a page turn about the binding.
+
+### Design
+- **Setting** `mods.webdock.page_style`: `phone` (default: what exists) | `notebook` | `plain`; Settings › Web dock,
+  under the size settings. The daemon publishes it in `mod.webdock` as `page_style` (absent while `phone`, so documents
+  that predate it read as phone; CONTRACT-CHANGE row). It applies to the web pin's card (the host) and to the shell's
+  cards at the edge (a view pin, the cold engine, the empty dock), so the cold card and the page that replaces it wear
+  the same frame. The sidebar's well (W30) is unchanged: it fills the sidebar in every style.
+- **"Extended"** is the existing **size** (phone ↔ large; `webdock.size`), not a new state: the size button in the card's
+  controls (pointer), Ctrl+L then Tab to it (keyboard; the button's accessible name says the size it is in). Every style
+  has both sizes: phone width × ≤ 2× width, and large (90 % × full height).
+- **One page, never re-made.** The web page lives in one well the frames place; a style or size change moves and
+  resizes the well (and, at most, reflows the site once at the end of a morph). It never re-creates the page or reloads
+  it (the test counts the host's load reports).
+
+#### Phone (K42, kept) and its tablet
+- Phone size: exactly W21's phone (PhoneFrame): status row, title pill, page, bottom bar, home indicator.
+- **Large = a tablet lying sideways:** the same body, wider than tall, morphed continuously — corner radius (the phone's
+  corners scale with its width, as PhoneFrame derives them), bezel, the cut-out (the pill narrows into a camera dot on
+  the long top edge), the side buttons (they leave the long sides and the tablet's pair stands on its top edge), and the
+  screen. The tablet's controls are one row on top under the status row (iPadOS Safari): back, forward, title, home,
+  reload, view, size, more, collapse — the phone's bottom bar leaves while the frame turns and the top row arrives.
+- The page keeps its pixels during the morph: it takes the larger of the two sizes at the start and is clipped by the
+  screen, so the site reflows once (at the end of a shrink, at the start of a grow), not on every frame.
+
+#### Notebook — one half of an opened spiral notebook
+Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along that edge, a pad bound at the top):
+- **Binding on the dock's side:** a band (22 px) along the edge next to the strip holds the coil: **twin wire loops**
+  through **punched slots** near the sheet's edge, a pair every 28 px (the two loops 7 px apart), each loop a short arc from its slot over the
+  sheet's edge into the band. The wire is a metal tone from the theme (its `outline` colour lit toward `fg` along the
+  loop, with a highlight in `fg` and a contact shadow in `line`). Drawn once as static paths (a Shape with SVG path
+  strings built when the size changes): no Canvas, nothing per frame.
+- **The cover:** a board a few px larger than the sheets on the three free sides (6 px), in a surface container tone
+  (`surface_container_high` shaded toward `outline` and tinted with the accent), with the theme's outline.
+- **The sheets:** the page's ground (`surface_container`, the web card's screen colour), ruled faintly (`outline`, every
+  24 px) with a heading rule under the header in the accent; two sheets below it show as thin edges on the free side; a
+  thin gutter shadow along the binding (`line`, fading over 14 px).
+- **On the sheet:** the header row on the top band (back, forward, title written on the heading rule, home, reload, view,
+  size, more, collapse — the large card's header), then the web page inside the sheet's margins (10 px sides, 14 px
+  foot), its corners at `radius.sm`, a hairline in `outline`.
+- The notebook keeps the theme's outline width and colour on cover and sheet; texture/material comes in where the
+  shell's own cards have it (the shell's cards; the host's theme has no texture — see "Done").
+
+#### Plain — the page alone
+- The dock's own card (the view card's look: `surface_container`, `radius.lg`, the theme's outline), standing against
+  the strip, the header on top and the page under it, its corners masked to the card's radius. No device.
+- It opens and closes in the **panel form** of the motion profile (`theme.motion.form.panel`: expand, iris, stamp,
+  outline, a sheet form, or the slide) through the shell's form system (SurfaceForm, FormHost, ShapeLayer — the same
+  path as the shell's view card, CONTRACT-CHANGE row 694), from the strip's side.
+
+### States (every style)
+- **Loading:** the skeleton in the page's well (the frame is drawn at once, the page appears on its first paint).
+- **Load error / renderer crashed:** the existing messages and buttons, centred in the well.
+- **Offline:** the page's own offline state (unchanged).
+- **No pin / cold engine / host missing:** the shell's card in the same style (Card.qml), its message in the well.
+- **Forced:** a `page_style` set by Nix shows as forced in Settings (records of provenance, as every mod setting).
+
+### Keyboard and a11y
+- Unchanged paths: Ctrl+L enters the controls (Back first), Tab walks them (size among them), Tab from the last returns to
+  the page; Escape on the chrome steps back. The notebook's binding, cover and sheets are decoration (no focus, no
+  accessible role); the tablet's and phone's frame likewise. The size button names the size it is in.
+
+### Motion (DESIGN-SYSTEM §9, K83)
+- **Phone:** the rise with its spring (K42), as today.
+- **Phone ↔ tablet:** the frame morphs on the profile's `open`/`close` curves (a Glide: phone→tablet opens, back
+  closes), 1 → 0 reversal mid-way continues from where it is; the controls cross-fade at the middle.
+- **Notebook open:** the cover and binding slide in from the edge (the first third), then the sheet turns over the
+  binding and lands flat — the `book` form's shader (paper bending with a curl, the K82 light, the cover tone on its
+  back) driven as a page turn about the binding's axis, the sheet alone captured, the cover and coil standing still.
+  Close: the sheet turns back up over the binding, then the notebook slides out. The turn runs on the motion profile's
+  curves stretched by the `book` form's pace.
+- **Plain:** the panel form, as the shell's card.
+- **Style change while open:** a cut (the setting is changed in Settings, not while watching the dock; the page stays).
+- **Reduced motion** (`theme.motion.profile = none` or `reduced`): every style fades (120 ms) and the size change is a
+  cut — no turn, no morph.
+
+### Multi-output, budget
+- Multi-output as the dock: the card is on the dock's output; the frames have no per-output state.
+- **Ma:** at rest no frame is drawn: the binding, rules and holes are static geometry; the page-turn layer exists only
+  while it turns (a SheetForm loaded for the transition); the tablet morph's Glide rests at its end; 0 frames in 5 s with
+  a page open and still (measured). The phone's minute clock is watched only in the phone style.
+
+### As built (W69)
+- **Binding side:** the card's wording ("the right-hand sheet, at a left edge the left-hand one") and its acceptance
+  ("the binding on the dock's side") disagree; built: the binding on the **dock's side** (a right edge binds on the
+  right, so the sheet is a left-hand page). A question for the user.
+- **Plain's join:** the card stands against the strip with the dock card's own hinge (as the shell's view card); no
+  concave fillets into the strip — the strip is the shell's surface and usually shorter than the card, and the host
+  does not know its span. The panel form opens it from a 32 px mouth in the middle of the span (row 694's ask).
+- **Material:** the shell's cards (view, cold, empty) take the look's relief on the device's screen (DeviceFrame's
+  `relief`, as PhoneFrame); the web host's theme has no texture (its Theme has no `texShell`), so the host's frames are
+  the look's colours, outline and shadow without relief — as the phone was before.
+- **Frames** live once in `mods/webdock/host/frames/` (DeviceFrame, NotebookGeom/Back/Sheet/Wire, FrameBox) and the
+  shell reaches them through the link `mods/webdock/qml/frames`; they import nothing of either tree and take the
+  caller's Theme, RoundBox and Relief as values (`theme`, `box`, `relief`).
+- **Test aid:** `KURASHI_WEBDOCK_HOLD=<file>` (test only): the host holds the card at `open <p>` or `wide <p>` (a watched
+  file, nothing polls), so shots are taken by progress.
+
+### Definition of done (W69)
+- [x] `page_style` setting (mod.toml, i18n en/ja, daemon `page_style` in `mod.webdock`, forced provenance; rows 702,
+      703 for PROTOCOL/MODS and Home-Manager).
+- [x] Each style draws the page with a pin open (host) and the shell's view/cold/empty card in the same style.
+- [x] A style change and a size change keep the page (no new load report) — `mods/webdock/test/test-styles.sh`.
+- [x] Phone large is a tablet (wider than tall) and back, continuously (held half-way in the shots).
+- [x] The notebook's binding is on the dock's side at a left, right, top and bottom edge.
+- [x] Notebook page turn, plain panel form (expand, fold, slide checked); reduced motion fades (motion profile none).
+- [x] No QML error or warning; idle 0 surface commits in 5 s with a still page open, in each style.
+- [x] Screenshots on nested niri, light and dark: each style opening at three held steps and at rest
+      (`<style>-<scheme>-open.png`), the large size held half-way and at rest (`<style>-<scheme>-large.png`, the
+      phone's is the tablet), the shell's view card and a load error (`<style>-<scheme>-states.png`) —
+      `mods/webdock/shots/styles/`,
+      `mods/webdock/test/shots-styles.sh`.
+- [ ] The page turn on the shell's own cards (view, cold, empty): they open in the panel form the profile names, not in
+      the page turn (the turn is the host's card's).
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on
