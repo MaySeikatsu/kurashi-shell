@@ -92,6 +92,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("action.session.menu")
+            TextFx { title: true }
         }
         Row {
             spacing: Theme.gap

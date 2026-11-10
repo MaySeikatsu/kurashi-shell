@@ -23,6 +23,7 @@ category = "inspired"
 # Sheets of paper lift off the desk in the room's light: the surfaces cast soft shadows away from it (I338).
 "theme.material.elevation" = "follow"
 [slots]
+slider = "ink"
 frame = "paper"
 menu = "ruled"
 tooltip = "slip"

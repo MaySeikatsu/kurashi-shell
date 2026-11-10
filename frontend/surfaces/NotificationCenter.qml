@@ -129,8 +129,8 @@ PanelWindow {
             // In the morph the shape is the card's chrome (fill, outline, shadows, material); this only holds the content.
             readonly property bool chrome: !morph.morph
             color: chrome ? Theme.panel : "transparent"
-            border.width: !chrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
-            border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+            border.width: !chrome ? 0 : Theme.surfaceLineW
+            border.color: Theme.surfaceLineColor
             SoftShadow { anchors.fill: parent; radius: card.radius; amount: card.chrome ? 1 : 0 }
             Elevation { anchors.fill: parent; radius: card.radius; level: 3 }
             // K59: the card is a material area; the relief lies under the content (over it with texture.text).
@@ -175,6 +175,7 @@ PanelWindow {
                     font.family: Theme.fam(text, Theme.families)
                     elide: Text.ElideRight
                     text: I18n.tr("notifications.center.title")
+                    TextFx { title: true }
                 }
                 Button {
                     id: dnd

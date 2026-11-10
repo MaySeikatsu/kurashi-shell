@@ -117,7 +117,7 @@ Item {
             if (item.hovered !== undefined) item.hovered = Qt.binding(function () { return sliderHover.hovered })
         }
     }
-    HoverHandler { id: sliderHover; enabled: face.has }
+    HoverHandler { id: sliderHover; enabled: face.has && !s.unavailable }
     // Stands in for the level (VolumeFace draws the same mark for no audio). Dim: it is not an input.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

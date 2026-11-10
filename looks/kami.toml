@@ -27,6 +27,8 @@ category = "inspired"
 "theme.outline_ink" = "text"
 "theme.pen.line" = "sketch"
 [slots]
+slider = "ink"
+toggle = "stamp"
 frame = "sketch"
 menu = "margin"
 scroll = "pencil"

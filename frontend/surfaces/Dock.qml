@@ -758,7 +758,7 @@ Scope {
                                 visible: !dock.joined && !dockPart.ready
                                 radius: Theme.rDock
                                 fill: dkHost.sheetSolid ? Qt.alpha(Theme.surfaceAlpha, 1) : Theme.surfaceAlpha
-                                flatBorder: Theme.outline
+                                flatBorder: Theme.surfaceHair
                                 animate: win.visible && !dock.joined
                             }
                             HoverHandler { onHoveredChanged: dock.bodyIn = hovered }

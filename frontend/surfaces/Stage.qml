@@ -79,7 +79,10 @@ PanelWindow {
     // actions while it is up (row 381, `ui.error.polkit`); these gates only cover the frame before its patch arrives.
     readonly property bool polkit: ui.polkit === true
     readonly property bool asked: want || quickWanted || modWanted
-    readonly property bool open: asked && !polkit
+    // Session 28 (`bar.popups_follow`): held back while the card changes screens — it folds here, shell.qml hands it
+    // the other screen once it is gone, and it opens there as it would have (the module it came from stays latched).
+    property bool hold: false
+    readonly property bool open: asked && !polkit && !hold
     // K24: the island card shows the expanded view of the face the daemon latched when it opened. A core face
     // without one gets the generic card; a mod face loads its `island-face:<name>:expanded` (K28), or the generic card.
     // power and bluetooth open their quick settings pages, not the generic card (I44).
@@ -258,6 +261,7 @@ PanelWindow {
                 font.pixelSize: Theme.fsCaption
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
+                TextFx { title: true }
             }
             Row {
                 id: keys
@@ -381,21 +385,26 @@ PanelWindow {
     // its own bar instead (K35, I67): at its own x under a top bar or above a bottom bar, at its own y beside a side bar.
     // W34: while a shape morphs under a top or bottom bar the window is the box round its origin and its card (`boxL`,
     // from the output's left edge), so it is anchored to the left with that margin, as a peek is.
+    // Session 28 (`theme.join = float`): a card of its own still opens where it was asked for — under the module that
+    // was clicked (`bar.popups`), kept on the screen — and stands a gap off the bar.
+    readonly property bool floatUnder: !morphMode && !placed && !peekLayout && restsUnder && !aligned && besideAt === null
+    readonly property real floatX: Math.round(Math.max(Theme.pad, Math.min(outW - card.width - Theme.pad, originCx - card.width / 2)))
+    readonly property int floatGap: Theme.joinKind === "float" && !hangs ? Theme.gap : 0
     anchors {
         top: placed || (peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null))
         bottom: !placed && (peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null)))
-        left: placed || (peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && besideEdge === "left")))
+        left: placed || (peekLayout ? shownEdge !== "right" : (morphLayout || floatUnder || (menuBeside && besideEdge === "left")))
         right: !placed && (peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!menuBeside || besideEdge === "right")))
     }
     margins {
         top: placed ? placedY - placedRoom : peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
             : (morphLayout ? 0 : (besideAt !== null
                 ? Math.round(Math.max(Theme.pad, Math.min((stage.screen ? stage.screen.height : 1080) - card.height - Theme.pad, besideAt.y + besideAt.h / 2 - card.height / 2)))
-                : bars.topInset - (hangs ? 4 : 0)))
+                : bars.topInset - (hangs ? 4 : 0) + floatGap))
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
-            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0)))
+            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0) + floatGap))
         left: placed ? placedX - placedRoom : peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
-            : (morphLayout ? boxL : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0))
+            : (morphLayout ? boxL : (floatUnder ? floatX : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0)))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
             : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : Theme.pad) : 0))
     }
@@ -734,7 +743,7 @@ PanelWindow {
     // stays where a peek cannot join: beside a side bar, and with the springs off.
     readonly property bool peekBalloon: peekTip.has && (peekSide || !Theme.springOn)
     // K98, as a card: in dynamic a peek near the frame's corner runs into it instead of standing a few px beside it.
-    readonly property bool peekDynamic: peekMorph && !joined && Theme.decor("surface.join", true) !== false
+    readonly property bool peekDynamic: peekMorph && !joined && Theme.surfaceJoin
         && FG.edgeOf(outLay, peekFlip ? "bottom" : "top").draw === "dynamic"
     readonly property bool peekMergesL: peekDynamic && peekBoxL + peekShape.x0 < holeL + mergeRoom
     readonly property bool peekMergesR: peekDynamic && !peekMergesL && peekBoxL + peekShape.x0 + peekShape.w > holeR - mergeRoom
@@ -849,7 +858,7 @@ PanelWindow {
         layer.enabled: stage.peekSf !== null && stage.peekMorph
         layer.effect: FormMask {
             form: peekRun.shape
-            keep: stage.peekEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : 1)
+            keep: stage.peekEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : Theme.surfaceLineW)
             flipped: stage.peekFlip
             cut: peekRun.form === "expand"
         }
@@ -941,8 +950,8 @@ PanelWindow {
         radius: Theme.rSm
         color: stage.peekMorph || stage.peekBalloon ? "transparent" : peekTip.fill(Theme.surfaceAlpha)
         // K62: with a pen in effect the pen draws the outline (1 px further in: the frame clips its children).
-        border.width: peekPen.active || stage.peekMorph || stage.peekBalloon ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
-        border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        border.width: peekPen.active || stage.peekMorph || stage.peekBalloon ? 0 : Theme.surfaceLineW
+        border.color: Theme.surfaceLineColor
         clip: true
         Loader {
             id: peekPen
@@ -953,7 +962,7 @@ PanelWindow {
                 radius: peekCard.radius
                 inset: 1
                 color: peekCard.border.color
-                lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+                lineWidth: Theme.surfaceLineW
                 seed: 0x9EE4
             }
         }
@@ -1091,7 +1100,7 @@ PanelWindow {
             : p === "bottom" || p === "bottom_left" || p === "bottom_right" ? B - h : (H - h) / 2
         return Math.round(Math.max(T, Math.min(Math.max(T, B - h), y)))
     }
-    readonly property bool morphMode: !placed && Theme.decor("surface.join", true) !== false
+    readonly property bool morphMode: !placed && Theme.surfaceJoin
         && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge)) && besideAt === null
         && (headMode || panelKinds.indexOf(contentKind) >= 0 || fromModule)
     readonly property bool flip: morphEdge === "bottom"
@@ -1501,7 +1510,7 @@ PanelWindow {
         // own fill — it comes with the card; a ruled strip's band is the rule itself, which the bar leaves to the shape)
         layer.effect: FormMask {
             form: run.shape
-            keep: stage.barEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : 1)
+            keep: stage.barEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : Theme.surfaceLineW)
             flipped: stage.flip
         }
     // W59.9a: the whole drawing (the shape, its material and face, the card): while a sheet form warps the card on a morph,
@@ -1781,8 +1790,8 @@ PanelWindow {
         radius: Theme.rLg
         color: stage.morphDraws || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, cardHost.sheetSolid ? 1 : Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
-        border.width: stage.morphDraws || stage.ownChrome || cardPen.active || stage.frameW > 0 ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
-        border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        border.width: stage.morphDraws || stage.ownChrome || cardPen.active || stage.frameW > 0 ? 0 : Theme.surfaceLineW
+        border.color: Theme.surfaceLineColor
         Loader {
             id: cardPen
             z: 5
@@ -1792,7 +1801,7 @@ PanelWindow {
                 radius: card.radius
                 inset: 1
                 color: card.border.color
-                lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+                lineWidth: Theme.surfaceLineW
                 seed: 0x57A6E
             }
         }

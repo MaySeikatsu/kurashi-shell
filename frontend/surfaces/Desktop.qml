@@ -334,7 +334,7 @@ PanelWindow {
         height: inner.childrenRect.height + 2 * Theme.pad + 2 * inset + Theme.shadowDy
         radius: Theme.rWidget
         fill: Theme.surfaceAlpha
-        flatBorder: Theme.outline
+        flatBorder: Theme.surfaceHair
         // Inside the Block's fill (its default property), which already sits within the outline and ring.
         Item {
             id: inner
@@ -351,6 +351,7 @@ PanelWindow {
         font.letterSpacing: 1
         font.capitalization: Font.AllUppercase
         font.family: Theme.fam(text, Theme.families)
+        TextFx { title: true }
     }
 
     // ---- clock: four keys, the date, the day's progress ----
@@ -377,6 +378,7 @@ PanelWindow {
                     var d = desk.clock.date ? new Date(desk.clock.date + "T12:00:00") : null
                     return d ? d.toLocaleDateString(Qt.locale(desk.locale), "dddd, d MMMM") : ""
                 }
+                TextFx { title: true }
             }
             // The day's progress (SekaiPop's clock card): how much of today has gone, from the minute patch.
             ProgressLine {
@@ -427,6 +429,7 @@ PanelWindow {
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                         text: Qt.locale(desk.locale).dayName((cal.first + index) % 7, Locale.NarrowFormat)
+                        TextFx { title: true }
                     }
                 }
                 Repeater {
@@ -535,6 +538,7 @@ PanelWindow {
                     font.weight: Theme.wBold
                     font.family: Theme.fam(text, Theme.families)
                     text: desk.media.title || ""
+                    TextFx { title: true }
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -748,6 +752,7 @@ PanelWindow {
                             font.weight: Theme.wBold
                             font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("frontend.desktop.edit.title")
+                            TextFx { title: true }
                         }
                         Button {
                             id: cancelKey
@@ -1065,6 +1070,7 @@ PanelWindow {
                             font.weight: Theme.wBold
                             font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("frontend.desktop.edit.hidden")
+                            TextFx { title: true }
                         }
                     }
                 }

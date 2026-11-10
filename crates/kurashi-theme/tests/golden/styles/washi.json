@@ -187,7 +187,7 @@
   "decor.separator.style": "line",
   "decor.shape.md": 0.6667,
   "decor.shape.sm": 0.3333,
-  "decor.slider": "",
+  "decor.slider": "ink",
   "decor.sounds": "washi",
   "decor.start": "",
   "decor.start.family": [],

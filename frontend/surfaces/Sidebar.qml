@@ -221,6 +221,14 @@ Scope {
                 holdIn: col.pointerIn || col.focusHeld || col.resizing
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
+            // Session 28 (colour flow "while something is open", core/ColorFlow.qml): a column that is out and not pinned
+            // counts as open; a pinned one is part of the desk.
+            property QtObject flowHolder: QtObject {
+                readonly property bool on: col.wanted && !col.pinned
+                onOnChanged: ColorFlow.hold(on ? 1 : -1)
+                Component.onCompleted: if (on) ColorFlow.hold(1)
+                Component.onDestruction: if (on) ColorFlow.hold(-1)
+            }
             // I301: out or not, for the holder of this edge's zone (SidebarGeom.openZone).
             readonly property int openZone: SidebarGeom.openZone(out, sb.side)
             readonly property string outKey: out + "|" + wanted

@@ -43,14 +43,15 @@ ShaderEffect {
     readonly property vector4d uFlags: Qt.vector4d(
         win && (GraphicsInfo.api === GraphicsInfo.OpenGL || GraphicsInfo.api === GraphicsInfo.OpenGLRhi) ? 1 : 0,
         0, 0, mask ? 1 : 0)
-    readonly property vector4d uSize: Qt.vector4d(width, height, strength, 0)
+    // (session 28, colour flow: the shader moves the gradient by the one clock's phase; still, both are 0)
+    readonly property vector4d uSize: Qt.vector4d(width, height, strength, ColorFlow.patternIndex > 0 ? ColorFlow.phase : 0)
     readonly property vector4d uRadii: Qt.vector4d(topLeftRadius < 0 ? radius : topLeftRadius,
         topRightRadius < 0 ? radius : topRightRadius, bottomRightRadius < 0 ? radius : bottomRightRadius,
         bottomLeftRadius < 0 ? radius : bottomLeftRadius)
     readonly property vector4d uMode: Qt.vector4d(Theme.washMode === "radial" ? 1 : (Theme.washMode === "watercolour" ? 2
             : (fromWall ? (wall.status === Image.Ready ? 3 : 0) : 0)),
         Theme.washAngle, Theme.washScale, Theme.washSoftness)
-    readonly property vector4d uCenter: Qt.vector4d(Theme.washCenter.x, Theme.washCenter.y, Theme.washReach, 0)
+    readonly property vector4d uCenter: Qt.vector4d(Theme.washCenter.x, Theme.washCenter.y, Theme.washReach, ColorFlow.patternIndex)
     readonly property var stops: Theme.washStops
     readonly property vector4d uCount: Qt.vector4d(stops.length, fill.r - Theme.surface.r, fill.g - Theme.surface.g,
         fill.b - Theme.surface.b)

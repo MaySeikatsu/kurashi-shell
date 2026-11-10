@@ -254,6 +254,11 @@ Scope {
             ColorFade {}
             id: win
             screen: bar.scr
+            // Session 28 (layout moves, core/Travel.qml): a bar that is on its way here stays unseen until the traveller
+            // has brought its body, then comes up under it.
+            property real arrived: Travel.hides(bar.outName, bar.edge) ? 0 : 1
+            Behavior on arrived { enabled: Theme.springOn; NumberAnimation { duration: 160 } }
+            Binding { target: win.contentItem; property: "opacity"; value: win.arrived }
             // QuickButton and SidebarButton read it (their origins register on top and bottom bars only).
             readonly property bool vertical: bar.vertical
 

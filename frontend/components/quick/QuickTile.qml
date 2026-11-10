@@ -194,6 +194,7 @@ Item {
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
                 text: tile.label
+                TextFx {}
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

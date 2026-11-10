@@ -147,7 +147,8 @@ Singleton {
     // The hard shadow's vector in whole px (a crisp edge), 0, 0 for a chrome without one (or strength 0: no sink then).
     readonly property int sinkX: shadowDy > 0 ? Math.round(shadowX) : 0
     readonly property int sinkY: shadowDy > 0 ? Math.round(shadowY) : 0
-    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"),
+    readonly property color softStill: color("chrome.soft_color", "#000000")
+    readonly property color softColor: Qt.alpha(softGlow && ColorFlow.glowOn ? ColorFlow.tint(softStill) : softStill,
         Math.min(1, tok("chrome.soft_alpha", 0) * shadowAlpha))
     readonly property real pressScale: tok("chrome.press_scale", 1)
     // W57 (K78, docs/ux/shadows.md "Elevation"): the surfaces' smooth shadows — mode ("off" | "static" | "follow", auto
@@ -187,7 +188,21 @@ Singleton {
     // W53.0a (K80, DESIGN-SYSTEM §4 "Decor slots and metrics"): the look's other slots — names the decor hosts load as
     // `components/decor/<slot>/<Name>.qml` ("" = the default, today's shell) — and its `[decor]` metrics (numbers,
     // switches, colours, curves; every default is in the theme). Data only: never compared (rule 4).
-    function slot(name) { return tok("decor." + name, "") }
+    // Session 28 (`theme.slider`, `theme.toggle`): the user's pick of a control's face stands in for the look's; with
+    // neither, the plain refined face (decor/slider/Line, decor/toggle/Switch) — except where the chrome draws its own
+    // control (a keycap's ringed knob) or the material lies on the controls: those keep the built-in drawing.
+    readonly property var controlFaces: ({
+        slider: { line: "line", expressive: "material", capsule: "capsule", wave: "wave", blocks: "blocks", ink: "ink", glow: "glow" },
+        toggle: { "switch": "switch", expressive: "material", capsule: "capsule", lamp: "lamp", stamp: "stamp", flip: "flip" } })
+    function slot(name) {
+        var faces = controlFaces[name]
+        if (faces === undefined) return tok("decor." + name, "")
+        var pick = String(tok("control." + name, "auto"))
+        if (faces[pick] !== undefined) return faces[pick]
+        var own = tok("decor." + name, "")
+        if (own !== "") return own
+        return ringW > 0 || texControls ? "" : (name === "slider" ? "line" : "switch")
+    }
     function decor(key, d) { var o = liveColors, k = "decor." + key; if (o && o[k] !== undefined) return o[k]; return tok(k, d) }
     // A slot's component name as its file name (kebab-case → PascalCase), "" for none.
     function pascal(n) {
@@ -266,16 +281,44 @@ Singleton {
     readonly property color frameLineInk: outlineInk === "accent" ? accent : (outlineInk === "text" ? fg : line)
     readonly property bool frameLineOnPaint: edgeTorn && tok("frame.outline", false) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
+    // The line round a surface that stands by itself (a card, a peek, a toast, a desktop widget, a floating dock or
+    // sidebar): the chrome's own outline where it draws one; under a chrome that draws none (flat, soft, paint) a
+    // hairline only where the frame's outline is on. So `theme.frame_outline = off` — and Automatic under those
+    // chromes — leaves every surface without a line (the user, session 28: "even if chrome is set to flat and/or frame
+    // outline is off, widgets, cards, dock, sidebars all still get that outline"). What is joined to the frame or a bar
+    // (ColumnShape, JoinedCard) follows the frame's outline alone: `frameOutlineW`.
+    readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
+    readonly property color surfaceLineColor: outlineW > 0 ? outlineColor : (frameOutline ? frameOutlineColor : "transparent")
+    // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
+    // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
+    readonly property string textEffect: String(tok("text.effect", "none"))
+    readonly property string textSpawn: springOn ? String(tok("text.spawn", "none")) : "none"
+    readonly property string textScope: String(tok("text.scope", "titles"))
+    readonly property real textSpawnSpeed: Math.max(0.25, Math.min(3, Number(tok("text.spawn_speed", 1)) || 1))
+    // Session 28 (`theme.join`, `theme.join_corner`): how a card meets its bar — "auto" as the look draws it, "float"
+    // a card of its own — and the corner where joined surfaces meet (corner.js
+    // `squircled`'s `join`: round, chamfer, steps, bulge, square).
+    readonly property string joinKind: String(tok("join.kind", "auto"))
+    readonly property string joinCorner: String(tok("join.corner", "round"))
+    // Whether cards join their bar at all (`[decor] surface.join`, W53.5, unless the user says: `theme.join`).
+    readonly property bool surfaceJoin: joinKind !== "float" && decor("surface.join", true) !== false
+    // (for a Block's `flatBorder`: the hairline a surface gets under a chrome with no outline)
+    readonly property color surfaceHair: frameOutline ? frameOutlineColor : "transparent"
     // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's
     // colour (with its strength as alpha) and reach. Apart from the chrome: a glowing frame under any chrome, a plain
     // line under the Glow chrome.
     readonly property bool frameGlow: frameOutline && tok("frame.glow", softGlow) === true
-    readonly property color frameGlowColor: Qt.alpha(color("frame.glow_color", "#c9404b"), Math.min(1, tok("frame.glow_alpha", 0.5) * shadowAlpha))
+    // (session 28: under colour flow the glow's colour moves, core/ColorFlow.qml)
+    readonly property color frameGlowStill: color("frame.glow_color", "#c9404b")
+    readonly property color frameGlowColor: Qt.alpha(ColorFlow.glowOn ? ColorFlow.tint(frameGlowStill) : frameGlowStill, Math.min(1, tok("frame.glow_alpha", 0.5) * shadowAlpha))
     readonly property real frameGlowR: tok("frame.glow_radius", 14)
     // In the outline's ink; a chrome without an outline of its own and the chrome's ink: a hairline. Lit under a chrome
     // that does not glow itself: the light's own colour.
-    readonly property color frameOutlineColor: frameGlow && !softGlow ? Qt.alpha(frameGlowColor, 1)
+    readonly property color frameOutlineStill: frameGlow && !softGlow ? Qt.alpha(frameGlowStill, 1)
         : (outlineInk !== "outline" || outlineW > 0 ? outlineColor : outline)
+    // (session 28: under colour flow the line moves through colours, core/ColorFlow.qml; at rest, and with the flow
+    // off, it is the still colour above)
+    readonly property color frameOutlineColor: ColorFlow.lineOn ? ColorFlow.tint(frameOutlineStill) : frameOutlineStill
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")

@@ -18,8 +18,8 @@ RoundBox {
     readonly property bool bare: QsWindow.window ? QsWindow.window.flyouts === true : false
     color: bare ? "transparent" : Theme.container
     // K62: with a pen in effect the pen draws the outline instead of the straight border.
-    border.width: pen.active || bare || frame.drawsOutline ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
-    border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+    border.width: pen.active || bare || frame.drawsOutline ? 0 : Theme.surfaceLineW
+    border.color: Theme.surfaceLineColor
     Loader {
         id: pen
         z: 1
@@ -28,7 +28,7 @@ RoundBox {
         sourceComponent: PenOutline {
             radius: card.radius
             color: card.border.color
-            lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+            lineWidth: Theme.surfaceLineW
             anchor: card
         }
     }

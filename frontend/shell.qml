@@ -43,13 +43,41 @@ ShellRoot {
     onWantChanged: {
         if (want) stageScreen = (ui && ui.panel === "tray" && trayOrigin) ? trayOrigin : focusedScreen()
         else trayOrigin = null
+        hopping = false
         stageOpen = want
     }
+    // Session 28 (`bar.popups_follow`, on by default): a card that was opened on purpose — a click, a key, the command
+    // line — follows the pointer to another screen: the compositor's focused output changes (the daemon's
+    // `svc.workspaces`), the card folds where it is and opens on that screen, under the same module where its bar has
+    // it. Not what a hover opened (it closes as the pointer leaves it), not a tray item's menu (it belongs to its icon),
+    // and never a sidebar (a surface of its own, on its own screen).
+    readonly property bool follows: {
+        var c = Store.docs["config"], p = c && c.values ? c.values["bar.popups_follow"] : undefined
+        return p === undefined || p.value !== false
+    }
+    property bool hopping: false
+    readonly property var nowFocused: { var d = Store.docs["svc.workspaces"]; return focusedScreen() }
+    onNowFocusedChanged: {
+        if (!stageOpen || hopping || !follows || !nowFocused || nowFocused === stageScreen) return
+        if (Peeks.hoverOwner !== "" || (ui && ui.panel === "tray")) return
+        hopping = true
+        hopLimit.restart()
+    }
+    function hopLand() {
+        if (!hopping) return
+        hopLimit.stop()
+        if (want) stageScreen = focusedScreen()
+        hopping = false
+    }
+    // (a card that does not report it is gone must not stay held)
+    Timer { id: hopLimit; interval: 900; onTriggered: root.hopLand() }
 
     Watch { doc: "theme" }
     Watch { doc: "i18n" }
     Watch { doc: "svc.workspaces" }
     Watch { doc: "runtime.ui" }
+    // Colour flow that runs while music plays reads the player's state (core/ColorFlow.qml); only then (rule 5).
+    Watch { doc: "svc.media"; active: ColorFlow.wantsMedia }
 
     // The bars and the screen frame of each output (K71, docs/ux/layout.md, docs/ux/frame.md): a bar on every edge whose
     // `runtime.layout` entry has one, and the frame's strips while the frame is on. Mapping order matters (a zone holder is
@@ -76,6 +104,11 @@ ShellRoot {
                 onTrayMenuRequested: id => root.openTray(id, edges.modelData)
             }
         }
+    }
+    // Session 28 (I472/I478): a bar that changes its edge travels there (core/Travel.qml); made only for a move.
+    Variants {
+        model: Quickshell.screens
+        delegate: Traveller {}
     }
     // The edge modules of each output (K71, K72, docs/ux/edge-modules.md): every non-empty zone of an edge without a bar is
     // a group pinned to that edge, mapped after the bars and the frame (a zone-holding group is placed inside their zones).
@@ -175,5 +208,7 @@ ShellRoot {
     Stage {
         screen: root.stageScreen
         want: root.stageOpen
+        hold: root.hopping
+        onShownChanged: if (!shown) root.hopLand()
     }
 }

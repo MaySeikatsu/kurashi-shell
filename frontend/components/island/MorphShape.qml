@@ -92,8 +92,8 @@ Shape {
     // (I471b: under the painted look the shape itself draws nothing: no fill, outline, ring or rule; bands of a brush
     // cover its body, below)
     function fa(c, a) { return Theme.painted ? Qt.rgba(c.r, c.g, c.b, 0) : Qt.rgba(c.r, c.g, c.b, c.a * a) }
-    readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
-    readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+    readonly property real ow: Theme.surfaceLineW
+    readonly property color oc: Theme.surfaceLineColor
     readonly property real gw: Theme.ringW * ringScale
     // The hard shadow's vector (K67): `sd` down the path (mirrored with the frame), `Theme.sinkX` across by moving its layer.
     readonly property real sd: (flip ? -1 : 1) * Theme.sinkY
@@ -334,7 +334,7 @@ Shape {
 
     // The fill's own path (inside the outline and the ring): the Stage clips the island's relief to it (I168), so the
     // material covers head, neck fillets and body and nothing else.
-    readonly property string fillPath: visible ? Corner.squircled(path(ow + gw, 0), Theme.squircle) : ""
+    readonly property string fillPath: visible ? Corner.squircled(path(ow + gw, 0), Theme.squircle, Theme.joinCorner) : ""
 
     // K62: with a pen in effect the pen draws the outline band and the rule the shape carries, along their centre lines
     // (the same contours at half the outline's inset): one closed line round head, neck and body — or, hanging from a
@@ -346,7 +346,7 @@ Shape {
         if (!visible || !penOn) return []
         var c = ow / 2, out = []
         function add(d, width, closed) {
-            var subs = Pen.svgPaths(Corner.squircled(d, Theme.squircle))
+            var subs = Pen.svgPaths(Corner.squircled(d, Theme.squircle, Theme.joinCorner))
             for (var i = 0; i < subs.length; i++)
                 out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
         }
@@ -446,14 +446,14 @@ Shape {
             strokeWidth: -1
             strokeColor: "transparent"
             fillColor: sh.casts ? sh.fa(Theme.line, sh.fade) : "transparent"
-            PathSvg { path: sh.visible && sh.casts ? Corner.squircled(sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd), Theme.squircle) : "" }
+            PathSvg { path: sh.visible && sh.casts ? Corner.squircled(sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd), Theme.squircle, Theme.joinCorner) : "" }
         }
     }
     // B79: under a chrome whose soft shadow is light (`Theme.softGlow`) the shape's whole outline glows, head, neck and
     // body as one line: four strokes of the outer contour, wider and fainter each, under the outline and the fill (no
     // blur, no layer; SoftShadow's ring is for plain boxes, and the Stage leaves it out for this shape).
     readonly property string glowPath: visible && Theme.softGlow
-        ? Corner.squircled(joined ? path(0, 0) : stripPath(0, false, 0), Theme.squircle) : ""
+        ? Corner.squircled(joined ? path(0, 0) : stripPath(0, false, 0), Theme.squircle, Theme.joinCorner) : ""
     readonly property real glowReach: Theme.softR
     ShapePath {
         strokeWidth: Theme.softGlow ? sh.glowReach * 2.0 : -1
@@ -492,21 +492,21 @@ Shape {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: sh.ruledStrip && !sh.penOn ? sh.oc : "transparent"
-        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.rulePath(), Theme.squircle) : "" }
+        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.rulePath(), Theme.squircle, Theme.joinCorner) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.penOn ? "transparent" : sh.fa(sh.oc, sh.fade)
-        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.band(0, sh.ow), Theme.squircle) : "" }
+        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.band(0, sh.ow), Theme.squircle, Theme.joinCorner) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.gw > 0 ? sh.fa(Theme.ring, sh.fade) : "transparent"
-        PathSvg { path: sh.visible && sh.gw > 0 ? Corner.squircled(sh.band(sh.ow, sh.ow + sh.gw), Theme.squircle) : "" }
+        PathSvg { path: sh.visible && sh.gw > 0 ? Corner.squircled(sh.band(sh.ow, sh.ow + sh.gw), Theme.squircle, Theme.joinCorner) : "" }
     }
     ShapePath {
         strokeWidth: -1

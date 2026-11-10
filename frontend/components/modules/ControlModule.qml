@@ -166,6 +166,7 @@ ModuleBase {
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
                 text: "…"
+                TextFx {}
             }
         }
         Text {
@@ -181,6 +182,7 @@ ModuleBase {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: m.valueText
+            TextFx {}
         }
     }
     // A left click is the module's; the host's right click opens the menu (ModuleHost, I408). On the mark and its value:

@@ -6,7 +6,9 @@
 // Patterns (`uMode.x`): 0 linear at `uMode.y` degrees; 1 radial from `uCenter.xy` (fractions of the canvas); 2 watercolour:
 // a static fbm field (scale `uMode.z` px, softness `uMode.w`) picks between the stops, the edges bleeding into each other.
 // Stops: `uStop0..3`, `uCount.x` of them (2..4). Coverage: the item's rounded rectangle, antialiased (as Relief's), or a
-// mask's alpha. No time: the wash is still (I461 moves it later), so an idle window draws nothing.
+// mask's alpha. Colour flow (session 28): `uSize.w` is the flow's phase (0..1, one clock for the shell) and `uCenter.w`
+// its pattern (0 still, 1 drift, 2 breathe, 3 cycle, 4 chase); every move closes on itself at phase 1. Still, the shader
+// has no time and an idle window draws nothing.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -17,10 +19,10 @@ layout(std140, binding = 0) uniform buf {
     vec4 uSheet;    // x, y window origin on its output (logical px), z device scale, w window height (device px)
     vec4 uCanvas;   // x, y the output's origin on the canvas, z, w the canvas's size (logical px)
     vec4 uFlags;    // x 1 when gl_FragCoord.y counts from the bottom (GL); w 1 = clip to maskTex
-    vec4 uSize;     // x, y this item's size (logical px); z the wash's strength (0..1)
+    vec4 uSize;     // x, y this item's size (logical px); z the wash's strength (0..1); w the flow's phase (0..1)
     vec4 uRadii;    // corners: x top-left, y top-right, z bottom-right, w bottom-left
     vec4 uMode;     // x pattern, y angle (deg), z watercolour scale (px), w softness (0..1)
-    vec4 uCenter;   // x, y radial centre (fractions of the canvas), z radial reach (fraction of the diagonal)
+    vec4 uCenter;   // x, y radial centre (fractions of the canvas), z radial reach (fraction of the diagonal); w the flow's pattern
     vec4 uCount;    // x number of stops; y, z, w the ground's own step from the surface (rgb), kept over the wash
     vec4 uStop0;
     vec4 uStop1;
@@ -104,6 +106,8 @@ void main() {
 
     float t = 0.0;
     int mode = int(ubuf.uMode.x + 0.5);
+    int flow = int(ubuf.uCenter.w + 0.5);
+    float ph = ubuf.uSize.w;
     vec3 col;
     if (mode == 3) {
         // The wallpaper under this spot: the output's own picture (q on the output), as the backend crops it.
@@ -115,6 +119,8 @@ void main() {
     } else if (mode == 2) {
         // Watercolour: large, slow pools; a second field warps the first so edges bleed rather than band.
         vec2 p = c / max(40.0, ubuf.uMode.z);
+        // (drift: the pools wander in a slow circle and come back where they were)
+        if (flow == 1) p += 0.45 * vec2(cos(6.2831853 * ph), sin(6.2831853 * ph));
         vec2 warp = vec2(fbm(p + 3.1), fbm(p + 8.7));
         t = fbm(p + 1.6 * warp);
         t = clamp((t - 0.25) / 0.5, 0.0, 1.0);
@@ -126,7 +132,25 @@ void main() {
         float hi = max(0.0, d.x * span.x) + max(0.0, d.y * span.y);
         t = (dot(c, d) - lo) / max(1.0, hi - lo);
     }
-    if (mode != 3) col = ramp(t, ubuf.uMode.w);
+    if (mode != 3) {
+        // Drift: the ramp travels along itself and back (a triangle wave, so it has no seam and closes at phase 1).
+        if (flow == 1 && mode != 2) t = 1.0 - abs(fract(t * 0.5 + ph) * 2.0 - 1.0);
+        // Breathe: the ramp draws in toward its middle and out again, twice a round.
+        if (flow == 2) t = mix(t, 0.5 + (t - 0.5) * 0.35, 0.5 - 0.5 * cos(12.5663706 * ph));
+        col = ramp(t, ubuf.uMode.w);
+    }
+    if (flow == 3) {
+        // Cycle: every colour turns round the wheel once a round (a rotation in YIQ: lightness stays).
+        float a = 6.2831853 * ph, ca = cos(a), sa = sin(a);
+        vec3 yiq = vec3(dot(col, vec3(0.299, 0.587, 0.114)), dot(col, vec3(0.596, -0.274, -0.322)), dot(col, vec3(0.211, -0.523, 0.312)));
+        yiq.yz = vec2(yiq.y * ca - yiq.z * sa, yiq.y * sa + yiq.z * ca);
+        col = clamp(vec3(dot(yiq, vec3(1.0, 0.956, 0.621)), dot(yiq, vec3(1.0, -0.272, -0.647)), dot(yiq, vec3(1.0, -1.106, 1.703))), 0.0, 1.0);
+    } else if (flow == 4) {
+        // Chase: a soft light runs along the ramp (across the canvas for the wallpaper's pattern).
+        float along = mode == 3 ? q.x / max(ubuf.uCanvas.z, 1.0) : t;
+        float d = abs(fract(along - ph + 0.5) - 0.5);
+        col = mix(col, clamp(col * 1.35 + 0.08, 0.0, 1.0), smoothstep(0.12, 0.0, d));
+    }
     col = clamp(col + ubuf.uCount.yzw, 0.0, 1.0);
 
     vec2 half_ = size * 0.5;

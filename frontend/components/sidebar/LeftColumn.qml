@@ -192,6 +192,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("sidebar.left.empty")
+            TextFx { title: true }
         }
         Repeater {
             model: lc.rows
