@@ -64,8 +64,8 @@ Item {
     Image {
         id: img
         anchors.centerIn: parent
-        width: 20
-        height: 20
+        width: Theme.barIcon
+        height: Theme.barIcon
         // Decoded at display size: a tray icon never needs its source resolution in memory.
         sourceSize: Qt.size(40, 40)
         fillMode: Image.PreserveAspectFit
@@ -101,8 +101,8 @@ Item {
     Rectangle {
         id: disc
         anchors.centerIn: parent
-        width: 20
-        height: 20
+        width: Theme.barIcon
+        height: Theme.barIcon
         radius: 10
         color: Theme.containerHigh
         visible: img.status !== Image.Ready
