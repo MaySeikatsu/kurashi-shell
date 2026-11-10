@@ -319,7 +319,7 @@ fi
 for ds in washi-paper:top kami:top kami:off; do
   d=${ds%:*}; sc=${ds#*:}
   [[ " $DECORS " == *" $d "* ]] || continue
-  MOCK_ARGS="--fixed-time 12:00" QS_ENV=WAYLAND_DEBUG=client scene "$d" "$sc"
+  MOCK_ARGS="--fixed-time 12:00" QS_ENV="WAYLAND_DEBUG=client ${FRAME_IDLE_ENV:-}" scene "$d" "$sc"
   # The bar clock's minute flip is the one idle commit the budget allows (K68). The mock's clock is frozen
   # (--fixed-time: it never ticks on its own, and the bar's clock is its svc.clock), so no minute flips in the window
   # and none is waited for (W55). Was a fixed 4 s: the start-up commits ended (none for 1.5 s, at most 4 s).
@@ -330,6 +330,7 @@ for ds in washi-paper:top kami:top kami:off; do
   sleep 3; K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"DP-9":{"frame":{"on":true}}}}}' >/dev/null
   sleep 3; K act mock.doc '{"doc":"svc.workspaces","patch":{"outputs":{"DP-9":[]}}}' >/dev/null
   sleep 4; c=$(commits "$s")
+  cp "$R/qs.log" "$W/idle-$d-$sc.log" || true; echo "$s" > "$W/idle-$d-$sc.off"   # (kept in the sandbox for a failing run)
   # Which surfaces committed, by namespace (the frame's strips must never; another surface's commit is reported).
   per=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -o 'wl_surface#[0-9]*\.commit(' | sort | uniq -c | while read -r k sid; do
     sid=${sid%.commit(}
@@ -340,6 +341,8 @@ for ds in washi-paper:top kami:top kami:off; do
   [[ "$per" != *kurashi-frame* ]] || fail "idle with the frame on ($d): the frame's strips committed ($per)"
   [ "$c" = 0 ] || fail "idle ($d, $sc): $c commits from other surfaces ($per)"
 done
+# FRAME_IDLE_ONLY=1: stop here (a quick look at the idle budget alone, while hunting what redraws).
+if [ -n "${FRAME_IDLE_ONLY:-}" ]; then stop; [ "$FAILS" = 0 ] || die "$FAILS checks failed"; say "ok (idle only)"; exit 0; fi
 
 # ---- one sheet: an untextured flat look, the docked bar's fill and the band's are the same pixel ----
 scene kanso top

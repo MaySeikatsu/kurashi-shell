@@ -841,8 +841,13 @@ impl Dock {
     }
 
     /// `webdock.host.unloaded`: the site left the host (discarded, or the host let it go).
+    /// A pin that is gone already (the user removed it, then the host let its page go) is no error: its state
+    /// went with the pin, so the late report has nothing left to change (B93).
     pub fn unloaded(&mut self, pin: &str) -> Result<(), DockError> {
-        self.web_pin(pin)?;
+        if self.web_pin(pin).is_err() {
+            self.states.remove(pin);
+            return Ok(());
+        }
         let st = self.states.entry(pin.to_string()).or_default();
         st.loaded = false;
         st.audible = false;

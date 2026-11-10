@@ -28,7 +28,14 @@ Item {
     // still: the pen paints on the GUI thread, a whole Canvas a change (12 ms a window on a real session). 0: at once.
     property int settleMs: 0
     property var shownPaths: null
-    onPathsChanged: { if (settleMs > 0 && shownPaths !== null) settleWait.restart(); else shownPaths = paths }
+    // (The same lines again start no wait: callers rebuild their arrays on every patch of what they read, and a timer
+    // that starts wakes every window of the shell for one frame — the idle shell redrew at each layout patch,
+    // test-frame's idle check.)
+    onPathsChanged: {
+        if (settleMs <= 0 || shownPaths === null) { shownPaths = paths; return }
+        if ((paths ? JSON.stringify(paths) : "") === pathsKey) settleWait.stop()
+        else settleWait.restart()
+    }
     Component.onCompleted: shownPaths = paths
     Timer { id: settleWait; interval: po.settleMs; onTriggered: po.shownPaths = po.paths }
     property string line: Theme.penLine

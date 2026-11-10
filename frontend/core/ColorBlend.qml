@@ -100,6 +100,8 @@ Scope {
     // Dynamic Media Color still step (below): they turn colours, which a cross-fade cannot.
     property bool holding: false
     property bool crossed: false
+    // KURASHI_FADE_LOG=1: which colours started a cross-fade (an idle shell must start none: test-frame's idle check).
+    readonly property bool logs: Quickshell.env("KURASHI_FADE_LOG") === "1"
     function gate(next) {
         if (cb.holding) return true                      // (a change while one is held: the release takes the latest)
         var was = cb.rest
@@ -111,8 +113,10 @@ Scope {
         // the tiles themselves come in as a cut — a fade of every window for that one colour is a redraw of the idle
         // shell)
         var nf = flat(next), n = 0
-        for (var k in nf) if (was[k] !== undefined && was[k] !== nf[k] && k.indexOf("texture.") !== 0) n++
+        var why = []
+        for (var k in nf) if (was[k] !== undefined && was[k] !== nf[k] && k.indexOf("texture.") !== 0) { n++; if (cb.logs) why.push(k + " " + was[k] + ">" + nf[k]) }
         if (n === 0) return false
+        if (cb.logs) console.log("kurashi-fade gate", n, why.slice(0, 12).join(", "))
         if (ticker.running) settle()
         Theme.fadeMs = tinted ? Number(next["media.blend_ms"] || 1200) : Math.max(120, Number(next["motion.blend_colors_ms"] || 320))
         cb.holding = true
