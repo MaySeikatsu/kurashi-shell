@@ -447,7 +447,8 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 0.97,
             groups: true,
-            frame_outline: true,
+            // (B79: lit blocks float as the soft chrome's do, so there is no strip for a frame's line to rule)
+            frame_outline: false,
         },
         Chrome::Bevel => Ch {
             style: "bevel",
@@ -506,7 +507,12 @@ pub fn build(
     let (oc, oa) = match axes.chrome {
         Chrome::Keycap => (g("line"), 1.0),
         Chrome::Line => (g("outline"), 1.0),
-        Chrome::Glow => (g("accent"), 1.0),
+        // (B79: the outline is the tube itself: the accent heated towards white on a dark ground, where light shows;
+        // on paper the accent as it is, since a pale line would vanish)
+        Chrome::Glow => (
+            if p.dark { g("accent").mix(WHITE, 0.45) } else { g("accent") },
+            1.0,
+        ),
         Chrome::Soft => (
             if p.dark { WHITE } else { g("on_surface") },
             if p.dark { 0.16 } else { 0.10 },
@@ -607,6 +613,10 @@ pub fn build(
         "chrome.soft_color",
         if glow { g("accent") } else { g("shadow") },
     );
+    // B79: the glow's "shadow" is light: SoftShadow draws a ring (the tube and what it throws, out and a little way in)
+    // instead of a drop shadow, and small things show at least this much of it.
+    t.insert("chrome.soft_glow".into(), json!(glow));
+    t.insert("chrome.soft_glow_min".into(), json!(0.7));
     t.insert(
         "chrome.soft_alpha".into(),
         json!(match (glow, p.dark) {

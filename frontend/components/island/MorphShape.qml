@@ -435,6 +435,44 @@ Shape {
             PathSvg { path: sh.visible && sh.casts ? Corner.squircled(sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd), Theme.squircle) : "" }
         }
     }
+    // B79: under a chrome whose soft shadow is light (`Theme.softGlow`) the shape's whole outline glows, head, neck and
+    // body as one line: four strokes of the outer contour, wider and fainter each, under the outline and the fill (no
+    // blur, no layer; SoftShadow's ring is for plain boxes, and the Stage leaves it out for this shape).
+    readonly property string glowPath: visible && Theme.softGlow
+        ? Corner.squircled(joined ? path(0, 0) : stripPath(0, false, 0), Theme.squircle) : ""
+    readonly property real glowReach: Theme.softR * 1.6
+    ShapePath {
+        strokeWidth: Theme.softGlow ? sh.glowReach * 2.0 : -1
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.112) * sh.fade) : "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.RoundCap
+        fillColor: "transparent"
+        PathSvg { path: sh.glowPath }
+    }
+    ShapePath {
+        strokeWidth: Theme.softGlow ? sh.glowReach * 1.25 : -1
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.160) * sh.fade) : "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.RoundCap
+        fillColor: "transparent"
+        PathSvg { path: sh.glowPath }
+    }
+    ShapePath {
+        strokeWidth: Theme.softGlow ? sh.glowReach * 0.65 : -1
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.256) * sh.fade) : "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.RoundCap
+        fillColor: "transparent"
+        PathSvg { path: sh.glowPath }
+    }
+    ShapePath {
+        strokeWidth: Theme.softGlow ? sh.glowReach * 0.28 : -1
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.480) * sh.fade) : "transparent"
+        joinStyle: ShapePath.RoundJoin
+        capStyle: ShapePath.RoundCap
+        fillColor: "transparent"
+        PathSvg { path: sh.glowPath }
+    }
     // The bar's rule, drawn by the shape (a ruled strip only; see rulePath), under the outline and the fill.
     ShapePath {
         strokeWidth: -1

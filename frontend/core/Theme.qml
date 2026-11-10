@@ -101,6 +101,9 @@ Singleton {
     readonly property color outlineInkOpaque: outlineInk === "text" ? fg : outlineInk === "accent" ? accent
         : Qt.rgba(chromeOutline.r, chromeOutline.g, chromeOutline.b, 1)
     readonly property int softR: tok("chrome.soft", 0)
+    // B79: the soft shadow is light (a glowing ring, SoftShadow), and the least of it a small thing shows.
+    readonly property bool softGlow: tok("chrome.soft_glow", false) === true
+    readonly property real softGlowMin: tok("chrome.soft_glow_min", 0.7)
     readonly property int softDy: tok("chrome.soft_dy", 0)
     // K67 (docs/ux/shadows.md): the vector every shadow falls along — the user's strength and direction, or away from the
     // light — for the hard shadow and its sink as for the soft shadow's offset. `shadowDy`/`softDy` stay the look's own

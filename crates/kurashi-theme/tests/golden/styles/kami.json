@@ -36,6 +36,8 @@
   "chrome.soft_alpha": 0.18,
   "chrome.soft_color": "#000000",
   "chrome.soft_dy": 0,
+  "chrome.soft_glow": false,
+  "chrome.soft_glow_min": 0.7,
   "chrome.style": "line",
   "chrome.wash.on": false,
   "color.accent": "#c3343c",
