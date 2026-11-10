@@ -12,7 +12,8 @@ import "decor"
 // row while something plays, and the session footer.
 // A tile's arrow, a status segment, or Right opens its page in the same card: the content slides, Esc or ← goes back, and Esc
 // on the tiles closes the card (through the Stage). Every document the card shows is watched while it is up (Ma); a page
-// watches what it lists only while it is on screen. Requests are owned here, so a tile and its page show one state.
+// watches what it lists only while it is on screen. The controls (W70, quick/*Control.qml) are made here, so a tile and its
+// page show one request state.
 // W21 (K42, SekaiPop's "the control center is a phone"): the card is a phone (PhoneFrame) — a status row with the time and
 // the glyphs of what the card already watches, a greeting row, keycap tiles and pill levels; the pages slide inside the
 // screen. The phone is the card's own chrome (`ownChrome`): the Stage draws no card background around it.
@@ -39,46 +40,27 @@ Item {
     // The width the rows take on the phone's screen (the flyout's inside its padding).
     readonly property real innerW: flyout ? fly.width - 2 * fly.side - 2 * Theme.pad : phone.screen.width - 2 * Theme.pad
 
-    // Documents: the card's own (the tiles, the status, the levels) are watched while it is up.
-    Watch { doc: "svc.network" }
-    Watch { doc: "svc.audio" }
-    Watch { doc: "svc.power" }
-    Watch { doc: "svc.bluetooth" }
-    Watch { doc: "svc.brightness" }
-    Watch { doc: "svc.notifications" }
+    // W70 (docs/ux/control-centre-modules.md): each control's state, labels, request and refusal text is its own type
+    // (quick/*Control.qml), the one source a tile here, the control's bar module and its page read. The card makes one of
+    // each while it is up; a tile and its page share it, so they show one request's state. Each watches its document.
+    WifiControl { id: cWifi }
+    AirplaneControl { id: cAir }
+    BluetoothControl { id: cBt }
+    FocusControl { id: cFocus }
+    AudioControl { id: cAudio }
+    MicControl { id: cMic }
+    PowerControl { id: cPower }
+    BrightnessControl { id: cBright }
+    CaffeineControl { id: cCaffeine }
+    NightControl { id: cNight }
+    RecordControl { id: cRecord }
+    DarkControl { id: cDark }
+    // The card's own documents (the media row, the footer, the phone's status row and greeting) are watched while it is up.
     Watch { doc: "svc.media" }
     Watch { doc: "svc.session" }
     Watch { doc: "svc.clock" }
-    // K47 (W23-system): the caffeine, night light and record tiles.
-    Watch { doc: "svc.idle" }
-    Watch { doc: "svc.nightlight" }
-    Watch { doc: "svc.recorder" }
 
     readonly property string intentOrigin: "qs:quick"
-    readonly property var netDoc: Store.docs["svc.network"] || ({})
-    readonly property bool netOk: typeof netDoc.state === "string" && netDoc.state !== "unavailable"
-    readonly property bool wifiOn: netDoc.wifi_enabled === true
-    readonly property var primary: netDoc.primary || null
-    readonly property string primaryName: primary ? String(primary.name || "") : ""
-    readonly property var btDoc: Store.docs["svc.bluetooth"] || ({})
-    readonly property bool btOk: btDoc.available === true
-    readonly property var audioDoc: Store.docs["svc.audio"] || ({})
-    readonly property bool audioOk: audioDoc.available === true
-    readonly property bool muted: audioDoc.muted === true
-    readonly property var sinkDef: defaultOf(audioOk ? audioDoc.sinks : null)
-    readonly property var srcDef: audioOk && audioDoc.source ? audioDoc.source : null
-    readonly property string sinkName: sinkDef ? String(sinkDef.description || sinkDef.name || "") : ""
-    readonly property int volPct: Math.round(Number(audioDoc.volume || 0) * 100)
-    readonly property var powerDoc: Store.docs["svc.power"] || ({})
-    readonly property bool powerOk: powerDoc.available === true
-    readonly property bool battery: powerDoc.present === true && powerDoc.percent !== undefined
-    readonly property var brDoc: Store.docs["svc.brightness"] || ({})
-    readonly property bool brOk: brDoc.present === true
-    readonly property real brLevel: brOk ? Math.max(0, Math.min(1, Number(brDoc.percent || 0) / 100)) : 0
-    readonly property var notesDoc: Store.docs["svc.notifications"] || ({})
-    readonly property bool notifyOk: Store.docs["svc.notifications"] !== undefined
-    readonly property bool dnd: notesDoc.dnd === true
-    readonly property bool dndTimed: typeof notesDoc.dnd_until === "number"
     readonly property var mediaDoc: Store.docs["svc.media"] || ({})
     readonly property bool mediaPlaying: mediaDoc.playing === true && String(mediaDoc.title || "") !== ""
     readonly property bool sessionOk: (Store.docs["svc.session"] || ({})).available === true
@@ -91,218 +73,17 @@ Item {
         if (clockDoc.hh === undefined || isNaN(h)) return "day"
         return h < 5 ? "night" : h < 11 ? "morning" : h < 18 ? "day" : h < 22 ? "evening" : "night"
     }
-    // The status row's network mark: [Material Symbols name, text glyph] for the primary link, or the radio's state.
-    readonly property var netGlyph: !wifiOn && primary === null ? ["wifi_off", "≋"]
-        : primary === null ? ["signal_wifi_0_bar", "≋"]
-        : primary.kind === "ethernet" ? ["lan", "⇄"]
-        : primary.kind === "vpn" ? ["vpn_key", "⚿"]
-        : ["wifi", "≋"]
-    // The battery's mark in seven steps, or charging.
-    readonly property string batteryIcon: !battery ? ""
-        : String(powerDoc.state || "") === "charging" ? "battery_charging_full"
-        : Number(powerDoc.percent) >= 95 ? "battery_full"
-        : "battery_" + Math.max(0, Math.min(6, Math.floor(Number(powerDoc.percent) / 100 * 7))) + "_bar"
-    // K47 (docs/ux/power.md): idle (caffeine), night light, the recorder. A missing program or protocol is a reason.
-    readonly property var idleDoc: Store.docs["svc.idle"] || ({})
-    readonly property bool idleOk: Store.docs["svc.idle"] !== undefined
-    readonly property bool caffeine: idleDoc.caffeine === true
-    readonly property var nightDoc: Store.docs["svc.nightlight"] || ({})
-    readonly property bool nightOk: Store.docs["svc.nightlight"] !== undefined
-    readonly property var recDoc: Store.docs["svc.recorder"] || ({})
-    readonly property bool recOk: Store.docs["svc.recorder"] !== undefined
-    readonly property bool recording: recDoc.recording === true
-    readonly property string caffeineValue: caffeine ? I18n.tr("power.quick.caffeine.on")
-        : idleDoc.enabled === false ? I18n.tr("power.quick.caffeine.idle_off")
-        : idleDoc.inhibited === true && (idleDoc.inhibitors || []).length > 0
-            ? I18n.tr("power.quick.caffeine.kept_by").replace("{who}", String(idleDoc.inhibitors[0].who || ""))
-        : I18n.tr("island.quick.off")
-    readonly property string nightValue: nightDoc.enabled !== true ? I18n.tr("island.quick.off")
-        : String(nightDoc.schedule || "") === "always" ? I18n.tr("island.quick.on")
-        : nightDoc.active === true
-            ? (nightDoc.next_change ? I18n.tr("island.quick.tile.until").replace("{t}", String(nightDoc.next_change)) : I18n.tr("island.quick.on"))
-        : nightDoc.next_change ? I18n.tr("power.quick.night.from").replace("{t}", String(nightDoc.next_change))
-        : I18n.tr("island.quick.on")
-    readonly property string recordValue: recording
-        ? I18n.tr("power.quick.record.since").replace("{t}", hhmm(Number(recDoc.since_ms || Date.now())))
-        : recDoc.reason === "power.recorder.reason.failed" ? I18n.tr("power.recorder.reason.failed")
-        : I18n.tr("power.quick.record.screen")
-    readonly property bool saverOffered: (powerDoc.profiles || []).indexOf("power-saver") >= 0
-
-    // Lookups and formats. Pure: no state, so a value is what the document says now.
-    function defaultOf(list) {
-        if (!list) return null
-        for (var i = 0; i < list.length; i++)
-            if (list[i]["default"] === true) return list[i]
-        return null
-    }
-    function pad(v) { return (v < 10 ? "0" : "") + v }
-    function hhmm(ms) {
-        var t = new Date(ms)
-        return pad(t.getHours()) + ":" + pad(t.getMinutes())
-    }
-    function kindLabel(kind) {
-        var k = ["wifi", "ethernet", "vpn", "bluetooth"].indexOf(kind) >= 0 ? kind : "other"
-        return I18n.tr("island.quick.network.kind." + k)
-    }
-    function profileLabel(name) {
-        var k = "island.quick.power.profile." + name
-        var t = I18n.tr(k)
-        return t === k ? name : t
-    }
-    // Whole minutes, at least one: "1 h 20 min", "35 min".
-    function duration(s) {
-        var m = Math.max(1, Math.round(s / 60))
-        if (m >= 60)
-            return I18n.tr("island.quick.power.hm").replace("{h}", String(Math.floor(m / 60))).replace("{m}", String(m % 60))
-        return I18n.tr("island.quick.power.m").replace("{m}", String(m))
-    }
-    function timeText() {
-        if (powerDoc.time_to_empty_s !== undefined)
-            return I18n.tr("island.quick.power.to_empty").replace("{t}", duration(powerDoc.time_to_empty_s))
-        if (powerDoc.time_to_full_s !== undefined)
-            return I18n.tr("island.quick.power.to_full").replace("{t}", duration(powerDoc.time_to_full_s))
-        return ""
-    }
-    function connectedCount() {
-        var n = 0
-        var ds = btDoc.devices || []
-        for (var i = 0; i < ds.length; i++) if (ds[i].connected === true) n++
-        return n
-    }
-
-    // The tiles' values in effect (Shōjiki) and the reasons they are inert.
-    readonly property string wifiValue: !wifiOn ? I18n.tr("island.quick.off")
-        : primary === null ? I18n.tr("island.quick.status.not_connected")
-        : primary.kind === "wifi" ? (primaryName !== "" ? primaryName : I18n.tr("island.quick.tile.wifi"))
-        : kindLabel(String(primary.kind))
-    readonly property string btValue: btDoc.powered !== true ? I18n.tr("island.quick.off")
-        : connectedCount() > 0 ? I18n.tr("island.quick.tile.connected_n").replace("{n}", String(connectedCount()))
-        : I18n.tr("island.quick.on")
-    readonly property string focusValue: !dnd ? I18n.tr("island.quick.off")
-        : dndTimed ? I18n.tr("island.quick.tile.until").replace("{t}", hhmm(notesDoc.dnd_until))
-        : I18n.tr("island.quick.on")
-    readonly property string audioValue: muted ? I18n.tr("island.quick.status.muted") : volPct + " %"
-    readonly property string powerValue: battery ? Math.round(Number(powerDoc.percent)) + " %"
-        : (String(powerDoc.profile || "") !== "" ? profileLabel(String(powerDoc.profile)) : I18n.tr("island.quick.power.ac"))
-    readonly property string displayValue: Math.round(Number(brDoc.percent || 0)) + " %"
 
     // The status sentence: the whole card in one line, each segment a link to its page.
     function statusList() {
         var out = []
-        out.push({text: !netOk ? I18n.tr("island.quick.status.network_unavailable")
-            : wifiOn ? wifiValue : I18n.tr("island.quick.status.wifi_off"), page: "wifi"})
-        out.push({text: !audioOk ? I18n.tr("island.quick.status.audio_unavailable")
-            : muted ? audioValue : (sinkName !== "" ? sinkName + " " : "") + audioValue, page: "audio"})
-        var pw = !powerOk ? I18n.tr("island.quick.status.power_unavailable")
-            : battery ? Math.round(Number(powerDoc.percent)) + " %" + (timeText() !== "" ? " · " + timeText() : "")
-            : powerValue
-        out.push({text: pw, page: "power"})
-        if (dnd) out.push({text: dndTimed ? I18n.tr("island.quick.status.dnd_until").replace("{t}", hhmm(notesDoc.dnd_until))
-            : I18n.tr("island.quick.status.dnd_on"), page: "focus"})
+        out.push({text: cWifi.statusText, page: "wifi"})
+        out.push({text: cAudio.statusText, page: "audio"})
+        out.push({text: cPower.statusText, page: "power"})
+        if (cFocus.dnd) out.push({text: cFocus.statusText, page: "focus"})
         return out
     }
     readonly property var statusSegments: statusList()
-
-    // The shared requests. Each one holds what the daemon confirms (`value`), sends its action with `start`, and reports a
-    // refusal through the translated key it is given (Refusal). Pending shows as "connecting" on every view of the value.
-    function cb(report, key) {
-        return function (done, err) { if (err) report(refusal.text(err, key)) }
-    }
-    Refusal { id: refusal }
-    Request {
-        id: rqWifi
-        value: quick.wifiOn
-        start: function (to, report) { Store.act("network.wifi", {on: to}, quick.cb(report, "island.quick.network.failed")) }
-    }
-    Request {
-        id: rqAir
-        value: quick.netDoc.airplane === true
-        start: function (to, report) { Store.act("network.airplane", {on: to}, quick.cb(report, "island.quick.wifi.airplane_failed")) }
-    }
-    Request {
-        id: rqJoin
-        value: quick.primary !== null ? quick.primaryName : null
-        start: function (to, report) {
-            if (to === null) Store.act("network.disconnect", {}, quick.cb(report, "island.quick.wifi.disconnect_failed"))
-            else Store.act("network.connect", {ssid: to}, quick.cb(report, "island.quick.wifi.connect_failed"))
-        }
-    }
-    Request {
-        id: rqBt
-        value: quick.btDoc.powered === true
-        start: function (to, report) { Store.act("bluetooth.power", {on: to}, quick.cb(report, "island.quick.bluetooth.failed")) }
-    }
-    Request {
-        id: rqDnd
-        value: quick.dnd
-        start: function (to, report) { Store.act("notify.dnd", {on: to}, quick.cb(report, "island.quick.focus.failed")) }
-    }
-    Request {
-        id: rqMute
-        value: !quick.muted
-        start: function (to, report) { Store.act("audio.mute.toggle", {}, quick.cb(report, "island.quick.audio.failed")) }
-    }
-    Request {
-        id: rqMic
-        value: !(quick.srcDef !== null && quick.srcDef.muted === true)
-        start: function (to, report) { Store.act("audio.mic.mute.toggle", {}, quick.cb(report, "island.quick.audio.mic_failed")) }
-    }
-    Request {
-        id: rqSink
-        value: quick.sinkDef !== null ? quick.sinkDef.id : null
-        start: function (to, report) { Store.act("audio.sink.default", {id: to}, quick.cb(report, "island.quick.audio.failed")) }
-    }
-    Request {
-        id: rqSrc
-        value: quick.srcDef !== null ? quick.srcDef.id : null
-        start: function (to, report) { Store.act("audio.source.default", {id: to}, quick.cb(report, "island.quick.audio.source_failed")) }
-    }
-    Request {
-        id: rqProfile
-        value: quick.powerDoc.profile !== undefined ? quick.powerDoc.profile : null
-        start: function (to, report) { Store.act("power.profile", {name: to}, quick.cb(report, "island.quick.power.failed")) }
-    }
-    Request {
-        id: rqSaver
-        value: quick.powerDoc.profile === "power-saver"
-        start: function (to, report) {
-            Store.act("power.profile", {name: to ? "power-saver" : "balanced"}, quick.cb(report, "island.quick.power.failed"))
-        }
-    }
-
-    Request {
-        id: rqCaffeine
-        value: quick.caffeine
-        start: function (to, report) { Store.act("idle.caffeine", {on: to}, quick.cb(report, "power.quick.failed")) }
-    }
-    // K53: light or dark is the user's mode (every palette has both). The theme document says which is in effect; the tile
-    // writes the setting, so a style only recommends one until this is used.
-    // K55: the scheme in effect (a mode may follow the system or the wallpaper); a press picks dark or light outright.
-    readonly property var darkAp: (Store.docs["theme"] || {}).appearance || ({})
-    readonly property bool darkOn: String(darkAp.scheme_effective || darkAp.scheme || "") === "dark"
-    readonly property string darkSub: darkAp.scheme === "auto" || darkAp.scheme === "wallpaper"
-        ? I18n.tr("island.quick.tile.dark." + darkAp.scheme) : I18n.tr(darkOn ? "island.quick.on" : "island.quick.off")
-    Request {
-        id: rqDark
-        value: quick.darkOn
-        start: function (to, report) {
-            Store.apply([{set: "theme.colors.scheme", value: to ? "dark" : "light"}], function (errors) {
-                if (errors && errors.length) report(I18n.tr(String(errors[0].code || "power.quick.failed")))
-            })
-        }
-    }
-    Request {
-        id: rqNight
-        value: quick.nightDoc.enabled === true
-        start: function (to, report) { Store.act("nightlight.toggle", {on: to}, quick.cb(report, "power.quick.failed")) }
-    }
-    Request {
-        id: rqRecord
-        value: quick.recording
-        start: function (to, report) {
-            Store.act(to ? "recorder.start" : "recorder.stop", {}, quick.cb(report, "power.quick.record.failed"))
-        }
-    }
 
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
@@ -428,9 +209,9 @@ Item {
         id: wifiC
         WifiPage {
             live: quick.page === "wifi"
-            wifiReq: rqWifi
-            airReq: rqAir
-            joinReq: rqJoin
+            wifiReq: cWifi.req
+            airReq: cAir.req
+            joinReq: cWifi.joinReq
             onBackRequested: quick.closePage()
         }
     }
@@ -441,24 +222,24 @@ Item {
     Component {
         id: focusC
         FocusPage {
-            dndReq: rqDnd
+            dndReq: cFocus.req
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: audioC
         AudioPage {
-            soundReq: rqMute
-            sinkReq: rqSink
-            micReq: rqMic
-            srcReq: rqSrc
+            soundReq: cAudio.req
+            sinkReq: cAudio.sinkReq
+            micReq: cMic.req
+            srcReq: cMic.sourceReq
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: powerC
         PowerPage {
-            profReq: rqProfile
+            profReq: cPower.profileReq
             onBackRequested: quick.closePage()
         }
     }
@@ -469,7 +250,7 @@ Item {
     Component {
         id: nightC
         NightPage {
-            nightReq: rqNight
+            nightReq: cNight.req
             onBackRequested: quick.closePage()
         }
     }
@@ -494,7 +275,7 @@ Item {
         }
         statusRight: [
             Icon {
-                visible: quick.dnd
+                visible: cFocus.dnd
                 height: phone.statusH
                 name: "do_not_disturb_on"
                 glyph: "☾"
@@ -502,17 +283,17 @@ Item {
                 size: 15
             },
             Icon {
-                visible: quick.netOk
+                visible: cWifi.ok
                 height: phone.statusH
-                name: quick.netGlyph[0]
-                glyph: quick.netGlyph[1]
+                name: cWifi.glanceIcon
+                glyph: cWifi.glanceGlyph
                 filled: true
                 size: 15
             },
             Icon {
-                visible: quick.battery
+                visible: cPower.battery
                 height: phone.statusH
-                name: quick.batteryIcon
+                name: cPower.batteryIcon
                 glyph: "▮"
                 filled: true
                 size: 15
@@ -521,14 +302,14 @@ Item {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType
                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                visible: quick.battery
+                visible: cPower.battery
                 height: phone.statusH
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.fg
                 font.pixelSize: Theme.fsCaption
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
-                text: quick.battery ? Math.round(Number(quick.powerDoc.percent)) + "%" : ""
+                text: cPower.battery ? cPower.percent + "%" : ""
             }
         ]
 
@@ -646,149 +427,19 @@ Item {
                         event.accepted = true
                     }
 
-                    QuickTile {
-                        id: tWifi
-                        width: quick.tileW
-                        glyph: "≋"
-                        icon: quick.wifiOn ? "wifi" : "wifi_off"
-                        label: I18n.tr("island.quick.tile.wifi")
-                        subtitle: quick.wifiValue
-                        reason: quick.netOk ? "" : I18n.tr("island.quick.tile.no_network")
-                        forcedBy: String(quick.netDoc.forced_by || "")
-                        on: quick.wifiOn
-                        req: rqWifi
-                        pendingText: I18n.tr("island.quick.connecting")
-                        onPageRequested: quick.openPage("wifi", tWifi)
-                    }
-                    QuickTile {
-                        id: tBt
-                        width: quick.tileW
-                        glyph: "ᛒ"
-                        icon: quick.btDoc.powered === true ? "bluetooth" : "bluetooth_disabled"
-                        label: I18n.tr("island.quick.tile.bluetooth")
-                        subtitle: quick.btValue
-                        reason: quick.btOk ? "" : I18n.tr("island.quick.tile.no_bluetooth")
-                        forcedBy: String(quick.btDoc.forced_by || "")
-                        on: quick.btDoc.powered === true
-                        req: rqBt
-                        pendingText: I18n.tr("island.quick.connecting")
-                        onPageRequested: quick.openPage("bluetooth", tBt)
-                    }
-                    QuickTile {
-                        id: tFocus
-                        width: quick.tileW
-                        glyph: "☾"
-                        icon: "bedtime"
-                        label: I18n.tr("island.quick.tile.focus")
-                        subtitle: quick.focusValue
-                        reason: quick.notifyOk ? "" : I18n.tr("island.quick.tile.no_notify")
-                        forcedBy: String(quick.notesDoc.forced_by || "")
-                        on: quick.dnd
-                        req: rqDnd
-                        pendingText: I18n.tr("island.quick.changing")
-                        onPageRequested: quick.openPage("focus", tFocus)
-                    }
-                    QuickTile {
-                        id: tAudio
-                        width: quick.tileW
-                        glyph: "♪"
-                        icon: quick.muted ? "volume_off" : "volume_up"
-                        label: I18n.tr("island.quick.tile.audio")
-                        subtitle: quick.audioValue
-                        reason: quick.audioOk ? "" : I18n.tr("island.quick.tile.no_audio")
-                        forcedBy: String(quick.audioDoc.forced_by || "")
-                        on: !quick.muted
-                        req: rqMute
-                        pendingText: I18n.tr("island.quick.changing")
-                        onPageRequested: quick.openPage("audio", tAudio)
-                    }
-                    QuickTile {
-                        id: tPower
-                        width: quick.tileW
-                        glyph: "⚡"
-                        icon: quick.powerDoc.profile === "power-saver" ? "energy_savings_leaf" : "bolt"
-                        label: I18n.tr("island.quick.tile.power")
-                        subtitle: quick.powerValue
-                        reason: quick.powerOk ? "" : I18n.tr("island.quick.tile.no_power")
-                        forcedBy: String(quick.powerDoc.forced_by || "")
-                        on: quick.powerDoc.profile === "power-saver"
-                        toggles: quick.saverOffered
-                        req: rqSaver
-                        pendingText: I18n.tr("island.quick.changing")
-                        onPageRequested: quick.openPage("power", tPower)
-                    }
-                    QuickTile {
-                        id: tDisplay
-                        width: quick.tileW
-                        glyph: "☼"
-                        icon: "light_mode"
-                        label: I18n.tr("island.quick.tile.display")
-                        subtitle: quick.brOk ? quick.displayValue : ""
-                        reason: quick.brOk ? "" : I18n.tr("island.quick.tile.no_backlight")
-                        forcedBy: String(quick.brDoc.forced_by || "")
-                        toggles: false
-                        onPageRequested: quick.openPage("display", tDisplay)
-                    }
+                    // W70: each tile is drawn from its control (quick/*Control.qml); the page it opens is the control's.
+                    ControlTile { id: tWifi; width: quick.tileW; ctl: cWifi; onPageRequested: quick.openPage(ctl.page, tWifi) }
+                    ControlTile { id: tBt; width: quick.tileW; ctl: cBt; onPageRequested: quick.openPage(ctl.page, tBt) }
+                    ControlTile { id: tFocus; width: quick.tileW; ctl: cFocus; onPageRequested: quick.openPage(ctl.page, tFocus) }
+                    ControlTile { id: tAudio; width: quick.tileW; ctl: cAudio; onPageRequested: quick.openPage(ctl.page, tAudio) }
+                    ControlTile { id: tPower; width: quick.tileW; ctl: cPower; onPageRequested: quick.openPage(ctl.page, tPower) }
+                    ControlTile { id: tDisplay; width: quick.tileW; ctl: cBright; onPageRequested: quick.openPage(ctl.page, tDisplay) }
                     // K47 (W23-system, docs/ux/power.md): keep awake, night light, record. A missing program, protocol or
-                    // compositor is the tile's reason, never a dead tile.
-                    QuickTile {
-                        id: tCaffeine
-                        width: quick.tileW
-                        glyph: "☕"
-                        icon: "coffee"
-                        label: I18n.tr("power.quick.caffeine")
-                        subtitle: quick.caffeineValue
-                        reason: !quick.idleOk ? I18n.tr("power.quick.caffeine.no_idle")
-                            : quick.idleDoc.reason ? I18n.tr(String(quick.idleDoc.reason)) : ""
-                        on: quick.caffeine
-                        req: rqCaffeine
-                        hasPage: false
-                        onSecondaryRequested: quick.openSettings("power")
-                        pendingText: I18n.tr("island.quick.changing")
-                    }
-                    QuickTile {
-                        id: tNight
-                        width: quick.tileW
-                        glyph: "◐"
-                        icon: "nightlight"
-                        label: I18n.tr("power.night.title")
-                        subtitle: quick.nightValue
-                        reason: !quick.nightOk ? I18n.tr("power.quick.night.none")
-                            : quick.nightDoc.available === false && quick.nightDoc.reason ? I18n.tr(String(quick.nightDoc.reason)) : ""
-                        on: quick.nightDoc.enabled === true
-                        req: rqNight
-                        pendingText: I18n.tr("island.quick.changing")
-                        onPageRequested: quick.openPage("night", tNight)
-                    }
-                    QuickTile {
-                        id: tRecord
-                        width: quick.tileW
-                        glyph: "●"
-                        icon: quick.recording ? "stop_circle" : "screen_record"
-                        label: I18n.tr("power.quick.record")
-                        subtitle: quick.recordValue
-                        reason: !quick.recOk ? I18n.tr("power.quick.record.none")
-                            : quick.recDoc.available === false && !quick.recording && quick.recDoc.reason === "power.recorder.reason.missing"
-                                ? I18n.tr("power.recorder.reason.missing") : ""
-                        on: quick.recording
-                        req: rqRecord
-                        hasPage: false
-                        onSecondaryRequested: quick.openSettings("power")
-                        pendingText: I18n.tr("power.quick.record.starting")
-                    }
-                    QuickTile {
-                        id: tDark
-                        width: quick.tileW
-                        glyph: "☾"
-                        icon: "dark_mode"
-                        label: I18n.tr("island.quick.tile.dark")
-                        subtitle: quick.darkSub
-                        on: quick.darkOn
-                        req: rqDark
-                        hasPage: false
-                        onSecondaryRequested: quick.openSettings("appearance")
-                        pendingText: I18n.tr("island.quick.changing")
-                    }
+                    // compositor is the tile's reason, never a dead tile. A tile without a page opens its Settings page.
+                    ControlTile { id: tCaffeine; width: quick.tileW; ctl: cCaffeine; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
+                    ControlTile { id: tNight; width: quick.tileW; ctl: cNight; onPageRequested: quick.openPage(ctl.page, tNight) }
+                    ControlTile { id: tRecord; width: quick.tileW; ctl: cRecord; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
+                    ControlTile { id: tDark; width: quick.tileW; ctl: cDark; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
                     // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
                     // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
                     Repeater {
@@ -801,10 +452,10 @@ Item {
                 LevelRow {
                     width: quick.innerW
                     glyph: "♪"
-                    icon: quick.muted ? "volume_off" : "volume_up"
-                    value: quick.audioOk ? Math.max(0, Math.min(1, Number(quick.audioDoc.volume || 0))) : 0
-                    readout: quick.audioOk ? (quick.muted ? I18n.tr("island.quick.status.muted") : quick.volPct + " %") : ""
-                    unavailable: !quick.audioOk
+                    icon: cAudio.icon
+                    value: cAudio.level
+                    readout: cAudio.ok ? cAudio.value : ""
+                    unavailable: !cAudio.ok
                     a11y: I18n.tr("island.quick.level.volume")
                     onMoved: v => Store.intent("audio.volume", v, quick.intentOrigin)
                 }
@@ -813,13 +464,13 @@ Item {
                     id: chip
                     width: quick.innerW
                     height: visible ? 24 : 0
-                    visible: quick.audioOk && quick.sinkName !== ""
+                    visible: cAudio.ok && cAudio.sinkName !== ""
                     activeFocusOnTab: true
                     Keys.onReturnPressed: quick.openPage("audio", chip)
                     Keys.onEnterPressed: quick.openPage("audio", chip)
                     Keys.onSpacePressed: quick.openPage("audio", chip)
                     Accessible.role: Accessible.Button
-                    Accessible.name: quick.sinkName
+                    Accessible.name: cAudio.sinkName
 
                     Rectangle {
                         id: pill
@@ -843,7 +494,7 @@ Item {
                             color: Theme.dim
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
-                            text: quick.sinkName
+                            text: cAudio.sinkName
                         }
                     }
                     MouseArea {
@@ -860,15 +511,15 @@ Item {
                 // and nothing playing builds neither. A Loader that is not visible takes no space and no spacing.
                 Loader {
                     width: quick.innerW
-                    visible: quick.brOk
-                    active: quick.brOk
+                    visible: cBright.ok
+                    active: cBright.ok
                     sourceComponent: Component {
                         LevelRow {
                             width: quick.innerW
                             glyph: "☼"
                             icon: "light_mode"
-                            value: quick.brLevel
-                            readout: quick.brOk ? quick.displayValue : ""
+                            value: cBright.level
+                            readout: cBright.value
                             a11y: I18n.tr("island.brightness.heading")
                             onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
                         }
@@ -973,14 +624,14 @@ Item {
                         x: Theme.pad + 4
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 6
-                        visible: quick.battery
-                        Icon { name: quick.batteryIcon; glyph: "▮"; size: 16; anchors.verticalCenter: parent.verticalCenter }
+                        visible: cPower.battery
+                        Icon { name: cPower.batteryIcon; glyph: "▮"; size: 16; anchors.verticalCenter: parent.verticalCenter }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             color: Theme.fg
                             font.pixelSize: Theme.fsLabel
                             font.family: Theme.fam(text, Theme.families)
-                            text: quick.battery ? Math.round(Number(quick.powerDoc.percent)) + " %" : ""
+                            text: cPower.battery ? cPower.percent + " %" : ""
                         }
                     }
                     Row {
