@@ -6,6 +6,7 @@
 #      too (the edge apart from the chrome), and `theme.edge = clean` under Painted does not.
 #   2. `theme.chrome = ripped` on a framed output: `edge.style = ripped`; the bar's lower edge is torn (where the sheet
 #      ends wanders by several px along the bar) and clean under Flat (a straight line).
+#      In dark a torn sheet keeps its colour (only the tear's core is pale).
 #   3. idle: 0 frames in 3 s under each; no QML error.
 #   nix develop -c frontend/test-edges.sh [sandbox-name]
 set -euo pipefail
@@ -123,6 +124,22 @@ conf2 flat auto light framed
 s=$(wander)
 [ "$r" -ge 3 ] && [ "$s" -le 1 ] || fail "the framed bar's edge: it wanders $r px under Ripped (at least 3 wanted) and $s px under Flat (a line)"
 echo "ok: the framed bar's lower edge wanders $r px under Ripped paper and $s px under Flat"
+
+# 2b. Dark: a torn sheet stays the sheet's colour (a bug once whitened whole sheets, unseen on white paper): on the
+#     framed bar under Ripped paper in dark, light pixels are the tear's core only, a small part of the band.
+conf2 ripped auto dark framed
+grim -g "0,0 ${W_OUT}x34" -t ppm "$R/band.ppm"
+light=$(python3 -I - "$R/band.ppm" <<'PY'
+import sys
+d = open(sys.argv[1], 'rb').read()
+p = d.split(b'\n', 3)
+w, h = map(int, p[1].split()); px = p[3]
+n = sum(1 for i in range(0, w * h * 3, 3) if min(px[i], px[i + 1], px[i + 2]) > 150)
+print(round(100 * n / (w * h)))
+PY
+)
+[ "$light" -le 12 ] || fail "dark: $light % of the bar's band is light under Ripped paper: the sheets are whitened"
+echo "ok: dark: the torn bar stays dark ($light % light pixels, the tear's core)"
 
 # 3. idle and errors
 commits() { grep -c 'wl_surface#[0-9]*\.commit(' "$R/qs.log" || true; }

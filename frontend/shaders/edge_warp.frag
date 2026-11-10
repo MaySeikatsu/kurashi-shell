@@ -83,7 +83,7 @@ void torn(vec4 c) {
     // the cut ragged. Only where the layer's border is the scrap's edge.
     vec2 px = qt_TexCoord0 * size;
     float small = min(size.x, size.y);
-    float nick = 0.0;
+    float nick = -100.0;
     if (small < 64.0 && uSides.x + uSides.y + uSides.z + uSides.w > 3.5) {
         vec2 q = min(px, size - px);
         float id = (px.x < size.x * 0.5 ? 0.0 : 1.0) + (px.y < size.y * 0.5 ? 0.0 : 2.0);
@@ -104,12 +104,14 @@ void torn(vec4 c) {
     vec3 col = c.rgb / c.a;
     // The age: darker and warmer towards the edge, faintly.
     float wide = big > 0.5 && reach(qt_TexCoord0, r + depth * 4.0) < thr ? 1.0 : 0.0;
+    // (a dark sheet's core is paler than the sheet, not white: a white line round every dark scrap would glare)
+    float core = mix(0.42, 1.0, smoothstep(0.25, 0.6, dot(col, vec3(0.299, 0.587, 0.114))));
     float onFill = uFill.a > 0.0 ? 1.0 - smoothstep(0.05, 0.14, distance(col, uFill.rgb)) : 1.0;
     col *= 1.0 - 0.05 * wide * onFill * (0.5 + 0.5 * vnoise(p / 17.0));
     // The core: white fibres along the tear.
     // (a small thing — a bar's group, a key — has a hair of core only: a full rim would whiten all of it, its text too)
     float rimW = depth * (0.6 + 0.7 * vnoise(p / 9.0 + 31.0)) * (0.2 + 0.8 * big);
-    if (reach(qt_TexCoord0, r + rimW) < thr || nick > -max(rimW, 1.2) || endNick > -max(rimW, 1.2)) col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(p / 1.7)) * onFill);
+    if (reach(qt_TexCoord0, r + rimW) < thr || nick > -max(rimW, 1.2) || endNick > -max(rimW, 1.2)) col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(p / 1.7)) * onFill * core);
     fragColor = vec4(col * c.a, c.a) * qt_Opacity;
 }
 

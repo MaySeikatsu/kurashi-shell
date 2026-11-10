@@ -55,7 +55,7 @@ void main() {
             float into = 0.10 + 0.25 * vnoise(g / 38.0 + 33.0);
             col = mix(col, mix(uLine.rgb, color.rgb, into), smoothstep(reach - lw - 1.2, reach - lw + 0.6, d));
         } else if (d > reach - rimW) {
-            col = mix(col, vec3(1.0), 0.72 + 0.2 * vnoise(g / 1.7));
+            col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(g / 1.7)) * mix(0.42, 1.0, smoothstep(0.25, 0.6, dot(col, vec3(0.299, 0.587, 0.114)))));
         }
         a = color.a * clamp(reach - d + 0.5, 0.0, 1.0);
     } else {
