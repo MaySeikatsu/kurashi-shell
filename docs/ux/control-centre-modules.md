@@ -83,6 +83,37 @@ keeps its flyout under `card`; `phone` wins over it. The decor value `quick.fram
 card: CONTRACT-CHANGE row 712. The viewport reaches 10 px into the card's padding, so the edit mode's remove keys, the
 focus rings and the tiles' shadows are not cut at the rows' edge.
 
+## Round two (W71, the user's answers of 2026-11-10, BACKLOG I475)
+**The review's four points (a compact flyout, fluent).** The phone and the flyout clipped their rows at the first row's
+top edge, so a focus ring round a first-row tile or the back key lost its top: their viewport now reaches into their own
+padding as the card's did (`QuickPanel.edge`). A compact tile measures the label under its button (it was a fixed 30 px; a
+larger face pushed the last row's label past the card). The Wi-Fi page draws its switch off and inert on a machine with no
+Wi-Fi device and says so once, under that switch (the scan's reason; `svc.network` has no such field: CONTRACT-CHANGE
+713); Bluetooth's switch draws off while there is no adapter (B73). `test-quick-sections.sh` step 18 reads the ring's four
+sides in the pixels round the first tile, the last tile and the back key, on the card and on a compact flyout with
+fluent's "double" ring 6 px outside, and checks every tile stands inside the viewport. Not reproduced on nested niri: the
+right column cut and the page narrower than the card before it (the default look, material and fluent fit at 1920 px);
+the suite's containment check guards it.
+
+**(a) A click opens the card.** Every control module's click opens its card — Wi-Fi, Bluetooth, power, brightness as
+before, and now Focus, the microphone, keep awake, night light, dark mode and airplane mode (I475 3). Sound keeps its mute
+on a click (the media key's; its card opens on hover, by Enter, or on a click once set to card): the user's list left it
+out, and its slider is the module's other half (stage c). Keys: Enter on a module opens its card, Space does its click. The override is one schema row per module with a switch, `quick.click.<id>` = card |
+switch (Settings › Layout › Control centre, tagged for the module's menu, and listed in the card the module opened). A
+control that cannot be used opens its card even when set to switch: the card says why.
+- **Pages**: keep awake and dark mode have pages of their own now (`ControlPage`: the back key and the name; the switch,
+  drawn off and inert with its reason under it while the control cannot be used; "Changing…" or the refusal with Retry;
+  the control's options from the schema; "More in Settings"). Keep awake's adds who else keeps the screen awake. The
+  microphone's card is the sound page (its inputs), airplane mode's the Wi-Fi page (its switch is there).
+- **Options from the schema** (`ModuleOptions`): the rows tagged for the module (`#[kurashi(module = …)]`, what its
+  right-click menu lists), a toggle as a switch row, a choice as radio rows, the value in effect; a held row is inert and
+  says why once. A page a module opened lists that module's rows (its click among them); from the tiles it lists none,
+  except the two new pages, whose rows are the control's own settings.
+- **Esc** on a card a module opened closes the card (I475 7); Left and the back key still go to the tiles; a page the
+  tiles opened goes back to them on Esc as before.
+- **B72**: the quick card comes out under a module only when that module asked for its page (latched when the card
+  opens), not under any module pressed in the last 1.5 s.
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).

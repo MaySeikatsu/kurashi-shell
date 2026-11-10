@@ -23,3 +23,7 @@
 "quick.edit.disconnected" = "タイルを保存できませんでした：シェルのデーモンが応答しません。"
 "quick.edit.remove" = "{name} をコントロールセンターから外す"
 "quick.edit.tile_hint" = "Alt と矢印キーで移動、Delete で外す"
+# W71（I475 3）：コントロール自身のカード（スリープしない、ダークモード）と、カードを開いたモジュールのオプション。
+"quick.page.settings" = "設定でさらに表示"
+"quick.options.refused" = "設定を変更できませんでした。"
+"quick.caffeine.others" = "ほかにスリープを止めているもの"

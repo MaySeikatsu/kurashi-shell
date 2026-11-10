@@ -1733,3 +1733,51 @@
 # edit key changes this list too. Mods' tiles follow these.
 #   choices: from `quick.tiles` (resolved at runtime) · since schema v7
 # tiles = ["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]
+
+# [quick.click]
+#
+# A click on Wi-Fi — Opens its card (the networks), or switches the radio on or off.
+#   choices: "card" | "switch" · since schema v7
+# wifi = "card"
+#
+# A click on Bluetooth — Opens its card (the devices), or switches the adapter on or off.
+#   choices: "card" | "switch" · since schema v7
+# bluetooth = "card"
+#
+# A click on Focus — Opens its card (how long), or switches do not disturb on or off.
+#   choices: "card" | "switch" · since schema v7
+# focus = "card"
+#
+# A click on sound — Mutes and unmutes the output, as the media key does, or opens its
+# card (outputs, inputs, what plays).
+#   choices: "card" | "switch" · since schema v7
+# volume = "switch"
+#
+# A click on the microphone — Opens its card (the inputs), or mutes and unmutes the
+# microphone.
+#   choices: "card" | "switch" · since schema v7
+# mic = "card"
+#
+# A click on power — Opens its card (the battery and the profiles), or switches the power
+# saver on or off.
+#   choices: "card" | "switch" · since schema v7
+# power = "card"
+#
+# A click on keep awake — Opens its card, or keeps the screen awake and lets it sleep
+# again.
+#   choices: "card" | "switch" · since schema v7
+# caffeine = "card"
+#
+# A click on night light — Opens its card (the warmth and the schedule), or switches the
+# night light on or off.
+#   choices: "card" | "switch" · since schema v7
+# nightlight = "card"
+#
+# A click on dark mode — Opens its card, or switches between light and dark.
+#   choices: "card" | "switch" · since schema v7
+# darkmode = "card"
+#
+# A click on airplane mode — Opens its card (with Wi-Fi), or switches every radio off or
+# on.
+#   choices: "card" | "switch" · since schema v7
+# airplane = "card"

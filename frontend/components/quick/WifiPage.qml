@@ -9,6 +9,8 @@ import ".."
 // the tile. The lists are ListModels updated in place, so the focus stays where the user put it.
 Column {
     id: wifi
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     property bool live: false
@@ -185,5 +187,12 @@ Column {
         words: wifi.loading ? I18n.tr("island.quick.wifi.scanning")
             : wifi.scan.available === false ? I18n.tr(String(wifi.scan.reason || "island.quick.network.unavailable"))
             : I18n.tr("island.quick.wifi.none")
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: wifi.width
+        mids: wifi.optionIds
+        skip: []
     }
 }

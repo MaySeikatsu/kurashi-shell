@@ -10,7 +10,8 @@ ControlModule {
     AudioControl { id: c; live: m.live }
     ctl: c
     glanceIcon: c.glanceIcon
-    clickToggles: true
+    clickKey: "volume"
+    defaultClick: "switch"
     wheels: true
     // A notch is one 5 % step from the last value sent, so fast scrolling loses no steps before the echo (Volume.qml).
     property real target: -1

@@ -2,16 +2,20 @@
 # The control centre's controls as modules of their own (W70, I469, docs/ux/control-centre-modules.md) against kurashi-mock,
 # invisibly (headless sway sandbox), by one persistent virtual pointer:
 #   1. a top bar listing the eleven control modules shows each of them (the bar's own log, KURASHI_BAR_GEOMETRY);
-#   2. a click does the control's obvious thing, read back from the service document: Focus turns do not disturb on and
-#      off, sound output mutes, the microphone mutes, airplane mode, keep awake and night light switch; dark mode writes
+#   2a. W71 (I475 3, 7): a click on Focus, the microphone, airplane mode, keep awake, night light and dark mode switches
+#      nothing and opens the control centre on the control's page (keep awake and dark mode have their own; shots
+#      card-*); Esc closes a card a module opened;
+#   2. with `quick.click.<id> = switch` (the module's menu, its card or Settings) a click does the control's switch, read
+#      back from the service document: Focus turns do not disturb on and off, sound output mutes (its default: as the media
+#      key), the microphone mutes, airplane mode, keep awake and night light switch; dark mode writes
 #      theme.colors.scheme (the relay logs the `apply`; the mock refuses it, so the bar shows the module's error state);
 #      the wheel steps sound output (two notches: 10 %) and brightness; busy: with the mock held still (SIGSTOP) Focus
 #      waits dimmed (shot), and its request goes through after SIGCONT;
 #   3. a click on Wi-Fi opens the control centre on its page (the scan is subscribed: the relay's log), a second click
 #      closes it; Bluetooth's click while the Wi-Fi page is up turns the open card to its page (it stays open); with
 #      `bar.hover_card` a rest on Wi-Fi opens its card, Bluetooth turns it, leaving both closes it (K113);
-#   4. unavailable (mock.doc): keep awake with the idle service's reason (no page: a click sends nothing and opens
-#      nothing), Bluetooth without an adapter (a click changes nothing and opens its card, which says why; shot); a right
+#   4. unavailable (mock.doc): keep awake with the idle service's reason (a click sends nothing and opens its card, which
+#      says why; shot), Bluetooth without an adapter (a click changes nothing and opens its card, which says why; shot); a right
 #      click opens a module's menu (runtime.ui.tray = module:<id>);
 #   6. the centre as a container (stage c): it shows `quick.tiles` (the default: the ten tiles of before, in order);
 #      its edit key starts the edit mode (shot); Alt+Right and Alt+Down move a tile, Delete takes one out, the add key
@@ -170,7 +174,53 @@ read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | t
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar.png" || fail "grim failed on the bar"
 click_mod() { local x y; read -r x y < <(where "$1"); [ -n "$x" ] || fail "no place for $1"; ptr "$x" "$y" "${2:-left}"; }
 
-# ---- 2. a click does the obvious thing ----
+# The card logs where things stand (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px) and which page it shows.
+at_of() { grep -o "quick-at $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $3 + $5 / 2, $4 + $6 / 2 }'; }
+tiles_now() { grep -o 'quick-tiles .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
+page_now() { grep -o 'quick-page .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
+press() { local k; for k in "$@"; do printf '%s\n' "$k" >&3 || fail "the keyboard helper stopped"; sleep 0.35; done; }
+sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
+rm -f "$W/keys.fifo"; mkfifo "$W/keys.fifo"
+python3 -I "$W/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
+pids+=($!)
+exec 3> "$W/keys.fifo"
+mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
+since() { sed -n "/^mark $1\$/,\$p" "$R/subs.log"; }
+
+# ---- 2a. W71 (I475 3, 7): a click opens the control's card; Esc closes a card a module opened ----
+# Focus, microphone, airplane mode, keep awake, night light and dark mode: the click switches nothing and opens the card on
+# the control's page (keep awake and dark mode have pages of their own now); a press beside the page's header gives the
+# card the keyboard, and Esc closes the whole card (a page the tiles opened goes back to them, test-quick-sections).
+card_on() { # card_on <module> <page> <what the click must not send: a relay log line's start, a regex> [shot]
+  mark "card-$1"
+  click_mod "$1"
+  wait_until 5 ui_is '.panel == "quick"' || fail "a click on $1 opened no card: $(ui)"
+  wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$2' ]" \
+    || fail "a click on $1 did not open its card on the $2 page (page $(page_now))"
+  sleep 0.4
+  since "card-$1" | grep -qE "^$3" && fail "a click on $1 switched it ($3)"
+  [ -n "${4:-}" ] && { wait_settled 1.5 0.4; timeout 20 grim "$OUT/$4.png" || fail "grim failed on $4"; }
+  local hx hy hw hh
+  sleep 0.8
+  read -r hx hy hw hh < <(grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+  [ -n "${hx:-}" ] || fail "$1's card logged no focused header"
+  ptr "$(( hx + hw + 40 ))" "$(( hy + hh / 2 ))"
+  press escape
+  wait_until 3 closed || fail "Esc on the card $1 opened did not close it: $(ui)"
+  echo "ok: a click on $1 opens its card on the $2 page; Esc closes it"
+}
+card_on focus focus "act notify.dnd" card-focus
+card_on mic audio "act audio.mic"
+card_on airplane wifi "act network.airplane"
+card_on caffeine caffeine "act idle.caffeine" card-caffeine
+card_on nightlight night "act nightlight" card-nightlight
+card_on darkmode dark "apply .*theme.colors.scheme" card-darkmode
+
+# ---- 2. the override (quick.click.<id> = switch): a click does the control's switch ----
+# (sound's click mutes by default, as the media key; the others are set to switch here, as their menu or card would)
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.click.focus":{"value":"switch"},"quick.click.mic":{"value":"switch"},"quick.click.airplane":{"value":"switch"},"quick.click.caffeine":{"value":"switch"},"quick.click.nightlight":{"value":"switch"},"quick.click.darkmode":{"value":"switch"}}}}' >/dev/null \
+  || fail "the mock refused quick.click"
+sleep 0.5
 flip() { # flip <module> <doc> <jq of the value> <what>: a click changes the value, a second one changes it back
   local before after
   before=$(doc "$2" | jq -c "$3")
@@ -239,8 +289,6 @@ timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-dark
 echo "ok: a click on dark mode writes theme.colors.scheme ($(grep '^apply' "$R/subs.log" | tail -1 | grep -oE '"value": "[a-z]+"'); the mock's refusal shows: bar-darkmode-refused)"
 
 # ---- 3. a card on its page ----
-mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
-since() { sed -n "/^mark $1\$/,\$p" "$R/subs.log"; }
 mark wifi-card
 click_mod wifi
 wait_until 5 ui_is '.panel == "quick"' || fail "a click on Wi-Fi opened no card: $(ui)"
@@ -296,8 +344,13 @@ mark inert
 click_mod caffeine
 sleep 0.8
 since inert | grep -q '^act idle.caffeine' && fail "a click on keep awake that cannot work sent idle.caffeine"
-closed || fail "a click on keep awake that cannot work opened something: $(ui)"
-echo "ok: keep awake that cannot work (the compositor reports no idle time) is inert"
+# (set to switch above: a control that cannot work opens its card instead, which says why — W71)
+wait_until 3 ui_is '.panel == "quick"' || fail "a click on keep awake that cannot work opened no card to say why: $(ui)"
+[ "$(page_now)" = caffeine ] || fail "keep awake's card is not on its page (page $(page_now))"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/card-caffeine-unavailable.png" || fail "grim failed"
+close_all
+echo "ok: keep awake that cannot work (the compositor reports no idle time) is inert; its card says why (card-caffeine-unavailable)"
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":false}}' >/dev/null || fail "mock.doc refused svc.bluetooth"
 bt0=$(doc svc.bluetooth | jq -c '.powered')
 mark bt-inert
@@ -319,14 +372,6 @@ echo "ok: a right click opens the module's menu (wifi, focus, caffeine, power)"
 
 # ---- 6. the centre as a container: `quick.tiles` and its edit mode (W70 stage c) ----
 # The keys stand where the card logs them (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px).
-at_of() { grep -o "quick-at $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $3 + $5 / 2, $4 + $6 / 2 }'; }
-tiles_now() { grep -o 'quick-tiles .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
-press() { local k; for k in "$@"; do printf '%s\n' "$k" >&3 || fail "the keyboard helper stopped"; sleep 0.35; done; }
-sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
-rm -f "$W/keys.fifo"; mkfifo "$W/keys.fifo"
-python3 -I "$W/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
-pids+=($!)
-exec 3> "$W/keys.fifo"
 DEFAULT=wifi,bluetooth,focus,audio,power,brightness,caffeine,nightlight,recorder,darkmode
 K act quick.toggle >/dev/null || fail "quick.toggle refused"
 wait_until 5 ui_is '.panel == "quick"' || fail "quick.toggle opened no card"

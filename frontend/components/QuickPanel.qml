@@ -230,7 +230,7 @@ Item {
         }
     }
     // (and after a page turn or a focus move)
-    onShownPageChanged: if (testLog) logTimer.restart()
+    onShownPageChanged: if (testLog) { console.log("quick-page " + (shownPage !== "" ? shownPage : "tiles")); logTimer.restart() }
     Connections {
         target: quick.testLog ? quick.Window.window : null
         function onActiveFocusItemChanged() { logTimer.restart() }
@@ -238,6 +238,8 @@ Item {
     // Test only (KURASHI_QUICK_FOCUS=first|last): the first or the last tile takes the keyboard focus when the card opens,
     // so a screenshot on nested niri (whose virtual keyboard does not reach a layer surface) shows the focus ring.
     readonly property string testFocus: Quickshell.env("KURASHI_QUICK_FOCUS") || ""
+    // Test only (KURASHI_QUICK_PAGE=<page>): the card opens on that page, as a tile's arrow would (shots of each card).
+    readonly property string testPage: navOwned ? (Quickshell.env("KURASHI_QUICK_PAGE") || "") : ""
 
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
@@ -264,6 +266,12 @@ Item {
     function openSettings(page) {
         Store.act("settings.open", {page: page}, function () {})
     }
+    // W71: the module whose click or hover opened the page shown ("" when the card got there itself: a tile, the status
+    // line, Back). Its page lists that module's options (its click among them), and Esc closes the card (I475 7: the user
+    // came for that control, not for the tiles); a page the tiles opened goes back to them.
+    readonly property string pageBy: page !== "" && navOwned ? QuickNav.by : ""
+    // (a shared page lists the options of the module that opened it: the microphone's on the sound page)
+    readonly property var pageOptions: pageBy !== "" ? [pageBy] : []
     onPageChanged: {
         if (page !== "") shownPage = page
         if (navOwned) QuickNav.showing(page, navTurn)
@@ -314,11 +322,17 @@ Item {
             shownPage = startPage
             slideAnim.stop()    // it opens on the page: no slide in from the tiles
             slide = 1
+        } else if (testPage !== "") {
+            page = testPage
+            shownPage = testPage
+            slideAnim.stop()
+            slide = 1
         } else if (testFocus === "first" || testFocus === "last") {
             Qt.callLater(function () { quick.focusTile(quick.testFocus === "first" ? 0 : coreTiles.count - 1) })
         }
     }
-    // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
+    // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card; on a
+    // page a module opened (W71, I475 7) Esc passes on too: the card closes, Left still goes back to the tiles.
     Keys.onPressed: event => {
         if (quick.editing && event.key === Qt.Key_Escape) {
             quick.cancelEdit()
@@ -326,6 +340,7 @@ Item {
             return
         }
         if (quick.page === "") return
+        if (event.key === Qt.Key_Escape && quick.pageBy !== "") return
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Left) {
             quick.closePage()
             event.accepted = true
@@ -401,17 +416,19 @@ Item {
             wifiReq: cWifi.req
             airReq: cAir.req
             joinReq: cWifi.joinReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: btC
-        BluetoothPage { onBackRequested: quick.closePage() }
+        BluetoothPage { optionIds: quick.pageOptions; onBackRequested: quick.closePage() }
     }
     Component {
         id: focusC
         FocusPage {
             dndReq: cFocus.req
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
@@ -422,6 +439,7 @@ Item {
             sinkReq: cAudio.sinkReq
             micReq: cMic.req
             srcReq: cMic.sourceReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
@@ -429,19 +447,30 @@ Item {
         id: powerC
         PowerPage {
             profReq: cPower.profileReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: displayC
-        DisplayPage { onBackRequested: quick.closePage() }
+        DisplayPage { optionIds: quick.pageOptions; onBackRequested: quick.closePage() }
     }
     Component {
         id: nightC
         NightPage {
             nightReq: cNight.req
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
+    }
+    // W71 (I475 3): keep awake and dark mode have pages of their own now (a click on their module opens them).
+    Component {
+        id: caffeineC
+        CaffeinePage { ctl: cCaffeine; onBackRequested: quick.closePage() }
+    }
+    Component {
+        id: darkC
+        ControlPage { ctl: cDark; onBackRequested: quick.closePage() }
     }
 
     // ---- the phone ----
@@ -850,7 +879,9 @@ Item {
                     : quick.shownPage === "audio" ? audioC
                     : quick.shownPage === "power" ? powerC
                     : quick.shownPage === "display" ? displayC
-                    : quick.shownPage === "night" ? nightC : null
+                    : quick.shownPage === "night" ? nightC
+                    : quick.shownPage === "caffeine" ? caffeineC
+                    : quick.shownPage === "dark" ? darkC : null
                 // The page's first control takes the focus once it exists (after the Loader has made it).
                 onStatusChanged: if (status === Loader.Ready && item !== null)
                     Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })

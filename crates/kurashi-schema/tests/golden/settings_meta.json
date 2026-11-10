@@ -1098,6 +1098,267 @@
               "restart": false,
               "since": 7,
               "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.wifi.help",
+              "key": "quick.click.wifi",
+              "label": "config.quick.click.wifi.label",
+              "modules": [
+                "wifi"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.bluetooth.help",
+              "key": "quick.click.bluetooth",
+              "label": "config.quick.click.bluetooth.label",
+              "modules": [
+                "bluetooth"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.focus.help",
+              "key": "quick.click.focus",
+              "label": "config.quick.click.focus.label",
+              "modules": [
+                "focus"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "switch",
+              "help": "config.quick.click.volume.help",
+              "key": "quick.click.volume",
+              "label": "config.quick.click.volume.label",
+              "modules": [
+                "volume",
+                "audio"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.mic.help",
+              "key": "quick.click.mic",
+              "label": "config.quick.click.mic.label",
+              "modules": [
+                "mic"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.power.help",
+              "key": "quick.click.power",
+              "label": "config.quick.click.power.label",
+              "modules": [
+                "power"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.caffeine.help",
+              "key": "quick.click.caffeine",
+              "label": "config.quick.click.caffeine.label",
+              "modules": [
+                "caffeine"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.nightlight.help",
+              "key": "quick.click.nightlight",
+              "label": "config.quick.click.nightlight.label",
+              "modules": [
+                "nightlight"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.darkmode.help",
+              "key": "quick.click.darkmode",
+              "label": "config.quick.click.darkmode.label",
+              "modules": [
+                "darkmode"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.airplane.help",
+              "key": "quick.click.airplane",
+              "label": "config.quick.click.airplane.label",
+              "modules": [
+                "airplane"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         }

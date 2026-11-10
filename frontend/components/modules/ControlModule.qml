@@ -8,12 +8,12 @@ import "../island" as Isl
 // A control of the control centre as a module of its own (W70, docs/ux/control-centre-modules.md): `wifi`, `bluetooth`,
 // `focus`, `audio`, `mic`, `power`, `brightness`, `caffeine`, `nightlight`, `darkmode`, `airplane`. Its glance is the
 // control's mark in a square as thick as the bar (QuickButton's target), and a short value after it where one is short
-// (the battery's percent); its click does the control's obvious thing (`clickToggles`: a switch flips; else its card
-// opens); its card is the control's page in the control centre (QuickNav); its menu is the module menu (I408).
+// (the battery's percent); its click opens its card (W71, I475 3), or flips its switch where the module's setting says so
+// (`clickToggles`); its card is the control's page in the control centre (QuickNav); its menu is the module menu (I408).
 // States, drawn from the control (Shōjiki): off (the mark outlined), on (filled), busy (dim, "…" in its name), failed (the
 // error colour, a press retries), unavailable or held by a setting (dim, inert: a click opens the card that says why, or
-// does nothing for a control with no page; the reason is its accessible name). Keys: its own tab stop — Enter and Space do
-// the click, the Menu key opens its menu. Bar fit (docs/ux/bar-fit.md): not elastic; compact is the mark alone.
+// does nothing for a control with no page; the reason is its accessible name). Keys: its own tab stop — Enter opens its card
+// (W71), Space does the click, the Menu key opens its menu. Bar fit (docs/ux/bar-fit.md): not elastic; compact is the mark alone.
 // Ma: the control watches its document only while the host is live; nothing here runs a timer or an animation at rest.
 ModuleBase {
     id: m
@@ -23,8 +23,17 @@ ModuleBase {
     property string glanceGlyph: ctl ? ctl.glyph : ""
     // The short value after the mark ("" draws the mark alone). Dropped in the compact form and on a side bar.
     property string valueText: ""
-    // A click flips the switch (a harmless one: Focus, keep awake); else it opens the card (a radio, a profile).
-    property bool clickToggles: false
+    // W71 (I475 3): a click opens the control's card, where its switch, its options and why it cannot be used stand; the
+    // module's own setting `quick.click.<clickKey>` (its menu, its card, Settings › Layout › Control centre) makes it the
+    // switch instead. `defaultClick` is the schema's default, for the moment before the config document is there.
+    property string clickKey: ctl ? ctl.mid : ""
+    property string defaultClick: "card"
+    readonly property var cfgValues: (Store.docs["config"] || ({})).values || ({})
+    readonly property string clickMode: {
+        var e = cfgValues["quick.click." + clickKey]
+        return e && e.value !== undefined ? String(e.value) : defaultClick
+    }
+    readonly property bool clickToggles: clickMode === "switch" && !!ctl && ctl.toggles && ctl.req !== null
     // The wheel steps a level (sound, brightness): the module answers `wheeled(dy)` (a signal: a base function the module
     // redefined would be called as the base's own from here).
     property bool wheels: false
@@ -81,8 +90,8 @@ ModuleBase {
     // ---- keys and a11y ----
     ownsFocus: true
     activeFocusOnTab: true
-    Keys.onReturnPressed: m.click()
-    Keys.onEnterPressed: m.click()
+    Keys.onReturnPressed: m.activate()
+    Keys.onEnterPressed: m.activate()
     Keys.onSpacePressed: m.click()
     Keys.onMenuPressed: m.openMenu()
     Accessible.role: Accessible.Button

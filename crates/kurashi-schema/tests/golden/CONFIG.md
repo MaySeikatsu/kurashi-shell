@@ -434,6 +434,86 @@ The controls the control centre shows as tiles, in order. Each is also a module 
 - choices: from `quick.tiles` (resolved at runtime)
 - since schema v7
 
+#### `quick.click.wifi` — A click on Wi-Fi
+
+Opens its card (the networks), or switches the radio on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.bluetooth` — A click on Bluetooth
+
+Opens its card (the devices), or switches the adapter on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.focus` — A click on Focus
+
+Opens its card (how long), or switches do not disturb on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.volume` — A click on sound
+
+Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
+
+- type: `choice` · default: `"switch"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.mic` — A click on the microphone
+
+Opens its card (the inputs), or mutes and unmutes the microphone.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.power` — A click on power
+
+Opens its card (the battery and the profiles), or switches the power saver on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.caffeine` — A click on keep awake
+
+Opens its card, or keeps the screen awake and lets it sleep again.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.nightlight` — A click on night light
+
+Opens its card (the warmth and the schedule), or switches the night light on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.darkmode` — A click on dark mode
+
+Opens its card, or switches between light and dark.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.airplane` — A click on airplane mode
+
+Opens its card (with Wi-Fi), or switches every radio off or on.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
 ## Appearance
 
 ### Colors

@@ -8,6 +8,8 @@ import ".."
 // here. Without an adapter, or with BlueZ gone, one dim line says why.
 Column {
     id: bt
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     signal backRequested()
@@ -71,5 +73,12 @@ Column {
         font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.bluetooth.unavailable")
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: bt.width
+        mids: bt.optionIds
+        skip: []
     }
 }

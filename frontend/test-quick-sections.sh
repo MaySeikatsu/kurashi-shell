@@ -21,8 +21,8 @@
 #     (tiles-wallpaper-down), brightness.set moves the Display level; no contribution is the six core tiles (tiles-no-mods);
 #     the wallpaper tile's document is subscribed while the card shows it and unsubscribed after it closes (Ma).
 #   - W37 (K66, I86): a right click on a tile's main zone is its secondary action, never a toggle: the Wi-Fi tile opens its
-#     page; the Menu key on keep awake and on dark mode (tiles with no page of their own) asks Settings for their pages (the
-#     relay logs `act settings.open`); the focus stays on the wallpaper tile while another contribution leaves and returns,
+#     page; the Menu key on record (a tile with no page of its own) asks Settings for its page (the relay logs `act
+#     settings.open`), on keep awake and dark mode it opens their pages (W71); the focus stays on the wallpaper tile while another contribution leaves and returns,
 #     and when the focused tile leaves the focus moves to the tile before it; every tile a service document can force draws
 #     "Set by" and is inert (tiles-forced); the footer without a session service (footer-no-session);
 #   - W70 (d): every step above runs on the phone (`quick.style = phone`); then the card (`quick.style = card`, the
@@ -364,7 +364,8 @@ settle 1.5
 echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control returns (unsubscribed)"
 
 # 3b. W37 (I86): a right click on a tile's main zone is its secondary action, never a toggle. The Wi-Fi tile opens its page;
-#     the Menu key on keep awake and on dark mode (no page of their own) asks Settings for the page that holds their setting.
+#     the Menu key on record (no page of its own) asks Settings for the page that holds its setting; keep awake and dark
+#     mode have their own pages since W71.
 right_click() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" right || fail "right click at $1,$2 failed"; }
 wifi0=$(doc svc.network | jq -r '.wifi_enabled')
 right_click "$((cx0 + WIFI_TILE[0]))" "$((cy0 + WIFI_TILE[1]))"
@@ -374,15 +375,22 @@ settle 1.5
 press escape
 settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not return from the Wi-Fi page"
-press down down down menu       # wifi, focus, power, keep awake: no page of its own, so Settings' power page
+press down down down menu       # wifi, focus, power, keep awake: its own page since W71 (I475 3)
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page caffeine'" \
+  || fail "the Menu key on keep awake did not open its page"
+press escape                    # (a page the tiles opened: Escape goes back to its tile)
 settle 1
-grep -q 'act settings.open {"page": "power"}' "$R/subs.log" || fail "the Menu key on keep awake did not ask Settings for the power page"
-press down right menu           # record, dark mode: Settings' appearance page
+press down menu                 # record: no page of its own (yet), so Settings' power page
 settle 1
-grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" || fail "the Menu key on dark mode did not ask Settings for the appearance page"
+grep -q 'act settings.open {"page": "power"}' "$R/subs.log" || fail "the Menu key on record did not ask Settings for the power page"
+press right menu                # dark mode: its own page since W71
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page dark'" \
+  || fail "the Menu key on dark mode did not open its page"
+press escape
+settle 1
 press up up up up left         # back to the Wi-Fi tile, where the keyboard steps below start
 settle 1
-echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key on keep awake and dark mode asks Settings"
+echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key opens keep awake's and dark mode's pages, record's asks Settings"
 
 # 4. Audio: Tab to the Audio tile, Right opens the page; Tab walks to the other output, Return makes it the default, and the
 #    focus stays on the row chosen (the rows update in place).
@@ -546,9 +554,10 @@ p2=$(pic_now); press return; wait_until 1.5 eval '[ "$(pic_now)" != "$p2" ]' || 
 press up                        # the test mod's tile (cell 10) has the focus now
 set_tiles "$(without hello)"    # ... and leaves: the focus moves to the tile before it, dark mode (cell 9)
 press menu
-settle 1.5
-grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" \
-  || fail "the focus did not move to the tile before the removed one (dark mode's Menu key sent no appearance page)"
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page dark'" \
+  || fail "the focus did not move to the tile before the removed one (dark mode's Menu key opened no dark mode page)"
+press escape
+settle 1
 set_tiles "$full"
 press left down down return     # dark mode, left (8), down (10), down (12): the wallpaper tile again
 settle 1.5

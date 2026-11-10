@@ -29,3 +29,6 @@ NightControl 1.0 NightControl.qml
 RecordControl 1.0 RecordControl.qml
 DarkControl 1.0 DarkControl.qml
 singleton QuickNav 1.0 QuickNav.qml
+ModuleOptions 1.0 ModuleOptions.qml
+ControlPage 1.0 ControlPage.qml
+CaffeinePage 1.0 CaffeinePage.qml

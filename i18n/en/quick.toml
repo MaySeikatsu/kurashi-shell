@@ -24,3 +24,7 @@
 "quick.edit.disconnected" = "The tiles could not be saved: the shell's daemon does not answer."
 "quick.edit.remove" = "Take {name} out of the control centre"
 "quick.edit.tile_hint" = "Alt and an arrow move it; Delete takes it out"
+# W71 (I475 3): a control's own card (keep awake, dark mode) and the options of the module that opened a card.
+"quick.page.settings" = "More in Settings"
+"quick.options.refused" = "The setting could not be changed."
+"quick.caffeine.others" = "Also kept awake by"
