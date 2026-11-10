@@ -5,8 +5,8 @@ import "../quick"
 
 // Module `volume` — sound (W71 c, I475 5): the one sound module, what `audio` (W70: the output as a switch and a card)
 // and `volume` (the level as a slider) were. The output's mark (muted, or the level in three steps) and its level after
-// it (dim while muted), then the slider; a click on it mutes, as the media key does (`quick.click.volume`: or its card,
-// the outputs, the inputs and what plays); the wheel steps the level by 5 % anywhere on it; hover opens the card as
+// it (dim while muted), then the slider; a click on it opens its card, the outputs, the inputs and what plays (the
+// user, on #46; `quick.click.volume = switch`: mutes, as the media key does); the wheel steps the level by 5 % anywhere on it; hover opens the card as
 // `bar.hover` says. `audio` in a zone list is the same module (ModuleHost), so a config that names either keeps working.
 // A level is shown only for audio the daemon reports (no document, or `available: false`, is no level: Shōjiki, B2).
 // Bar fit: elastic while it has a level (the level's text gives way first); compact is the mark alone (a click mutes,

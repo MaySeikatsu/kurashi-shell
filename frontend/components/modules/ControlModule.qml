@@ -62,7 +62,9 @@ ModuleBase {
         && QuickNav.by === m.who
     readonly property bool inert: !ctl || ctl.inert
     readonly property bool lit: !!ctl && ctl.on && !inert && !ctl.failed
-    readonly property bool showValue: valueText !== "" && !vertical && !compact
+    // (`quick.value.<id>`: the module's own switch for its value, in its menu; on unless it says off)
+    readonly property bool valueWanted: { var e = cfgValues["quick.value." + clickKey]; return !(e && e.value === false) }
+    readonly property bool showValue: valueText !== "" && valueWanted && !vertical && !compact
 
     // ---- the fit ----
     readonly property real boxW: thickness
@@ -97,7 +99,8 @@ ModuleBase {
     }
     function click() {
         if (!ctl) return
-        if ((clickToggles || (ctl.clickStops && ctl.on)) && !inert && !ctl.busy) { ctl.toggle(); return }
+        // (the user, on #46: a click on a running recorder opens its card, where it can be stopped; only `switch` toggles)
+        if (clickToggles && !inert && !ctl.busy) { ctl.toggle(); return }
         if (cardPage !== "") openCard()
         else if (!inert) ctl.toggle()
     }

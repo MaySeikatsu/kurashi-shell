@@ -2421,6 +2421,26 @@ pub struct Quick {
     pub tiles: Vec<String>,
     #[kurashi(nested)]
     pub click: QuickClicks,
+    #[kurashi(nested)]
+    pub value: QuickValues,
+}
+
+/// Whether a control's module shows its value beside its mark on the bar (I475, the user: "sure why not"): one switch
+/// per module that has one, each tagged for that module's menu.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct QuickValues {
+    /// Wi-Fi shows the network
+    /// The network's name beside the Wi-Fi mark on the bar.
+    #[kurashi(default = true, module = "wifi", since = 7)]
+    pub wifi: bool,
+    /// Sound shows the level
+    /// The output's level beside the sound mark on the bar.
+    #[kurashi(default = true, module = "volume", module = "audio", since = 7)]
+    pub volume: bool,
+    /// Power shows the charge
+    /// The battery's charge beside the power mark on the bar.
+    #[kurashi(default = true, module = "power", since = 7)]
+    pub power: bool,
 }
 
 /// What a click on a control's module does (W71, I475 3).
@@ -2451,8 +2471,8 @@ pub struct QuickClicks {
     #[kurashi(default = QuickClick::Card, module = "focus", since = 7)]
     pub focus: QuickClick,
     /// A click on sound
-    /// Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
-    #[kurashi(default = QuickClick::Switch, module = "volume", module = "audio", module = "volume_level", since = 7)]
+    /// Opens its card (outputs, inputs, what plays), or mutes and unmutes the output, as the media key does.
+    #[kurashi(default = QuickClick::Card, module = "volume", module = "audio", module = "volume_level", since = 7)]
     pub volume: QuickClick,
     /// A click on the microphone
     /// Opens its card (the inputs), or mutes and unmutes the microphone.
@@ -2479,8 +2499,8 @@ pub struct QuickClicks {
     #[kurashi(default = QuickClick::Card, module = "airplane", since = 7)]
     pub airplane: QuickClick,
     /// A click on the recorder
-    /// Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a
-    /// recording runs, a click stops it either way.
+    /// Opens its card (start and stop, which screen, the sound, where the file goes), also while a recording runs; or
+    /// starts and stops recording at once.
     #[kurashi(default = QuickClick::Card, module = "recorder", since = 7)]
     pub recorder: QuickClick,
 }

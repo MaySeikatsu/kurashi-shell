@@ -1194,7 +1194,7 @@
               ],
               "control": "select",
               "couplings": [],
-              "default": "switch",
+              "default": "card",
               "help": "config.quick.click.volume.help",
               "key": "quick.click.volume",
               "label": "config.quick.click.volume.label",
@@ -1389,6 +1389,55 @@
               "restart": false,
               "since": 7,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.quick.value.wifi.help",
+              "key": "quick.value.wifi",
+              "label": "config.quick.value.wifi.label",
+              "modules": [
+                "wifi"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.quick.value.volume.help",
+              "key": "quick.value.volume",
+              "label": "config.quick.value.volume.label",
+              "modules": [
+                "volume",
+                "audio"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.quick.value.power.help",
+              "key": "quick.value.power",
+              "label": "config.quick.value.power.label",
+              "modules": [
+                "power"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         }

@@ -461,9 +461,9 @@ Opens its card (how long), or switches do not disturb on or off.
 
 #### `quick.click.volume` — A click on sound
 
-Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
+Opens its card (outputs, inputs, what plays), or mutes and unmutes the output, as the media key does.
 
-- type: `choice` · default: `"switch"`
+- type: `choice` · default: `"card"`
 - choices: `"card"` | `"switch"`
 - since schema v7
 
@@ -517,10 +517,31 @@ Opens its card (with Wi-Fi), or switches every radio off or on.
 
 #### `quick.click.recorder` — A click on the recorder
 
-Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a recording runs, a click stops it either way.
+Opens its card (start and stop, which screen, the sound, where the file goes), also while a recording runs; or starts and stops recording at once.
 
 - type: `choice` · default: `"card"`
 - choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.value.wifi` — Wi-Fi shows the network
+
+The network's name beside the Wi-Fi mark on the bar.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `quick.value.volume` — Sound shows the level
+
+The output's level beside the sound mark on the bar.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `quick.value.power` — Power shows the charge
+
+The battery's charge beside the power mark on the bar.
+
+- type: `bool` · default: `true`
 - since schema v7
 
 ## Appearance

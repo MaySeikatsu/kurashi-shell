@@ -1767,10 +1767,10 @@
 #   choices: "card" | "switch" · since schema v7
 # focus = "card"
 #
-# A click on sound — Mutes and unmutes the output, as the media key does, or opens its
-# card (outputs, inputs, what plays).
+# A click on sound — Opens its card (outputs, inputs, what plays), or mutes and unmutes
+# the output, as the media key does.
 #   choices: "card" | "switch" · since schema v7
-# volume = "switch"
+# volume = "card"
 #
 # A click on the microphone — Opens its card (the inputs), or mutes and unmutes the
 # microphone.
@@ -1801,7 +1801,21 @@
 #   choices: "card" | "switch" · since schema v7
 # airplane = "card"
 #
-# A click on the recorder — Opens its card (start, which screen, the sound, where the file
-# goes), or starts recording at once. While a recording runs, a click stops it either way.
+# A click on the recorder — Opens its card (start and stop, which screen, the sound, where
+# the file goes), also while a recording runs; or starts and stops recording at once.
 #   choices: "card" | "switch" · since schema v7
 # recorder = "card"
+
+# [quick.value]
+#
+# Wi-Fi shows the network — The network's name beside the Wi-Fi mark on the bar.
+#   since schema v7
+# wifi = true
+#
+# Sound shows the level — The output's level beside the sound mark on the bar.
+#   since schema v7
+# volume = true
+#
+# Power shows the charge — The battery's charge beside the power mark on the bar.
+#   since schema v7
+# power = true

@@ -25,7 +25,7 @@
 #      (the relay's log); the mock refuses it, so the edit stays and says so (shot), Escape puts the setting back; the
 #      centre follows the setting when it changes elsewhere (mock.doc, as Settings' list would write it; shot);
 #   8. W71 (f, I475 6): the recorder is on the bar while nothing records; its card (the recorder page) starts a recording
-#      by keys, the bar shows the running time, a click stops it; without a recorder program its card says why (shots
+#      by keys, the bar shows the running time, a click opens its card again; without a recorder program its card says why (shots
 #      card-recorder-*, bar-recording);
 #   7. W71 (d): the levels and the session row as bar modules (volume_level is the sound module, brightness_level has its
 #      slider, session three keys; the power key opens the menu; bar-rows); W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
@@ -247,8 +247,9 @@ card_on nightlight night "act nightlight" card-nightlight
 card_on darkmode dark "apply .*theme.colors.scheme" card-darkmode
 
 # ---- 2. the override (quick.click.<id> = switch): a click does the control's switch ----
-# (sound's click mutes by default, as the media key; the others are set to switch here, as their menu or card would)
-K act mock.doc '{"doc":"config","patch":{"values":{"quick.click.focus":{"value":"switch"},"quick.click.mic":{"value":"switch"},"quick.click.airplane":{"value":"switch"},"quick.click.caffeine":{"value":"switch"},"quick.click.nightlight":{"value":"switch"},"quick.click.darkmode":{"value":"switch"}}}}' >/dev/null \
+# (every module's click opens its card by default, sound's too — the user, on #46; they are set to switch here, as their
+# menu or card would)
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.click.volume":{"value":"switch"},"quick.click.focus":{"value":"switch"},"quick.click.mic":{"value":"switch"},"quick.click.airplane":{"value":"switch"},"quick.click.caffeine":{"value":"switch"},"quick.click.nightlight":{"value":"switch"},"quick.click.darkmode":{"value":"switch"}}}}' >/dev/null \
   || fail "the mock refused quick.click"
 sleep 0.5
 flip() { # flip <module> <doc> <jq of the value> <what>: a click changes the value, a second one changes it back
@@ -543,12 +544,17 @@ wait_until 4 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end recorder .*' '$R/
 close_all
 read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-recording.png" || fail "grim failed on the bar"
+# (the user, on #46: a click on a running recorder opens its card, where it is stopped; it does not stop it itself)
 click_mod recorder
+wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = recorder ]" || fail "a click on the recording recorder did not open its card"
+sleep 0.5
+"$W/kurashi" sub svc.recorder --count 0 --json | jq -e 'select(.t == "snap") | .data.recording == true' >/dev/null \
+  || fail "a click on the recording recorder stopped it (its card stops it)"
+K act recorder.stop >/dev/null 2>&1 || true
 wait_until 5 sh -c "\"$W/kurashi\" sub svc.recorder --count 0 --json | jq -e 'select(.t == \"snap\") | .data.recording == false' >/dev/null" \
-  || fail "a click on the recording recorder did not stop it"
-sleep 0.6
-closed || fail "the click that stopped the recording opened something: $(ui)"
-echo "ok: the recorder: always on the bar; its card starts a recording (Tab, Return); the bar shows the time; a click stops it (bar-recording)"
+  || fail "the recording did not stop"
+close_all
+echo "ok: the recorder: always on the bar; its card starts a recording (Tab, Return); the bar shows the time; a click on it while recording opens its card (bar-recording)"
 K act mock.doc '{"doc":"svc.recorder","patch":{"available":false,"reason":"power.recorder.reason.missing"}}' >/dev/null || fail "mock.doc refused svc.recorder"
 card_on recorder recorder "act recorder" card-recorder-unavailable
 K act mock.doc '{"doc":"svc.recorder","patch":{"available":true,"reason":null}}' >/dev/null || true
