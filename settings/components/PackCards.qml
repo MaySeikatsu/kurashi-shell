@@ -20,6 +20,11 @@ Item {
     // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
     // up, where the sheet closes on it (K63).
     property bool cancellable: true
+    // I453 (opt-in, palettes only): a category that is always listed, even with no cards (the user's own palettes and
+    // their New tile), drawn by `ownView` instead of the plain cards while it is open.
+    property string ownCategory: ""
+    property Component ownView: null
+    readonly property bool ownOpen: pc.ownView !== null && pc.ownCategory !== "" && pc.openCat === pc.ownCategory
 
     // The order the categories show in (K53's list); a category the daemon adds later goes after them.
     // Where a search jump lands: the cards (the current one), not the first category tab.
@@ -29,6 +34,7 @@ Item {
     readonly property var categories: {
         var counts = {}
         pc.choices.forEach(function (c) { if (c.group) counts[c.group] = (counts[c.group] || 0) + 1 })
+        if (pc.ownCategory !== "" && counts[pc.ownCategory] === undefined) counts[pc.ownCategory] = 0
         var names = Object.keys(counts).sort(function (a, b) {
             var ia = pc.order.indexOf(a), ib = pc.order.indexOf(b)
             return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b)
@@ -44,7 +50,8 @@ Item {
     // The open category: the one a chip opened, else the current pack's, else the first.
     property string opened: ""
     // A new pack in effect (picked here, by a profile, from the CLI) opens its own category again.
-    onCurrentChanged: pc.opened = ""
+    // The own category stays open over a change made in it (a palette saved, or deleted back to the default).
+    onCurrentChanged: if (!pc.ownOpen) pc.opened = ""; else pc.opened = pc.ownCategory
     readonly property string openCat: {
         var ids = pc.categories.map(function (c) { return c.id })
         if (pc.opened !== "" && ids.indexOf(pc.opened) >= 0) return pc.opened
@@ -66,7 +73,7 @@ Item {
         // The plain cards in front of the categories (None (your own)).
         DecorCards {
             id: leadCards
-            visible: pc.grouped && pc.lead.length > 0
+            visible: pc.grouped && pc.lead.length > 0 && !pc.ownOpen
             width: visible ? 156 * pc.lead.length + Theme.gap * (pc.lead.length - 1) : 0
             objectName: pc.objectName + ":lead"
             choices: pc.grouped ? pc.lead : []
@@ -147,11 +154,19 @@ Item {
                 }
             }
             // Only the open category's cards exist (the others are not built: Ma).
+            // The own category's view (I453): built only while it is open (Ma).
+            Loader {
+                width: parent.width
+                active: pc.ownOpen
+                visible: active
+                sourceComponent: pc.ownView
+            }
             DecorCards {
                 id: cardsView
+                visible: !pc.ownOpen
                 width: parent.width
                 objectName: pc.objectName
-                choices: pc.shown
+                choices: pc.ownOpen ? [] : pc.shown
                 looks: pc.looks
                 current: pc.current
                 enabled: pc.enabled

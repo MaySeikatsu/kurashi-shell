@@ -426,6 +426,19 @@ Item {
             onPreviewed: v => r.moveTo(v)
             cancellable: r.previewing
             onCancelled: r.cancel()
+            // I453: the user's own palettes, with their editor (docs/ux/palettes.md "Custom palettes").
+            ownCategory: r.row.choices_from === "palettes" ? "custom" : ""
+            ownView: r.row.choices_from === "palettes" ? cCustomPalettes : null
+        }
+    }
+    Component {
+        id: cCustomPalettes
+        CustomPalettes {
+            choices: r.offers.filter(function (c) { return c.group === "custom" })
+            looks: r.looks
+            current: r.value
+            enabled: Store.live
+            onPicked: v => r.setValue(v)
         }
     }
     // Two fixed options: a switch with both names visible.

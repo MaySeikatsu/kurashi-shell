@@ -20,6 +20,7 @@ pub mod keys;
 pub mod lock;
 pub mod native;
 pub mod os_scheme;
+pub mod palettes_user;
 pub mod previews;
 pub mod server;
 pub mod services;
