@@ -117,10 +117,10 @@ Scope {
         return true
     }
     Component.onCompleted: Theme.fadeGate = cb.gate
-    // (two frames for the pictures to be taken)
+    // (two frames for every window's picture to be taken; then the new tokens come in)
     Timer {
         id: release
-        interval: 40
+        interval: 45
         onTriggered: {
             Theme.fadeShow++
             Theme.tokens = Theme.sourceTokens
