@@ -519,10 +519,11 @@ Scope {
                     readonly property real y1: col.sh - col.aEnd + col.liftEnd - offTop
                     readonly property real rx1: boxW - col.aInset
                     readonly property real rx0: rx1 - col.colW
-                    readonly property real shX0: rx0 + col.off - col.overPx
-                    readonly property real shX1: rx1 + col.off
+                    // (at rest: the slide is `slider`'s translation, below)
+                    readonly property real shX0: rx0 - col.overPx
+                    readonly property real shX1: rx1
                     // How far the column stands from its place at rest, in the canonical frame (towards the screen's edge).
-                    readonly property real slideX: col.off
+                    readonly property real slideX: 0
                     readonly property bool openT: col.joinStart !== ""
                     readonly property bool openB: col.joinEnd !== ""
                     readonly property bool openO: !col.floating
@@ -688,226 +689,238 @@ Scope {
                         height: Math.max(0, win.clipY1 - win.clipY0)
                         clip: true
 
-                        // The column's shadows, in the canonical frame (outside what a sheet form captures).
+                        // The slide (session 27, measured on a real session): everything the column draws rides in one item,
+                        // moved as a whole. The column's geometry — its shape, content, regions for input and blur, what its
+                        // neighbours are told — is its place at rest for as long as the window is there; only this
+                        // translation follows the spring. Before, every tick of the slide went through all of that (about
+                        // 45 ms a tick: the value changed 8 times in an opening on 144 Hz).
                         Item {
-                            x: box.x - clipper.x
-                            y: box.y - clipper.y
-                            width: win.boxW
-                            height: win.height
-                            opacity: sbHost.sheetShadow
-                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
-                            SoftShadow {
-                                visible: col.floating && shape.shown && !win.flyouts
-                                x: shape.bodyRect.x
-                                y: shape.bodyRect.y
-                                width: shape.bodyRect.width
-                                height: shape.bodyRect.height
-                                radius: col.floatR
-                                // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x
-                                // back so it falls the way the light says on both sides (K67, row 421).
-                                mirror: sb.side === "left" ? -1 : 1
-                            }
-                            // W57 (K78): the column's elevation, cut where it joins the band, a bar or the screen's edge.
-                            Elevation {
-                                visible: shape.shown && !win.flyouts
-                                x: shape.bodyRect.x
-                                y: shape.bodyRect.y
-                                width: shape.bodyRect.width
-                                height: shape.bodyRect.height
-                                radius: col.floating ? col.floatR : col.joinR
-                                level: 2
-                                sheet: true
-                                cutTop: win.openT
-                                cutBottom: win.openB
-                                cutRight: win.openO
-                                mirrorX: sb.side === "left" ? -1 : 1
-                            }
-                        }
-                        // W59.9a: the column as drawn, window-aligned (a sheet form's layers then keep its material
-                        // registered with the output): SheetRest takes it into one layer while a sheet form runs, and
-                        // the form captures its body's box (`bodySrc`).
-                        Item {
-                            id: sheetSrc
-                            x: -clipper.x
-                            y: -clipper.y
-                            width: win.width
-                            height: win.height
-                        // The shape and its relief mask, in the canonical frame.
-                        Item {
-                            id: box
-                            x: sb.side === "left" ? 0 : win.width - win.boxW
-                            y: 0
-                            width: win.boxW
-                            height: win.height
-                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
-                            ColumnShape {
-                                id: shape
-                                // (drawn as nothing under flyouts: `shown` keeps its geometry for the content and the input)
-                                opacity: win.flyouts ? 0 : 1
-                                anchors.fill: parent
-                                // (the shape stands in its place at rest and is moved as a whole — `slideX` on its box, its
-                                // wash and its relief — while the column slides: a path that changed every frame was
-                                // tessellated again every frame, 13 ms of each frame on a real session; only the
-                                // overshoot past rest still widens it)
-                                x0: win.rx0 - col.overPx
-                                x1: win.rx1
-                                y0: win.y0
-                                y1: win.y1
-                                openT: win.openT
-                                openB: win.openB
-                                openO: win.openO
-                                // A join with the screen's edge is flush, without a fillet; a bar or the band: the
-                                // layout's radius (0 = connected, a straight join).
-                                neckT: col.joinStart === "edge" ? 0 : col.aR * sbHost.sheetFillets
-                                neckB: col.joinEnd === "edge" ? 0 : col.aR * sbHost.sheetFillets
-                                neckO: col.sideBar ? col.aR * sbHost.sheetFillets : 0
-                                squareOuter: !col.floating
-                                // K74: a joined column's free corners are corners of the window cut into the sheet: the
-                                // layout's one radius, as its fillets (0 = connected, straight)
-                                radius: col.floating ? col.floatR : col.joinR
-                                flipX: sb.side === "left"
-                                // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
-                                ruled: !col.floating && Theme.frameOutline
-                                chrome: col.floating
-                                // Joined, the column takes its neighbour's colour (one sheet); a free column the panel's.
-                                fill: sbHost.sheetSolid ? Qt.alpha(col.floating ? Theme.panel : Theme.surfaceAlpha, 1)
-                                    : col.floating ? Theme.panel : Theme.surfaceAlpha
-                            }
-                            // The shape's fill as a mask for its relief (I168): drawn only into `shapeMask`'s texture, which
-                            // is redrawn when the path changes (while the column moves) and never at rest.
-                            Shape {
-                                id: maskShape
-                                visible: reliefBox.masked
-                                anchors.fill: parent
-                                preferredRendererType: Shape.CurveRenderer
-                                ShapePath {
-                                    strokeWidth: -1
-                                    strokeColor: "transparent"
-                                    fillColor: "white"
-                                    PathSvg { path: reliefBox.masked ? shape.fillPath : "" }
+                            id: slider
+                            width: clipper.width
+                            height: clipper.height
+                            transform: Translate { x: (sb.side === "left" ? -1 : 1) * col.off }
+
+                            // The column's shadows, in the canonical frame (outside what a sheet form captures).
+                            Item {
+                                x: box.x - clipper.x
+                                y: box.y - clipper.y
+                                width: win.boxW
+                                height: win.height
+                                opacity: sbHost.sheetShadow
+                                transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                                SoftShadow {
+                                    visible: col.floating && shape.shown && !win.flyouts
+                                    x: shape.bodyRect.x
+                                    y: shape.bodyRect.y
+                                    width: shape.bodyRect.width
+                                    height: shape.bodyRect.height
+                                    radius: col.floatR
+                                    // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x
+                                    // back so it falls the way the light says on both sides (K67, row 421).
+                                    mirror: sb.side === "left" ? -1 : 1
+                                }
+                                // W57 (K78): the column's elevation, cut where it joins the band, a bar or the screen's edge.
+                                Elevation {
+                                    visible: shape.shown && !win.flyouts
+                                    x: shape.bodyRect.x
+                                    y: shape.bodyRect.y
+                                    width: shape.bodyRect.width
+                                    height: shape.bodyRect.height
+                                    radius: col.floating ? col.floatR : col.joinR
+                                    level: 2
+                                    sheet: true
+                                    cutTop: win.openT
+                                    cutBottom: win.openB
+                                    cutRight: win.openO
+                                    mirrorX: sb.side === "left" ? -1 : 1
                                 }
                             }
-                        }
-                        // I460 prototype: the wash over the column's fill, clipped to its shape, under the content.
-                        Item {
-                            z: 0
-                            visible: Theme.washOn && shape.shown
-                            x: box.x
-                            y: box.y
-                            width: win.boxW
-                            height: win.height
-                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
-                            Loader {
-                                anchors.fill: parent
-                                active: parent.visible
-                                sourceComponent: Wash { anchors.fill: parent; mask: shapeMask; fill: Qt.alpha(shape.fill, 1); strength: shape.fill.a }
-                            }
-                        }
-                        // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the
-                        // content (over it with `texture.text`); carried with the column.
-                        Item {
-                            id: reliefBox
-                            readonly property bool on: Theme.texShell && shape.shown
-                            // The shape's mask is made for the relief or the wash (I460).
-                            readonly property bool masked: (Theme.texShell || Theme.washOn) && shape.shown
-                            readonly property point carry: win.shapeCarry
-                            z: Theme.texText ? 2 : 0
-                            visible: on
-                            x: box.x
-                            y: box.y
-                            width: win.boxW
-                            height: win.height
-                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
-                            Loader {
-                                anchors.fill: parent
-                                active: reliefBox.on
-                                sourceComponent: Relief {
+                            // W59.9a: the column as drawn, window-aligned (a sheet form's layers then keep its material
+                            // registered with the output): SheetRest takes it into one layer while a sheet form runs, and
+                            // the form captures its body's box (`bodySrc`).
+                            Item {
+                                id: sheetSrc
+                                x: -clipper.x
+                                y: -clipper.y
+                                width: win.width
+                                height: win.height
+                            // The shape and its relief mask, in the canonical frame.
+                            Item {
+                                id: box
+                                x: sb.side === "left" ? 0 : win.width - win.boxW
+                                y: 0
+                                width: win.boxW
+                                height: win.height
+                                transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
+                                ColumnShape {
+                                    id: shape
+                                    // (drawn as nothing under flyouts: `shown` keeps its geometry for the content and the input)
+                                    opacity: win.flyouts ? 0 : 1
                                     anchors.fill: parent
-                                    mask: shapeMask
-                                    // (not `win.…` here: Relief has a `win` of its own)
-                                    carry: reliefBox.carry
+                                    // (the shape stands in its place at rest and is moved as a whole — `slideX` on its box, its
+                                    // wash and its relief — while the column slides: a path that changed every frame was
+                                    // tessellated again every frame, 13 ms of each frame on a real session; only the
+                                    // overshoot past rest still widens it)
+                                    x0: win.rx0 - col.overPx
+                                    x1: win.rx1
+                                    y0: win.y0
+                                    y1: win.y1
+                                    openT: win.openT
+                                    openB: win.openB
+                                    openO: win.openO
+                                    // A join with the screen's edge is flush, without a fillet; a bar or the band: the
+                                    // layout's radius (0 = connected, a straight join).
+                                    neckT: col.joinStart === "edge" ? 0 : col.aR * sbHost.sheetFillets
+                                    neckB: col.joinEnd === "edge" ? 0 : col.aR * sbHost.sheetFillets
+                                    neckO: col.sideBar ? col.aR * sbHost.sheetFillets : 0
+                                    squareOuter: !col.floating
+                                    // K74: a joined column's free corners are corners of the window cut into the sheet: the
+                                    // layout's one radius, as its fillets (0 = connected, straight)
+                                    radius: col.floating ? col.floatR : col.joinR
+                                    flipX: sb.side === "left"
+                                    // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
+                                    ruled: !col.floating && Theme.frameOutline
+                                    chrome: col.floating
+                                    // Joined, the column takes its neighbour's colour (one sheet); a free column the panel's.
+                                    fill: sbHost.sheetSolid ? Qt.alpha(col.floating ? Theme.panel : Theme.surfaceAlpha, 1)
+                                        : col.floating ? Theme.panel : Theme.surfaceAlpha
+                                }
+                                // The shape's fill as a mask for its relief (I168): drawn only into `shapeMask`'s texture, which
+                                // is redrawn when the path changes (while the column moves) and never at rest.
+                                Shape {
+                                    id: maskShape
+                                    visible: reliefBox.masked
+                                    anchors.fill: parent
+                                    preferredRendererType: Shape.CurveRenderer
+                                    ShapePath {
+                                        strokeWidth: -1
+                                        strokeColor: "transparent"
+                                        fillColor: "white"
+                                        PathSvg { path: reliefBox.masked ? shape.fillPath : "" }
+                                    }
                                 }
                             }
-                        }
+                            // I460 prototype: the wash over the column's fill, clipped to its shape, under the content.
+                            Item {
+                                z: 0
+                                visible: Theme.washOn && shape.shown
+                                x: box.x
+                                y: box.y
+                                width: win.boxW
+                                height: win.height
+                                transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
+                                Loader {
+                                    anchors.fill: parent
+                                    active: parent.visible
+                                    sourceComponent: Wash { anchors.fill: parent; mask: shapeMask; fill: Qt.alpha(shape.fill, 1); strength: shape.fill.a }
+                                }
+                            }
+                            // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the
+                            // content (over it with `texture.text`); carried with the column.
+                            Item {
+                                id: reliefBox
+                                readonly property bool on: Theme.texShell && shape.shown
+                                // The shape's mask is made for the relief or the wash (I460).
+                                readonly property bool masked: (Theme.texShell || Theme.washOn) && shape.shown
+                                readonly property point carry: win.shapeCarry
+                                z: Theme.texText ? 2 : 0
+                                visible: on
+                                x: box.x
+                                y: box.y
+                                width: win.boxW
+                                height: win.height
+                                transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
+                                Loader {
+                                    anchors.fill: parent
+                                    active: reliefBox.on
+                                    sourceComponent: Relief {
+                                        anchors.fill: parent
+                                        mask: shapeMask
+                                        // (not `win.…` here: Relief has a `win` of its own)
+                                        carry: reliefBox.carry
+                                    }
+                                }
+                            }
 
-                        // The content rides with the column. The column's one keyboard focus holder: Esc backs out of a
-                        // page first, then closes (a toggled column) or lets go (a hover one).
-                        FocusScope {
-                            id: content
-                            z: 1
-                            x: shapeRect.x + Theme.pad
-                            y: shapeRect.y + Theme.pad
-                            width: col.colW - 2 * Theme.pad
-                            height: shapeRect.height - 2 * Theme.pad
-                            focus: true
-                            onActiveFocusChanged: col.focusHeld = activeFocus
-                            Keys.onPressed: event => {
-                                var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-                                if (ctrl && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
-                                    // The inner edge moves: left widens a right column, right widens a left one.
-                                    var widen = (event.key === Qt.Key_Left) === (sb.side === "right")
-                                    col.nudge(widen ? 1 : -1)
-                                    event.accepted = true
-                                    return
-                                }
-                                if (event.key !== Qt.Key_Escape) return
-                                if (!(colLoader.item && colLoader.item.back && colLoader.item.back())) {
-                                    if (col.toggledHere) Store.act("sidebar.close")
-                                    else if (reveal.revealed) reveal.revealed = false
-                                }
-                                event.accepted = true
-                            }
-                            // A toggled column takes the keyboard; one that came out on hover or is pinned waits for a
-                            // click (a pointer resting on the edge must not take the app's focus).
-                            Component.onCompleted: if (col.toggledHere) Qt.callLater(function () { content.forceActiveFocus() })
-                            Accessible.role: Accessible.Pane
-                            Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
-
-                            // The pin (K84): in the header's row when the header tops a one-column sidebar, else in a row
-                            // of its own at the top, in the outer corner.
-                            readonly property bool pinInHeader: sb.mode !== "pages" && sb.sections.length > 0
-                                && sb.sections[0] === "header"
-                            SidebarPin {
-                                id: pinBtn
-                                visible: !content.pinInHeader
-                                sidebarSide: sb.side
-                                // B47: this column's output (the pin reads and writes its slot).
-                                outName: col.out
-                                anchors.top: parent.top
-                                x: sb.side === "right" ? parent.width - width : 0
-                            }
-                            Loader {
-                                id: colLoader
-                                anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
+                            // The content rides with the column. The column's one keyboard focus holder: Esc backs out of a
+                            // page first, then closes (a toggled column) or lets go (a hover one).
+                            FocusScope {
+                                id: content
+                                z: 1
+                                x: shapeRect.x + Theme.pad
+                                y: shapeRect.y + Theme.pad
+                                width: col.colW - 2 * Theme.pad
+                                height: shapeRect.height - 2 * Theme.pad
                                 focus: true
-                                sourceComponent: sb.mode === "pages" ? pagesC : stackC
+                                onActiveFocusChanged: col.focusHeld = activeFocus
+                                Keys.onPressed: event => {
+                                    var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+                                    if (ctrl && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+                                        // The inner edge moves: left widens a right column, right widens a left one.
+                                        var widen = (event.key === Qt.Key_Left) === (sb.side === "right")
+                                        col.nudge(widen ? 1 : -1)
+                                        event.accepted = true
+                                        return
+                                    }
+                                    if (event.key !== Qt.Key_Escape) return
+                                    if (!(colLoader.item && colLoader.item.back && colLoader.item.back())) {
+                                        if (col.toggledHere) Store.act("sidebar.close")
+                                        else if (reveal.revealed) reveal.revealed = false
+                                    }
+                                    event.accepted = true
+                                }
+                                // A toggled column takes the keyboard; one that came out on hover or is pinned waits for a
+                                // click (a pointer resting on the edge must not take the app's focus).
+                                Component.onCompleted: if (col.toggledHere) Qt.callLater(function () { content.forceActiveFocus() })
+                                Accessible.role: Accessible.Pane
+                                Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
+
+                                // The pin (K84): in the header's row when the header tops a one-column sidebar, else in a row
+                                // of its own at the top, in the outer corner.
+                                readonly property bool pinInHeader: sb.mode !== "pages" && sb.sections.length > 0
+                                    && sb.sections[0] === "header"
+                                SidebarPin {
+                                    id: pinBtn
+                                    visible: !content.pinInHeader
+                                    sidebarSide: sb.side
+                                    // B47: this column's output (the pin reads and writes its slot).
+                                    outName: col.out
+                                    anchors.top: parent.top
+                                    x: sb.side === "right" ? parent.width - width : 0
+                                }
+                                Loader {
+                                    id: colLoader
+                                    anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
+                                    focus: true
+                                    sourceComponent: sb.mode === "pages" ? pagesC : stackC
+                                }
                             }
-                        }
-                        }
-                        // W59.9a: while a sheet form warps the column, the rest of it (the join's fillets, sized by the
-                        // landing, and anything beside the body) × the landing, and the body's box the form captures —
-                        // hinged on the screen's edge, square where it meets its neighbours, so p = 1 is the rest frame.
-                        SheetRest {
-                            id: sbRest
-                            x: -clipper.x
-                            y: -clipper.y
-                            width: win.width
-                            height: win.height
-                            on: sbHost.sheetSolid
-                            draw: sheetSrc
-                            body: Qt.rect(Math.round(shapeRect.x), Math.round(shapeRect.y), Math.round(shapeRect.width),
-                                Math.round(shapeRect.height))
-                            hingeY: -1e6
-                            k: sbHost.sheetFillets
-                        }
-                        Item {
-                            id: bodySrc
-                            x: sbRest.body.x - clipper.x
-                            y: sbRest.body.y - clipper.y
-                            width: sbRest.body.width
-                            height: sbRest.body.height
-                            clip: true
-                            SheetRest.Body { rest: sbRest }
+                            }
+                            // W59.9a: while a sheet form warps the column, the rest of it (the join's fillets, sized by the
+                            // landing, and anything beside the body) × the landing, and the body's box the form captures —
+                            // hinged on the screen's edge, square where it meets its neighbours, so p = 1 is the rest frame.
+                            SheetRest {
+                                id: sbRest
+                                x: -clipper.x
+                                y: -clipper.y
+                                width: win.width
+                                height: win.height
+                                on: sbHost.sheetSolid
+                                draw: sheetSrc
+                                body: Qt.rect(Math.round(shapeRect.x), Math.round(shapeRect.y), Math.round(shapeRect.width),
+                                    Math.round(shapeRect.height))
+                                hingeY: -1e6
+                                k: sbHost.sheetFillets
+                            }
+                            Item {
+                                id: bodySrc
+                                x: sbRest.body.x - clipper.x
+                                y: sbRest.body.y - clipper.y
+                                width: sbRest.body.width
+                                height: sbRest.body.height
+                                clip: true
+                                SheetRest.Body { rest: sbRest }
+                            }
                         }
                     }
                     }
