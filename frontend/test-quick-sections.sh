@@ -25,6 +25,9 @@
 #     relay logs `act settings.open`); the focus stays on the wallpaper tile while another contribution leaves and returns,
 #     and when the focused tile leaves the focus moves to the tile before it; every tile a service document can force draws
 #     "Set by" and is inert (tiles-forced); the footer without a session service (footer-no-session);
+#   - W70 (d): every step above runs on the phone (`quick.style = phone`); then the card (`quick.style = card`, the
+#     default): the Stage's card round the rows, 400 px wide (card-open); a click on the Wi-Fi tile switches the radio and
+#     back, its arrow opens the Wi-Fi page (card-wifi-page), Escape returns, and the card's documents go when it closes.
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
 # The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
 # actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd, and (W18)
@@ -187,14 +190,14 @@ ppm_shot() {  # ppm_shot <name> <settle s>: the output as a PPM
   wait_settled "$2" 0.4   # (was a fixed sleep of <settle s>: now at most that, until the screen stands still)
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
 }
-card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 cy0 cx1 cy1) and a crop of it
+card_shot() {  # card_shot <name> <settle s> [tolerance px=4]: the open card's bounding box (cx0 cy0 cx1 cy1) and a crop of it
   local res
   ppm_shot "$1" "$2"
   res=$(timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" "$(token color.surface 1b1a1e)") \
     || fail "$1: analysis failed"
   echo "$1: $res"
   jq -e '.surface >= 15000 and .bbox != null
-      and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4' <<<"$res" >/dev/null \
+      and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= ($tol | tonumber)' --arg tol "${3:-4}" <<<"$res" >/dev/null \
     || fail "$1: no card 400 px wide ($res)"
   read -r cx0 cy0 cx1 cy1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   timeout 20 grim -g "$((cx0 - 24)),$((cy0 - 24)) $((cx1 - cx0 + 49))x$((cy1 - cy0 + 49))" "$OUT/$1.png" \
@@ -250,9 +253,12 @@ python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/rel
 pids+=("$!")
 for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K sub svc.clock --count 0 --json >/dev/null 2>&1 && break; sleep 0.1; done
 [ -S "$KURASHI_SOCKET" ] || fail "relay did not come up (see $R/relay.log)"
+# W70 (d): every step up to 17 runs on the phone (`quick.style = phone`; the card is the default since W70, step 17).
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.style":{"value":"phone"}}}}' >/dev/null \
+  || fail "mock.doc refused quick.style"
 QS_BARE=$(screen_hash)
 # Without KURASHI_SOCKET: the frontend must find the relay by the protocol default, as in a live session.
-env -u KURASHI_SOCKET LC_ALL=$LOCALE qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+env -u KURASHI_SOCKET LC_ALL=$LOCALE KURASHI_QUICK_LOG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
 grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
@@ -638,6 +644,41 @@ K act ui.close >/dev/null
 settle 1
 [ "$(last_event mod.wallpaper)" = "unsub mod.wallpaper" ] || fail "the wallpaper tile's document stayed subscribed after the card closed"
 echo "ok: the wallpaper tile subscribes its document while the card shows it, and unsubscribes it when the card is gone (Ma)"
+
+# 17. W70 (d, docs/ux/control-centre-modules.md): the card — `quick.style = card`, the default (every step above ran on the
+#     phone, `quick.style = phone`): the Stage's card round the rows (its surface, 400 px wide), no phone; a tile switches,
+#     its arrow opens its page and Escape comes back; the card's documents are unsubscribed when it closes.
+K act ui.close >/dev/null
+settle 1
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.style":{"value":"card"}}}}' >/dev/null || fail "mock.doc refused quick.style"
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not open the card style"
+# (the card joins its bar with the cards' fillets, which reach a few px past its sides where it meets the bar)
+card_shot card-open 1.5 8
+# The tiles stand where the card logs them (KURASHI_QUICK_LOG: `quick-at tile:<id> x y w h`, output px).
+sleep 0.8
+read -r tx ty tw th < <(grep -o 'quick-at tile:wifi .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+[ -n "${tx:-}" ] || fail "the card logged no Wi-Fi tile"
+w0=$(doc svc.network | jq -r '.wifi_enabled')
+click "$(( tx + tw / 3 ))" "$(( ty + th / 2 ))"
+settle 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" != "$w0" ] || fail "card style: a click on the Wi-Fi tile did not switch the radio"
+click "$(( tx + tw / 3 ))" "$(( ty + th / 2 ))"
+settle 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "$w0" ] || fail "card style: a second click did not switch the radio back"
+click "$(( tx + tw - 8 ))" "$(( ty + th / 2 ))"
+settle 1.5
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "card style: the tile's arrow did not open the Wi-Fi page"
+card_shot card-wifi-page 0.5 8
+press escape
+settle 1.5
+[ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "card style: Escape did not leave the Wi-Fi page"
+[ "$(panel)" = quick ] || fail "card style: Escape on the page closed the card"
+K act ui.close >/dev/null
+settle 1
+[ "$(last_event svc.network)" = "unsub svc.network" ] || fail "card style: svc.network stayed subscribed after the card closed"
+echo "ok: the card style (quick.style = card): the Stage's card, 400 px; a tile switches, its arrow opens its page, Escape returns; Ma"
 
 exec 3>&-
 stop_phase

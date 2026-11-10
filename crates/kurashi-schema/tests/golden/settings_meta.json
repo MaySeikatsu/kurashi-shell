@@ -1049,6 +1049,32 @@
           "rows": [
             {
               "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_style.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_style.phone",
+                  "value": "phone"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.style.help",
+              "key": "quick.style",
+              "label": "config.quick.style.label",
+              "modules": [
+                "quick"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
               "choices": [],
               "choices_from": "quick.tiles",
               "control": "pick_list",

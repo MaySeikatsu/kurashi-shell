@@ -14,16 +14,30 @@ import "decor"
 // on the tiles closes the card (through the Stage). Every document the card shows is watched while it is up (Ma); a page
 // watches what it lists only while it is on screen. The controls (W70, quick/*Control.qml) are made here, so a tile and its
 // page show one request state.
-// W21 (K42, SekaiPop's "the control center is a phone"): the card is a phone (PhoneFrame) — a status row with the time and
-// the glyphs of what the card already watches, a greeting row, keycap tiles and pill levels; the pages slide inside the
-// screen. The phone is the card's own chrome (`ownChrome`): the Stage draws no card background around it.
+// W70 (d, docs/ux/control-centre-modules.md): the centre is a card as every other — the Stage draws its chrome (the bars'
+// join, material and outline) and the centre its rows in the card's padding; its tiles are Blocks (QuickTile).
+// W21 (K42, SekaiPop's "the control center is a phone"), now `quick.style = phone`, off by default: the card is a phone
+// (PhoneFrame) — a status row with the time and the glyphs of what the card already watches, a greeting row, keycap tiles
+// and pill levels; the pages slide inside the screen. The phone, and a look's flyout, are the card's own chrome
+// (`ownChrome`): the Stage draws no card background around them (it reads the same setting, Stage.qml `quickOwnChrome`).
 Item {
     id: quick
-    readonly property bool ownChrome: true
+    readonly property bool phoneStyle: {
+        var v = ((Store.docs["config"] || {}).values || {})["quick.style"]
+        return !!v && v.value === "phone"
+    }
+    readonly property bool ownChrome: phoneStyle || flyout
+    // The plain card: no frame of the centre's own.
+    readonly property bool plainCard: !ownChrome
+    // The rows' inset in the viewport: the phone's screen and the flyout pad their rows. In the card the viewport reaches
+    // `bleed` px into the Stage's padding on each side (it clips the sliding pages), so a tile's remove key, a focus ring
+    // or a shadow past a row's edge is not cut; the rows stay at the card's padding.
+    readonly property real bleed: 10
+    readonly property real rowX: plainCard ? bleed : Theme.pad
     // W53.3 (`[decor] quick.frame`, `quick.tiles`; data, rule 4): the card's chrome — the phone (today's) or a plain flyout
     // (the panel's material, 8 px of the look's radius, its hairline and the surfaces' elevation: 11's, the Macs') — and the
     // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
-    readonly property bool flyout: Theme.decor("quick.frame", "phone") === "flyout"
+    readonly property bool flyout: !phoneStyle && Theme.decor("quick.frame", "phone") === "flyout"
     // W53.4 (`[decor] flyout.hang`): the flyout hangs from its bar — square where it meets it (`fromBottom`: the bar is under
     // it; the Stage says), its far corners rounded, the look's ground pattern across it (a Mac OS X menu extra's drop-down).
     property bool fromBottom: false
@@ -36,9 +50,10 @@ Item {
     readonly property int tileCols: rowTiles ? 1 : (compactTiles ? 3 : 2)
     readonly property real tileW: (quick.innerW - (tileCols - 1) * Theme.gap) / tileCols
     width: parent.width
-    height: flyout ? fly.implicitHeight : phone.implicitHeight
-    // The width the rows take on the phone's screen (the flyout's inside its padding).
-    readonly property real innerW: flyout ? fly.width - 2 * fly.side - 2 * Theme.pad : phone.screen.width - 2 * Theme.pad
+    height: flyout ? fly.implicitHeight : phoneStyle ? phone.implicitHeight : plainArea.height - 2 * bleed
+    // The width the rows take on the phone's screen (the flyout's inside its padding; the card's whole inner width).
+    readonly property real innerW: flyout ? fly.width - 2 * fly.side - 2 * Theme.pad
+        : phoneStyle ? phone.screen.width - 2 * Theme.pad : width
 
     // W70 (docs/ux/control-centre-modules.md): each control's state, labels, request and refusal text is its own type
     // (quick/*Control.qml), the one source a tile here, the control's bar module and its page read. The card makes one of
@@ -413,7 +428,7 @@ Item {
     // ---- the phone ----
     PhoneFrame {
         id: phone
-        visible: !quick.flyout
+        visible: quick.phoneStyle
         theme: Theme
         width: quick.width
         contentHeight: (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad
@@ -471,8 +486,8 @@ Item {
         // The screen's content: the tiles and the page side by side, sliding inside the screen.
         Item {
             id: viewport
-            // (the flyout's area under `quick.frame = flyout`; the phone's screen otherwise)
-            parent: quick.flyout ? flyArea : phone.area
+            // (the flyout's area under `quick.frame = flyout`, the phone's screen under `quick.style = phone`, else the card's)
+            parent: quick.flyout ? flyArea : quick.phoneStyle ? phone.area : plainArea
             width: parent.width
             height: parent.height
             clip: true
@@ -481,14 +496,15 @@ Item {
                 id: tilesPane
                 width: quick.innerW
                 spacing: Theme.gap
-                x: Theme.pad - quick.slide * viewport.width
+                x: quick.rowX - quick.slide * viewport.width
+                y: quick.plainCard ? quick.bleed : 0
                 visible: quick.tilesShown
 
                 // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
                 Item {
                     id: hello
-                    // (a flyout has no greeting row, as 11's has none)
-                    visible: !quick.flyout
+                    // (the phone's own: a flyout has no greeting row, as 11's has none, and the card has its title)
+                    visible: quick.phoneStyle
                     width: quick.innerW
                     height: avatar.height
                     Accessible.role: Accessible.Heading
@@ -804,7 +820,8 @@ Item {
             Loader {
                 id: pageLoader
                 width: quick.innerW
-                x: Theme.pad + (1 - quick.slide) * viewport.width
+                x: quick.rowX + (1 - quick.slide) * viewport.width
+                y: quick.plainCard ? quick.bleed : 0
                 active: quick.shownPage !== ""
                 sourceComponent: quick.shownPage === "wifi" ? wifiC
                     : quick.shownPage === "bluetooth" ? btC
@@ -818,6 +835,16 @@ Item {
                     Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
             }
         }
+    }
+
+    // ---- the card (W70 d): the rows straight in the Stage's card, which draws the chrome ----
+    Item {
+        id: plainArea
+        visible: quick.plainCard
+        x: -quick.bleed
+        y: -quick.bleed
+        width: quick.width + 2 * quick.bleed
+        height: quick.plainCard ? (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + 2 * quick.bleed : 0
     }
 
     // ---- the flyout (W53.3, `quick.frame = flyout`): the panel's material in the look's radius with its hairline, over

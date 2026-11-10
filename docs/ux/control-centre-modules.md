@@ -1,4 +1,4 @@
-# The control centre as modules — brief for I469 (session 27). Status: stages (a), (b) and (c) built (W70); (d) open.
+# The control centre as modules — brief for I469 (session 27). Status: stages (a)–(d) built (W70); (e) mods' tiles open (row 711).
 User, 2026-11-10: each of the control centre's sub-modules becomes a module of its own that can be pinned to a bar, a
 sidebar etc. alone; the control centre restyled to match the bars, cleaner and more modern; the phone look kept as an
 option (perhaps an easter egg); custom module shortcuts can be pinned to it and re-sorted.
@@ -74,6 +74,15 @@ the control ids the centre shows as tiles, in order; default the ten of before, 
   is refused meanwhile). Mods' tiles (`tile:<name>` provides, sorted with the core ones) are part of row 711; W70
   supports core tiles only.
 
+**(d) The look.** `quick.style` (Settings › Layout › Control centre, and the quick button's menu): **card** (default) —
+the Stage draws the centre's chrome as for every other card (joined to its bar, the look's material and outline, its
+padding), the rows stand straight in it: the status line, the tiles (Blocks, QuickTile), the edit key, the levels, what
+plays, the session row; no greeting row (the card has its title where the look draws one). **phone** — W21's phone
+frame, status row and greeting, as before. A look whose decor asks for a flyout (`quick.frame = flyout`, 11 of them)
+keeps its flyout under `card`; `phone` wins over it. The decor value `quick.frame = phone` (10 looks) now means the
+card: CONTRACT-CHANGE row 712. The viewport reaches 10 px into the card's padding, so the edit mode's remove keys, the
+focus rings and the tiles' shadows are not cut at the rows' edge.
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).
@@ -91,4 +100,8 @@ the container: add, remove, re-sort by pointer and keys; the phone option; idle 
 - [x] (c) `quick.tiles`; edit mode: add, remove, re-sort by keys and pointer (the drag is not covered by a suite: the
   virtual pointer has no press-and-hold); Done, refusal, Escape; the centre follows the setting (`test-quick-modules.sh`).
 - [ ] (c) Settings can add tiles only once row 711 is taken; mods' tiles in the order (row 711).
-- [ ] (d) the restyle and `quick.style = phone`.
+- [x] (d) `quick.style = card | phone`, card by default; `test-quick-sections.sh` runs its whole body on the phone and
+  then the card (open, a tile switches, its arrow opens its page, Escape, Ma).
+- [ ] (d) suites that open the quick card and were not run by W70 (their positions may assume the phone): test-bars,
+  test-controls, test-look, test-morph, test-bar-hover, test-polkit, test-pen, test-motion, test-stage, test-mods-live,
+  test-quick, test-tray-bt, test-modqml, test-power, test-texture, test-shadows, test-styles.
