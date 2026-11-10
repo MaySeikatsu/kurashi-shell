@@ -190,8 +190,9 @@ most one while dragging per 50 ms. Custom palettes' preview cards are resolved p
   name).
 - [x] The editor: every role row above with its provenance, Dark | Light, the picker (square, hue, hex, quick swatches,
   keyboard), the sample card, "shown as" with its reason, a live draft that ends with the editor (a crash too).
-- [x] States: empty, broken, name clash (the note under the name: the file it saves as instead), deleted while active,
-  read-only — drawn and screenshotted (`settings/shots/palettes/`).
+- [x] States: empty, broken, name clash (the note under the name: the file it saves as instead), read-only — drawn and
+  screenshotted (`settings/shots/palettes/`); deleted while active — in Settings (test C8: the default is back) and by
+  hand (kurashid test: the default with `theme.note.palette_gone`), no shot of its own.
 - [x] i18n en + ja (`i18n/{en,ja}/palettes.toml`).
 - [x] `settings/test.sh` part `palettes`; cargo tests; seen on nested niri (`settings/shots/palettes/niri-*.png`).
 - [x] A Home-Manager option that writes palette files (`programs.kurashi.palettes`; read-only in Settings).
