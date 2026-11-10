@@ -444,7 +444,8 @@ PanelWindow {
         duration: card.slideMs + (card.open && card.springs ? 60 : 0)
         easing.type: card.open && card.springs ? Easing.OutBack : Easing.OutCubic
         easing.overshoot: Theme.overshoot
-        onStopped: if (!card.open) card.mapped = false
+        // (the page turn and the panel form unmap the card where they land, not here)
+        onStopped: if (!card.open && !card.turns && !(card.isPlain && card.pRun.formed)) card.mapped = false
     }
     // The status row's time: svc.clock (in the host's scope since row 118), watched only while the phone is mapped (Ma).
     Watch { doc: "svc.clock"; active: card.mapped && card.isPhone }
