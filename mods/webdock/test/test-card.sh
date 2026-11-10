@@ -325,9 +325,15 @@ wait_until 5 doc_is "d['card'].get('focus', 0) >= 1" || fail "Tab past the card'
 wait_until 5 grep -qF 'webdock-debug card keyboard in' "$HOSTLOG" || fail "the page did not take the keyboard it was asked for"
 keys k b
 wait_until 5 grep -qF 'INPUT kb' "$HOSTLOG" || fail "typing after Tab did not reach the page ($HOSTLOG)"
+# I482 (the user, session 28): with the keys in the page the first Esc is the page's and the card stays; the second,
+# within a moment, closes the card.
 keys escape
-wait_until 5 panel_closed || fail "Esc in the page did not close the card (keyboard path)"
-ok "Tab past the card's keys hands the keyboard to the page; typed text arrives; Esc closes the card"
+wait_until 5 grep -qF 'ESCAPE seen' "$HOSTLOG" || fail "the first Esc did not reach the page ($HOSTLOG)"
+sleep 0.4
+panel_open || fail "the first Esc in the page closed the card (it is the page's)"
+keys escape
+wait_until 5 panel_closed || fail "the second Esc in the page did not close the card (keyboard path)"
+ok "Tab past the card's keys hands the keyboard to the page; typed text arrives; Esc goes to the page, a second Esc closes the card"
 K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
 wait_until 5 panel_open || fail "the card did not open"
 wait_px "$CX" "$CY" '#2b3a55' 15
@@ -340,8 +346,21 @@ wait_until 5 doc_is "d['card'].get('engaged') == True" || fail "a click in the p
 keys h i
 wait_until 5 grep -qE 'INPUT [a-z]*hi$' "$HOSTLOG" || fail "typing did not reach the page ($HOSTLOG)"
 keys escape
-wait_until 5 panel_closed || fail "Esc in the page did not close the card"
-ok "a click in the page gives it the keyboard (typed text arrives); Esc closes the card"
+sleep 0.4
+panel_open || fail "the first Esc after a click in the page closed the card"
+keys escape
+wait_until 5 panel_closed || fail "the second Esc in the page did not close the card"
+ok "a click in the page gives it the keyboard (typed text arrives); Esc twice closes the card"
+
+# ---- 6b. I482 (the user, session 28): a click on the module opens the card, a second click closes it; the edge dock stays ----
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+ptr "$MX" "$MY"
+wait_until 5 panel_open || fail "a click on the module opened no card ($(doc "d" runtime.ui))"
+doc_is "d.get('mode', 'hidden') == 'hidden'" || fail "a click on the module opened the dock at the edge ($(doc "d.get('mode')"))"
+wait_until 10 grep -qF 'webdock-debug card shown' "$HOSTLOG" || true
+ptr "$MX" "$MY"
+wait_until 5 panel_closed || fail "a second click on the module did not close the card"
+ok "a click on the module opens the card and leaves the edge dock; a second click closes it"
 qml_errors
 
 # ---- 7. a bottom bar ----

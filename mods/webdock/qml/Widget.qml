@@ -35,6 +35,14 @@ Item {
     function toggle() {
         if (available) Store.act("webdock.toggle", outName !== "" ? { output: outName } : {})
     }
+    // I482 (the user, session 28): a click opens the web dock's card with the page, as every module's click opens its
+    // card (a second click closes it); the dock at the screen's edge is a middle click, its key or the command line.
+    readonly property bool cardUp: String((Store.docs["runtime.ui"] || ({})).panel || "") === "mod:webdock:webdock"
+    function card() {
+        if (!available) return
+        if (cardUp) Store.act("ui.close", {})
+        else Store.act("mod.panel.open", { id: "webdock", panel: "webdock" })
+    }
 
     // W66: a square as thick as the bar, as the quick settings button (the same room round the icon as its neighbours)
     implicitWidth: Theme.barH
@@ -44,9 +52,9 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: available ? I18n.tr("webdock.dock.widget") + ", " + stateWords : I18n.tr("webdock.dock.unavailable")
 
-    Keys.onReturnPressed: w.toggle()
-    Keys.onEnterPressed: w.toggle()
-    Keys.onSpacePressed: w.toggle()
+    Keys.onReturnPressed: w.card()
+    Keys.onEnterPressed: w.card()
+    Keys.onSpacePressed: w.card()
 
     // W66: a browser window (the web apps it opens), lit and filled while the dock is open, a dot while it is kept open;
     // the hand-drawn dock edge read as nothing in particular (session 26, the user). The icon font's own size, as every
@@ -77,6 +85,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: w.toggle()
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        onClicked: mouse => { if (mouse.button === Qt.MiddleButton) w.toggle(); else w.card() }
     }
 }

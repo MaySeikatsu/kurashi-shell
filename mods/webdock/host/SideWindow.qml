@@ -117,6 +117,8 @@ PanelWindow {
         engagedSent = engaged
         if (report) report("webdock.card_page", { hover: hover, engaged: engaged })
     }
+    // (I482: the page has had its Esc; the next one within a moment closes the card)
+    property bool escArmed: false
     function closeCard() { if (cardRole && report) report("webdock.card_close", {}) }
     function toEdge() {
         if (!report || !pin) return
@@ -189,13 +191,25 @@ PanelWindow {
             side.reportPage(side.hoverSent, side.wantKeys)
             if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
         }
-        // W72: Esc closes the bar card, wherever the keyboard is in its window (a popover's Esc, as the Stage's own keys).
-        // A shortcut, ahead of the page: QtWebEngine 6.11 hands no unhandled Esc back to its parents (measured on niri),
-        // so a site's own Esc (its dialog) is not reached here — at the edge and in the sidebar the page keeps it.
+        // I482 (the user, session 28: "page first, then close"): in the bar card Esc belongs to the page first. With the
+        // keys in the page, the first Esc is the site's — its dialog, its search field — and the card stays; a second Esc within a moment closes the card. With the keys on the card's own row Esc closes at
+        // once. QtWebEngine 6.11 hands no unhandled Esc back to its parents (measured on niri), so this stays a shortcut
+        // ahead of the page and hands the key on itself: the page gets a key event made here (`isTrusted` false: a site
+        // that only answers the keyboard's own events does not see it).
+        Timer { id: escWindow; interval: 1500; onTriggered: side.escArmed = false }
         Shortcut {
             sequence: "Escape"
             enabled: side.cardRole && side.visible
-            onActivated: side.closeCard()
+            onActivated: {
+                var inPage = side.page && side.page.engine && side.page.engine.activeFocus
+                if (!inPage || side.escArmed) { side.escArmed = false; escWindow.stop(); side.closeCard(); return }
+                side.escArmed = true
+                escWindow.restart()
+                var e = side.page.engine
+                e.runJavaScript("(function(){var t=document.activeElement||document.body;"
+                    + "['keydown','keyup'].forEach(function(k){t.dispatchEvent(new KeyboardEvent(k,"
+                    + "{key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true}))})})()")
+            }
         }
 
         // The area's frame: the well's colour and radius (the panel draws the same well under it), the page masked to it.
