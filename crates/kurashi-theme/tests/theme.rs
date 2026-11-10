@@ -701,6 +701,8 @@ fn every_chrome_has_its_own_token_set() {
         Chrome::Line,
         Chrome::Bevel,
         Chrome::Glow,
+        Chrome::Painted,
+        Chrome::Ripped,
     ] {
         let mut i = input("wa-iro", Scheme::Dark);
         i.axes.chrome = chrome;
@@ -746,7 +748,7 @@ fn every_chrome_has_its_own_token_set() {
             assert!(t[k].as_str().unwrap().starts_with('#'), "{chrome:?} {k}");
         }
     }
-    assert_eq!(seen.len(), 6);
+    assert_eq!(seen.len(), 8);
 }
 
 /// W53.0a (K80 amends K42): high contrast keeps a bevel, in the contrast palette's ink, and turns the decorative

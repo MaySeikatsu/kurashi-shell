@@ -9,6 +9,8 @@ import ".."
 // after a move, Ma), and the daemon's echo moves it.
 Column {
     id: np
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     property var nightReq: null
@@ -159,5 +161,12 @@ Column {
         inert: checked
         title: I18n.tr("power.night.schedule.always")
         onActivated: np.apply("night_light.schedule", "always")
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: np.width
+        mids: np.optionIds
+        skip: ["night_light.enabled", "night_light.schedule"]
     }
 }

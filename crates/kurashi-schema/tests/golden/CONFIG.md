@@ -424,14 +424,124 @@ A card as the shell's other cards: joined to its bar, in the look's material and
 
 - type: `choice` · default: `"card"`
 - choices: `"card"` | `"phone"`
+- advanced
 - since schema v7
 
 #### `quick.tiles` — Control centre tiles
 
-The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume` (sound) and still places it.
 
-- type: `string_list` · default: `["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]`
+- type: `string_list` · default: `["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]`
 - choices: from `quick.tiles` (resolved at runtime)
+- since schema v7
+
+#### `quick.click.wifi` — A click on Wi-Fi
+
+Opens its card (the networks), or switches the radio on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.bluetooth` — A click on Bluetooth
+
+Opens its card (the devices), or switches the adapter on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.focus` — A click on Focus
+
+Opens its card (how long), or switches do not disturb on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.volume` — A click on sound
+
+Opens its card (outputs, inputs, what plays), or mutes and unmutes the output, as the media key does.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.mic` — A click on the microphone
+
+Opens its card (the inputs), or mutes and unmutes the microphone.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.power` — A click on power
+
+Opens its card (the battery and the profiles), or switches the power saver on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.caffeine` — A click on keep awake
+
+Opens its card, or keeps the screen awake and lets it sleep again.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.nightlight` — A click on night light
+
+Opens its card (the warmth and the schedule), or switches the night light on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.darkmode` — A click on dark mode
+
+Opens its card, or switches between light and dark.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.airplane` — A click on airplane mode
+
+Opens its card (with Wi-Fi), or switches every radio off or on.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.recorder` — A click on the recorder
+
+Opens its card (start and stop, which screen, the sound, where the file goes), also while a recording runs; or starts and stops recording at once.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.value.wifi` — Wi-Fi shows the network
+
+The network's name beside the Wi-Fi mark on the bar.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `quick.value.volume` — Sound shows the level
+
+The output's level beside the sound mark on the bar.
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `quick.value.power` — Power shows the charge
+
+The battery's charge beside the power mark on the bar.
+
+- type: `bool` · default: `true`
 - since schema v7
 
 ## Appearance
@@ -487,6 +597,12 @@ The icons of apps in the dock, the bar's window list, the tray, the launcher and
 
 - type: `choice` · default: `"original"`
 - choices: `"original"` | `"ink"` | `"tones"` | `"palette"`
+
+#### `theme.colors.real_palettes` — Terminals keep their own palette
+
+Terminals and the tools that run in them (fzf, Neovim, Helix, Zellij) wear a published theme as its authors made it, the 16 terminal colours included, instead of colours derived from the shell's: the palette the shell wears when it has such colours, else the published one closest to the shell's colours. Off under high contrast and the colour-blind aids, which need the shell's own colours.
+
+- type: `bool` · default: `false`
 
 #### `theme.colors.chrome_fill` — Chrome fill
 
@@ -863,10 +979,10 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 
 #### `theme.chrome` — Chrome
 
-How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80).
+How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80); a glowing outline; grounds painted with a brush; or sheets of torn paper.
 
 - type: `choice` · default: `"flat"`
-- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"`
+- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"` | `"painted"` | `"ripped"`
 - forced to `"flat"` while `a11y.high_contrast` is on
 
 #### `theme.frame_outline` — Frame outline
@@ -876,6 +992,13 @@ A line along the frame's inner edge and the sides of what is joined to it — ba
 - type: `choice` · default: `"auto"`
 - choices: `"auto"` | `"on"` | `"off"` | `"glow"`
 - since schema v7
+
+#### `theme.edge` — Edge
+
+How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is laid in strokes of a brush that run past its box, in the accent thinned into the surface, with the material you picked on the paint. Ripped: surfaces are sheets of paper torn by hand, with the paper's white core along the tear. Automatic follows the chrome: painted under Painted, ripped under Ripped paper, clean under the others.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"clean"` | `"painted"` | `"ripped"`
 
 #### `theme.outline_ink` — Outline ink
 

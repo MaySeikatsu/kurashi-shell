@@ -4,7 +4,7 @@
 # モジュールとしての各コントロールの名前（設定 › レイアウト、モジュールのメニュー、端のグループ）。
 "layout.module.wifi" = "Wi-Fi"
 "layout.module.bluetooth" = "Bluetooth"
-"layout.module.audio" = "サウンド出力"
+"layout.module.audio" = "サウンド（音量と同じモジュール）"
 "layout.module.mic" = "マイク"
 "layout.module.power" = "バッテリーと電源"
 "layout.module.brightness" = "明るさ"
@@ -13,6 +13,10 @@
 "layout.module.nightlight" = "夜間モード"
 "layout.module.darkmode" = "ダークモード"
 "layout.module.airplane" = "機内モード"
+# W71（d）：センターの各行を、それぞれ独立したタイルとモジュールに。
+"layout.module.volume_level" = "音量レベル"
+"layout.module.brightness_level" = "明るさレベル"
+"layout.module.session" = "ロックと電源"
 # コントロールセンターの編集モード（W70 段階 c）。
 "quick.edit.open" = "タイルを編集"
 "quick.edit.hint" = "タイルをドラッグするか、Alt と矢印キーで移動します。− か Delete で外します。追加するコントロール："
@@ -23,3 +27,21 @@
 "quick.edit.disconnected" = "タイルを保存できませんでした：シェルのデーモンが応答しません。"
 "quick.edit.remove" = "{name} をコントロールセンターから外す"
 "quick.edit.tile_hint" = "Alt と矢印キーで移動、Delete で外す"
+# W71（I475 3）：コントロール自身のカード（スリープしない、ダークモード）と、カードを開いたモジュールのオプション。
+"quick.page.settings" = "設定でさらに表示"
+"quick.options.refused" = "設定を変更できませんでした。"
+"quick.caffeine.others" = "ほかにスリープを止めているもの"
+"quick.edit.wide_hint" = "Alt と上下キーで行の中を移動、Delete で外す"
+# W71（f、I475 6）：画面録画のカード。
+"quick.recorder.start" = "録画を開始"
+"quick.recorder.stop" = "録画を停止（{t}）"
+"quick.recorder.idle" = "画面を録画"
+"quick.recorder.idle_hint" = "すぐに録画が始まります。バーの録画ボタンに時間が表示され、そこから停止できます。"
+"quick.recorder.recording_hint" = "録画中です。バーの録画ボタンからも停止できます。"
+"quick.recorder.what" = "録画するもの"
+"quick.recorder.this_screen" = "この画面"
+"quick.recorder.not_yet" = "範囲・ウィンドウ・マイクの録音は、録画サービスがまだ対応していません。"
+"quick.recorder.videos" = "ビデオフォルダー"
+"quick.recorder.folder" = "保存先：{dir}"
+"quick.recorder.last" = "前回の録画：{file}"
+"quick.edit.unknown" = "表示していません：{ids}（このシェルにはそのタイルがありません。リストには残ります）"

@@ -122,6 +122,21 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: !mat ? "" : I18n.tr("theme.export.material." + (mat.how === "off" ? "off_" + mat.why : mat.how))
             }
+            // I454 (K123): the palette a terminal or its tool wears instead of the shell's colours, and why that one.
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                readonly property var pal: t.modelData.palette
+                objectName: "exportPalette:" + t.modelData.name
+                visible: !!pal
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: !pal ? "" : I18n.fmt("theme.export.palette." + (pal.why === "own" ? "own" : "closest"), { name: pal.label })
+            }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType

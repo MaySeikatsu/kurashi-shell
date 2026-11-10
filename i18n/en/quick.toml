@@ -5,7 +5,7 @@
 # (`layout.module.<id>` as every module's; they live here, with the controls, so this card's work stays in one domain.)
 "layout.module.wifi" = "Wi-Fi"
 "layout.module.bluetooth" = "Bluetooth"
-"layout.module.audio" = "Sound output"
+"layout.module.audio" = "Sound (the same module as Volume)"
 "layout.module.mic" = "Microphone"
 "layout.module.power" = "Battery and power"
 "layout.module.brightness" = "Brightness"
@@ -14,6 +14,10 @@
 "layout.module.nightlight" = "Night light"
 "layout.module.darkmode" = "Dark mode"
 "layout.module.airplane" = "Airplane mode"
+# W71 (d): the centre's rows as tiles and modules of their own.
+"layout.module.volume_level" = "Sound level"
+"layout.module.brightness_level" = "Brightness level"
+"layout.module.session" = "Lock and power"
 # The centre's edit mode (W70 stage c).
 "quick.edit.open" = "Edit tiles"
 "quick.edit.hint" = "Drag a tile, or Alt and an arrow, to move it; − or Delete takes it out. Add a control:"
@@ -24,3 +28,21 @@
 "quick.edit.disconnected" = "The tiles could not be saved: the shell's daemon does not answer."
 "quick.edit.remove" = "Take {name} out of the control centre"
 "quick.edit.tile_hint" = "Alt and an arrow move it; Delete takes it out"
+# W71 (I475 3): a control's own card (keep awake, dark mode) and the options of the module that opened a card.
+"quick.page.settings" = "More in Settings"
+"quick.options.refused" = "The setting could not be changed."
+"quick.caffeine.others" = "Also kept awake by"
+"quick.edit.wide_hint" = "Alt with Up or Down moves it among the rows; Delete takes it out"
+# W71 (f, I475 6): the recorder's card.
+"quick.recorder.start" = "Start recording"
+"quick.recorder.stop" = "Stop recording ({t})"
+"quick.recorder.idle" = "Record the screen"
+"quick.recorder.idle_hint" = "The recording starts at once; the bar's recorder shows the time and stops it."
+"quick.recorder.recording_hint" = "Recording. The bar's recorder stops it too."
+"quick.recorder.what" = "What"
+"quick.recorder.this_screen" = "This screen"
+"quick.recorder.not_yet" = "A region, a window and the microphone are not offered by the recorder service yet."
+"quick.recorder.videos" = "your Videos folder"
+"quick.recorder.folder" = "Saved to {dir}"
+"quick.recorder.last" = "Last recording: {file}"
+"quick.edit.unknown" = "Not shown: {ids} (this shell has no such tile; the list keeps it)"

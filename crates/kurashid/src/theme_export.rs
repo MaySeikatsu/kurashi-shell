@@ -365,6 +365,8 @@ pub struct Run<'a> {
     /// `theme.export_fonts` (K104, K105), `theme.export_fonts_pages`.
     pub fonts: bool,
     pub fonts_pages: bool,
+    /// The apps' own palette (I454, K123) while `theme.colors.real_palettes` is on and in effect.
+    pub apps: Option<&'a kurashi_theme::apps_palette::AppsPalette>,
 }
 
 /// Foot's own font size, from its `[main] font=…:size=N` (Foot's one font line holds the size too, so the shell's repeats it).
@@ -412,6 +414,27 @@ pub fn export(run: &Run) -> Value {
         animations: run.animations,
         titlebars: run.titlebars,
         palette: &p,
+        term: None,
+    });
+    // I454: the terminals and their tools wear the apps' own palette: its roles for every colour a template names, its
+    // authors' table for the 16.
+    let apps_values = run.apps.map(|a| {
+        export::values(&Inputs {
+            tokens: &tokens,
+            scheme: &scheme,
+            icon_theme: run.icon_theme,
+            motion_speed: run.motion_speed,
+            config_dir: &config_dir,
+            window_frame: run.window_frame,
+            fonts: run.fonts,
+            foot_size: foot_size(run.home),
+            window_frame_color: run.window_frame_color,
+            inactive_opacity: run.inactive_opacity,
+            animations: run.animations,
+            titlebars: run.titlebars,
+            palette: &a.palette,
+            term: Some(&a.terminal),
+        })
     });
     if !run.targets.iter().any(|t| t == "gsettings") {
         run.desktop.forget();
@@ -419,7 +442,14 @@ pub fn export(run: &Run) -> Value {
     let mut out = Vec::new();
     for name in run.targets {
         match export::target(name) {
-            Some(t) => out.push(one(run, t, &p, &values)),
+            Some(t) => match (run.apps, &apps_values) {
+                (Some(a), Some(v)) if export::wears_apps_palette(t.name) => {
+                    let mut e = one(run, t, &a.palette, v);
+                    e["palette"] = json!({"name": a.name, "label": a.label, "why": a.why.key()});
+                    out.push(e);
+                }
+                _ => out.push(one(run, t, &p, &values)),
+            },
             None => out.push(json!({"name": name, "error": "theme.export.unknown_target"})),
         }
     }
@@ -827,6 +857,44 @@ pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc
     );
 }
 
+/// The apps' own palette (I454, K123) for the theme the apps see, or `None`: the switch is off, or the high contrast
+/// or a colour-blind aid is on (they need the shell's own colours, which the stages made legible). The pick is kept
+/// between runs, so a near-tie does not flip a terminal's theme (`kurashi_theme::apps_palette::pick`).
+fn apps_palette(
+    store: &ConfigStore,
+    theme: &Value,
+) -> Option<kurashi_theme::apps_palette::AppsPalette> {
+    static LAST: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+    let text = |k: &str| {
+        store
+            .get(k, None)
+            .and_then(|p| p.value.as_str().map(str::to_owned))
+            .unwrap_or_default()
+    };
+    let on = store
+        .get("theme.colors.real_palettes", None)
+        .and_then(|p| p.value.as_bool())
+        .unwrap_or(false);
+    if !on
+        || text("theme.colors.contrast") == "high"
+        || !matches!(text("theme.colors.colorblind").as_str(), "" | "none")
+    {
+        return None;
+    }
+    let mut p = palette_of(theme);
+    p.dark = scheme_of(theme, p.dark) == "dark";
+    let base = crate::theme::input_from(store);
+    let active = match &base.source {
+        kurashi_theme::Source::Palette(n) => Some(n.clone()),
+        _ => None,
+    };
+    let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
+    let pick =
+        kurashi_theme::apps_palette::pick(&p, p.dark, active.as_deref(), last.as_deref(), &base);
+    *last = pick.as_ref().map(|a| a.name.clone());
+    pick
+}
+
 /// `svc.theme_export`, kept current after each theme document or config change.
 pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
     hub.register(DOC, json!({"targets": []}), None);
@@ -877,6 +945,13 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     .and_then(|p| p.value.as_str().map(str::to_owned))
                     .unwrap_or_else(|| "accent".to_owned());
                 let tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
+                let apps = apps_palette(&store, &theme);
+                // (the material's tile and shader are made in the shell's colours: not under another palette's text)
+                let terminal = if apps.is_some() {
+                    Err("palette")
+                } else {
+                    crate::texture::terminal_relief(&store, &tokens)
+                };
                 export(&Run {
                     theme: &theme,
                     targets: &targets,
@@ -895,12 +970,13 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     titlebars: flag("theme.window_titlebars"),
                     desktop: &desktop,
                     material: &material,
-                    terminal: &crate::texture::terminal_relief(&store, &tokens),
+                    terminal: &terminal,
                     browser: &crate::texture::browser_relief(&store, &tokens),
                     browser_translucent: flag("theme.browser_translucent"),
                     browser_translucent_pages: flag("theme.browser_translucent_pages"),
                     fonts: flag("theme.export_fonts"),
                     fonts_pages: flag("theme.export_fonts") && flag("theme.export_fonts_pages"),
+                    apps: apps.as_ref(),
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -1012,6 +1088,7 @@ mod tests {
             browser_translucent_pages: false,
             fonts: true,
             fonts_pages: false,
+            apps: None,
         })
     }
 
@@ -1367,6 +1444,7 @@ mod tests {
                 browser_translucent_pages: false,
                 fonts: false,
                 fonts_pages: false,
+                apps: None,
             });
             for name in APPS {
                 let e = entry(&doc, name);

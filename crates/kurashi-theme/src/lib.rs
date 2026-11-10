@@ -8,6 +8,7 @@
 //! callers run it on a blocking thread (`tokio::task::spawn_blocking`).
 
 pub mod appearance;
+pub mod apps_palette;
 pub mod color;
 pub mod export;
 pub mod extract;

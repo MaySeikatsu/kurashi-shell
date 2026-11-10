@@ -437,7 +437,8 @@ pub struct Theme {
     /// Chrome
     /// How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow
     /// they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or
-    /// bevels, light and dark edges that press in (K42, K45, K80).
+    /// bevels, light and dark edges that press in (K42, K45, K80); a glowing outline; grounds painted with a brush; or
+    /// sheets of torn paper.
     // K80 amends K42: under high contrast a bevel stays (its lines carry pressed and sunken), drawn in the contrast ink;
     // every other chrome is forced flat (`except`: the daemon reads the value beneath the accessibility layer).
     #[kurashi(default = Chrome::Flat, section = "shape",
@@ -450,6 +451,13 @@ pub struct Theme {
     // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
     #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
     pub frame_outline: FrameOutline,
+    /// Edge
+    /// How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is laid in strokes of a brush that
+    /// run past its box, in the accent thinned into the surface, with the material you picked on the paint. Ripped:
+    /// surfaces are sheets of paper torn by hand, with the paper's white core along the tear. Automatic follows the
+    /// chrome: painted under Painted, ripped under Ripped paper, clean under the others.
+    #[kurashi(default = Edge::Auto, section = "shape")]
+    pub edge: Edge,
     /// Outline ink
     /// The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the
     /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
@@ -587,6 +595,24 @@ pub enum Chrome {
     Bevel,
     /// Glow
     Glow,
+    /// Painted (brush strokes)
+    Painted,
+    /// Ripped paper
+    Ripped,
+}
+
+/// I471, I477: how a surface's edge is made, apart from the chrome that picks it by default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "edge")]
+pub enum Edge {
+    /// Automatic
+    Auto,
+    /// Clean
+    Clean,
+    /// Painted
+    Painted,
+    /// Ripped
+    Ripped,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -780,6 +806,13 @@ pub struct Colors {
     /// in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
     #[kurashi(default = AppIconTint::Original)]
     pub app_icons: AppIconTint,
+    /// Terminals keep their own palette
+    /// Terminals and the tools that run in them (fzf, Neovim, Helix, Zellij) wear a published theme as its authors
+    /// made it, the 16 terminal colours included, instead of colours derived from the shell's: the palette the shell
+    /// wears when it has such colours, else the published one closest to the shell's colours. Off under high contrast
+    /// and the colour-blind aids, which need the shell's own colours.
+    #[kurashi(default = false)]
+    pub real_palettes: bool,
     /// Chrome fill
     /// What the bar, frame, panels and cards — and the apps that follow the theme — are filled with. Neutral: the
     /// palette's grey, black or white. Strong colour: the palette's strong colour. Text and controls are chosen again so
@@ -2343,18 +2376,22 @@ pub struct Sidebar {
 
 // --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
 
-/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
-pub const QUICK_TILES: [&str; 10] = [
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47); then (W71 d) the rows it
+/// always showed under them as wide tiles: the sound level, the brightness, the session row.
+pub const QUICK_TILES: [&str; 13] = [
     "wifi",
     "bluetooth",
     "focus",
-    "audio",
+    "volume",
     "power",
     "brightness",
     "caffeine",
     "nightlight",
     "recorder",
     "darkmode",
+    "volume_level",
+    "brightness_level",
+    "session",
 ];
 
 /// How the control centre looks (W70 stage d).
@@ -2373,13 +2410,99 @@ pub struct Quick {
     /// Control centre look
     /// A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own
     /// flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
-    #[kurashi(default = QuickStyle::Card, module = "quick", since = 7)]
+    #[kurashi(default = QuickStyle::Card, module = "quick", advanced, since = 7)]
     pub style: QuickStyle,
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
-    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels
+    /// and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume`
+    /// (sound) and still places it.
     #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
     pub tiles: Vec<String>,
+    #[kurashi(nested)]
+    pub click: QuickClicks,
+    #[kurashi(nested)]
+    pub value: QuickValues,
+}
+
+/// Whether a control's module shows its value beside its mark on the bar (I475, the user: "sure why not"): one switch
+/// per module that has one, each tagged for that module's menu.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct QuickValues {
+    /// Wi-Fi shows the network
+    /// The network's name beside the Wi-Fi mark on the bar.
+    #[kurashi(default = true, module = "wifi", since = 7)]
+    pub wifi: bool,
+    /// Sound shows the level
+    /// The output's level beside the sound mark on the bar.
+    #[kurashi(default = true, module = "volume", module = "audio", since = 7)]
+    pub volume: bool,
+    /// Power shows the charge
+    /// The battery's charge beside the power mark on the bar.
+    #[kurashi(default = true, module = "power", since = 7)]
+    pub power: bool,
+}
+
+/// What a click on a control's module does (W71, I475 3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "quick_click")]
+pub enum QuickClick {
+    /// Opens its card
+    Card,
+    /// Switches it
+    Switch,
+}
+
+/// A click on a control's module (W71, I475 3, docs/ux/control-centre-modules.md): its card, where its switch, its
+/// options and why it cannot be used stand — or, set here or in the module's menu, the switch itself. One key per module
+/// with a switch, each tagged for that module's menu; brightness has no switch and keeps its card.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct QuickClicks {
+    /// A click on Wi-Fi
+    /// Opens its card (the networks), or switches the radio on or off.
+    #[kurashi(default = QuickClick::Card, module = "wifi", since = 7)]
+    pub wifi: QuickClick,
+    /// A click on Bluetooth
+    /// Opens its card (the devices), or switches the adapter on or off.
+    #[kurashi(default = QuickClick::Card, module = "bluetooth", since = 7)]
+    pub bluetooth: QuickClick,
+    /// A click on Focus
+    /// Opens its card (how long), or switches do not disturb on or off.
+    #[kurashi(default = QuickClick::Card, module = "focus", since = 7)]
+    pub focus: QuickClick,
+    /// A click on sound
+    /// Opens its card (outputs, inputs, what plays), or mutes and unmutes the output, as the media key does.
+    #[kurashi(default = QuickClick::Card, module = "volume", module = "audio", module = "volume_level", since = 7)]
+    pub volume: QuickClick,
+    /// A click on the microphone
+    /// Opens its card (the inputs), or mutes and unmutes the microphone.
+    #[kurashi(default = QuickClick::Card, module = "mic", since = 7)]
+    pub mic: QuickClick,
+    /// A click on power
+    /// Opens its card (the battery and the profiles), or switches the power saver on or off.
+    #[kurashi(default = QuickClick::Card, module = "power", since = 7)]
+    pub power: QuickClick,
+    /// A click on keep awake
+    /// Opens its card, or keeps the screen awake and lets it sleep again.
+    #[kurashi(default = QuickClick::Card, module = "caffeine", since = 7)]
+    pub caffeine: QuickClick,
+    /// A click on night light
+    /// Opens its card (the warmth and the schedule), or switches the night light on or off.
+    #[kurashi(default = QuickClick::Card, module = "nightlight", since = 7)]
+    pub nightlight: QuickClick,
+    /// A click on dark mode
+    /// Opens its card, or switches between light and dark.
+    #[kurashi(default = QuickClick::Card, module = "darkmode", since = 7)]
+    pub darkmode: QuickClick,
+    /// A click on airplane mode
+    /// Opens its card (with Wi-Fi), or switches every radio off or on.
+    #[kurashi(default = QuickClick::Card, module = "airplane", since = 7)]
+    pub airplane: QuickClick,
+    /// A click on the recorder
+    /// Opens its card (start and stop, which screen, the sound, where the file goes), also while a recording runs; or
+    /// starts and stops recording at once.
+    #[kurashi(default = QuickClick::Card, module = "recorder", since = 7)]
+    pub recorder: QuickClick,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

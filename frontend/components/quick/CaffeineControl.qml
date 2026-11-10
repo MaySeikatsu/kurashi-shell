@@ -2,11 +2,13 @@ import QtQuick
 import "../../core"
 
 // Keep awake (svc.idle `caffeine`, K47, docs/ux/power.md): the screen stays on while it is on. It says who else keeps the
-// screen awake, and when idle actions are off altogether. No page: its settings are on the Power page of Settings.
+// screen awake, and when idle actions are off altogether. W71: its page (CaffeinePage) has the switch, who else keeps the
+// screen awake and its options; the rest is on the Power page of Settings.
 // W70: the logic QuickPanel held.
 Control {
     id: c
     mid: "caffeine"
+    page: "caffeine"
     settingsPage: "power"
     Watch { doc: "svc.idle"; active: c.live }
     readonly property var d: Store.docs["svc.idle"] || ({})

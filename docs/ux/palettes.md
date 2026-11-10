@@ -197,3 +197,56 @@ most one while dragging per 50 ms. Custom palettes' preview cards are resolved p
 - [x] `settings/test.sh` part `palettes`; cargo tests; seen on nested niri (`settings/shots/palettes/niri-*.png`).
 - [x] A Home-Manager option that writes palette files (`programs.kurashi.palettes`; read-only in Settings).
 - [ ] Stretch: base16/base24 import.
+
+## Terminals keep their own palette (I454, K123)
+Status: built (functional; seen in a real Foot on nested niri, dark; the user has not seen it), session 27.
+
+### Job
+A terminal in a "Gruvbox" shell should be Gruvbox as its authors drew it, not sixteen colours derived from the shell's
+roles (green = tertiary). One switch; the terminals and what runs inside them change together.
+
+### How others do it
+- **pywal / matugen / wallust:** derive the 16 colours from the wallpaper; nothing published is ever used. What we did
+  before, and still do with the switch off.
+- **Catppuccin, Rosé Pine, Tokyo Night, Gruvbox "ports":** one repository per app, the same named colours everywhere;
+  the user installs each by hand. Taken: the authors' tables verbatim. Not taken: per-app installs.
+- **Omarchy, HyDE, ML4W theme switchers:** a theme is a folder of ready-made files per app, switched together.
+  Taken: one pick for every app that follows. Not taken: files maintained by hand per theme and app.
+- **KDE, GNOME:** the terminal's scheme is the terminal's own setting, unrelated to the desktop's colours.
+- **base16 / tinted-theming:** one 16-colour table, templates per app. Taken: templates that name terminal colours
+  (`{{term.color0}}` … `{{term.color15}}`) instead of roles.
+
+### What it does
+`theme.colors.real_palettes` (Appearance, Colours; off by default). On: Foot, Ghostty, Kitty, Alacritty, WezTerm, Rio,
+Ratty, Zellij, fzf, Neovim and Helix wear one palette — the palette the shell wears when it publishes terminal colours
+for the scheme in effect ("own"), else the published palette closest to the shell's colours ("closest": Oklab distance
+on ground, text, accent and the two side colours, the ground weighing most). The 16 colours, ground, text, cursor and
+selection are the authors'; the other colours a template names (an editor's highlights) are that palette's roles.
+GTK, Qt, KDE, the browsers, Zed, Vesktop, Obsidian and Spotify keep the shell's colours (later: I480).
+
+### States
+- **Off:** every export is what it was (the templates' `term.*` are filled from the roles they always took).
+- **Own:** e.g. the shell wears Gruvbox: Gruvbox.
+- **Closest:** the wallpaper's colours, a Kurashi palette, or a named palette with no table for this scheme (Monokai
+  in light): the nearest published one, of the same scheme only. The pick stays while it is within a fifth of the
+  best, so a track's cover or another crop of the wallpaper does not flip a terminal's theme.
+- **High contrast, colour-blind aids:** no effect; those need the shell's own colours, which the stages made legible.
+- **Material in terminals:** off while the switch is on ("this terminal wears its own palette, and the material is made
+  in the shell's colours"), said under the terminal in Settings.
+- **A user's own template** (`~/.config/kurashi/templates/`) that still names roles: its roles are the picked palette's.
+- **A custom palette with its own 16 colours:** counts as own.
+
+### Honesty, keyboard, a11y, motion, budget
+Settings names under each target the palette it wears and why (own or closest); the row is a plain switch (Space,
+Enter), its help says when it has no effect. No motion. The pick runs once per export run (a few dozen palettes, no
+I/O), nothing at idle.
+
+### Definition of done
+- [x] Switch in the schema, Settings, i18n en/ja; off = byte-identical exports (existing goldens).
+- [x] Tests: own pick and verbatim table for every tabled palette, closest finds the family, never another scheme,
+  deterministic, sticky on a small change.
+- [x] Seen in a real Foot on nested niri (own, dark); the export document names the pick for foot, kitty, fzf, nvim.
+- [ ] Seen by the user; light scheme and the closest case in a terminal; Neovim and Helix inside it.
+- [ ] A `settings/test.sh` step for the line under a target.
+- [ ] The other apps (I480); the switch shown inert with its reason under high contrast (today: its help says so).
+

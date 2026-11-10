@@ -242,9 +242,10 @@
 #
 # Chrome — How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and
 # a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow;
-# ink lines; or bevels, light and dark edges that press in (K42, K45, K80).
-#   choices: "flat" | "keycap" | "soft" | "line" | "bevel" | "glow" · forced to "flat" while
-#   a11y.high_contrast is on
+# ink lines; or bevels, light and dark edges that press in (K42, K45, K80); a glowing
+# outline; grounds painted with a brush; or sheets of torn paper.
+#   choices: "flat" | "keycap" | "soft" | "line" | "bevel" | "glow" | "painted" | "ripped" ·
+#   forced to "flat" while a11y.high_contrast is on
 # chrome = "flat"
 #
 # Frame outline — A line along the frame's inner edge and the sides of what is joined to
@@ -253,6 +254,14 @@
 # chrome; On under the Glow chrome keeps the line without its light.
 #   choices: "auto" | "on" | "off" | "glow" · since schema v7
 # frame_outline = "auto"
+#
+# Edge — How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is
+# laid in strokes of a brush that run past its box, in the accent thinned into the surface,
+# with the material you picked on the paint. Ripped: surfaces are sheets of paper torn by
+# hand, with the paper's white core along the tear. Automatic follows the chrome: painted
+# under Painted, ripped under Ripped paper, clean under the others.
+#   choices: "auto" | "clean" | "painted" | "ripped"
+# edge = "auto"
 #
 # Outline ink — The colour of every outline the shell draws — blocks, the frame, the
 # shapes joined to it: the chrome's own, the text's ink (as a hand-drawn look outlines its
@@ -392,6 +401,13 @@
 # or in its colours (each part takes the palette colour nearest its own hue).
 #   choices: "original" | "ink" | "tones" | "palette"
 # app_icons = "original"
+#
+# Terminals keep their own palette — Terminals and the tools that run in them (fzf,
+# Neovim, Helix, Zellij) wear a published theme as its authors made it, the 16 terminal
+# colours included, instead of colours derived from the shell's: the palette the shell wears
+# when it has such colours, else the published one closest to the shell's colours. Off under
+# high contrast and the colour-blind aids, which need the shell's own colours.
+# real_palettes = false
 #
 # Chrome fill — What the bar, frame, panels and cards — and the apps that follow the
 # theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the
@@ -1726,11 +1742,80 @@
 # Control centre look — A card as the shell's other cards: joined to its bar, in the
 # look's material and outline (a look may draw its own flyout instead). Or a phone: a status
 # row with the time, a greeting and keycap tiles inside a phone's frame.
-#   choices: "card" | "phone" · since schema v7
+#   choices: "card" | "phone" · advanced · since schema v7
 # style = "card"
 #
 # Control centre tiles — The controls the control centre shows as tiles, in order. Each is
 # also a module of its own that a bar, a side bar or an edge group can show. The centre's
-# edit key changes this list too. Mods' tiles follow these.
+# edit key changes this list too. Mods' tiles follow these. The levels and the session row
+# are wide tiles, drawn after the others in their own order. `audio` is the old name of
+# `volume` (sound) and still places it.
 #   choices: from `quick.tiles` (resolved at runtime) · since schema v7
-# tiles = ["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]
+# tiles = ["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]
+
+# [quick.click]
+#
+# A click on Wi-Fi — Opens its card (the networks), or switches the radio on or off.
+#   choices: "card" | "switch" · since schema v7
+# wifi = "card"
+#
+# A click on Bluetooth — Opens its card (the devices), or switches the adapter on or off.
+#   choices: "card" | "switch" · since schema v7
+# bluetooth = "card"
+#
+# A click on Focus — Opens its card (how long), or switches do not disturb on or off.
+#   choices: "card" | "switch" · since schema v7
+# focus = "card"
+#
+# A click on sound — Opens its card (outputs, inputs, what plays), or mutes and unmutes
+# the output, as the media key does.
+#   choices: "card" | "switch" · since schema v7
+# volume = "card"
+#
+# A click on the microphone — Opens its card (the inputs), or mutes and unmutes the
+# microphone.
+#   choices: "card" | "switch" · since schema v7
+# mic = "card"
+#
+# A click on power — Opens its card (the battery and the profiles), or switches the power
+# saver on or off.
+#   choices: "card" | "switch" · since schema v7
+# power = "card"
+#
+# A click on keep awake — Opens its card, or keeps the screen awake and lets it sleep
+# again.
+#   choices: "card" | "switch" · since schema v7
+# caffeine = "card"
+#
+# A click on night light — Opens its card (the warmth and the schedule), or switches the
+# night light on or off.
+#   choices: "card" | "switch" · since schema v7
+# nightlight = "card"
+#
+# A click on dark mode — Opens its card, or switches between light and dark.
+#   choices: "card" | "switch" · since schema v7
+# darkmode = "card"
+#
+# A click on airplane mode — Opens its card (with Wi-Fi), or switches every radio off or
+# on.
+#   choices: "card" | "switch" · since schema v7
+# airplane = "card"
+#
+# A click on the recorder — Opens its card (start and stop, which screen, the sound, where
+# the file goes), also while a recording runs; or starts and stops recording at once.
+#   choices: "card" | "switch" · since schema v7
+# recorder = "card"
+
+# [quick.value]
+#
+# Wi-Fi shows the network — The network's name beside the Wi-Fi mark on the bar.
+#   since schema v7
+# wifi = true
+#
+# Sound shows the level — The output's level beside the sound mark on the bar.
+#   since schema v7
+# volume = true
+#
+# Power shows the charge — The battery's charge beside the power mark on the bar.
+#   since schema v7
+# power = true

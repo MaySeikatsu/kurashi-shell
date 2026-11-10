@@ -8,6 +8,8 @@ import ".."
 // profile is one request (`profReq`, from QuickPanel); the mark follows the daemon's document only.
 Column {
     id: pw
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     property var profReq: null
@@ -164,5 +166,12 @@ Column {
         font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: I18n.tr(String(pw.d.profile_reason || ""))
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: pw.width
+        mids: pw.optionIds
+        skip: []
     }
 }
