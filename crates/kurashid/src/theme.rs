@@ -241,6 +241,27 @@ pub fn wallpaper_shown(hub: &Hub) -> Option<std::path::PathBuf> {
         .map(Into::into)
 }
 
+/// The wallpaper extraction mode in effect (K107).
+pub(crate) fn extraction_mode(store: &ConfigStore) -> kurashi_theme::extract::Mode {
+    use kurashi_theme::extract::Mode;
+    match s(store, "theme.colors.extraction").as_str() {
+        "vibrant" => Mode::Vibrant,
+        "prominent" => Mode::Prominent,
+        "mixed" => Mode::Mixed,
+        _ => Mode::TonalMatched,
+    }
+}
+
+/// I453: `theme.colors.palette` names no palette there is — neither bundled, nor the user's (deleted, or a file that does
+/// not load), nor the wallpaper's.
+fn palette_gone(store: &ConfigStore) -> bool {
+    let p = s(store, "theme.colors.palette");
+    !p.is_empty()
+        && p != WALLPAPER_PALETTE
+        && !kurashi_theme::palette::is_bundled(&p)
+        && !kurashi_theme::palette::is_user(&p)
+}
+
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
 pub fn input_from(store: &ConfigStore) -> ThemeInput {
     input_with(store, None)
@@ -334,16 +355,11 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     let palette = s(store, "theme.colors.palette");
     let source = match (palette.as_str(), picture) {
         (WALLPAPER_PALETTE, Some(path)) => {
-            use kurashi_theme::extract::Mode;
-            let mode = match s(store, "theme.colors.extraction").as_str() {
-                "vibrant" => Mode::Vibrant,
-                "prominent" => Mode::Prominent,
-                "mixed" => Mode::Mixed,
-                _ => Mode::TonalMatched,
-            };
-            Source::WallpaperFile(path.to_path_buf(), mode)
+            Source::WallpaperFile(path.to_path_buf(), extraction_mode(store))
         }
         (WALLPAPER_PALETTE, None) => ThemeInput::default().source,
+        // I453: a user palette deleted (or a name nothing answers to): the default, and the document says so.
+        _ if palette_gone(store) => ThemeInput::default().source,
         _ => Source::Palette(palette),
     };
     ThemeInput {
@@ -665,13 +681,33 @@ pub fn document_with(
     previous: Option<&Value>,
     picture: Option<&std::path::Path>,
 ) -> Value {
-    let input = input_with(store, picture);
-    let waiting = s(store, "theme.colors.palette") == WALLPAPER_PALETTE && picture.is_none();
+    let saved = input_with(store, picture);
+    // I453: the palette editor's draft, worn by the shell while the editor is open; the config and the files stay as
+    // they are, and the apps keep the saved colours (below).
+    let draft = crate::palettes_user::draft();
+    let input = match &draft {
+        Some(text) => ThemeInput {
+            source: Source::PaletteToml(text.clone()),
+            ..saved.clone()
+        },
+        None => saved.clone(),
+    };
+    let waiting = draft.is_none()
+        && s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+        && picture.is_none();
+    let gone = draft.is_none() && palette_gone(store);
     match kurashi_theme::resolve(&input, fonts) {
         Ok(out) => {
             let mut tokens = serde_json::Map::from_iter(out.tokens);
             // K93: the font mix in effect, as a file the frontend loads.
             crate::font_mix::apply(store, &mut tokens);
+            // The saved colours, for the apps while a draft is worn (a draft is never written to an app's file).
+            let saved_tokens = draft.as_ref().and_then(|_| {
+                let mut t =
+                    serde_json::Map::from_iter(kurashi_theme::resolve(&saved, fonts).ok()?.tokens);
+                crate::font_mix::apply(store, &mut t);
+                Some(t)
+            });
             // K87: over the resolved colours, and before the material and the shadows, whose inks and strengths are worked out
             // from these colours; the config and the palette stay as the user left them.
             let cover = if media_follows(store) {
@@ -681,9 +717,11 @@ pub fn document_with(
             };
             let mut scheme_effective = scheme_name(input.scheme);
             let mut scheme_detail = effective_scheme(store, picture).1;
-            *APP_COLOURS.lock().unwrap_or_else(|e| e.into_inner()) = (cover.is_some()
-                && !b(store, "theme.colors.media.apps"))
-            .then(|| (tokens.clone(), scheme_effective.to_string()));
+            *APP_COLOURS.lock().unwrap_or_else(|e| e.into_inner()) = match saved_tokens {
+                Some(t) => Some((t, scheme_effective.to_string())),
+                None => (cover.is_some() && !b(store, "theme.colors.media.apps"))
+                    .then(|| (tokens.clone(), scheme_effective.to_string())),
+            };
             if let Some(c) = &cover {
                 use kurashi_theme::media_tint::{Tone, apply};
                 let tone = if s(store, "theme.colors.media.tone") == "keep" {
@@ -760,6 +798,13 @@ pub fn document_with(
             if waiting {
                 notes.push(json!({"stage": "source", "text": "theme.note.wallpaper_waiting"}));
             }
+            // I453 (Shōjiki): the colours are the editor's draft, not the palette the row names; or that palette is gone.
+            if draft.is_some() {
+                notes.push(json!({"stage": "source", "text": "theme.note.palette_draft"}));
+            }
+            if gone {
+                notes.push(json!({"stage": "source", "text": "theme.note.palette_gone"}));
+            }
             // Shōjiki: the palette's row shows the user's palette, and this says why the colours are not it.
             if cover.is_some() {
                 notes.push(json!({"stage": "source", "text": "theme.note.media_colors"}));
@@ -807,20 +852,35 @@ pub fn previews(
     // The wallpaper's palette has no file to preview a look in; its looks show in the bundled default.
     let palette = match s(store, "theme.colors.palette") {
         p if kurashi_theme::bundled_names().contains(&p.as_str()) => p,
+        p if kurashi_theme::palette::is_user(&p) => p,
         _ => "wa-iro".to_owned(),
     };
     let scheme = scheme_name(effective_scheme(store, picture).0);
+    let look = s(store, "theme.look");
+    let mut palettes = palette_previews(&look, scheme, fonts);
+    // I453: the user's palettes after the bundled ones, resolved each time (a handful, and a file may have changed).
+    if let Some(list) = palettes.as_array_mut() {
+        list.extend(
+            kurashi_theme::palette::user_names()
+                .iter()
+                .filter_map(|n| kurashi_theme::palette_preview(n, &look, scheme, fonts)),
+        );
+    }
     json!({
         "styles": style_previews(fonts),
         "looks": look_previews(&palette, scheme, fonts),
-        "palettes": palette_previews(&s(store, "theme.look"), scheme, fonts),
+        "palettes": palettes,
     })
 }
 
 pub const PREVIEWS_DOC: &str = "theme.previews";
 
-/// Starts and stops the material swatches with the previews' first and last subscriber.
-struct SwatchWatch;
+/// Starts and stops the material swatches with the previews' first and last subscriber. I453: the palette editor's draft
+/// ends with the last one too — only Settings watches the previews, and its socket closing (a crash included) drops the
+/// subscription — so a draft never outlives its editor (`again` republishes the theme without it).
+struct SwatchWatch {
+    again: Arc<dyn Fn() + Send + Sync>,
+}
 
 impl crate::hub::Provider for SwatchWatch {
     fn start(&self, _hub: Arc<Hub>) {
@@ -829,6 +889,14 @@ impl crate::hub::Provider for SwatchWatch {
 
     fn stop(&self) {
         crate::texture::want_swatches(false);
+        if crate::palettes_user::drop_draft() {
+            // Not under the hub's lifecycle lock: the republish sets this document.
+            let again = self.again.clone();
+            match tokio::runtime::Handle::try_current() {
+                Ok(rt) => drop(rt.spawn(async move { again() })),
+                Err(_) => again(),
+            }
+        }
     }
 }
 
@@ -850,7 +918,15 @@ pub fn register(
     }
     hub.register(DOC, first, None);
     // K59: the material swatches are made only while someone (Settings) watches the previews.
-    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(SwatchWatch)));
+    let again: Arc<dyn Fn() + Send + Sync> = {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        Arc::new(move || {
+            if let Some(store) = store.upgrade() {
+                republish(&hub, &store, fonts.as_ref());
+            }
+        })
+    };
+    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(SwatchWatch { again })));
     // K55: scheme `auto` follows the portal's preference, watched only while that mode is chosen.
     let watcher = Arc::new(crate::os_scheme::Watcher::default());
     let follow = {
@@ -1029,7 +1105,7 @@ fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
     }
 }
 
-fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
+pub(crate) fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
     let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
     let pic = wallpaper_picture(hub);
     crate::texture::set_wallpaper(wallpaper_shown(hub));

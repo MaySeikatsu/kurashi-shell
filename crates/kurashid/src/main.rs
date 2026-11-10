@@ -140,6 +140,8 @@ async fn run() -> anyhow::Result<()> {
     let mut fc_ok: Option<bool> = None;
     let config = match kurashi_config::Paths::from_xdg() {
         Some(paths) => {
+            // I453: the user's palettes before the first offers and theme, so a config naming one starts in it.
+            kurashid::palettes_user::reload(&paths.config_dir.join(kurashid::palettes_user::DIR));
             let store = kurashid::config::ConfigStore::open(
                 hub.clone(),
                 kurashi_schema::v1::registry(),
@@ -164,7 +166,8 @@ async fn run() -> anyhow::Result<()> {
                         Arc::new(kurashi_theme::FakeFonts::new(&[]))
                     }
                 };
-            kurashid::theme::register(&hub, &store, fonts);
+            kurashid::theme::register(&hub, &store, fonts.clone());
+            kurashid::palettes_user::register_actions(&mut actions, &hub, &store, fonts);
             kurashid::keys::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
             // W53.0b (K80, I317): the style's pointer (a niri include, as the keys) and the pointer decoration.
             kurashid::cursor::register(&hub, &store, compositor.as_ref().map(|t| t.kind));

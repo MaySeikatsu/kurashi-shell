@@ -853,6 +853,16 @@ fn offers_now(
             }
         })
         .collect();
+    // I453: the user's own palettes (`palettes/*.toml`), by their names in words; a file that does not load is listed,
+    // not selectable, with its reason (a value naming it is not in effect).
+    palettes.extend(crate::palettes_user::entries().into_iter().map(|e| {
+        let o = Offer::on(&e.name, e.label.clone().unwrap_or_else(|| e.name.clone()))
+            .in_group("custom");
+        match &e.problem {
+            Some(p) => o.unavailable(p.key),
+            None => o,
+        }
+    }));
     // K34: the wallpaper's own colours, offered while the wallpaper mod serves its document.
     if hub.snapshot(crate::theme::WALLPAPER_DOC).is_ok() {
         palettes.push(Offer::on(
@@ -2962,6 +2972,8 @@ enum Touched {
     Profiles,
     /// K83 (I358): a motion pack in `motion/` changed — the offers and the theme follow without a config change.
     Motion,
+    /// I453: a palette file in `palettes/` changed — read again, then as for a motion pack.
+    Palettes,
 }
 
 /// `profiles/<name>.toml`, or the profiles directory itself (created or removed: the list changes).
@@ -2981,6 +2993,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
     let names = [paths.user_file(), paths.managed_file()];
     let profiles = paths.user_profiles_dir();
     let motion = paths.config_dir.join("motion");
+    let palettes = paths.config_dir.join(crate::palettes_user::DIR);
+    let palettes_dir = palettes.clone();
     let dir = paths.config_dir.clone();
     std::fs::create_dir_all(&dir).ok();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Touched>();
@@ -2997,6 +3011,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
             let _ = tx.send(Touched::Profiles);
         } else if ev.paths.iter().any(|p| is_profile_event(p, &motion)) {
             let _ = tx.send(Touched::Motion);
+        } else if ev.paths.iter().any(|p| is_profile_event(p, &palettes)) {
+            let _ = tx.send(Touched::Palettes);
         }
     })?;
     watcher.watch(&dir, RecursiveMode::Recursive)?;
@@ -3016,6 +3032,10 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
                 Touched::Profiles => store.publish_document(),
                 // The packs are read again by the offers and the theme on a publish (both load them fresh).
                 Touched::Motion => store.packs_changed(),
+                Touched::Palettes => {
+                    crate::palettes_user::reload(&palettes_dir);
+                    store.packs_changed();
+                }
             }
         }
     });
