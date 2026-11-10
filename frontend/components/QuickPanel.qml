@@ -33,7 +33,12 @@ Item {
     // `bleed` px into the Stage's padding on each side (it clips the sliding pages), so a tile's remove key, a focus ring
     // or a shadow past a row's edge is not cut; the rows stay at the card's padding.
     readonly property real bleed: 10
-    readonly property real rowX: plainCard ? bleed : Theme.pad
+    // W71 (the user's review, a compact flyout): the phone's screen and the flyout clip their viewport too, and their first
+    // row stood at its top edge, so a focus ring drawn round a first-row tile or the back key lost its top. Their viewport
+    // now reaches `edge` px out of the rows on every side as well (into their own padding, never past the panel's body).
+    readonly property real edge: plainCard ? 0 : Math.min(bleed, Theme.pad)
+    readonly property real rowX: plainCard ? bleed : edge + Theme.pad
+    readonly property real rowY: plainCard ? bleed : edge
     // W53.3 (`[decor] quick.frame`, `quick.tiles`; data, rule 4): the card's chrome — the phone (today's) or a plain flyout
     // (the panel's material, 8 px of the look's radius, its hairline and the surfaces' elevation: 11's, the Macs') — and the
     // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
@@ -219,8 +224,20 @@ Item {
             quick.logAt("done", doneKey)
             for (var i = 0; i < addKeys.count; i++) { var b = addKeys.itemAt(i); if (b) quick.logAt("add:" + b.modelData, b) }
             for (var j = 0; j < coreTiles.count; j++) { var t = coreTiles.itemAt(j); if (t) quick.logAt("tile:" + t.mid, t) }
+            // W71: what clips the rows (the viewport) and what has the keyboard, so a suite can read a focus ring whole.
+            quick.logAt("viewport", viewport)
+            if (quick.Window.activeFocusItem) quick.logAt("focus", quick.Window.activeFocusItem)
         }
     }
+    // (and after a page turn or a focus move)
+    onShownPageChanged: if (testLog) logTimer.restart()
+    Connections {
+        target: quick.testLog ? quick.Window.window : null
+        function onActiveFocusItemChanged() { logTimer.restart() }
+    }
+    // Test only (KURASHI_QUICK_FOCUS=first|last): the first or the last tile takes the keyboard focus when the card opens,
+    // so a screenshot on nested niri (whose virtual keyboard does not reach a layer surface) shows the focus ring.
+    readonly property string testFocus: Quickshell.env("KURASHI_QUICK_FOCUS") || ""
 
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
@@ -297,6 +314,8 @@ Item {
             shownPage = startPage
             slideAnim.stop()    // it opens on the page: no slide in from the tiles
             slide = 1
+        } else if (testFocus === "first" || testFocus === "last") {
+            Qt.callLater(function () { quick.focusTile(quick.testFocus === "first" ? 0 : coreTiles.count - 1) })
         }
     }
     // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
@@ -488,8 +507,10 @@ Item {
             id: viewport
             // (the flyout's area under `quick.frame = flyout`, the phone's screen under `quick.style = phone`, else the card's)
             parent: quick.flyout ? flyArea : quick.phoneStyle ? phone.area : plainArea
-            width: parent.width
-            height: parent.height
+            x: -quick.edge
+            y: -quick.edge
+            width: parent.width + 2 * quick.edge
+            height: parent.height + 2 * quick.edge
             clip: true
 
             Column {
@@ -497,7 +518,7 @@ Item {
                 width: quick.innerW
                 spacing: Theme.gap
                 x: quick.rowX - quick.slide * viewport.width
-                y: quick.plainCard ? quick.bleed : 0
+                y: quick.rowY
                 visible: quick.tilesShown
 
                 // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
@@ -821,7 +842,7 @@ Item {
                 id: pageLoader
                 width: quick.innerW
                 x: quick.rowX + (1 - quick.slide) * viewport.width
-                y: quick.plainCard ? quick.bleed : 0
+                y: quick.rowY
                 active: quick.shownPage !== ""
                 sourceComponent: quick.shownPage === "wifi" ? wifiC
                     : quick.shownPage === "bluetooth" ? btC

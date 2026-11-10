@@ -42,7 +42,8 @@ Column {
         }
         ToggleSwitch {
             id: sw
-            checked: bt.d.powered === true
+            // (B73: an adapter that is not there is not on — the switch draws off while it is inert, Shōjiki)
+            checked: bt.avail && bt.d.powered === true
             enabled: bt.avail
             label: I18n.tr("frontend.bt.title")
             onToggled: on => bt.act("bluetooth.power", {on: on})

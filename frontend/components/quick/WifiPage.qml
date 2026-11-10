@@ -25,6 +25,10 @@ Column {
     readonly property bool avail: typeof net.state === "string" && net.state !== "unavailable"
     readonly property bool hasAirplane: typeof net.airplane === "boolean"
     readonly property bool loading: Object.keys(scan).length === 0
+    // W71 (the user's review, Shōjiki): NetworkManager may report the radio enabled on a machine with no Wi-Fi device. Only the
+    // scan says so (svc.network has no such field yet: CONTRACT-CHANGE 713): the switch then draws off and inert, and the
+    // reason stands once, under the switch it explains — not under airplane mode, not again at the list's end.
+    readonly property bool noDevice: scan.available === false && String(scan.reason || "") === "error.network.no_wifi_device"
 
     // The list: the scan's networks (the daemon's order: the active one first, then by strength), eight at most.
     ListModel { id: nets }
@@ -73,11 +77,23 @@ Column {
         }
         ToggleSwitch {
             id: sw
-            checked: wifi.net.wifi_enabled === true
-            enabled: wifi.avail && !(wifi.wifiReq !== null && wifi.wifiReq.pending)
+            checked: wifi.net.wifi_enabled === true && !wifi.noDevice
+            enabled: wifi.avail && !wifi.noDevice && !(wifi.wifiReq !== null && wifi.wifiReq.pending)
             label: I18n.tr("island.quick.network.heading")
             onToggled: on => { if (wifi.wifiReq !== null) wifi.wifiReq.begin(on) }
         }
+    }
+    Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        visible: wifi.noDevice
+        width: wifi.width
+        wrapMode: Text.WordWrap
+        color: Theme.dim
+        font.pixelSize: Theme.fsCaption
+        font.family: Theme.fam(text, Theme.families)
+        text: I18n.tr("error.network.no_wifi_device")
     }
     StateLine {
         width: wifi.width
@@ -129,7 +145,7 @@ Column {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         antialiasing: !Theme.pixelType
         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-        visible: wifi.scan.available !== false
+        visible: wifi.scan.available !== false && !wifi.noDevice
         width: wifi.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -160,7 +176,7 @@ Column {
     }
     // Why no list: the scan still answers, Wi-Fi is off, or nothing is in range. The daemon's reason is an i18n key.
     LoadingText {
-        visible: wifi.scan.available === false || wifi.loading || (wifi.scan.available === true && nets.count === 0)
+        visible: !wifi.noDevice && (wifi.scan.available === false || wifi.loading || (wifi.scan.available === true && nets.count === 0))
         width: wifi.width
         wrapMode: Text.WordWrap
         color: Theme.dim

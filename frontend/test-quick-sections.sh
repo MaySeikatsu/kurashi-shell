@@ -28,6 +28,9 @@
 #   - W70 (d): every step above runs on the phone (`quick.style = phone`); then the card (`quick.style = card`, the
 #     default): the Stage's card round the rows, 400 px wide (card-open); a click on the Wi-Fi tile switches the radio and
 #     back, its arrow opens the Wi-Fi page (card-wifi-page), Escape returns, and the card's documents go when it closes.
+#   - W71 (the user's review): on the card and on a flyout with compact tiles and fluent's "double" ring, the focus ring's
+#     four sides are read in the pixels round the first tile, the last tile and the Wi-Fi page's back key (*-ring-*), and
+#     every tile stands inside the viewport that clips the rows.
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
 # The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
 # actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd, and (W18)
@@ -679,6 +682,141 @@ K act ui.close >/dev/null
 settle 1
 [ "$(last_event svc.network)" = "unsub svc.network" ] || fail "card style: svc.network stayed subscribed after the card closed"
 echo "ok: the card style (quick.style = card): the Stage's card, 400 px; a tile switches, its arrow opens its page, Escape returns; Ma"
+
+# 18. W71 (the user's review of a compact flyout): a focus ring is drawn whole — its four sides are read in the pixels — round
+#     the first tile (the first row, the first column), the last core tile, and the Wi-Fi page's back key; every tile stands
+#     inside the viewport that clips the rows (never half a tile or half a label). Once on the card (the default look's ring),
+#     once as a look's flyout with compact tiles and the "double" ring 6 px outside (fluent's decor, patched in the theme).
+cat > "$W/ring.py" <<'PY'
+import json, sys
+
+# ring.py <focused.ppm> <reference.ppm> <x y w h> <ring rrggbb>: the ring is what moved towards the ring's colour from the
+# reference (the same view with the keyboard elsewhere), so text and icons of the ring's colour never count.
+# For each side of the box, over the middle half of that side: the share of its points with a ring pixel in a band reaching
+# 12 px out of the box and a third into it (a pill's round end is found as well as a straight edge). Whole: every side 70 %.
+fpath, rpath, x, y, w, h, hexc = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:7]), sys.argv[7]
+RING = tuple(int(hexc[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def read(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    fields, i = [], 0
+    while len(fields) < 4:
+        while data[i:i + 1].isspace():
+            i += 1
+        j = i
+        while not data[j:j + 1].isspace():
+            j += 1
+        fields.append(data[i:j])
+        i = j
+    return int(fields[1]), int(fields[2]), data[i + 1:]
+
+
+W, H, A = read(fpath)
+_, _, B = read(rpath)
+
+
+def ring(px, py):
+    if not (0 <= px < W and 0 <= py < H):
+        return False
+    o = (py * W + px) * 3
+    # (towards the ring's colour by a clear step: a 1 px ring's antialiased round ends are blends, never the colour itself)
+    da = sum(abs(A[o + k] - RING[k]) for k in range(3))
+    db = sum(abs(B[o + k] - RING[k]) for k in range(3))
+    return db - da > 40
+
+
+out = {}
+xs = range(x + w // 4, x + 3 * w // 4)
+ys = range(y + h // 4, y + 3 * h // 4)
+for side, lines, span, pt in (
+        ("top", range(y - 12, y + h // 3), xs, lambda l, s: (s, l)),
+        ("bottom", range(y + 2 * h // 3, y + h + 12), xs, lambda l, s: (s, l)),
+        ("left", range(x - 12, x + w // 3), ys, lambda l, s: (l, s)),
+        ("right", range(x + 2 * w // 3, x + w + 12), ys, lambda l, s: (l, s))):
+    hits = sum(1 for s in span if any(ring(*pt(l, s)) for l in lines))
+    out[side] = round(hits / max(1, len(span)), 2)
+print(json.dumps(out))
+sys.exit(0 if all(v >= 0.7 for v in out.values()) else 1)
+PY
+focus_at() { grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }'; }
+tile_at() { grep -o "quick-at tile:$1 .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }'; }
+# ring_box <kind>: the focused item's box; a compact tile's ring is round its button only (its label stands under it).
+ring_box() {
+  local fx fy fw fh
+  read -r fx fy fw fh < <(focus_at)
+  [ -n "${fx:-}" ] || fail "the card logged no focused item"
+  [ "${COMPACT:-0}" = 1 ] && [ "$1" = tile ] && fh=48
+  echo "$fx $fy $fw $fh"
+}
+# ring_whole <shot> <reference shot> "<x y w h>" <what>: the ring round the box has its four sides (evidence: <shot>.png).
+ring_whole() {
+  local res bx by bw bh
+  read -r bx by bw bh <<<"$3"
+  res=$(python3 -I "$W/ring.py" "$W/$1.ppm" "$W/$2.ppm" "$bx" "$by" "$bw" "$bh" "$(token focus.ring c9404b)") \
+    || fail "$1: the focus ring round $4 is not whole: $res (box $3)"
+  timeout 20 grim -g "$(( bx - 30 )),$(( by - 30 )) $(( bw + 60 ))x$(( bh + 60 ))" "$OUT/$1.png" || fail "grim failed on $1"
+  echo "ok: $1: the focus ring round $4 is whole ($res)"
+}
+# tiles_inside: every logged tile lies inside the logged viewport (the rows' clip).
+tiles_inside() {
+  local vx vy vw vh id tx ty tw th
+  read -r vx vy vw vh < <(grep -o 'quick-at viewport .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+  [ -n "${vx:-}" ] || fail "$1: the card logged no viewport"
+  for id in wifi bluetooth focus audio power brightness caffeine nightlight recorder darkmode; do
+    read -r tx ty tw th < <(tile_at "$id")
+    [ -n "${tx:-}" ] || continue
+    [ "$tx" -ge "$vx" ] && [ "$ty" -ge "$vy" ] && [ $(( tx + tw )) -le $(( vx + vw )) ] && [ $(( ty + th )) -le $(( vy + vh )) ] \
+      || fail "$1: tile $id ($tx $ty $tw $th) is cut by the viewport ($vx $vy $vw $vh)"
+  done
+  echo "ok: $1: every tile stands inside the card's viewport"
+}
+# ring_pass <prefix>: the card opened, the keyboard on its first tile, then its last core tile, then the Wi-Fi page.
+ring_pass() {
+  K act quick.toggle >/dev/null
+  for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+  [ "$(panel)" = quick ] || fail "$1: quick.toggle did not open the card"
+  settle 1.5
+  local tx ty tw th n
+  read -r tx ty tw th < <(tile_at wifi)
+  # (a press on the card's edge beside the first tile gives the card the keyboard without pressing a control)
+  click "$(( tx - 3 ))" "$(( ty + th + 2 ))"
+  for n in $(seq 12); do
+    [ "$(focus_at)" = "$(tile_at wifi)" ] && break
+    press tab
+    sleep 0.5
+  done
+  [ "$(focus_at)" = "$(tile_at wifi)" ] || fail "$1: Tab did not reach the Wi-Fi tile (focus $(focus_at))"
+  tiles_inside "$1"
+  # (the first and the last tile are each the other's reference shot: far apart; the back key's is the page's switch)
+  local first last back
+  first=$(ring_box tile)
+  ppm_shot "$1-ring-first" 1
+  for n in $(seq 9); do press tab; done
+  sleep 0.6
+  [ "$(focus_at)" = "$(tile_at darkmode)" ] || fail "$1: Tab did not reach the last tile (focus $(focus_at))"
+  last=$(ring_box tile)
+  ppm_shot "$1-ring-last" 1
+  ring_whole "$1-ring-first" "$1-ring-last" "$first" "the first tile"
+  ring_whole "$1-ring-last" "$1-ring-first" "$last" "the last tile"
+  for n in $(seq 9); do press shift+tab; done
+  press right
+  settle 1.5
+  sleep 0.8
+  back=$(ring_box back)
+  ppm_shot "$1-ring-back" 1
+  press tab
+  ppm_shot "$1-ring-back-ref" 1
+  ring_whole "$1-ring-back" "$1-ring-back-ref" "$back" "the Wi-Fi page's back key"
+  K act ui.close >/dev/null
+  settle 1
+}
+COMPACT=0 ring_pass card
+K act mock.doc '{"doc":"theme","patch":{"tokens":{"decor.quick.frame":"flyout","decor.quick.tiles":"compact","decor.focus.style":"double","decor.focus.offset":6}}}' >/dev/null \
+  || fail "mock.doc refused the flyout's decor"
+COMPACT=1 ring_pass flyout
+K act mock.doc '{"doc":"theme","patch":{"tokens":{"decor.quick.frame":"phone","decor.quick.tiles":"wide","decor.focus.style":"ring","decor.focus.offset":0}}}' >/dev/null || true
 
 exec 3>&-
 stop_phase
