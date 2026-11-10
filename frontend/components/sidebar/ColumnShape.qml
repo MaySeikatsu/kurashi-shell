@@ -187,28 +187,37 @@ Shape {
         ShapePath {
             strokeWidth: -1
             strokeColor: "transparent"
-            fillColor: sh.casts ? Theme.line : "transparent"
+            fillColor: sh.casts && !Theme.painted ? Theme.line : "transparent"
             PathSvg { path: sh.casts ? sh.path(0, false, sh.sd) : "" }
         }
+    }
+    // I471b: under the painted look the column is brushed freely: bands of a brush over its box, no fill or outline.
+    Loader {
+        x: sh.x0
+        y: sh.y0
+        width: sh.x1 - sh.x0
+        height: sh.y1 - sh.y0
+        active: Theme.painted && sh.visible && width > 24 && height > 14
+        sourceComponent: PaintBands { color: Theme.paintGround; wild: true }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.penOn ? "transparent" : sh.oc
+        fillColor: sh.penOn || Theme.painted ? "transparent" : sh.oc
         PathSvg { path: sh.penOn ? "" : sh.band(0, sh.ow) }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.gw > 0 ? Theme.ring : "transparent"
+        fillColor: sh.gw > 0 && !Theme.painted ? Theme.ring : "transparent"
         PathSvg { path: sh.gw > 0 ? sh.band(sh.ow, sh.ow + sh.gw) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
-        fillColor: sh.fill
+        fillColor: Theme.painted ? "transparent" : sh.fill
         PathSvg { path: sh.fillPath }
     }
 }

@@ -152,7 +152,7 @@ Item {
         Loader {
             z: -1
             anchors.fill: parent
-            active: (Theme.glow > 0 || Theme.bloom > 0) && blk.softScale > 0 && !blk.bare
+            active: (Theme.glow > 0 || Theme.bloom > 0) && blk.softScale > 0 && !blk.bare && !blk.painted
             sourceComponent: Item {
                 RectangularShadow {
                     anchors.fill: parent
@@ -179,7 +179,7 @@ Item {
             z: -1
             anchors.fill: parent
             readonly property real amount: Theme.elevBlocks * blk.softScale
-            active: amount > 0 && !blk.bare && Theme.softR <= 0 && Theme.sinkX === 0 && Theme.sinkY === 0
+            active: amount > 0 && !blk.bare && !blk.painted && Theme.softR <= 0 && Theme.sinkX === 0 && Theme.sinkY === 0
                 && face.shownFill.a > 0.99 && blk.width > 0
             sourceComponent: RectangularShadow {
                 readonly property real a: parent ? parent.amount : 0
