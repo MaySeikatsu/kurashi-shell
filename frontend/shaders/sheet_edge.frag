@@ -59,10 +59,22 @@ void main() {
         if (d > reach) { fragColor = vec4(0.0); return; }
         // The frame's outline, when it is on: a line drawn by hand along the paint's inner edge (not between the sheet
         // and its paint), whole also where the bristles gave out.
-        if (uLine.a > 0.0 && d > reach - uLine.a * (0.8 + 0.5 * vnoise(vec2(along / 17.0, 21.0)))) {
-            float la = clamp(reach - d + 0.5, 0.0, 1.0);
-            fragColor = vec4(uLine.rgb * la, la) * qt_Opacity;
-            return;
+        if (uLine.a > 0.0) {
+            // Drawn wet on wet: the line takes a little of the sheet's colour (more in places), its edge towards the
+            // sheet is soft, and for a few px the sheet's paint is tinged by it.
+            float lw = uLine.a * (0.8 + 0.5 * vnoise(vec2(along / 17.0, 21.0)));
+            float into = 0.18 + 0.26 * vnoise(vec2(along / 46.0, 33.0));
+            vec3 lc = mix(uLine.rgb, color.rgb, into);
+            float inLine = smoothstep(reach - lw - 1.2, reach - lw + 0.4, d);
+            if (inLine > 0.0) {
+                float la = clamp(reach - d + 0.5, 0.0, 1.0) * color.a;
+                vec3 under = mix(color.rgb, lc, 0.0);
+                vec3 c2 = mix(under, lc, inLine);
+                fragColor = vec4(c2 * la, la) * qt_Opacity;
+                return;
+            }
+            float bleed = 1.0 - smoothstep(0.0, 5.0, (reach - lw) - d);
+            col = mix(col, lc, 0.22 * bleed);
         }
         float t = clamp(d / max(reach, 0.001), 0.0, 1.0);
         // The brush ran along the edge: its bristles leave rows parallel to it, and further out more of them have given

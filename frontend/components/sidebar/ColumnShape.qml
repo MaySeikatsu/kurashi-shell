@@ -204,7 +204,9 @@ Shape {
         width: sh.x1 - sh.x0 + joinL + joinR
         height: sh.y1 - sh.y0 + joinT + joinB
         active: Theme.painted && sh.visible && width > 24 && height > 14
-        sourceComponent: PaintBands { color: Theme.paintGround; wild: true }
+        // (in the sheet's own colour — the frame's and the bar's — so the column reads as part of them, with only a
+        // breath of the second colour)
+        sourceComponent: PaintBands { color: Theme.paintSheet; wild: true; blend: Theme.paintBlend * 0.3 }
     }
     ShapePath {
         strokeWidth: -1

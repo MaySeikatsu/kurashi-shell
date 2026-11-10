@@ -10,6 +10,7 @@ Item {
     property color color: Qt.alpha(Theme.accent, 0.5)
     // A column or a strip brushed freely (the sidebar, the dock): the bands lean and wander more.
     property bool wild: false
+    property real blend: Theme.paintBlend
     // How many bands: from the height, but only once it has stood still for a moment: a surface that is opening or
     // morphing keeps its bands (they stretch with it) instead of gaining and losing strokes on the way.
     property int n: Math.max(1, Math.round(height / 74))
@@ -42,6 +43,7 @@ Item {
                 Math.atan(Math.max(8, pb.step * (pb.n > 1 ? 0.55 : 0.2)) / Math.max(40, pb.width / 2)) * 180 / Math.PI)
             seedShift: index * 11 + 3
             color: pb.color
+            blend: pb.blend
         }
     }
 }

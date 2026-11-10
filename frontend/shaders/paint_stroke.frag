@@ -81,6 +81,12 @@ void main() {
     float run = 0.6 * vnoise(gp / 520.0 + 3.7) + 0.4 * vnoise(gp / 230.0 + 11.0);
     vec3 base = mix(uColor.rgb, uColor2.rgb, smoothstep(0.25, 0.75, run) * uPaint.z);
     vec3 col = base * (1.0 - 0.05 * rim * (0.5 + 0.5 * vnoise(vec2(p.x / 31.0, seed))));
+    // The brush's texture: its hairs leave fine lines along the stroke, lighter and darker; the pigment settles in
+    // grains; where a hair ran nearly dry the ground shows through in specks.
+    float hair = 0.6 * vnoise(vec2(p.y / 1.1 + seed * 3.0, p.x / 240.0)) + 0.4 * vnoise(vec2(p.y / 2.7 + seed, p.x / 120.0 + 5.0));
+    float grain = vnoise(p / 1.25 + seed) * 0.6 + vnoise(p / 3.1 + seed * 2.0) * 0.4;
+    col *= 1.0 + k * (0.13 * (hair - 0.5) + 0.06 * (grain - 0.5));
+    a *= 1.0 - k * 0.10 * smoothstep(0.62, 0.95, hair) * smoothstep(0.45, 0.8, grain);
     a = clamp(a, 0.0, 1.0);
     fragColor = vec4(col * a, a) * qt_Opacity;
 }

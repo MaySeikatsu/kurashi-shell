@@ -104,6 +104,8 @@ Singleton {
     readonly property bool painted: edgeStyle === "painted"
     // (as opaque as the shell's surfaces are — `theme.material`: the paint adds no transparency of its own)
     readonly property color paintGround: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.26)), surfaceAlpha.a)
+    // (the sheet's own paint: the frame's and the bar's colour, for what is part of them — the sidebar, the dock)
+    readonly property color paintSheet: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.05)), surfaceAlpha.a)
     readonly property color paintControl: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.44)), surfaceAlpha.a)
     // What the paint runs into along a stroke, as two wet colours meet (the user: "like the watercolor blend in the
     // Gradient mode"): the gradient's far stop while the chrome's gradient is on, else the palette's second colour;
