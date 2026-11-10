@@ -25,10 +25,10 @@ Loader {
     property point origin: Qt.point(0, 0)
     property rect own: Qt.rect(0, 0, 0, 0)
     z: -1
-    // B79: under a chrome whose soft shadow is light (`Theme.softGlow`) the sheet's edge glows instead: the same pass,
+    // B79: while the frame's line is lit (`Theme.frameGlow`: asked for, or a chrome that glows) the sheet's edge glows instead: the same pass,
     // even all round (no direction: light has none), in the light's colour and at its own strength, whatever the
     // elevation is set to.
-    readonly property bool glow: Theme.softGlow
+    readonly property bool glow: Theme.frameGlow
     active: (glow || (Theme.sheetMode !== "off" && Theme.elevationStrength > 0)) && x1 > x0 && y1 > y0 && own.width > 0
         && own.height > 0 && width > 0 && height > 0
 
@@ -36,7 +36,7 @@ Loader {
     // only, 4 px), or, Inward, one all round, as Caelestia's sheet casts: no direction.
     readonly property real s: Theme.elevationStrength
     readonly property real dark: Theme.darkScheme ? 1.6 : 1
-    readonly property color ink: glow ? Qt.alpha(Theme.softColor, 1) : Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
+    readonly property color ink: glow ? Qt.alpha(Theme.frameGlowColor, 1) : Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
     readonly property bool inward: Theme.sheetMode === "inward"
     readonly property real dist: 6
     readonly property real blur: 10
@@ -88,7 +88,7 @@ Loader {
     sourceComponent: Item {
         width: ss.width
         height: ss.height
-        Layer { strength: ss.glow ? Theme.softColor.a * 1.8 : ss.roundAlpha; soft: ss.glow ? Theme.softR * 2.4 : ss.roundBlur }
+        Layer { strength: ss.glow ? Theme.frameGlowColor.a * 1.8 : ss.roundAlpha; soft: ss.glow ? Theme.frameGlowR * 2.4 : ss.roundBlur }
         Layer {
             visible: !ss.inward && !ss.glow
             strength: ss.alpha

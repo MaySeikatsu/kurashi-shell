@@ -2563,6 +2563,10 @@
                 {
                   "label": "config.choice.frame_outline.off",
                   "value": "off"
+                },
+                {
+                  "label": "config.choice.frame_outline.glow",
+                  "value": "glow"
                 }
               ],
               "control": "select",

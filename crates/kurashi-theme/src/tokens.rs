@@ -476,10 +476,36 @@ pub fn build(
     t.insert("chrome.groups".into(), json!(ch.groups));
     let frame_outline = match axes.frame_outline {
         FrameOutline::Auto => ch.frame_outline,
-        FrameOutline::On => true,
+        FrameOutline::On | FrameOutline::Glow => true,
         FrameOutline::Off => false,
     };
     t.insert("frame.outline".into(), json!(frame_outline));
+    // B79: the frame's line lit, apart from the chrome: asked for (`glow`, under any chrome), or automatic under the
+    // Glow chrome; `on` there keeps the line without its light. `frame.outline_auto` is what Automatic gives under this
+    // chrome, for Settings' preview of that choice.
+    let auto_glow = axes.chrome == Chrome::Glow;
+    let frame_glow = match axes.frame_outline {
+        FrameOutline::Glow => true,
+        FrameOutline::Auto => auto_glow,
+        FrameOutline::On | FrameOutline::Off => false,
+    };
+    t.insert("frame.glow".into(), json!(frame_glow));
+    px(&mut t, "frame.glow_radius", 14.0);
+    t.insert(
+        "frame.glow_alpha".into(),
+        json!(if p.dark { 0.75 } else { 0.5 }),
+    );
+    col(&mut t, "frame.glow_color", g("accent"));
+    t.insert(
+        "frame.outline_auto".into(),
+        json!(if auto_glow {
+            "glow"
+        } else if ch.frame_outline {
+            "on"
+        } else {
+            "off"
+        }),
+    );
     t.insert("outline.ink".into(), json!(axes.outline_ink));
     // W57 (K78): the surfaces' elevation shadows. Automatic: where blocks lift (keycap, soft) the surfaces do too; flat
     // and line looks read as deliberately shadowless.

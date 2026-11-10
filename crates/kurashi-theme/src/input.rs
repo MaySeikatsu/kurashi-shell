@@ -100,6 +100,8 @@ pub enum FrameOutline {
     Auto,
     On,
     Off,
+    /// The line, lit (B79): a glowing outline under any chrome.
+    Glow,
 }
 
 /// What motion resolves from (K83): the profile (a motion pack) in effect, the style's, the user's per-axis keys and
