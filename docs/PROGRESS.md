@@ -372,3 +372,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.15 | Painted and Ripped paper chromes, `theme.edge` (I471b/d, I477, K124) | ✅ functional · 🟡 UX (judged live by the user, painted light, ripped light and dark; toasts, menus, lock screen, budget open) | feat/s27-paint-ripped |
 | S27.16 | Settings: the sidebar scrolls, sections by the page's arrow, scroll resistance out of a lone section (I479) | ✅ functional · 🟡 UX (the arrow and the list seen on nested niri; the resistance by suite and a traced notch; the user has not tried it) | feat/s27-settings-sections-2 |
 | S27.14 | Control centre round two: every control opens a card, glances with values, one sound module, levels and session as tiles, the phone advanced, the recorder, the sidebar follows the tiles (I475, W71) | ✅ functional (but row 718) · 🟡 UX (the agent's niri shots reviewed; two of the user's review points not reproduced, B82; the user judges) | feat/s27-control-round-two |
+| S28.1 | PR #50 completed: the idle redraw (a pen settle timer started for unchanged lines), B93, the four red suites | ✅ functional | feat/s27-motion-webdock |
+| S28.2 | Surfaces without a line under flat chrome and frame outline off (K127) | ✅ functional (`test-outline`) · 🟡 UX (niri, dark and light; the user has not seen it) | feat/s28-expressive |
+| S28.3 | Control faces for the shell and Settings, `theme.slider` / `theme.toggle`, picture pickers incl. Chrome (K128) | ✅ functional · 🟡 UX (every face seen in Settings on niri; states by hand; I484) | feat/s28-expressive |
+| S28.4 | Connections: `theme.join`, `theme.join_corner` (K129, I270) | ✅ functional · 🟡 UX (corners and the floating card seen on niri; I483) | feat/s28-expressive |
+| S28.5 | Cards follow the pointer across screens, `bar.popups_follow` (K130) | ✅ functional (`test-follow`, sway, two outputs) · 🟡 UX (not seen on two real monitors; B97) | feat/s28-expressive |
+| S28.6 | Colour flow: gradient, frame outline, glow on one clock (K131) | ✅ functional · 🟡 UX (seen running on niri; no suite, I487) | feat/s28-expressive |
+| S28.7 | Text effects and fresh text, `TextFx` (K132, I473) | ✅ functional · 🟡 UX (each spawn and effect seen on niri; headings and some labels only, I485) | feat/s28-expressive |
+| S28.8 | Layout moves: a bar travels to its new edge (K133, I478) | ✅ functional · 🟡 UX (follow, part, drip seen on niri as bursts; I486) | feat/s28-expressive |
+
