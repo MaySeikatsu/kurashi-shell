@@ -905,7 +905,10 @@ Scope {
                                     focus: true
                                     // Made between frames, before the column moves (session 27, measured on a real session:
                                     // made in one go it held the first frame of the slide for 70 to 85 ms).
-                                    asynchronous: true
+                                    // Only where the slide opens the column: its gate waits for the content. A motion form
+                                    // takes a picture of the column as it starts, so there the content must be in it (made off the
+                                    // frame it came in late, after the form: the user, "spawns way later").
+                                    asynchronous: !sbRun.formed
                                     sourceComponent: sb.mode === "pages" ? pagesC : stackC
                                 }
                             }
