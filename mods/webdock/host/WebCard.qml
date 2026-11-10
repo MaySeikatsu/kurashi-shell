@@ -7,6 +7,7 @@ import "core"
 import "core/motion"
 import "core/motion/curves.js" as C
 import "components"
+import "components/motion"
 import "frames"
 
 // The web dock's card (docs/ux/webdock.md "Layout per edge", "Sites", "Motion", "Keyboard and a11y"; MODS.md "Web dock",
@@ -188,6 +189,11 @@ PanelWindow {
         holdOpen = m && m[1] === "open" ? Math.max(0, Math.min(1, Number(m[2]))) : -1
         holdWide = m && m[1] === "wide" ? Math.max(0, Math.min(1, Number(m[2]))) : -1
         if (holdOpen >= 0) mapped = true
+        // Plain in a panel form: the form's own progress is held (and let go to where the card wants to be).
+        if (isPlain && pRun.formed) {
+            if (holdOpen >= 0) pRun.drv.track(holdOpen, 0, 1)
+            else pRun.drv.snap(pRun.want ? 1 : 0)
+        }
         if (debugLog) console.log("webdock-debug hold", holdOpen, holdWide)
     }
     Loader {
@@ -313,11 +319,17 @@ PanelWindow {
             reportHover(false)
             menuOpen = false
         }
+        if (isPlain && moves) pRun.want = open
         if (turns) {
             slide = 0
             var t = open ? 1 : 0
             if (nbDrv.to !== t) nbDrv.to = t
             else if (nbDrv.value !== t && !nbDrv.running) nbDrv.go()
+        } else if (isPlain && pRun.formed) {
+            // The panel form draws the opening and the closing (a shape or a sheet form): no slide meanwhile.
+            nbDrv.snap(open ? 1 : 0)
+            slideAnim.stop()
+            slide = 0
         } else {
             nbDrv.snap(open ? 1 : 0)
             slideAnim.to = open ? 0 : 1
@@ -376,6 +388,7 @@ PanelWindow {
     }
     // Test only: the style and the size's progress, and which side of the card the notebook's coil is on.
     onStyleChanged: if (debugLog) console.log("webdock-debug style", style)
+    onMappedChanged: if (debugLog) console.log("webdock-debug mapped", mapped, style, isPlain ? pRun.form + ":" + pRun.mode : "")
     onWideRestChanged: {
         if (!wideRest) {
             // The page keeps its pixels while the size moves: the larger of now and the end (see `pageBox`).
@@ -394,6 +407,35 @@ PanelWindow {
         return sideways ? (p.x < cardW / 2 ? "left" : "right") : (p.y < cardH / 2 ? "top" : "bottom")
     }
     onCoilSideChanged: if (debugLog && coilSide !== "") console.log("webdock-debug coil", edge, coilSide)
+
+    // W69 plain (CONTRACT-CHANGE row 694, I391): the card opens and closes in the motion profile's panel form, as the
+    // shell's own dock card does (mods/webdock/qml/DockWindow.qml): a shape form (expand, iris, stamp, outline) drawn
+    // through ShapeLayer's mask, a sheet form through FormHost's capture of the card, anything else on today's slide.
+    // The form's frame: x along the edge, y away from it; the window's edge on the strip's side is y = 0 (the strip's
+    // own surface lies beyond it). No origin here (the strip's tile is in the shell's window): the 32 px mouth in the
+    // middle of the card's span, as the row asks. A style change while open is a cut (standOpen / reset).
+    readonly property SurfaceForm pRun: SurfaceForm {
+        surface: "panel"
+        shapes: ["expand", "iris", "stamp", "outline"]
+        fromCx: card.alongMid
+        fromW: 32
+        fromTop: 0
+        fromFoot: 0
+        fromR: Theme.rSm
+        toCx: card.alongMid
+        toW: card.sideways ? card.cardH : card.cardW
+        toTop: 0
+        toFoot: card.sideways ? card.cardW : card.cardH
+        toR: Theme.rLg
+        edgeY: 0
+        onLanded: at => { if (at <= 0 && !card.open && card.isPlain) card.mapped = false }
+    }
+    readonly property real alongMid: sideways ? cardY + cardH / 2 : cardX + cardW / 2
+    readonly property bool formDraws: isPlain && pRun.formed && (pRun.busy || pRun.want)
+    onIsPlainChanged: {
+        if (isPlain && open && moves) pRun.standOpen()
+        else if (!isPlain) { pRun.quiet = true; pRun.want = false; pRun.quiet = false; pRun.reset() }
+    }
     NumberAnimation {
         id: slideAnim
         target: card
@@ -449,608 +491,625 @@ PanelWindow {
     // The pages, one per web pin in `keep`: created when a pin is first kept, destroyed when it leaves `keep`.
     ListModel { id: viewModel }
 
-    Item {
-        id: body
-        // Drawn once the window has its configured size (the first frame after a map has none, and no card then).
-        visible: card.mapped && card.availW > 0 && card.availH > 0
-        x: card.cardX + (card.sideways ? card.offsetK * card.away : 0)
-        y: card.cardY + (card.sideways ? 0 : card.offsetK * card.away)
-        width: card.cardW
-        height: card.cardH
-        opacity: card.moves ? 1 : 1 - card.slideNow
-
-        // ---- the frame under the page: the device, the notebook's cover and lower sheets, or the plain card ----
-        DeviceFrame {
-            id: phone
-            visible: card.isPhone
+    // W69 plain: the panel form's host (a sheet form captures the card) and its shape layer (a shape form masks it). At
+    // rest, and in the other styles, both are plain items: progress 1, no layer.
+    FormHost {
+        id: fHost
+        anchors.fill: parent
+        surface: "panel"
+        edge: card.edge
+        direction: card.pRun.dir
+        progress: card.pRun.sheet && card.formDraws ? card.pRun.p : 1
+        visible: !(card.pRun.sheet && card.formDraws) || card.pRun.p > 0
+        source: body
+        ShapeLayer {
             anchors.fill: parent
-            theme: Theme
-            wide: card.wide
-            box: card.roundBox
-            screenColor: Theme.container
-            statusLeft: Text {
-                height: phone.statusH
-                verticalAlignment: Text.AlignVCenter
-                text: (card.clockDoc.hh ?? "--") + ":" + (card.clockDoc.mm ?? "--")
-                color: Theme.fg
-                font.pixelSize: Theme.fsLabel
-                font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
-            }
-            statusRight: Text {
-                height: phone.statusH
-                width: Math.min(implicitWidth, phone.screen.width / 2 - 70)
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideLeft
-                text: card.activePage ? card.hostOf(card.activePage.engine.url) : ""
-                color: Theme.dim
-                font.pixelSize: Theme.fsCaption
-                font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
-            }
-        }
-        NotebookGeom {
-            id: nb
-            width: body.width
-            height: body.height
+            run: card.isPlain ? card.pRun : null
             edge: card.edge
-        }
-        Loader {
-            anchors.fill: parent
-            active: card.isNotebook
-            sourceComponent: NotebookBack {
-                theme: Theme
-                geom: nb
-                box: card.roundBox
-            }
-        }
-
-        // The leaf: what the notebook's page turn captures and turns — the sheet with the header and the page on it. In
-        // the other styles it is the whole card, standing still.
-        Item {
-            id: leaf
-            readonly property rect r: card.isNotebook ? nb.sheet : Qt.rect(0, 0, body.width, body.height)
-            x: r.x
-            y: r.y
-            width: r.width
-            height: r.height
-            Loader {
-                anchors.fill: parent
-                active: card.isNotebook
-                sourceComponent: NotebookSheet {
-                    theme: Theme
-                    geom: nb
-                    headY: frame.y + header.y + header.height
-                }
-            }
-
-        Rectangle {
-            id: frame
-            // Phone: the phone's screen (the status row and the home indicator are its own); notebook: the sheet inside
-            // its margins (more on the bound side, clear of the punched slots); plain: the whole card.
-            readonly property real bindM: 20
-            readonly property real freeM: 10
-            x: card.isPhone ? phone.screen.x : card.isNotebook ? (card.edge === "left" ? bindM : freeM) : 0
-            y: card.isPhone ? phone.screen.y : card.isNotebook ? (card.edge === "top" ? bindM : 8) : 0
-            width: card.isPhone ? phone.screen.width
-                : card.isNotebook ? parent.width - bindM * (card.sideways ? 1 : 0) - freeM * (card.sideways ? 1 : 2) : parent.width
-            height: card.isPhone ? phone.screen.height
-                : card.isNotebook ? parent.height - (card.sideways ? 8 + 14 : bindM + (card.edge === "top" ? 14 : 8)) : parent.height
-            radius: card.isPhone ? phone.screenRadius : card.isPlain ? Theme.rLg : 0
-            color: card.isPlain ? Theme.container : "transparent"
-            clip: true
-            // The page's corners follow the card's radius (I78) where they meet it — the plain card's, the tablet's screen —
-            // through a layer masked by that rounded shape. The phone's page sits between the title and the bottom bar,
-            // clear of the screen's corners, and the notebook's page is a square sheet pasted in: no layer.
-            readonly property bool masked: card.isPlain || (card.isPhone && !card.phoneLook)
-            layer.enabled: masked
-            layer.effect: MultiEffect {
-                maskEnabled: true
-                maskSource: frameMask
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1
-            }
-            // The mask is hidden, but its texture is the mask: it needs its own layer (a hidden item without one is
-            // empty, and the whole card went blank in the first run).
-            Rectangle {
-                id: frameMask
-                visible: false
-                anchors.fill: parent
-                radius: frame.radius
-                color: "white"
-                layer.enabled: frame.masked
-            }
-
-            // Phone: the title in a pill under the status row (the page's title, or the pin's name), its load progress
-            // along the pill's foot. Not a control: the press that gives the card the keyboard may land on it.
             Item {
-                id: titleBar
-                visible: card.phoneLook
-                opacity: card.chromeK
-                y: phone.statusH
-                width: parent.width
-                height: card.phoneLook ? 40 : 0
-                Rectangle {
-                    visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
-                    x: pill.x + Theme.sinkX
-                    y: pill.y + Theme.sinkY
-                    width: pill.width
-                    height: pill.height
-                    radius: height / 2
-                    color: Theme.line
-                }
-                Rectangle {
-                    id: pill
-                    x: 10
-                    y: 2
-                    width: parent.width - 20
-                    height: 32
-                    radius: height / 2
-                    color: Theme.containerHigh
-                    border.width: Theme.outlineW
-                    border.color: Theme.outlineColor
-                    clip: true
-                    Text {
-                        id: phoneTitle
-                        anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 14
-                        horizontalAlignment: Text.AlignHCenter
+                id: body
+                // Drawn once the window has its configured size (the first frame after a map has none, and no card then).
+                visible: card.mapped && card.availW > 0 && card.availH > 0
+                x: card.cardX + (card.sideways ? card.offsetK * card.away : 0)
+                y: card.cardY + (card.sideways ? 0 : card.offsetK * card.away)
+                width: card.cardW
+                height: card.cardH
+                opacity: card.moves ? 1 : 1 - card.slideNow
+
+                // ---- the frame under the page: the device, the notebook's cover and lower sheets, or the plain card ----
+                DeviceFrame {
+                    id: phone
+                    visible: card.isPhone
+                    anchors.fill: parent
+                    theme: Theme
+                    wide: card.wide
+                    box: card.roundBox
+                    screenColor: Theme.container
+                    statusLeft: Text {
+                        height: phone.statusH
                         verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
-                        text: header.title
+                        text: (card.clockDoc.hh ?? "--") + ":" + (card.clockDoc.mm ?? "--")
                         color: Theme.fg
                         font.pixelSize: Theme.fsLabel
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
-                        onWidthChanged: if (card.phoneLook && card.report && card.debugLog)
-                            console.log("webdock-debug title width", Math.round(width))
                     }
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: Theme.outlineW
-                        x: pill.height / 2
-                        height: 2
-                        radius: 1
-                        width: card.activePage ? (pill.width - pill.height) * card.activePage.engine.loadProgress / 100 : 0
-                        visible: !!card.activePage && card.activePage.engine.loading
-                        color: Theme.accent
-                    }
-                }
-            }
-
-            Item {
-                id: header
-                // A y, not switching anchors: a top anchor and a bottom anchor swapped in one change stretched the bar
-                // (both held for a moment) after a large-to-phone switch.
-                // The tablet's row stands under its status row (W69).
-                y: card.phoneLook ? parent.height - phone.homeH - height : (card.isPhone ? phone.statusH : 0)
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: card.phoneLook ? 40 : 36
-                opacity: card.chromeK
-                // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
-                readonly property int count: 7 + (card.homeShown ? 1 : 0)
-                readonly property real spread: card.phoneLook
-                    ? Math.max(0, (width - 2 * 12 - count * 32) / (count - 1)) : 0
-
-                readonly property var page: card.activePage
-                readonly property string title: (page && page.engine.title) ? page.engine.title
-                    : (card.shownPin ? card.shownPin.title : "")
-
-                // Escape steps back on the chrome (MODS.md "Shell side"): extended to compact, compact to hidden.
-                Keys.onEscapePressed: (event) => {
-                    if (card.report) card.report("webdock.back", {})
-                    event.accepted = true
-                }
-
-                // Navigation: back and forward follow the engine's history.
-                Row {
-                    id: nav
-                    anchors.left: parent.left
-                    anchors.leftMargin: card.phoneLook ? 12 : 4
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: header.spread
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: back
-                        glyph: "‹"
-                        icon: "arrow_back_ios_new"
-                        a11y: I18n.tr("webdock.nav.back")
-                        enabled: !!(header.page && header.page.engine.canGoBack)
-                        tipFn: card.tipFor
-                        onClicked: header.page.engine.goBack()
-                    }
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: forward
-                        glyph: "›"
-                        icon: "arrow_forward_ios"
-                        a11y: I18n.tr("webdock.nav.forward")
-                        enabled: !!(header.page && header.page.engine.canGoForward)
-                        tipFn: card.tipFor
-                        onClicked: header.page.engine.goForward()
-                    }
-                }
-                // The title comes first: it keeps what the controls leave (at 360 px, 120 px at least; I78).
-                Text {
-                    id: titleText
-                    visible: !card.phoneLook
-                    anchors.left: nav.right
-                    anchors.leftMargin: 6
-                    anchors.right: tools.left
-                    anchors.rightMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    text: header.title
-                    color: Theme.fg
-                    font.pixelSize: Theme.fsLabel
-                    font.family: Theme.fam(text, Theme.families)
-                    onWidthChanged: if (!card.phoneLook && card.report && card.debugLog)
-                        console.log("webdock-debug title width", Math.round(width))
-                }
-                Row {
-                    id: tools
-                    anchors.right: parent.right
-                    anchors.rightMargin: card.phoneLook ? 12 : 4
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: header.spread
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: home
-                        visible: card.homeShown
-                        glyph: "⌂"
-                        icon: "home"
-                        a11y: I18n.tr("webdock.nav.home")
-                        tipFn: card.tipFor
-                        onClicked: card.goHome()
-                    }
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: reloadButton
-                        glyph: "↻"
-                        icon: "refresh"
-                        a11y: I18n.tr("webdock.nav.reload")
-                        enabled: !!header.page
-                        tipFn: card.tipFor
-                        onClicked: header.page.engine.reload()
-                    }
-                    // The view and the size show the state they are in; a press switches it (the tooltip names it).
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: viewToggle
-                        shape: card.shownView === "mobile" ? "phone" : "desktop"
-                        a11y: I18n.tr(card.shownView === "mobile" ? "webdock.host.view.mobile" : "webdock.host.view.desktop")
-                        enabled: !!card.shownPin
-                        tipFn: card.tipFor
-                        onClicked: card.toggleView()
-                    }
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: sizeToggle
-                        shape: card.isLarge ? "wide" : "narrow"
-                        a11y: I18n.tr(card.isLarge ? "webdock.host.size.large" : "webdock.host.size.phone")
-                        tipFn: card.tipFor
-                        onClicked: card.report("webdock.size", { size: card.isLarge ? "phone" : "large" })
-                    }
-                    HostButton {
-                        keyed: card.phoneLook
-                        id: more
-                        glyph: "…"
-                        icon: "more_horiz"
-                        a11y: I18n.tr("webdock.nav.more")
-                        tipFn: card.tipFor
-                        onClicked: card.menuOpen = !card.menuOpen
-                    }
-                    HostButton {
-                        keyed: card.phoneLook
-                        glyph: "×"
-                        icon: "close"
-                        a11y: I18n.tr("webdock.nav.collapse")
-                        tipFn: card.tipFor
-                        onClicked: card.report("webdock.collapse", {})
-                        // Tab from the header's last control goes back into the page (Ctrl+L brought the focus in).
-                        Keys.onTabPressed: (event) => {
-                            card.focusPage()
-                            event.accepted = true
-                        }
-                    }
-                }
-            }
-
-            // Blocked permissions of the shown pin: one chip each, until the next load (brief "Sites").
-            Row {
-                id: chips
-                anchors.top: card.phoneLook ? titleBar.bottom : header.bottom
-                anchors.left: parent.left
-                anchors.leftMargin: 8
-                spacing: 6
-                visible: card.open && !!card.shownPin && !!card.shownPin.blocked && card.shownPin.blocked.length > 0
-                height: visible ? 24 : 0
-                Repeater {
-                    model: card.shownPin && card.shownPin.blocked ? card.shownPin.blocked : []
-                    delegate: HostChip {
-                        required property string modelData
-                        text: I18n.tr("webdock.blocked." + modelData)
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
-
-            // The page's load progress, under the header (large; the phone draws it on the title's pill).
-            Rectangle {
-                visible: !card.phoneLook && !!card.activePage && card.activePage.engine.loading
-                anchors.top: header.bottom
-                anchors.left: parent.left
-                height: 2
-                width: card.activePage ? parent.width * card.activePage.engine.loadProgress / 100 : 0
-                color: Theme.accent
-            }
-
-            Item {
-                id: pane
-                anchors.top: chips.visible ? chips.bottom : (card.phoneLook ? titleBar.bottom : header.bottom)
-                anchors.topMargin: card.phoneLook || card.isNotebook ? 6 : 0
-                anchors.left: parent.left
-                anchors.right: parent.right
-                // (the tablet's page ends over its home indicator)
-                anchors.bottom: card.phoneLook ? header.top : parent.bottom
-                anchors.bottomMargin: card.isPhone && !card.phoneLook ? phone.homeH : 0
-                clip: true
-
-                // The pages' box: the well's size at rest; while the size moves, the larger of now and the end, so the
-                // site keeps its layout and reflows once (W69: never a reload, never a reflow per frame).
-                Item {
-                    id: pageBox
-                    width: card.wideRest ? pane.width : Math.max(pane.width, card.pageHoldW)
-                    height: card.wideRest ? pane.height : Math.max(pane.height, card.pageHoldH)
-                Repeater {
-                    id: rep
-                    model: viewModel
-                    delegate: WebPage {
-                        required property string pid
-                        required property var prof
-                        pinId: pid
-                        target: card.targetOf(pid)
-                        profile: prof
-                        report: card.report
-                        mode: card.modeOf(pid)
-                        readonly property bool inSide: card.sideOpen && pid === card.sidePin && card.sideSlot !== null
-                        home: pageBox
-                        sideHost: inSide ? card.sideSlot : null
-                        debugLog: card.debugLog
-                        active: inSide || (card.open && pid === card.shownId)
-                        newTabsInDock: card.newTabs !== "browser"
-                    }
-                }
-                }
-                // The notebook's page is pasted in: a hairline round it.
-                Rectangle {
-                    anchors.fill: parent
-                    z: 5
-                    visible: card.isNotebook
-                    color: "transparent"
-                    border.width: 1
-                    border.color: Qt.alpha(Theme.outline, 0.7)
-                }
-
-                // The skeleton holds the card's colour until the first paint: no white flash (brief "Motion").
-                Rectangle {
-                    anchors.fill: parent
-                    color: Theme.containerHigh
-                    visible: card.open && !!card.activePage && !card.activePage.painted
-                    z: 2
-                    Text {
-                        anchors.centerIn: parent
-                        text: I18n.tr("webdock.loading")
+                    statusRight: Text {
+                        height: phone.statusH
+                        width: Math.min(implicitWidth, phone.screen.width / 2 - 70)
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideLeft
+                        text: card.activePage ? card.hostOf(card.activePage.engine.url) : ""
                         color: Theme.dim
-                        font.pixelSize: Theme.fsLabel
+                        font.pixelSize: Theme.fsCaption
+                        font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                     }
                 }
-
-                // A load that failed: the code, retry, and the browser (brief "States").
-                Column {
-                    anchors.centerIn: parent
-                    spacing: Theme.gap
-                    visible: card.open && !!card.activePage && !!card.activePage.loadError
-                    z: 3
-                    Text {
-                        width: pane.width - 2 * Theme.pad
-                        wrapMode: Text.Wrap
-                        horizontalAlignment: Text.AlignHCenter
-                        text: I18n.tr("webdock.error.load") + "\n"
-                            + I18n.tr("webdock.error.code").replace("{code}", card.activePage && card.activePage.loadError ? String(card.activePage.loadError.code) : "")
-                        color: Theme.fg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
-                    }
-                    Row {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: Theme.gap
-                        HostButton {
-                            label: I18n.tr("webdock.error.retry")
-                            primary: true
-                            onClicked: card.activePage.engine.reload()
-                        }
-                        HostButton {
-                            label: I18n.tr("webdock.open_browser")
-                            onClicked: card.openBrowser()
-                        }
+                NotebookGeom {
+                    id: nb
+                    width: body.width
+                    height: body.height
+                    edge: card.edge
+                }
+                Loader {
+                    anchors.fill: parent
+                    active: card.isNotebook
+                    sourceComponent: NotebookBack {
+                        theme: Theme
+                        geom: nb
+                        box: card.roundBox
                     }
                 }
 
-                // The renderer stopped: the daemon says so (`error`), and reload brings the page back.
-                Column {
-                    anchors.centerIn: parent
-                    spacing: Theme.gap
-                    visible: card.open && !!card.shownPin && card.shownPin.error === "webdock.error.crashed"
-                    z: 3
-                    Text {
-                        text: I18n.tr("webdock.error.crashed")
-                        color: Theme.fg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
-                    HostButton {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        label: I18n.tr("webdock.nav.reload")
-                        primary: true
-                        onClicked: if (card.activePage) card.activePage.engine.reload()
-                    }
-                }
-
-                // W30: the shown pin's page is in the open sidebar (one page per pin): the card says where it is.
-                Text {
-                    anchors.centerIn: parent
-                    width: pane.width - 2 * Theme.pad
-                    visible: card.open && card.shownInSide
-                    z: 3
-                    wrapMode: Text.Wrap
-                    horizontalAlignment: Text.AlignHCenter
-                    text: I18n.tr("webdock.side.elsewhere")
-                    color: Theme.dim
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
-                }
-
-                // The web engine is still starting: the card frame is up before the host is connected.
-                Text {
-                    anchors.centerIn: parent
-                    visible: card.open && !Store.live
-                    z: 3
-                    text: I18n.tr("webdock.host.starting")
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsLabel
-                    font.family: Theme.fam(text, Theme.families)
-                }
-
-                // A sign-in popup is a sheet over the page: its close button is the way back (brief "Sites").
-                HostButton {
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    anchors.margins: 4
-                    z: 4
-                    visible: !!card.activePage && !!card.activePage.sheet
-                    glyph: "×"
-                    a11y: I18n.tr("webdock.sheet.close")
-                    onClicked: card.activePage.closeSheet()
-                }
-            }
-
-            // The overflow menu (brief "Layout per edge"): a press outside it closes it, so the page under it gets no press.
-            MouseArea {
-                anchors.fill: parent
-                z: 7
-                visible: card.menuOpen
-                onPressed: card.menuOpen = false
-            }
-            Rectangle {
-                id: menu
-                z: 8
-                visible: card.menuOpen
-                // Large: under the header; phone: over the bottom bar (a y, as the header's).
-                y: card.phoneLook ? header.y - height - 4 : header.y + header.height + 4
-                anchors.right: parent.right
-                anchors.rightMargin: card.phoneLook ? 10 : 4
-                width: Math.min(frame.width - 8, 240)
-                height: menuCol.implicitHeight + 2 * Theme.xs
-                radius: Theme.rSm
-                color: Theme.containerHigh
-                border.width: 1
-                border.color: Theme.outline
-                // Escape closes the menu and gives the focus back to its button.
-                Keys.onEscapePressed: (event) => {
-                    card.menuOpen = false
-                    more.forceActiveFocus()
-                    event.accepted = true
-                }
-                Column {
-                    id: menuCol
-                    x: Theme.xs
-                    y: Theme.xs
-                    width: menu.width - 2 * Theme.xs
-                    HostButton {
-                        id: openItem
-                        width: menuCol.width
-                        flat: true
-                        start: true
-                        label: I18n.tr("webdock.open_browser")
-                        onClicked: {
-                            card.menuOpen = false
-                            card.openBrowser()
+                // The leaf: what the notebook's page turn captures and turns — the sheet with the header and the page on it. In
+                // the other styles it is the whole card, standing still.
+                Item {
+                    id: leaf
+                    readonly property rect r: card.isNotebook ? nb.sheet : Qt.rect(0, 0, body.width, body.height)
+                    x: r.x
+                    y: r.y
+                    width: r.width
+                    height: r.height
+                    Loader {
+                        anchors.fill: parent
+                        active: card.isNotebook
+                        sourceComponent: NotebookSheet {
+                            theme: Theme
+                            geom: nb
+                            headY: frame.y + header.y + header.height
                         }
                     }
-                    HostButton {
-                        id: replaceItem
-                        width: menuCol.width
-                        flat: true
-                        start: true
-                        visible: card.homeShown
-                        label: I18n.tr("webdock.nav.replace")
-                        onClicked: {
-                            card.menuOpen = false
-                            card.report("webdock.retarget", { pin: card.shownId, url: card.currentUrl() })
+
+                    Rectangle {
+                        id: frame
+                        // Phone: the phone's screen (the status row and the home indicator are its own); notebook: the sheet inside
+                        // its margins (more on the bound side, clear of the punched slots); plain: the whole card.
+                        readonly property real bindM: 20
+                        readonly property real freeM: 10
+                        x: card.isPhone ? phone.screen.x : card.isNotebook ? (card.edge === "left" ? bindM : freeM) : 0
+                        y: card.isPhone ? phone.screen.y : card.isNotebook ? (card.edge === "top" ? bindM : 8) : 0
+                        width: card.isPhone ? phone.screen.width
+                            : card.isNotebook ? parent.width - bindM * (card.sideways ? 1 : 0) - freeM * (card.sideways ? 1 : 2) : parent.width
+                        height: card.isPhone ? phone.screen.height
+                            : card.isNotebook ? parent.height - (card.sideways ? 8 + 14 : bindM + (card.edge === "top" ? 14 : 8)) : parent.height
+                        radius: card.isPhone ? phone.screenRadius : card.isPlain ? Theme.rLg : 0
+                        color: card.isPlain ? Theme.container : "transparent"
+                        clip: true
+                        // The page's corners follow the card's radius (I78) where they meet it — the plain card's, the tablet's screen —
+                        // through a layer masked by that rounded shape. The phone's page sits between the title and the bottom bar,
+                        // clear of the screen's corners, and the notebook's page is a square sheet pasted in: no layer.
+                        readonly property bool masked: card.isPlain || (card.isPhone && !card.phoneLook)
+                        layer.enabled: masked
+                        layer.effect: MultiEffect {
+                            maskEnabled: true
+                            maskSource: frameMask
+                            maskThresholdMin: 0.5
+                            maskSpreadAtMin: 1
+                        }
+                        // The mask is hidden, but its texture is the mask: it needs its own layer (a hidden item without one is
+                        // empty, and the whole card went blank in the first run).
+                        Rectangle {
+                            id: frameMask
+                            visible: false
+                            anchors.fill: parent
+                            radius: frame.radius
+                            color: "white"
+                            layer.enabled: frame.masked
+                        }
+
+                        // Phone: the title in a pill under the status row (the page's title, or the pin's name), its load progress
+                        // along the pill's foot. Not a control: the press that gives the card the keyboard may land on it.
+                        Item {
+                            id: titleBar
+                            visible: card.phoneLook
+                            opacity: card.chromeK
+                            y: phone.statusH
+                            width: parent.width
+                            height: card.phoneLook ? 40 : 0
+                            Rectangle {
+                                visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                                x: pill.x + Theme.sinkX
+                                y: pill.y + Theme.sinkY
+                                width: pill.width
+                                height: pill.height
+                                radius: height / 2
+                                color: Theme.line
+                            }
+                            Rectangle {
+                                id: pill
+                                x: 10
+                                y: 2
+                                width: parent.width - 20
+                                height: 32
+                                radius: height / 2
+                                color: Theme.containerHigh
+                                border.width: Theme.outlineW
+                                border.color: Theme.outlineColor
+                                clip: true
+                                Text {
+                                    id: phoneTitle
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 14
+                                    anchors.rightMargin: 14
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    elide: Text.ElideRight
+                                    text: header.title
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.fsLabel
+                                    font.weight: Theme.wBold
+                                    font.family: Theme.fam(text, Theme.families)
+                                    onWidthChanged: if (card.phoneLook && card.report && card.debugLog)
+                                        console.log("webdock-debug title width", Math.round(width))
+                                }
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: Theme.outlineW
+                                    x: pill.height / 2
+                                    height: 2
+                                    radius: 1
+                                    width: card.activePage ? (pill.width - pill.height) * card.activePage.engine.loadProgress / 100 : 0
+                                    visible: !!card.activePage && card.activePage.engine.loading
+                                    color: Theme.accent
+                                }
+                            }
+                        }
+
+                        Item {
+                            id: header
+                            // A y, not switching anchors: a top anchor and a bottom anchor swapped in one change stretched the bar
+                            // (both held for a moment) after a large-to-phone switch.
+                            // The tablet's row stands under its status row (W69).
+                            y: card.phoneLook ? parent.height - phone.homeH - height : (card.isPhone ? phone.statusH : 0)
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: card.phoneLook ? 40 : 36
+                            opacity: card.chromeK
+                            // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
+                            readonly property int count: 7 + (card.homeShown ? 1 : 0)
+                            readonly property real spread: card.phoneLook
+                                ? Math.max(0, (width - 2 * 12 - count * 32) / (count - 1)) : 0
+
+                            readonly property var page: card.activePage
+                            readonly property string title: (page && page.engine.title) ? page.engine.title
+                                : (card.shownPin ? card.shownPin.title : "")
+
+                            // Escape steps back on the chrome (MODS.md "Shell side"): extended to compact, compact to hidden.
+                            Keys.onEscapePressed: (event) => {
+                                if (card.report) card.report("webdock.back", {})
+                                event.accepted = true
+                            }
+
+                            // Navigation: back and forward follow the engine's history.
+                            Row {
+                                id: nav
+                                anchors.left: parent.left
+                                anchors.leftMargin: card.phoneLook ? 12 : 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: header.spread
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: back
+                                    glyph: "‹"
+                                    icon: "arrow_back_ios_new"
+                                    a11y: I18n.tr("webdock.nav.back")
+                                    enabled: !!(header.page && header.page.engine.canGoBack)
+                                    tipFn: card.tipFor
+                                    onClicked: header.page.engine.goBack()
+                                }
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: forward
+                                    glyph: "›"
+                                    icon: "arrow_forward_ios"
+                                    a11y: I18n.tr("webdock.nav.forward")
+                                    enabled: !!(header.page && header.page.engine.canGoForward)
+                                    tipFn: card.tipFor
+                                    onClicked: header.page.engine.goForward()
+                                }
+                            }
+                            // The title comes first: it keeps what the controls leave (at 360 px, 120 px at least; I78).
+                            Text {
+                                id: titleText
+                                visible: !card.phoneLook
+                                anchors.left: nav.right
+                                anchors.leftMargin: 6
+                                anchors.right: tools.left
+                                anchors.rightMargin: 6
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: Text.ElideRight
+                                text: header.title
+                                color: Theme.fg
+                                font.pixelSize: Theme.fsLabel
+                                font.family: Theme.fam(text, Theme.families)
+                                onWidthChanged: if (!card.phoneLook && card.report && card.debugLog)
+                                    console.log("webdock-debug title width", Math.round(width))
+                            }
+                            Row {
+                                id: tools
+                                anchors.right: parent.right
+                                anchors.rightMargin: card.phoneLook ? 12 : 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: header.spread
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: home
+                                    visible: card.homeShown
+                                    glyph: "⌂"
+                                    icon: "home"
+                                    a11y: I18n.tr("webdock.nav.home")
+                                    tipFn: card.tipFor
+                                    onClicked: card.goHome()
+                                }
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: reloadButton
+                                    glyph: "↻"
+                                    icon: "refresh"
+                                    a11y: I18n.tr("webdock.nav.reload")
+                                    enabled: !!header.page
+                                    tipFn: card.tipFor
+                                    onClicked: header.page.engine.reload()
+                                }
+                                // The view and the size show the state they are in; a press switches it (the tooltip names it).
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: viewToggle
+                                    shape: card.shownView === "mobile" ? "phone" : "desktop"
+                                    a11y: I18n.tr(card.shownView === "mobile" ? "webdock.host.view.mobile" : "webdock.host.view.desktop")
+                                    enabled: !!card.shownPin
+                                    tipFn: card.tipFor
+                                    onClicked: card.toggleView()
+                                }
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: sizeToggle
+                                    shape: card.isLarge ? "wide" : "narrow"
+                                    a11y: I18n.tr(card.isLarge ? "webdock.host.size.large" : "webdock.host.size.phone")
+                                    tipFn: card.tipFor
+                                    onClicked: card.report("webdock.size", { size: card.isLarge ? "phone" : "large" })
+                                }
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: more
+                                    glyph: "…"
+                                    icon: "more_horiz"
+                                    a11y: I18n.tr("webdock.nav.more")
+                                    tipFn: card.tipFor
+                                    onClicked: card.menuOpen = !card.menuOpen
+                                }
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    glyph: "×"
+                                    icon: "close"
+                                    a11y: I18n.tr("webdock.nav.collapse")
+                                    tipFn: card.tipFor
+                                    onClicked: card.report("webdock.collapse", {})
+                                    // Tab from the header's last control goes back into the page (Ctrl+L brought the focus in).
+                                    Keys.onTabPressed: (event) => {
+                                        card.focusPage()
+                                        event.accepted = true
+                                    }
+                                }
+                            }
+                        }
+
+                        // Blocked permissions of the shown pin: one chip each, until the next load (brief "Sites").
+                        Row {
+                            id: chips
+                            anchors.top: card.phoneLook ? titleBar.bottom : header.bottom
+                            anchors.left: parent.left
+                            anchors.leftMargin: 8
+                            spacing: 6
+                            visible: card.open && !!card.shownPin && !!card.shownPin.blocked && card.shownPin.blocked.length > 0
+                            height: visible ? 24 : 0
+                            Repeater {
+                                model: card.shownPin && card.shownPin.blocked ? card.shownPin.blocked : []
+                                delegate: HostChip {
+                                    required property string modelData
+                                    text: I18n.tr("webdock.blocked." + modelData)
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                        }
+
+                        // The page's load progress, under the header (large; the phone draws it on the title's pill).
+                        Rectangle {
+                            visible: !card.phoneLook && !!card.activePage && card.activePage.engine.loading
+                            anchors.top: header.bottom
+                            anchors.left: parent.left
+                            height: 2
+                            width: card.activePage ? parent.width * card.activePage.engine.loadProgress / 100 : 0
+                            color: Theme.accent
+                        }
+
+                        Item {
+                            id: pane
+                            anchors.top: chips.visible ? chips.bottom : (card.phoneLook ? titleBar.bottom : header.bottom)
+                            anchors.topMargin: card.phoneLook || card.isNotebook ? 6 : 0
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            // (the tablet's page ends over its home indicator)
+                            anchors.bottom: card.phoneLook ? header.top : parent.bottom
+                            anchors.bottomMargin: card.isPhone && !card.phoneLook ? phone.homeH : 0
+                            clip: true
+
+                            // The pages' box: the well's size at rest; while the size moves, the larger of now and the end, so the
+                            // site keeps its layout and reflows once (W69: never a reload, never a reflow per frame).
+                            Item {
+                                id: pageBox
+                                width: card.wideRest ? pane.width : Math.max(pane.width, card.pageHoldW)
+                                height: card.wideRest ? pane.height : Math.max(pane.height, card.pageHoldH)
+                            Repeater {
+                                id: rep
+                                model: viewModel
+                                delegate: WebPage {
+                                    required property string pid
+                                    required property var prof
+                                    pinId: pid
+                                    target: card.targetOf(pid)
+                                    profile: prof
+                                    report: card.report
+                                    mode: card.modeOf(pid)
+                                    readonly property bool inSide: card.sideOpen && pid === card.sidePin && card.sideSlot !== null
+                                    home: pageBox
+                                    sideHost: inSide ? card.sideSlot : null
+                                    debugLog: card.debugLog
+                                    active: inSide || (card.open && pid === card.shownId)
+                                    newTabsInDock: card.newTabs !== "browser"
+                                }
+                            }
+                            }
+                            // The notebook's page is pasted in: a hairline round it.
+                            Rectangle {
+                                anchors.fill: parent
+                                z: 5
+                                visible: card.isNotebook
+                                color: "transparent"
+                                border.width: 1
+                                border.color: Qt.alpha(Theme.outline, 0.7)
+                            }
+
+                            // The skeleton holds the card's colour until the first paint: no white flash (brief "Motion").
+                            Rectangle {
+                                anchors.fill: parent
+                                color: Theme.containerHigh
+                                visible: card.open && !!card.activePage && !card.activePage.painted
+                                z: 2
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: I18n.tr("webdock.loading")
+                                    color: Theme.dim
+                                    font.pixelSize: Theme.fsLabel
+                                    font.family: Theme.fam(text, Theme.families)
+                                }
+                            }
+
+                            // A load that failed: the code, retry, and the browser (brief "States").
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: Theme.gap
+                                visible: card.open && !!card.activePage && !!card.activePage.loadError
+                                z: 3
+                                Text {
+                                    width: pane.width - 2 * Theme.pad
+                                    wrapMode: Text.Wrap
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: I18n.tr("webdock.error.load") + "\n"
+                                        + I18n.tr("webdock.error.code").replace("{code}", card.activePage && card.activePage.loadError ? String(card.activePage.loadError.code) : "")
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.fs
+                                    font.family: Theme.fam(text, Theme.families)
+                                }
+                                Row {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: Theme.gap
+                                    HostButton {
+                                        label: I18n.tr("webdock.error.retry")
+                                        primary: true
+                                        onClicked: card.activePage.engine.reload()
+                                    }
+                                    HostButton {
+                                        label: I18n.tr("webdock.open_browser")
+                                        onClicked: card.openBrowser()
+                                    }
+                                }
+                            }
+
+                            // The renderer stopped: the daemon says so (`error`), and reload brings the page back.
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: Theme.gap
+                                visible: card.open && !!card.shownPin && card.shownPin.error === "webdock.error.crashed"
+                                z: 3
+                                Text {
+                                    text: I18n.tr("webdock.error.crashed")
+                                    color: Theme.fg
+                                    font.pixelSize: Theme.fs
+                                    font.family: Theme.fam(text, Theme.families)
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                }
+                                HostButton {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    label: I18n.tr("webdock.nav.reload")
+                                    primary: true
+                                    onClicked: if (card.activePage) card.activePage.engine.reload()
+                                }
+                            }
+
+                            // W30: the shown pin's page is in the open sidebar (one page per pin): the card says where it is.
+                            Text {
+                                anchors.centerIn: parent
+                                width: pane.width - 2 * Theme.pad
+                                visible: card.open && card.shownInSide
+                                z: 3
+                                wrapMode: Text.Wrap
+                                horizontalAlignment: Text.AlignHCenter
+                                text: I18n.tr("webdock.side.elsewhere")
+                                color: Theme.dim
+                                font.pixelSize: Theme.fs
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+
+                            // The web engine is still starting: the card frame is up before the host is connected.
+                            Text {
+                                anchors.centerIn: parent
+                                visible: card.open && !Store.live
+                                z: 3
+                                text: I18n.tr("webdock.host.starting")
+                                color: Theme.dim
+                                font.pixelSize: Theme.fsLabel
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+
+                            // A sign-in popup is a sheet over the page: its close button is the way back (brief "Sites").
+                            HostButton {
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: 4
+                                z: 4
+                                visible: !!card.activePage && !!card.activePage.sheet
+                                glyph: "×"
+                                a11y: I18n.tr("webdock.sheet.close")
+                                onClicked: card.activePage.closeSheet()
+                            }
+                        }
+
+                        // The overflow menu (brief "Layout per edge"): a press outside it closes it, so the page under it gets no press.
+                        MouseArea {
+                            anchors.fill: parent
+                            z: 7
+                            visible: card.menuOpen
+                            onPressed: card.menuOpen = false
+                        }
+                        Rectangle {
+                            id: menu
+                            z: 8
+                            visible: card.menuOpen
+                            // Large: under the header; phone: over the bottom bar (a y, as the header's).
+                            y: card.phoneLook ? header.y - height - 4 : header.y + header.height + 4
+                            anchors.right: parent.right
+                            anchors.rightMargin: card.phoneLook ? 10 : 4
+                            width: Math.min(frame.width - 8, 240)
+                            height: menuCol.implicitHeight + 2 * Theme.xs
+                            radius: Theme.rSm
+                            color: Theme.containerHigh
+                            border.width: 1
+                            border.color: Theme.outline
+                            // Escape closes the menu and gives the focus back to its button.
+                            Keys.onEscapePressed: (event) => {
+                                card.menuOpen = false
+                                more.forceActiveFocus()
+                                event.accepted = true
+                            }
+                            Column {
+                                id: menuCol
+                                x: Theme.xs
+                                y: Theme.xs
+                                width: menu.width - 2 * Theme.xs
+                                HostButton {
+                                    id: openItem
+                                    width: menuCol.width
+                                    flat: true
+                                    start: true
+                                    label: I18n.tr("webdock.open_browser")
+                                    onClicked: {
+                                        card.menuOpen = false
+                                        card.openBrowser()
+                                    }
+                                }
+                                HostButton {
+                                    id: replaceItem
+                                    width: menuCol.width
+                                    flat: true
+                                    start: true
+                                    visible: card.homeShown
+                                    label: I18n.tr("webdock.nav.replace")
+                                    onClicked: {
+                                        card.menuOpen = false
+                                        card.report("webdock.retarget", { pin: card.shownId, url: card.currentUrl() })
+                                    }
+                                }
+                            }
+                        }
+
+                        // The tooltip of the control under the pointer or the keyboard: under the header, kept inside the card.
+                        Rectangle {
+                            id: tipBox
+                            z: 9
+                            visible: card.tipText !== ""
+                            y: card.phoneLook ? header.y - height - Theme.xs : header.y + header.height + Theme.xs
+                            width: tipLabel.implicitWidth + 2 * Theme.gap
+                            height: tipLabel.implicitHeight + 2 * Theme.xs
+                            x: Math.max(Theme.xs, Math.min(card.tipX - width / 2, frame.width - width - Theme.xs))
+                            radius: Theme.rSm
+                            color: Theme.containerHigh
+                            border.width: 1
+                            border.color: Theme.outline
+                            Text {
+                                id: tipLabel
+                                anchors.centerIn: parent
+                                text: card.tipText
+                                color: Theme.fg
+                                font.pixelSize: Theme.fsCaption
+                                font.family: Theme.fam(text, Theme.families)
+                            }
                         }
                     }
                 }
-            }
 
-            // The tooltip of the control under the pointer or the keyboard: under the header, kept inside the card.
-            Rectangle {
-                id: tipBox
-                z: 9
-                visible: card.tipText !== ""
-                y: card.phoneLook ? header.y - height - Theme.xs : header.y + header.height + Theme.xs
-                width: tipLabel.implicitWidth + 2 * Theme.gap
-                height: tipLabel.implicitHeight + 2 * Theme.xs
-                x: Math.max(Theme.xs, Math.min(card.tipX - width / 2, frame.width - width - Theme.xs))
-                radius: Theme.rSm
-                color: Theme.containerHigh
-                border.width: 1
-                border.color: Theme.outline
-                Text {
-                    id: tipLabel
-                    anchors.centerIn: parent
-                    text: card.tipText
-                    color: Theme.fg
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
+                // ---- over the page ----
+                // Plain: the card's outline, the look's (the page is masked to the card's radius under it).
+                FrameBox {
+                    anchors.fill: parent
+                    visible: card.isPlain && Theme.outlineW > 0
+                    box: card.roundBox
+                    radius: Theme.rLg
+                    color: "transparent"
+                    borderWidth: Theme.outlineW
+                    borderColor: Theme.outlineColor
                 }
-            }
-        }
-        }
-
-        // ---- over the page ----
-        // Plain: the card's outline, the look's (the page is masked to the card's radius under it).
-        FrameBox {
-            anchors.fill: parent
-            visible: card.isPlain && Theme.outlineW > 0
-            box: card.roundBox
-            radius: Theme.rLg
-            color: "transparent"
-            borderWidth: Theme.outlineW
-            borderColor: Theme.outlineColor
-        }
-        // The page turn (W69): only while the sheet turns (Ma), the sheet captured and hidden meanwhile.
-        Loader {
-            id: turnLoader
-            anchors.fill: parent
-            active: card.turns && card.nbP > 0 && card.nbP < 1
-            sourceComponent: PageTurn {
-                source: leaf
-                edge: card.edge
-                progress: card.turnP
-            }
-        }
-        // The notebook's coil, over the sheet (and over the turning sheet: the wire runs through its slots).
-        Loader {
-            anchors.fill: parent
-            active: card.isNotebook
-            sourceComponent: NotebookWire {
-                theme: Theme
-                geom: nb
+                // The page turn (W69): only while the sheet turns (Ma), the sheet captured and hidden meanwhile.
+                Loader {
+                    id: turnLoader
+                    anchors.fill: parent
+                    active: card.turns && card.nbP > 0 && card.nbP < 1
+                    sourceComponent: PageTurn {
+                        source: leaf
+                        edge: card.edge
+                        progress: card.turnP
+                    }
+                }
+                // The notebook's coil, over the sheet (and over the turning sheet: the wire runs through its slots).
+                Loader {
+                    anchors.fill: parent
+                    active: card.isNotebook
+                    sourceComponent: NotebookWire {
+                        theme: Theme
+                        geom: nb
+                    }
+                }
             }
         }
     }

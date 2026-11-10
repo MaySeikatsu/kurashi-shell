@@ -15,7 +15,7 @@ Item {
     readonly property bool keycap: theme ? theme.ringW > 0 : false
     readonly property real castX: keycap ? Math.round(theme.sinkX * 1.5) : 0
     readonly property real castY: keycap ? Math.round(theme.sinkY * 1.5) : 0
-    readonly property color coverC: theme ? Qt.tint(theme.containerHigh, Qt.alpha(theme.accent, 0.3)) : "#6b5235"
+    readonly property color coverC: theme ? Qt.tint(Qt.tint(theme.containerHigh, Qt.alpha(theme.outline, 0.22)), Qt.alpha(theme.accent, 0.24)) : "#6b5235"
     // The cover's edge: the look's outline, or (a look without one) a line a shade darker than the board.
     readonly property real edgeW: theme && theme.outlineW > 0 ? theme.outlineW : 1
     readonly property color edgeC: theme && theme.outlineW > 0 ? theme.outlineColor : Qt.darker(coverC, 1.35)

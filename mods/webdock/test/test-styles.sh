@@ -176,6 +176,23 @@ if [ -n "${STYLES_PEEK:-}" ]; then
   for p in 0.2 0.45 0.7 0.9; do echo "open $p" > "$R/hold"; peek "turn-$p"; done
   : > "$R/hold"
 fi
+# Plain: the panel form of the profile (whichever it is) opens and closes the card, and the window unmaps at the end.
+set_style plain
+motion calm
+for form in expand fold slide; do
+  ipc act mock.doc "{\"doc\":\"theme\",\"patch\":{\"tokens\":{\"motion.form.panel.open\":\"$form\",\"motion.form.panel.close\":\"$form\"}}}" >/dev/null || fail "mock.doc theme refused"
+  prof=$form
+  sleep 0.5
+  n=$(logs "webdock-debug mapped false plain")
+  ipc act webdock.collapse '{}' >/dev/null
+  wait_new "webdock-debug mapped false plain" "$n" 6 || fail "plain ($prof): the card did not close"
+  n=$(logs "webdock-debug mapped true plain")
+  ipc act webdock.open '{"pin":"still"}' >/dev/null
+  wait_new "webdock-debug mapped true plain" "$n" 6 || fail "plain ($prof): the card did not open"
+  sleep 2
+  ok "plain ($prof): opens and closes in the panel form ($(last_debug "mapped true"))"
+done
+[ "$(logs 'webdock.host.loaded {"pin":"still"}')" = "$loads0" ] || fail "opening and closing reloaded the page"
 motion none
 sleep 1
 

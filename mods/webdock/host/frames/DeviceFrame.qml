@@ -8,15 +8,15 @@ import QtQuick.Effects
 // buttons (the phone's rocker and power leave the long sides, the tablet's pair stands on its top edge) — so the size
 // change is one morph of one body, not a swap. Static at rest (no timer, no animation of its own: the card drives
 // `wide`, Ma). Drawn from tokens only (rule 4). Shared by the web host and the shell's card (mods/webdock/qml/frames is a
-// link here): it imports nothing of either, takes the caller's Theme (`theme`) and the caller's RoundBox and Relief by
-// component and URL (`box`, `reliefUrl`; none = a plain Rectangle, no relief).
+// link here): it imports nothing of either, takes the caller's Theme (`theme`) and the caller's RoundBox and Relief as
+// components (`box`, `relief`; none = a plain Rectangle, no relief).
 Item {
     id: ph
 
     property var theme: null
     property real wide: 0
     property Component box: null
-    property url reliefUrl: ""
+    property Component relief: null
     property bool buttons: true
     property bool homeBar: true
     property color screenColor: theme ? theme.surface : "#1b1a1e"
@@ -156,8 +156,8 @@ Item {
             z: ph.theme && ph.theme.texText === true ? 1 : 0
             anchors.fill: parent
             anchors.margins: ph.drawn ? ph.outlineW : 0
-            active: !!ph.theme && ph.theme.texShell === true && ph.reliefUrl.toString() !== ""
-            source: active ? ph.reliefUrl : ""
+            active: !!ph.theme && ph.theme.texShell === true && ph.relief !== null
+            sourceComponent: ph.relief
             onLoaded: item.radius = Qt.binding(function () { return Math.max(0, ph.screenRadius - (ph.drawn ? ph.outlineW : 0)) })
         }
         // The status row: the caller's items, clear of the screen's corners and the cut-out.

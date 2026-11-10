@@ -18,7 +18,7 @@ Item {
     readonly property color paper: theme ? theme.container : "#252329"
     readonly property color hair: theme ? Qt.alpha(theme.outline, 0.55) : "#555"
     readonly property color rule: theme ? Qt.alpha(theme.outline, 0.32) : "#444"
-    readonly property color coverC: theme ? Qt.tint(theme.containerHigh, Qt.alpha(theme.accent, 0.3)) : "#6b5235"
+    readonly property color coverC: theme ? Qt.tint(Qt.tint(theme.containerHigh, Qt.alpha(theme.outline, 0.22)), Qt.alpha(theme.accent, 0.24)) : "#6b5235"
     // A point of the binding's frame in this sheet's px: `a` along the bound edge from the sheet's start, `d` in from it.
     function pt(a, d) {
         if (edge === "right") return Qt.point(width - d, a)
