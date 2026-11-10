@@ -1228,7 +1228,7 @@ for _ in $(seq 40); do
   timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1; sleep 0.35
   [ "$(Q sectionPush)" -gt 0 ] && break
 done
-[ "$(Q sectionPush)" -gt 0 ] && [ -n "$(Q soloSection)" ] || fail "sections S2: a notch against the section's end did not push (push $(Q sectionPush), section '$(Q soloSection)')"
+[ "$(Q sectionPush)" -gt 0 ] && [ -n "$(Q soloSection)" ] || fail "sections S2: a notch against the section's end did not push (push $(Q sectionPush), section '$(Q soloSection)', scroll $(Q scrollY))"
 shot sections-push
 timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -4 0.08; sleep 0.6
 [ -z "$(Q soloSection)" ] || fail "sections S2: scrolling on did not open the whole page (still '$(Q soloSection)', push $(Q sectionPush))"

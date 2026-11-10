@@ -505,9 +505,8 @@ Flickable {
             var dy = event.phase !== Qt.NoScrollPhase ? event.pixelDelta.y : event.angleDelta.y / 120 * 140
             if (dy === 0) return
             var down = dy < 0
-            var fits = p.contentHeight <= p.height + 1
-            var atEnd = fits || p.contentY >= p.contentHeight - p.height - 1
-            var atTop = fits || p.contentY <= 1
+            // (the view's own word for its ends: it knows its margins and origin)
+            var atEnd = p.atYEnd, atTop = p.atYBeginning
             if ((down && atEnd) || (!down && atTop)) {
                 var dir = down ? 1 : -1
                 if (dir !== p.pushDir) { p.pushDir = dir; p.push = 0 }
