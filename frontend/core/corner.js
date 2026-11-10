@@ -133,13 +133,18 @@ function squircled(svg, sq, join) {
         }
         close(segs.length)
     }
+    var half = function (k) {
+        var g = segs[k], nb = neighbour(k, -1), na = neighbour(k, 1)
+        return (nb && Math.abs(nb.r - g.r) < 0.6) || (na && Math.abs(na.r - g.r) < 0.6)
+    }
     var out = []
     for (var k = 0; k < segs.length; k++) {
         var g = segs[k]
         if (g.c === "Z") out.push("Z")
         else if (g.c !== "A") out.push(g.c, g.a.join(" "))
-        else if (join && g.q && (+g.a[4] === 1) !== g.cw) {
-            // A fillet from p to q round the bare corner c.
+        else if (join && g.q && !half(k)) {
+            // A quarter turn from p to q round the bare corner c: a fillet where two surfaces join, or a surface's own
+            // corner (I489: the shape is for every corner of the sheet). A pill's end stays round.
             var c = cornerOf(g.px, g.py, g.x, g.y, +g.a[4])
             if (join === "chamfer") out.push("L", f(g.x) + " " + f(g.y))
             else if (join === "square") out.push("L", f(c.x) + " " + f(c.y), "L", f(g.x) + " " + f(g.y))
