@@ -970,8 +970,8 @@ PanelWindow {
         PreviewPeek {
             source: stage.shownSource
             maxWidth: stage.peekMaxW - 2 * Theme.pad
-            fg: Theme.fg
-            dim: Theme.dim
+            fg: stage.peekBalloon ? peekTip.ink(Theme.fg) : Theme.fg
+            dim: stage.peekBalloon ? peekTip.ink(Theme.dim) : Theme.dim
         }
     }
     Component {
@@ -979,8 +979,8 @@ PanelWindow {
         PeekLines {
             lines: stage.peekLinesOf(stage.shownSource)
             maxWidth: stage.peekMaxW - 2 * Theme.pad
-            fg: peekTip.ink(Theme.fg)
-            dim: peekTip.ink(Theme.dim)
+            fg: stage.peekBalloon ? peekTip.ink(Theme.fg) : Theme.fg
+            dim: stage.peekBalloon ? peekTip.ink(Theme.dim) : Theme.dim
         }
     }
 

@@ -86,7 +86,7 @@ Item {
     // The module's card, where a hover can open it without toggling it shut: a mod's panel, the clock's face, the quick
     // settings card, the launcher. "" for a module that has none: its hover stays its preview.
     readonly property string hoverSurface: isMod ? (item && item.hasPanel ? "mod" : "")
-        : (["clock", "quick", "launcher"].indexOf(mid) >= 0 ? mid : "")
+        : (["clock", "launcher"].indexOf(mid) >= 0 || (mid === "quick" && item && item.opensCard === true) ? mid : "")
     HoverHandler {
         id: hov
         enabled: host.shown && host.mid !== "" && host.hoverMode !== "preview"
