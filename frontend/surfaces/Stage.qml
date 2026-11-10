@@ -45,6 +45,8 @@ import "../components/bar/framegeom.js" as FG
 // one is open retargets the one shape (the view fades first, then the content swaps). The window is the box round origin
 // and card (left-anchored, `boxL`), fitted when the shape comes out and only grown while it is out.
 PanelWindow {
+    // (the change of colour as a cross-fade: components/ColorFade.qml)
+    ColorFade {}
     id: stage
 
     // K59: this window's tile set, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.

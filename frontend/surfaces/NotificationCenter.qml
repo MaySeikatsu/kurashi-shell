@@ -14,6 +14,8 @@ import "../components/decor" as Decor
 // folds back into it; the card hangs under the bar's centre, like the island's own views, and the window covers the
 // bar's strip above it while the shape is out. Without one (a side bar, no bar) it slides in at the top right, as before.
 PanelWindow {
+    // (the change of colour as a cross-fade: components/ColorFade.qml)
+    ColorFade {}
     id: win
 
     readonly property bool open: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].panel) === "notifications"

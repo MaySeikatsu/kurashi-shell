@@ -59,6 +59,8 @@ ShellRoot {
     LazyLoader {
         active: root.host === "window"
         FloatingWindow {
+            // (the change of colour as a cross-fade, as in the shell's windows: components/ColorFade.qml)
+            ColorFade {}
             title: I18n.tr("settings.ui.title")
             implicitWidth: 1040
             implicitHeight: 740

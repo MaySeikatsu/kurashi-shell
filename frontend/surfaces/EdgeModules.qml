@@ -210,6 +210,8 @@ Scope {
             id: winL
             active: g.windowWanted
             PanelWindow {
+                // (the change of colour as a cross-fade: components/ColorFade.qml)
+                ColorFade {}
                 id: win
                 screen: g.scr
                 anchors {

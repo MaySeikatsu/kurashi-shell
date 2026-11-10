@@ -27,6 +27,8 @@ import "../components/decor"
 // shape's box; K16: its size only, never the output's). Without one (a side bar, no bar) it stays centred on the output
 // and slides in, as before. I407: that is one of its places (`launcher.place`), see `place` below.
 PanelWindow {
+    // (the change of colour as a cross-fade: components/ColorFade.qml)
+    ColorFade {}
     id: lp
 
     readonly property var ui: Store.docs["runtime.ui"] || ({})

@@ -269,6 +269,29 @@ Item {
             }
         }
     }
+    // The pen's lines. While a neighbour opens or closes, the rule's cut under it moves every frame for a moment: the pen
+    // waits until the lines stand still and draws once (PenOutline `settleMs`; the moving cut lies under the neighbour's
+    // own edge meanwhile).
+    readonly property var penPathsLive: {
+        if (!(fp.drawRule && fp.ow > 0 && Theme.penOutline)) return []
+        var l = [], ox = fp.ox, oy = fp.oy, h = fp.ow / 2
+        var lifted = fp.shownRules.concat(fp.coverRules)
+        lifted.forEach(function (g) {
+            if (g.w <= 0 || g.h <= 0) return
+            var a = fp.isH(g)
+                ? [{ x: g.x - ox, y: g.y + h - oy }, { x: g.x + g.w - ox, y: g.y + h - oy }]
+                : [{ x: g.x + h - ox, y: g.y - oy }, { x: g.x + h - ox, y: g.y + g.h - oy }]
+            l.push({ points: a, closed: false })
+        })
+        fp.shownArcs.forEach(function (a) {
+            var dx = fp.cdx(a.c), dy = fp.cdy(a.c)
+            l.push({ points: a.p.map(function (p) { return { x: p.x + dx - ox, y: p.y + dy - oy } }), closed: false })
+        })
+        fp.tailArcs.forEach(function (t) {
+            l.push({ points: t.map(function (p) { return { x: p.x - ox, y: p.y - oy } }), closed: false })
+        })
+        return l
+    }
     // K62: the pen draws the rule (one Canvas the window's size, painted once per change).
     Loader {
         x: fp.ox
@@ -281,25 +304,8 @@ Item {
             color: Theme.frameOutlineColor
             lineWidth: fp.ow
             seed: fp.seed
-            paths: {
-                var l = [], ox = fp.ox, oy = fp.oy, h = fp.ow / 2
-                var lifted = fp.shownRules.concat(fp.coverRules)
-                lifted.forEach(function (g) {
-                    if (g.w <= 0 || g.h <= 0) return
-                    var a = fp.isH(g)
-                        ? [{ x: g.x - ox, y: g.y + h - oy }, { x: g.x + g.w - ox, y: g.y + h - oy }]
-                        : [{ x: g.x + h - ox, y: g.y - oy }, { x: g.x + h - ox, y: g.y + g.h - oy }]
-                    l.push({ points: a, closed: false })
-                })
-                fp.shownArcs.forEach(function (a) {
-                    var dx = fp.cdx(a.c), dy = fp.cdy(a.c)
-                    l.push({ points: a.p.map(function (p) { return { x: p.x + dx - ox, y: p.y + dy - oy } }), closed: false })
-                })
-                fp.tailArcs.forEach(function (t) {
-                    l.push({ points: t.map(function (p) { return { x: p.x - ox, y: p.y - oy } }), closed: false })
-                })
-                return l
-            }
+            paths: fp.penPathsLive
+            settleMs: 90
         }
     }
 
