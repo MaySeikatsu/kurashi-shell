@@ -19,5 +19,6 @@ Block {
     radius: Theme.rFull
     ringScale: 0.5
     softScale: 0.3
+    glowRoom: 3
     fill: Theme.lifted ? Theme.surfaceAlpha : "transparent"
 }

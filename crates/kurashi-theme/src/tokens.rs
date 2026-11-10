@@ -447,8 +447,8 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 0.97,
             groups: true,
-            // (B79: lit blocks float as the soft chrome's do, so there is no strip for a frame's line to rule)
-            frame_outline: false,
+            // (B79: the frame's line is a tube too: FramePieces lights it as the blocks' outlines are lit)
+            frame_outline: true,
         },
         Chrome::Bevel => Ch {
             style: "bevel",
@@ -510,7 +510,11 @@ pub fn build(
         // (B79: the outline is the tube itself: the accent heated towards white on a dark ground, where light shows;
         // on paper the accent as it is, since a pale line would vanish)
         Chrome::Glow => (
-            if p.dark { g("accent").mix(WHITE, 0.45) } else { g("accent") },
+            if p.dark {
+                g("accent").mix(WHITE, 0.45)
+            } else {
+                g("accent")
+            },
             1.0,
         ),
         Chrome::Soft => (

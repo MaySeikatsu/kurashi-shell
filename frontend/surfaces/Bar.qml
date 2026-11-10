@@ -610,7 +610,8 @@ Scope {
                             }
                             // I305 (user: a gap): groups floating with a shadow (keycap, soft) break the rule under them, their
                             // shadow's sideways reach and a few px beside, so the rule and the shadows never run together.
-                            if (bb.floatingGroups && bar.zoneRoot && bar.zoneRoot.groupSpans) {
+                            // (B79: not where the shadow is light: a glowing rule runs through, one line with the frame's)
+                            if (bb.floatingGroups && !Theme.softGlow && bar.zoneRoot && bar.zoneRoot.groupSpans) {
                                 var reach = Math.abs(Theme.sinkX) + 3, gs = bar.zoneRoot.groupSpans
                                 for (var g = 0; g < gs.length; g++)
                                     gaps.push([Math.max(0, gs[g][0] - reach), Math.min(ruleLen, gs[g][1] + reach)])

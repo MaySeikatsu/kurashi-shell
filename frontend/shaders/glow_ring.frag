@@ -28,7 +28,7 @@ void main() {
     // Two falls added: a tight hot one at the tube and a wide faint one, as light spreads (no hard end: it is 0 at reach).
     float wide = pow(max(0.0, 1.0 - t), 1.8);
     float hot = exp(-abs(d) / max(uLight.w * 1.6, 0.5));
-    float a = clamp((0.8 * wide + 0.75 * hot) * uLight.z, 0.0, 1.0) * uColor.a;
+    float a = clamp((0.38 * wide + 0.42 * hot) * uLight.z, 0.0, 1.0) * uColor.a;
     // The tube's core is whiter than its light.
     vec3 col = mix(uColor.rgb, vec3(1.0), 0.35 * hot * hot);
     fragColor = vec4(col * a, a) * qt_Opacity;

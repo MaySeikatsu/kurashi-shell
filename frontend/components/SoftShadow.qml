@@ -11,6 +11,9 @@ Loader {
     id: sh
     property real radius: 0
     property real amount: 1
+    // B79: the room round the shape for a ring of light (px; -1: as far as the light reaches). A bar's group has a few px
+    // to its window's edge and to the bar's rule: its light ends there instead of being cut or lapping over the rule.
+    property real room: -1
     // -1 inside a frame mirrored vertically (a shape drawn under a bottom bar): the shadow still falls the screen's way.
     property real direction: 1
     // -1 inside a frame mirrored horizontally (a left sidebar drawn in a right one's frame).
@@ -25,7 +28,7 @@ Loader {
         id: ring
         Item {
             readonly property real amt: Math.max(sh.amount, Theme.softGlowMin)
-            readonly property real reach: Theme.softR * amt * 1.6
+            readonly property real reach: sh.room >= 0 ? Math.min(sh.room, Theme.softR * amt) : Theme.softR * amt
             readonly property real pad: Math.ceil(reach) + 2
             ShaderEffect {
                 x: -parent.pad

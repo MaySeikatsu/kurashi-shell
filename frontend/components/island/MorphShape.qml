@@ -440,10 +440,10 @@ Shape {
     // blur, no layer; SoftShadow's ring is for plain boxes, and the Stage leaves it out for this shape).
     readonly property string glowPath: visible && Theme.softGlow
         ? Corner.squircled(joined ? path(0, 0) : stripPath(0, false, 0), Theme.squircle) : ""
-    readonly property real glowReach: Theme.softR * 1.6
+    readonly property real glowReach: Theme.softR
     ShapePath {
         strokeWidth: Theme.softGlow ? sh.glowReach * 2.0 : -1
-        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.112) * sh.fade) : "transparent"
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.050) * sh.fade) : "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.RoundCap
         fillColor: "transparent"
@@ -451,7 +451,7 @@ Shape {
     }
     ShapePath {
         strokeWidth: Theme.softGlow ? sh.glowReach * 1.25 : -1
-        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.160) * sh.fade) : "transparent"
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.075) * sh.fade) : "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.RoundCap
         fillColor: "transparent"
@@ -459,7 +459,7 @@ Shape {
     }
     ShapePath {
         strokeWidth: Theme.softGlow ? sh.glowReach * 0.65 : -1
-        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.256) * sh.fade) : "transparent"
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.120) * sh.fade) : "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.RoundCap
         fillColor: "transparent"
@@ -467,7 +467,7 @@ Shape {
     }
     ShapePath {
         strokeWidth: Theme.softGlow ? sh.glowReach * 0.28 : -1
-        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.480) * sh.fade) : "transparent"
+        strokeColor: Theme.softGlow ? Qt.alpha(Theme.softColor, Math.min(1, Theme.softColor.a * 0.220) * sh.fade) : "transparent"
         joinStyle: ShapePath.RoundJoin
         capStyle: ShapePath.RoundCap
         fillColor: "transparent"
