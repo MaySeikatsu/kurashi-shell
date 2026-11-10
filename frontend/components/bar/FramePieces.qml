@@ -173,7 +173,7 @@ Item {
             x: modelData[0]; y: modelData[1]; rotation: modelData[2]
             width: fp.cr; height: fp.cr
             z: 1
-            Quarter { fill: "black"; r: fp.cr }
+            Quarter { fill: "black"; r: fp.cr; shaped: false }
         }
     }
     Repeater {
@@ -313,13 +313,20 @@ Item {
     component Quarter: Shape {
         property color fill: "white"
         property real r: 0
+        // (the frame's own corner takes the corner's shape; the screen's outer corner — its black mask — stays the
+        // screen's: round)
+        property bool shaped: true
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
         ShapePath {
             fillColor: fill
             strokeWidth: -1
             // (the squircle corner in a squircle look, I281: the band's inner corner as the shapes draw theirs)
-            PathSvg { path: r > 0 ? "M 0 0 L " + r + " 0" + Corner.quarter(r, 0, r, 0, 0, r, Theme.squircle) + " Z" : "" }
+            // (I489: and in the corner's shape, `theme.join_corner`: a cut, a stair, a drop, or none — corner.js)
+            PathSvg {
+                path: r > 0 ? Corner.squircled("M 0 0 L " + r + " 0 A " + r + " " + r + " 0 0 0 0 " + r + " Z",
+                                               Theme.squircle, shaped ? Theme.joinCorner : "") : ""
+            }
         }
     }
     // A concave inner corner: the band's colour from the corner to the arc (ScreenCorners' fillet), turned per corner; the

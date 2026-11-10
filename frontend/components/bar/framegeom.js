@@ -35,8 +35,33 @@ function zones(lay) {
 
 // Points along a quarter circle (centre, radius, from angle a0 to a1, radians; screen axes, y down) — or, `sq`, along the
 // squircle corner between the same ends (core/corner.js, I281).
-function arc(cx, cy, rad, a0, a1, sq) {
+// `join` (I489, `theme.join_corner`): the corner's shape — "chamfer" a straight cut, "steps" a stair, "bulge" the quarter
+// turned the other way (round the bare corner), "square" the bare corner; else round, as corner.js draws the fills.
+function arc(cx, cy, rad, a0, a1, sq, join) {
     var n = Math.max(6, Math.ceil(rad / 2)), pts = []
+    if (join && join !== "round") {
+        var ax = cx + rad * Math.cos(a0), ay = cy + rad * Math.sin(a0), bx = cx + rad * Math.cos(a1), by = cy + rad * Math.sin(a1)
+        var kx = cx + rad * (Math.cos(a0) + Math.cos(a1)), ky = cy + rad * (Math.sin(a0) + Math.sin(a1))
+        if (join === "chamfer") return [{ x: ax, y: ay }, { x: bx, y: by }]
+        if (join === "square") return [{ x: ax, y: ay }, { x: kx, y: ky }, { x: bx, y: by }]
+        if (join === "steps") {
+            var st = Math.max(2, Math.min(6, Math.round(rad / 5))), ux = (kx - ax) / st, uy = (ky - ay) / st
+            var vx = (bx - kx) / st, vy = (by - ky) / st
+            pts.push({ x: ax, y: ay })
+            for (var w = 1; w <= st; w++) {
+                pts.push({ x: ax + ux * w + vx * (w - 1), y: ay + uy * w + vy * (w - 1) })
+                pts.push({ x: ax + ux * w + vx * w, y: ay + uy * w + vy * w })
+            }
+            return pts
+        }
+        if (join === "bulge") {
+            for (var j = 0; j <= n; j++) {
+                var t = a1 + Math.PI + (a0 - a1) * j / n
+                pts.push({ x: kx + rad * Math.cos(t), y: ky + rad * Math.sin(t) })
+            }
+            return pts
+        }
+    }
     if (sq) {
         var p0x = cx + rad * Math.cos(a0), p0y = cy + rad * Math.sin(a0), p1x = cx + rad * Math.cos(a1), p1y = cy + rad * Math.sin(a1)
         return Corner.points(p0x, p0y, cx + rad * (Math.cos(a0) + Math.cos(a1)), cy + rad * (Math.sin(a0) + Math.sin(a1)),
@@ -51,7 +76,7 @@ function arc(cx, cy, rad, a0, a1, sq) {
 
 // Everything the pieces depend on: the output's size, the cut's edges (`o`: band + docked bar), the bands (`b`), the inner
 // radius, the rule's width and the zones (`z`).
-function geometry(lay, barH, sw, sh, ow, z, sq) {
+function geometry(lay, barH, sw, sh, ow, z, sq, join) {
     var f = (lay && lay.frame) || {}
     var b = { top: band(lay, "top"), bottom: band(lay, "bottom"), left: band(lay, "left"), right: band(lay, "right") }
     var o = {
@@ -61,7 +86,7 @@ function geometry(lay, barH, sw, sh, ow, z, sq) {
         right: b.right + (docked(lay, "right") ? barH : 0)
     }
     var dk = { top: docked(lay, "top"), bottom: docked(lay, "bottom"), left: docked(lay, "left"), right: docked(lay, "right") }
-    return { sw: sw, sh: sh, o: o, b: b, dk: dk, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z, sq: sq || 0 }
+    return { sw: sw, sh: sh, o: o, b: b, dk: dk, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z, sq: sq || 0, join: join || "" }
 }
 // Where a side strip starts and ends: never above the zones the compositor already placed it inside (a holder is placed
 // within the top and bottom holders' zones, mapped before it).
@@ -117,8 +142,8 @@ function across(g, top) {
         if (r > 0) {
             var rho = r + ow / 2, cyA = top ? o.top + r : H - o.bottom - r
             var lx = o.left + r, rx = W - o.right - r
-            arcs.push({ c: top ? "tl" : "bl", p: top ? arc(lx, cyA, rho, -Math.PI / 2, -Math.PI, g.sq) : arc(lx, cyA, rho, Math.PI, Math.PI / 2, g.sq) })
-            arcs.push({ c: top ? "tr" : "br", p: top ? arc(rx, cyA, rho, -Math.PI / 2, 0, g.sq) : arc(rx, cyA, rho, 0, Math.PI / 2, g.sq) })
+            arcs.push({ c: top ? "tl" : "bl", p: top ? arc(lx, cyA, rho, -Math.PI / 2, -Math.PI, g.sq, g.join) : arc(lx, cyA, rho, Math.PI, Math.PI / 2, g.sq, g.join) })
+            arcs.push({ c: top ? "tr" : "br", p: top ? arc(rx, cyA, rho, -Math.PI / 2, 0, g.sq, g.join) : arc(rx, cyA, rho, 0, Math.PI / 2, g.sq, g.join) })
         }
     }
     return { y0: y0, d: d, fills: fills, fillets: fillets, rules: rules, arcs: arcs }

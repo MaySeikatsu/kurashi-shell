@@ -3106,6 +3106,72 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.join_corner.round",
+                  "value": "round"
+                },
+                {
+                  "label": "config.choice.join_corner.chamfer",
+                  "value": "chamfer"
+                },
+                {
+                  "label": "config.choice.join_corner.steps",
+                  "value": "steps"
+                },
+                {
+                  "label": "config.choice.join_corner.bulge",
+                  "value": "bulge"
+                },
+                {
+                  "label": "config.choice.join_corner.square",
+                  "value": "square"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "round",
+              "help": "config.theme.join_corner.help",
+              "key": "theme.join_corner",
+              "label": "config.theme.join_corner.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.join.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.join.float",
+                  "value": "float"
+                },
+                {
+                  "label": "config.choice.join.dynamic",
+                  "value": "dynamic"
+                },
+                {
+                  "label": "config.choice.join.connected",
+                  "value": "connected"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.join.help",
+              "key": "theme.join",
+              "label": "config.theme.join.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
                   "label": "config.choice.chrome.flat",
                   "value": "flat"
                 },
@@ -3579,70 +3645,6 @@
               "restart": false,
               "since": 7,
               "type": "bool"
-            }
-          ]
-        },
-        {
-          "id": "connection",
-          "label": "settings.section.connection",
-          "rows": [
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.join.auto",
-                  "value": "auto"
-                },
-                {
-                  "label": "config.choice.join.float",
-                  "value": "float"
-                }
-              ],
-              "control": "select",
-              "couplings": [],
-              "default": "auto",
-              "help": "config.theme.join.help",
-              "key": "theme.join",
-              "label": "config.theme.join.label",
-              "per_output": false,
-              "restart": false,
-              "since": 7,
-              "type": "choice"
-            },
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.join_corner.round",
-                  "value": "round"
-                },
-                {
-                  "label": "config.choice.join_corner.chamfer",
-                  "value": "chamfer"
-                },
-                {
-                  "label": "config.choice.join_corner.steps",
-                  "value": "steps"
-                },
-                {
-                  "label": "config.choice.join_corner.bulge",
-                  "value": "bulge"
-                },
-                {
-                  "label": "config.choice.join_corner.square",
-                  "value": "square"
-                }
-              ],
-              "control": "select",
-              "couplings": [],
-              "default": "round",
-              "help": "config.theme.join_corner.help",
-              "key": "theme.join_corner",
-              "label": "config.theme.join_corner.label",
-              "per_output": false,
-              "restart": false,
-              "since": 7,
-              "type": "choice"
             }
           ]
         },

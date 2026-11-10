@@ -50,7 +50,8 @@ Singleton {
     readonly property var stops: colours === "tones"
         ? [Qt.darker(Theme.accent, 1.35), Theme.accent, Qt.lighter(Theme.accent, 1.45), Theme.accent]
         : [Theme.accent, Theme.secondary, Theme.tertiary]
-    function mix(a, b, t) { return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1) }
+    // (a colour not there yet — the theme between two documents — leaves the other as it is)
+    function mix(a, b, t) { if (!a || !b) return a || b || Qt.rgba(0, 0, 0, 0); return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1) }
     // The colour at `p` (0 … 1, wraps) of the round.
     function round(p) {
         p = p - Math.floor(p)

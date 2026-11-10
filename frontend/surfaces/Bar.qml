@@ -280,7 +280,7 @@ Scope {
             readonly property int startRoom: Math.min(shadowRoom, bar.startOff)
             readonly property int endRoom: Math.min(shadowRoom, bar.endOff)
             readonly property var g: bar.carries ? FG.geometry(bar.lay, bar.barH, bar.scr ? bar.scr.width : 0, bar.scr ? bar.scr.height : 0,
-                                                               Theme.frameOutlineW, FG.zones(bar.lay), Theme.squircle) : null
+                                                               Theme.frameOutlineW, FG.zones(bar.lay), Theme.squircle, Theme.joinCorner) : null
             readonly property string piecesKey: bar.carries && g !== null && (bar.edge === "top" || bar.edge === "bottom")
                 ? JSON.stringify(FG.across(g, bar.edge === "top")) : ""
             readonly property var pieces: piecesKey !== "" ? JSON.parse(piecesKey) : null

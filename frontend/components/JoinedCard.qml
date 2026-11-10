@@ -17,7 +17,7 @@ Item {
     property bool flushStart: false
     property bool flushEnd: false
     property real pad: 0
-    property real neck: Theme.rJoin
+    property real neck: Theme.cardNeck
     property real radius: Theme.rLg
     property color fill: Theme.surfaceAlpha
     readonly property bool vertical: edge === "left" || edge === "right"
