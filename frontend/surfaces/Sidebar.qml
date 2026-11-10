@@ -521,6 +521,8 @@ Scope {
                     readonly property real rx0: rx1 - col.colW
                     readonly property real shX0: rx0 + col.off - col.overPx
                     readonly property real shX1: rx1 + col.off
+                    // How far the column stands from its place at rest, in the canonical frame (towards the screen's edge).
+                    readonly property real slideX: col.off
                     readonly property bool openT: col.joinStart !== ""
                     readonly property bool openB: col.joinEnd !== ""
                     readonly property bool openO: !col.floating
@@ -737,14 +739,18 @@ Scope {
                             y: 0
                             width: win.boxW
                             height: win.height
-                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
                             ColumnShape {
                                 id: shape
                                 // (drawn as nothing under flyouts: `shown` keeps its geometry for the content and the input)
                                 opacity: win.flyouts ? 0 : 1
                                 anchors.fill: parent
-                                x0: win.shX0
-                                x1: win.shX1
+                                // (the shape stands in its place at rest and is moved as a whole — `slideX` on its box, its
+                                // wash and its relief — while the column slides: a path that changed every frame was
+                                // tessellated again every frame, 13 ms of each frame on a real session; only the
+                                // overshoot past rest still widens it)
+                                x0: win.rx0 - col.overPx
+                                x1: win.rx1
                                 y0: win.y0
                                 y1: win.y1
                                 openT: win.openT
@@ -790,7 +796,7 @@ Scope {
                             y: box.y
                             width: win.boxW
                             height: win.height
-                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
                             Loader {
                                 anchors.fill: parent
                                 active: parent.visible
@@ -811,7 +817,7 @@ Scope {
                             y: box.y
                             width: win.boxW
                             height: win.height
-                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            transform: [Translate { x: win.slideX }, Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }]
                             Loader {
                                 anchors.fill: parent
                                 active: reliefBox.on
