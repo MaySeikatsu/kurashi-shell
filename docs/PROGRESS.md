@@ -366,3 +366,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.8 | Settings: a page's sections in the sidebar (I464 step 1) | ✅ functional · 🟡 UX (seen on nested niri; no suite step) | feat/s27-settings-sections |
 | S27.9 | Posted desktop cards: pin or tape (I471c, K118) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-desktop-posted |
 | S27.10 | Your own palettes: files, editor, colour picker, live draft (I453, K119, W68) | ✅ functional · 🟡 UX (the agent's niri shots reviewed; the user judges; rows 696–701 open) | feat/s27-custom-palettes (#29) |
+| S27.11 | Web dock page styles: notebook, phone to tablet, plain (I468, K120, W69) | ✅ functional · 🟡 UX (the agent's niri shots reviewed; nine choices for the user) | feat/s27-webdock-styles (#37) |
