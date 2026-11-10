@@ -2360,7 +2360,7 @@ pub struct Quick {
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
     /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
-    #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", module = "quick", since = 7)]
+    #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
     pub tiles: Vec<String>,
 }
 

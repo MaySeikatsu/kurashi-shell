@@ -116,7 +116,20 @@ ModuleBase {
             glyph: m.glanceGlyph
             filled: m.lit || m.cardShown
             color: m.cardShown ? Theme.fgOnAccent : m.ctl && m.ctl.failed ? Theme.error : m.inert ? Theme.dim : Theme.fg
-            opacity: m.ctl && m.ctl.busy ? 0.55 : 1
+            opacity: m.ctl && m.ctl.busy ? 0.45 : 1
+            // Busy: three dots under the dimmed mark until the daemon answers (a tile's "connecting"; text, not a second
+            // icon name: swapping the name while it settles its font loops).
+            Text {
+                visible: m.ctl !== null && m.ctl.busy
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.bottom
+                anchors.topMargin: -6
+                color: Theme.fg
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: "…"
+            }
         }
         Text {
             visible: m.showValue

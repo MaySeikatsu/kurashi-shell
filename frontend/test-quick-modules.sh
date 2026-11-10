@@ -5,7 +5,8 @@
 #   2. a click does the control's obvious thing, read back from the service document: Focus turns do not disturb on and
 #      off, sound output mutes, the microphone mutes, airplane mode, keep awake and night light switch; dark mode writes
 #      theme.colors.scheme (the relay logs the `apply`; the mock refuses it, so the bar shows the module's error state);
-#      the wheel steps sound output (two notches: 10 %) and brightness;
+#      the wheel steps sound output (two notches: 10 %) and brightness; busy: with the mock held still (SIGSTOP) Focus
+#      waits dimmed (shot), and its request goes through after SIGCONT;
 #   3. a click on Wi-Fi opens the control centre on its page (the scan is subscribed: the relay's log), a second click
 #      closes it; Bluetooth's click while the Wi-Fi page is up turns the open card to its page (it stays open); with
 #      `bar.hover_card` a rest on Wi-Fi opens its card, Bluetooth turns it, leaving both closes it (K113);
@@ -122,7 +123,8 @@ PY
 
 : > "$R/qs.log"; : > "$R/server.log"; : > "$R/subs.log"
 RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$MOCK_SOCK" >> "$R/server.log" 2>&1 &
-pids+=($!)
+MOCK_PID=$!
+pids+=($MOCK_PID)
 wait_until 10 test -S "$MOCK_SOCK" || fail "the mock did not come up (see $R/server.log)"
 python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/relay.log" 2>&1 &
 pids+=($!)
@@ -188,6 +190,23 @@ flip mic svc.audio '.source.muted == true' "the microphone's mute"
 flip airplane svc.network '.airplane == true' "airplane mode"
 flip caffeine svc.idle '.caffeine == true' "keep awake"
 flip nightlight svc.nightlight '.enabled == true' "night light"
+# Busy: the mock held still (SIGSTOP), a click on Focus waits for its answer — the mark dims and its name says so (shot);
+# SIGCONT lets the request through and the switch follows the document.
+d0=$(doc svc.notifications | jq -c '.dnd == true')
+printf 'mark busy\n' >> "$R/subs.log"
+kill -STOP "$MOCK_PID"
+click_mod focus
+wait_until 3 sh -c "sed -n '/^mark busy\$/,\$p' '$R/subs.log' | grep -q '^act notify.dnd'" \
+  || { kill -CONT "$MOCK_PID"; fail "busy: the click on Focus sent nothing"; }
+sleep 0.8
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-busy.png" || { kill -CONT "$MOCK_PID"; fail "grim failed"; }
+kill -CONT "$MOCK_PID"
+wait_until 5 sh -c "[ \"\$(\"$W/kurashi\" sub svc.notifications --count 0 --json | jq -c 'select(.t == \"snap\") | .data.dnd == true')\" != '$d0' ]" \
+  || fail "busy: the held request did not go through after SIGCONT"
+click_mod focus
+wait_until 5 sh -c "[ \"\$(\"$W/kurashi\" sub svc.notifications --count 0 --json | jq -c 'select(.t == \"snap\") | .data.dnd == true')\" = '$d0' ]" \
+  || fail "busy: Focus did not switch back"
+echo "ok: busy: while the daemon does not answer, Focus waits dimmed (bar-busy); the request goes through after it"
 # The wheel steps a level (5 % a notch) on sound output and brightness.
 level() { doc "$1" | jq -r "$2"; }
 wheel_mod() { local x y; read -r x y < <(where "$1"); echo "wheel $x $y $2 0.08" >&9; sleep 0.6; }

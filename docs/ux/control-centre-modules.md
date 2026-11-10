@@ -9,9 +9,9 @@ Bluetooth, Focus (do not disturb), audio out and mic, power profile, display bri
 record, dark mode, a volume slider, the power menu; drawn inside a phone's frame. The bar has `quick` (opens it),
 `volume`, `recorder`, `keyboard`; the rest are reachable only through the panel. Other shells (Noctalia, DMS,
 Caelestia, GNOME's quick settings, KDE's system tray applets, Windows 11's quick settings with editable tiles): not
-checked for this brief (W70 had no network; from memory: GNOME and Windows 11 keep one status area that opens the
-whole panel, KDE and Waybar give each applet its own icon with its own popup, macOS lets each Control Centre module be
-dragged to the menu bar as its own item — the model here).
+checked for this brief (W70 did not look them up either; from memory, unverified: GNOME and Windows 11 keep one status
+area that opens the whole panel, KDE and Waybar give each applet its own icon with its own popup, macOS lets each
+Control Centre module be dragged to the menu bar as its own item — the model here).
 
 ## Proposal
 1. **One module per control**, each with the three faces every module has: a **bar glance** (icon, optionally a value:
@@ -53,7 +53,7 @@ and `OPTIONAL_MODULES` list them (offered in every zone list, never "unplaced");
   microphone, power, brightness and airplane have no config rows yet: their menu holds the hover choice and Settings.
 - **Hover** (K113): `hoverSurface = "page"`; under `bar.hover = card` a rest opens the card, the next control's rest
   turns it, leaving closes it.
-- **States**: off (outlined mark), on (filled), busy (dimmed mark), failed (the error colour; a press retries),
+- **States**: off (outlined mark), on (filled), busy (the mark dimmed, three dots under it, as a tile's "connecting"), failed (the error colour; a press retries),
   unavailable or held (dim and inert: a click opens the card that says why, or does nothing for a control without a
   page; the reason is in the accessible name: "Keep awake: The compositor does not report idle time").
 - **Keys and a11y**: each module is a tab stop; Enter and Space do the click, the Menu key opens its menu; the
@@ -68,7 +68,8 @@ the control ids the centre shows as tiles, in order; default the ten of before, 
   Delete takes it out; a row of keys under the tiles adds what is not in the centre. Done writes the list as one `apply`
   (one undo step); a refusal stays in the edit with its reason; Escape or Cancel drops the edit. Nothing is written
   while editing; the tiles show the setting in effect otherwise, and follow it when it changes elsewhere.
-- **Settings**: the pick list re-sorts (Alt+Up/Down) and removes; it cannot add until CONTRACT-CHANGE row 711 gives the
+- **Settings** (read from the code, not seen in W70): the pick list re-sorts (Alt+Up/Down) and removes; it cannot add
+  until CONTRACT-CHANGE row 711 gives the
   daemon an offers source `quick.tiles` (the daemon does not judge the values of a source it does not know, so nothing
   is refused meanwhile). Mods' tiles (`tile:<name>` provides, sorted with the core ones) are part of row 711; W70
   supports core tiles only.
