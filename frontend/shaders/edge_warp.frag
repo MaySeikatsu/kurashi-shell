@@ -79,6 +79,19 @@ void torn(vec4 c) {
     r = min(r, 0.08 * min(size.x, size.y) + 0.6);
     float thr = c.a * 0.5;
     if (reach(qt_TexCoord0, r) < thr) { fragColor = vec4(0.0); return; }
+    // A small scrap (a key, a workspace's number) has a corner or two torn off: each corner its own chance and size,
+    // the cut ragged. Only where the layer's border is the scrap's edge.
+    vec2 px = qt_TexCoord0 * size;
+    float small = min(size.x, size.y);
+    float nick = 0.0;
+    if (small < 64.0 && uSides.x + uSides.y + uSides.z + uSides.w > 3.5) {
+        vec2 q = min(px, size - px);
+        float id = (px.x < size.x * 0.5 ? 0.0 : 1.0) + (px.y < size.y * 0.5 ? 0.0 : 2.0);
+        float h = hash21(vec2(id + uSize.w * 1.7, 3.1));
+        float cut = step(0.3, h) * (0.14 + 0.3 * h) * small;
+        nick = cut - (q.x + q.y + (vnoise(px / 2.1 + uSize.w) - 0.5) * 2.4);
+        if (nick > 0.0) { fragColor = vec4(0.0); return; }
+    }
     vec3 col = c.rgb / c.a;
     // The age: darker and warmer towards the edge, faintly.
     float wide = big > 0.5 && reach(qt_TexCoord0, r + depth * 4.0) < thr ? 1.0 : 0.0;
@@ -87,7 +100,7 @@ void torn(vec4 c) {
     // The core: white fibres along the tear.
     // (a small thing — a bar's group, a key — has a hair of core only: a full rim would whiten all of it, its text too)
     float rimW = depth * (0.6 + 0.7 * vnoise(p / 9.0 + 31.0)) * (0.2 + 0.8 * big);
-    if (reach(qt_TexCoord0, r + rimW) < thr) col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(p / 1.7)) * onFill);
+    if (reach(qt_TexCoord0, r + rimW) < thr || nick > -max(rimW, 1.2)) col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(p / 1.7)) * onFill);
     fragColor = vec4(col * c.a, c.a) * qt_Opacity;
 }
 
