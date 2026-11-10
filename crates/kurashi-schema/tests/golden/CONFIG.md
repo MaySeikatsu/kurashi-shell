@@ -951,7 +951,7 @@ The chrome's gradient moves (while the gradient is on).
 
 #### `theme.colors.flow.outline` — Frame outline
 
-The frame's outline and the outline of what is joined to it move through the colours (a hand-drawn stroke keeps its ink).
+The frame's outline and the outline of what is joined to it move through the colours; a hand-drawn stroke keeps its strokes and takes the colour.
 
 - type: `bool` · default: `true`
 - only while `theme.colors.flow.on == true`
@@ -2080,7 +2080,7 @@ How text appears when its surface opens or its words change. Typed: letter by le
 
 #### `theme.typography.fx.scope` — Applies to
 
-Headings alone (card and page titles, the clock, the island), or every label that can take it.
+Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or every label that can take it.
 
 - type: `choice` · default: `"titles"`
 - choices: `"titles"` | `"all"`

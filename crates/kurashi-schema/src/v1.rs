@@ -1027,8 +1027,8 @@ pub struct ColourFlow {
     )]
     pub gradient: bool,
     /// Frame outline
-    /// The frame's outline and the outline of what is joined to it move through the colours (a hand-drawn stroke
-    /// keeps its ink).
+    /// The frame's outline and the outline of what is joined to it move through the colours; a hand-drawn stroke keeps
+    /// its strokes and takes the colour.
     #[kurashi(default = true, requires = "theme.colors.flow.on == true", since = 7)]
     pub outline: bool,
     /// Glow
@@ -2000,7 +2000,8 @@ pub struct TextFx {
     #[kurashi(default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
     pub spawn: TextSpawn,
     /// Applies to
-    /// Headings alone (card and page titles, the clock, the island), or every label that can take it.
+    /// Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or every label that
+    /// can take it.
     #[kurashi(default = TextFxScope::Titles, since = 7)]
     pub scope: TextFxScope,
     /// Speed of fresh text

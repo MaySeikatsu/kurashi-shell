@@ -572,7 +572,7 @@
 # gradient = true
 #
 # Frame outline — The frame's outline and the outline of what is joined to it move through
-# the colours (a hand-drawn stroke keeps its ink).
+# the colours; a hand-drawn stroke keeps its strokes and takes the colour.
 #   only while theme.colors.flow.on == true · since schema v7
 # outline = true
 #
@@ -1065,8 +1065,8 @@
 #   theme.motion.profile != "none" · since schema v7
 # spawn = "none"
 #
-# Applies to — Headings alone (card and page titles, the clock, the island), or every
-# label that can take it.
+# Applies to — Headings alone (card and page titles, the bar's clock, notifications,
+# desktop widgets), or every label that can take it.
 #   choices: "titles" | "all" · since schema v7
 # scope = "titles"
 #
