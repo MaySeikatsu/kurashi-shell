@@ -990,6 +990,12 @@ pub enum TextureKind {
     Brush,
     /// Display (pixel grid)
     Display,
+    /// Tread plate (steel)
+    TreadPlate,
+    /// Old paper (stained)
+    OldPaper,
+    /// Canvas (a little dirty)
+    Canvas,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

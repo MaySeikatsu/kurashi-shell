@@ -2971,6 +2971,18 @@
                 {
                   "label": "config.choice.texture.display",
                   "value": "display"
+                },
+                {
+                  "label": "config.choice.texture.tread_plate",
+                  "value": "tread_plate"
+                },
+                {
+                  "label": "config.choice.texture.old_paper",
+                  "value": "old_paper"
+                },
+                {
+                  "label": "config.choice.texture.canvas",
+                  "value": "canvas"
                 }
               ],
               "control": "select",
@@ -3431,6 +3443,18 @@
                 {
                   "label": "config.choice.texture.display",
                   "value": "display"
+                },
+                {
+                  "label": "config.choice.texture.tread_plate",
+                  "value": "tread_plate"
+                },
+                {
+                  "label": "config.choice.texture.old_paper",
+                  "value": "old_paper"
+                },
+                {
+                  "label": "config.choice.texture.canvas",
+                  "value": "canvas"
                 }
               ],
               "control": "select",

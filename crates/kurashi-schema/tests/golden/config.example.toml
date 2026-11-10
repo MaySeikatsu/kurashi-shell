@@ -959,8 +959,8 @@
 # (K59).
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
 #   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
-#   "display" · forced to "none" while a11y.high_contrast is on · forced to "none" while
-#   a11y.reduce_transparency is on
+#   "display" | "tread_plate" | "old_paper" | "canvas" · forced to "none" while
+#   a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
 # kind = "none"
 #
 # Where — The shell's surfaces, the wallpaper (baked into the picture), both, or an
@@ -1043,8 +1043,9 @@
 # Wallpaper material — The relief baked into the wallpaper.
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
 #   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
-#   "display" · only while theme.texture.wallpaper.own == true · only while
-#   theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
+#   "display" | "tread_plate" | "old_paper" | "canvas" · only while
+#   theme.texture.wallpaper.own == true · only while theme.texture.scope != "shell" · only
+#   while theme.texture.scope != "everything"
 # kind = "paper"
 #
 # Wallpaper strength — How strongly the wallpaper's relief reads.
