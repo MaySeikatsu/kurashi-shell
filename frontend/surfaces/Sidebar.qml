@@ -617,9 +617,20 @@ Scope {
                         target: shapeRect.Window.window
                         function onFrameSwapped() {
                             if (!col.gate) return
+                            // (and on the first frame that has the column's content: it is made off the frame, below,
+                            // so the slide has nothing left to build while it moves)
+                            if (colLoader.status === Loader.Loading) return
                             col.gate = false
+                            gateWait.stop()
                             if (col.wanted) col.toward(1)
                         }
+                    }
+                    // (a content that never comes must not hold the column back)
+                    Timer {
+                        id: gateWait
+                        interval: 600
+                        running: col.gate
+                        onTriggered: { if (!col.gate) return; col.gate = false; if (col.wanted) col.toward(1) }
                     }
 
                     // The column's body in window coordinates: the input region, the blur, what counts as inside.
@@ -892,6 +903,9 @@ Scope {
                                     id: colLoader
                                     anchors { fill: parent; topMargin: content.pinInHeader ? 0 : pinBtn.height + Theme.xs }
                                     focus: true
+                                    // Made between frames, before the column moves (session 27, measured on a real session:
+                                    // made in one go it held the first frame of the slide for 70 to 85 ms).
+                                    asynchronous: true
                                     sourceComponent: sb.mode === "pages" ? pagesC : stackC
                                 }
                             }
