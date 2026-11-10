@@ -211,7 +211,10 @@ ShellRoot {
         }
         // Leaving a page, searching or closing ends a preview (Changes): it is put back. A query the app cleared (a jump, a
         // page change) clears the field too, even while the field has the focus (its text follows the query only then).
-        onPageChanged: Changes.putBack()
+        // I479: whether the open page's sections are listed in the sidebar: by its arrow, or while one section is shown
+        // alone. Not remembered: every page starts closed.
+        property bool navOpen: false
+        onPageChanged: { Changes.putBack(); navOpen = false }
         onQueryChanged: {
             if (query !== "") Changes.putBack()
             else search.clear()
@@ -326,6 +329,10 @@ ShellRoot {
             function showSection(id: string): void { settingsPages.showSection(id) }
             function sectionInView(): string { return settingsPages.sectionId }
             function soloSection(): string { return settingsPages.solo }
+            // I479 tests: the sidebar's sections listed or not, the push against a section's end, the list's scroll.
+            function navOpen(): string { return win.navOpen ? "true" : "false" }
+            function sectionPush(): string { return String(Math.round(settingsPages.push)) }
+            function navScroll(): string { return Math.round(navFlick.contentY) + "/" + Math.round(Math.max(0, navFlick.contentHeight - navFlick.height)) }
             // Theme export (K49): each app the status under the row lists, as name:state (written, included, missing,
             // error), "none" while the document is not there; and the copy result of an app ("copied", "error", "none").
             function exportState(): string {
@@ -606,9 +613,39 @@ ShellRoot {
                         active: Theme.surfaceRelief
                         sourceComponent: Relief { radius: Math.max(0, navFace.radius - navFace.border.width) }
                     }
-                    Column {
+                    // I479 (the user: "it's not possible to scroll it and that makes it impossible to reach some options"):
+                    // the list scrolls (wheel, touchpad; the keyboard brings the focused entry into view), with a thin bar
+                    // while there is more than fits.
+                    Flickable {
+                        id: navFlick
+                        objectName: "navFlick"
                         anchors.fill: parent
                         anchors.margins: Theme.gap
+                        clip: true
+                        contentWidth: width
+                        contentHeight: navCol.implicitHeight
+                        boundsBehavior: Flickable.StopAtBounds
+                        KineticWheel { view: navFlick }
+                        function reveal(item): void {
+                            if (!item) return
+                            var y = item.mapToItem(navCol, 0, 0).y
+                            if (y < contentY) contentY = Math.max(0, y - 4)
+                            else if (y + item.height > contentY + height) contentY = Math.min(Math.max(0, contentHeight - height), y + item.height - height + 4)
+                        }
+                        Rectangle {
+                            parent: navFlick
+                            visible: navFlick.contentHeight > navFlick.height + 1
+                            x: navFlick.width - 3
+                            y: navFlick.height * navFlick.contentY / Math.max(1, navFlick.contentHeight)
+                            width: 3
+                            height: Math.max(24, navFlick.height * navFlick.height / Math.max(1, navFlick.contentHeight))
+                            radius: 1.5
+                            color: Theme.dim
+                            opacity: 0.45
+                        }
+                    Column {
+                        id: navCol
+                        width: navFlick.width
                         spacing: 2
                         Repeater {
                             model: win.navItems
@@ -662,6 +699,11 @@ ShellRoot {
                                     Keys.onReturnPressed: event => { entry.open(); event.accepted = true }
                                     Keys.onEnterPressed: event => { entry.open(); event.accepted = true }
                                     Keys.onSpacePressed: event => { entry.open(); event.accepted = true }
+                                    // I479: Right lists the open page's sections, Left folds them away (as a tree's arrow keys).
+                                    Keys.onRightPressed: event => { if (entry.on && entry.hasSubs) win.navOpen = true; event.accepted = entry.on }
+                                    Keys.onLeftPressed: event => { if (entry.on) { win.navOpen = false; settingsPages.showSection("") } event.accepted = entry.on }
+                                    onActiveFocusChanged: if (activeFocus) navFlick.reveal(entry)
+                                    readonly property bool hasSubs: on && !win.special && navEntry.modelData.mod === "" && settingsPages.navSections.length > 1
                                     Accessible.role: Accessible.PageTab
                                     Accessible.name: isMod
                                         ? I18n.fmt("settings.ui.mod_nav", { name: shownName, state: I18n.tr(modOn ? "settings.ui.on" : "settings.ui.off") })
@@ -710,6 +752,29 @@ ShellRoot {
                                         anchors.fill: parent
                                         onClicked: entry.open()
                                     }
+                                    // The arrow: lists the page's sections under it, or folds them away (I479).
+                                    Item {
+                                        id: fold
+                                        objectName: "fold:" + navEntry.modelData.id
+                                        visible: entry.hasSubs
+                                        width: 26
+                                        height: parent.height
+                                        anchors.right: parent.right
+                                        Text {
+                                            anchors.centerIn: parent
+                                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                            color: Theme.fgOnSelected
+                                            font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam("▾", Theme.families)
+                                            font.pixelSize: Theme.fs + 4
+                                            text: Theme.iconFamily !== "" ? (subs.shown ? "expand_less" : "expand_more") : (subs.shown ? "▴" : "▾")
+                                        }
+                                        TapHandler {
+                                            onTapped: {
+                                                if (subs.shown) { win.navOpen = false; settingsPages.showSection("") }
+                                                else win.navOpen = true
+                                            }
+                                        }
+                                    }
                                     FocusRing {
                                         anchors.fill: parent
                                         shown: entry.activeFocus
@@ -720,7 +785,9 @@ ShellRoot {
                                 // is marked; a click shows that section alone, a click on the page shows all of it again.
                                 Column {
                                     id: subs
+                                    // (listed by the arrow, or while one of them is shown alone: I479)
                                     readonly property bool shown: entry.on && !win.special && navEntry.modelData.mod === ""
+                                        && (win.navOpen || settingsPages.solo !== "")
                                     // (a page of one section has nothing to choose between)
                                     readonly property var list: shown && settingsPages.navSections.length > 1 ? settingsPages.navSections : []
                                     visible: list.length > 0
@@ -739,6 +806,7 @@ ShellRoot {
                                             Accessible.role: Accessible.PageTab
                                             Accessible.name: modelData.title
                                             function open(): void { settingsPages.showSection(modelData.id) }
+                                            onActiveFocusChanged: if (activeFocus) navFlick.reveal(sub)
                                             Keys.onReturnPressed: event => { sub.open(); event.accepted = true }
                                             Keys.onEnterPressed: event => { sub.open(); event.accepted = true }
                                             Keys.onSpacePressed: event => { sub.open(); event.accepted = true }
@@ -777,6 +845,7 @@ ShellRoot {
                                 }
                             }
                         }
+                    }
                     }
                 }
                 }

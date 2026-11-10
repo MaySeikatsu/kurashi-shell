@@ -1206,6 +1206,43 @@ for id in "${nav[@]}"; do
   for _ in $(seq 40); do [[ "$(Q focused)" == sub:* ]] || break; echo tab >&3; sleep 0.25; done
 done
 echo "keyboard K2: every sidebar page opened with Tab and Return (${#nav[@]} entries)"
+
+# S1–S3 (I479, docs/ux/settings-sections.md). S1: a page's sections are not listed until its arrow says so (Right on
+# the open page; Left folds them away); nothing is remembered: another page starts closed.
+Q goto appearance; sleep 0.5
+[ "$(Q navOpen)" = false ] || fail "sections S1: the sections are listed on a page that was only just opened"
+Q focusList >/dev/null
+tab_to "Appearance"
+kp right
+[ "$(Q navOpen)" = true ] || fail "sections S1: Right on the open page did not list its sections"
+kp tab
+[[ "$(Q focused)" == sub:* ]] || fail "sections S1: Tab from the open page did not go to its first section ($(Q focused))"
+first_sub=$(Q focused)
+kp return
+[ "$(Q soloSection)" = "${first_sub#sub:}" ] || fail "sections S1: Return on a section did not show it alone ($(Q soloSection))"
+echo "sections S1: Right lists the open page's sections, Tab reaches them, Return shows one alone (${first_sub#sub:})"
+# S2: scroll resistance: one notch against the section's end shows the hint and keeps the section; going on opens the
+# whole page.
+# (a section longer than the view scrolls to its end first: single notches until one pushes)
+for _ in $(seq 40); do
+  timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1
+  [ "$(Q sectionPush)" -gt 0 ] && break
+done
+[ -n "$(Q soloSection)" ] || fail "sections S2: a notch against the section's end did not push (push $(Q sectionPush), section '$(Q soloSection)', scroll $(Q scrollY))"
+shot sections-push
+timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -4 0.08; sleep 0.6
+[ -z "$(Q soloSection)" ] || fail "sections S2: scrolling on did not open the whole page (still '$(Q soloSection)', push $(Q sectionPush))"
+[ "$(Q navOpen)" = true ] || fail "sections S2: the sections' list closed when the page opened"
+echo "sections S2: a notch pushes against a lone section's end, scrolling on opens the whole page"
+# S3: Left on the page folds the list away; another page starts closed; the sidebar's list reports its scroll.
+Q focusList >/dev/null
+tab_to "Appearance"
+kp left
+[ "$(Q navOpen)" = false ] || fail "sections S3: Left on the open page did not fold its sections away"
+Q goto motion; sleep 0.4
+[ "$(Q navOpen)" = false ] || fail "sections S3: another page starts with its sections listed"
+[[ "$(Q navScroll)" == */* ]] || fail "sections S3: the sidebar's list is not a scrolling one ($(Q navScroll))"
+echo "sections S3: Left folds the list away, another page starts closed, the sidebar scrolls ($(Q navScroll))"
 Q goto layout
 
 # K3. the palette as preview cards (K45, I104; it was a dropdown): one Tab stop, the chosen card; Down previews the next

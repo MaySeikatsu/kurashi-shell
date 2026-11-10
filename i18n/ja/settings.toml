@@ -3,6 +3,7 @@
 # ウィンドウ、ヘッダー、検索。
 "settings.ui.title" = "暮らしの設定"
 "settings.ui.search" = "設定を検索"
+"settings.ui.section_push" = "さらにスクロールするとページ全体を表示"
 "settings.ui.undo" = "元に戻す"
 "settings.ui.redo" = "やり直す"
 "settings.ui.advanced" = "詳細"
