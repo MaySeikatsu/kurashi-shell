@@ -23,13 +23,16 @@ Item {
     readonly property real lineW: rb.penned ? 0 : rb.bw
     // I471d (K121): a torn edge. By file (see below): a host without EdgeWarp keeps its clean edge.
     readonly property Component tornEffect: Theme.edgeTorn === true ? Qt.createComponent("EdgeWarp.qml") : null
-    layer.enabled: tornEffect !== null && !rb.painted && tornEffect.status === Component.Ready && rb.color.a > 0.5 && rb.width > 14 && rb.height > 14
+    layer.enabled: tornEffect !== null && !rb.painted && (!Theme.hosted || rb.surface) && tornEffect.status === Component.Ready && rb.color.a > 0.5 && rb.width > 14 && rb.height > 14
     layer.effect: tornEffect
 
     // I471b: under the painted look a box with a ground's fill is strokes of a brush, with no outline (by file, as the
     // other loaders: RoundBox is linked into hosts that have no PaintBands).
-    readonly property bool painted: Theme.painted === true && !Theme.hosted && rb.color.a > 0.5 && rb.width > 24 && rb.height > 14
-    readonly property bool paintIsGround: Qt.colorEqual(rb.color, Theme.surface) || Qt.colorEqual(rb.color, Theme.surfaceAlpha)
+    // (In Settings — `Theme.hosted` — only a box that says it is a surface: a section's card, the sidebar's face. Its
+    // controls stay boxes: a page of rows needs their edges.)
+    property bool surface: false
+    readonly property bool painted: Theme.painted === true && (!Theme.hosted || rb.surface) && rb.color.a > 0.5 && rb.width > 24 && rb.height > 14
+    readonly property bool paintIsGround: Qt.colorEqual(rb.color, Theme.surface) || Qt.colorEqual(rb.color, Theme.surfaceAlpha) || Qt.colorEqual(rb.color, Theme.panel)
         || Qt.colorEqual(rb.color, Theme.container) || Qt.colorEqual(rb.color, Theme.containerHigh)
         || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000"))
     Loader {
@@ -44,8 +47,9 @@ Item {
         anchors.fill: parent
         visible: !rb.sq && !rb.painted
         // (I471d: a torn sheet's corners are nearly square)
-        radius: Theme.edgeStyle === "ripped" && !Theme.hosted ? Math.min(rb.radius, 3) : rb.radius
-        color: rb.color
+        radius: Theme.edgeStyle === "ripped" && (!Theme.hosted || rb.surface) ? Math.min(rb.radius, 3) : rb.radius
+        // (a sheet lying on a page of its own colour is a shade off it, so it reads as a sheet)
+        color: Theme.edgeStyle === "ripped" && Theme.hosted && rb.surface ? Qt.tint(rb.color, Theme.darkScheme ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(0, 0, 0, 0.06)) : rb.color
         border.width: rb.lineW
         border.color: rb.border.color
     }

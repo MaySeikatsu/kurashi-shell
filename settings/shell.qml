@@ -598,7 +598,8 @@ ShellRoot {
                     height: parent.height - 2 * Theme.gap - Theme.shadowDy
                     radius: Theme.rLg
                     color: Theme.container
-                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                    surface: true
+                    border.width: Theme.edgeTorn ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
                     border.color: Theme.outlineW > 0 ? Theme.line : Theme.containerHigh
                     Loader {
                         anchors.fill: parent

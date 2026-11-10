@@ -104,7 +104,7 @@ Item {
     // shadow: a ground's own fill (the surface, a container, none) is laid in the accent, thin; a fill that says
     // something (the accent of a pressed key, a selected tone) in that colour, thicker.
     readonly property bool painted: Theme.edgeStyle === "painted" && !blk.bare && blk.width > 14 && blk.height > 10
-    readonly property bool paintGround: blk.fill.a < 0.5 || Qt.colorEqual(blk.fill, Theme.surface) || Qt.colorEqual(blk.fill, Theme.surfaceAlpha)
+    readonly property bool paintGround: blk.fill.a < 0.5 || Qt.colorEqual(blk.fill, Theme.surface) || Qt.colorEqual(blk.fill, Theme.surfaceAlpha) || Qt.colorEqual(blk.fill, Theme.panel)
         || Qt.colorEqual(blk.fill, Theme.container) || Qt.colorEqual(blk.fill, Theme.containerHigh)
         || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_low", "#000"))
     Loader {
