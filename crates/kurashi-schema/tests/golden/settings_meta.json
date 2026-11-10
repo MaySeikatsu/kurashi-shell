@@ -4480,6 +4480,27 @@
               "since": 1,
               "step": 0.05,
               "type": "float"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.motion.blend_colors.help",
+              "key": "theme.motion.blend_colors",
+              "label": "config.theme.motion.blend_colors.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         },

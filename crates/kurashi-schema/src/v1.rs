@@ -1482,6 +1482,16 @@ pub struct Motion {
     #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
+    /// Blend colour changes
+    /// A change of colours — a palette, light or dark, a look, the wallpaper's colours — fades over a third of a second
+    /// instead of cutting. Off with reduced motion and with the motion profile None.
+    #[kurashi(
+        default = true,
+        section = "profiles",
+        requires = "theme.motion.profile != none",
+        since = 7
+    )]
+    pub blend_colors: bool,
     // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
     #[kurashi(nested, section = "animation_style")]
     pub form: MotionForms,

@@ -1,4 +1,4 @@
-# Transitions between states — brief for I472 (session 27). Status: design, nothing built.
+# Transitions between states — brief for I472 (session 27). Status: step 1 (colours) built, K117; the rest is design.
 User, 2026-11-10: "when a bar gets moved from top to bottom it can separate in the middle and wander down the screen
 edges fluently, it can drip down/up, it can decide one direction and move there following the screen sides … no surface
 or color should need to pop in, stutter or flash into existence if it can transition smoothly, blend in, animate".

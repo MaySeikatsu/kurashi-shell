@@ -1376,6 +1376,14 @@ Multiplies every motion duration's speed (2.0 = twice as fast).
 - range: `0.25..=3.0`, step `0.05`
 - only while `theme.motion.profile != "none"`
 
+#### `theme.motion.blend_colors` — Blend colour changes
+
+A change of colours — a palette, light or dark, a look, the wallpaper's colours — fades over a third of a second instead of cutting. Off with reduced motion and with the motion profile None.
+
+- type: `bool` · default: `true`
+- only while `theme.motion.profile != "none"`
+- since schema v7
+
 ### Animation style
 
 #### `theme.motion.form.open` — Opens with

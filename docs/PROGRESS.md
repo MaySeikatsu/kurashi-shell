@@ -361,3 +361,5 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.2 | Open on hover, a module's own choice; every bar peek joins the bar (I457, I458, K113) | ✅ functional · 🟡 UX (timings and join seen live; the menu row and the launcher on hover to judge) | feat/s27-bar-hover |
 | S27.3 | Paint forms: splat, brush, snake (I467, K114) | ✅ functional · 🟡 UX (stills judged; the user has not seen them move) | feat/s27-paint-forms |
 | S27.5 | Glow chrome (I471a, K116) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-chrome-glow |
+| S27.6 | Tray icons inside their outline on a thin bar (B61, partly) | ✅ · ✅ UX (seen live) | fix/s27-tray-size |
+| S27.7 | Every colour change fades (I472 step 1, K117) | ✅ functional · 🟡 UX (a burst on nested niri; no suite) | feat/s27-colour-blend |

@@ -668,6 +668,12 @@
 #   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none"
 # speed = 1.0
 #
+# Blend colour changes — A change of colours — a palette, light or dark, a look, the
+# wallpaper's colours — fades over a third of a second instead of cutting. Off with
+# reduced motion and with the motion profile None.
+#   only while theme.motion.profile != "none" · since schema v7
+# blend_colors = true
+#
 # Content — When a surface's content appears as it opens: late (once the surface has
 # nearly reached its size), with it, or row by row in a cascade.
 #   choices: "profile" | "late" | "with" | "cascade"

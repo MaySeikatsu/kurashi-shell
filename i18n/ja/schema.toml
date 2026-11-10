@@ -253,6 +253,8 @@
 "config.theme.material.shadow_follow.help" = "影が素材の光と反対側に落ち、光が低いほど長くなります。ポインターを追う光では、その休む位置から影を落とすので、影がポインターと一緒に動くことはありません。"
 "config.theme.motion.profile.label" = "モーションプロファイル"
 "config.theme.motion.profile.help" = "すべての動きをひとつで選ぶ：曲線、面が開き閉じる形、何がいつ動くか。スタイルがひとつを勧めます。別のものを選ぶか、下の各項目をその上で変えられます。"
+"config.theme.motion.blend_colors.label" = "色の変化をなめらかに"
+"config.theme.motion.blend_colors.help" = "パレット、ライト/ダーク、ルック、壁紙の色など、色が変わるときに切り替えずに約0.3秒でフェードします。モーションを減らす設定とモーションプロファイル「なし」ではオフです。"
 "config.theme.motion.speed.label" = "アニメーション速度"
 "config.theme.motion.speed.help" = "すべての動きの速さに掛ける倍率（2.0 で2倍速）。"
 "config.theme.motion.timing.preset.label" = "タイミングのプリセット"
