@@ -921,6 +921,8 @@ for id in "${nav[@]}"; do
   kp return
   [ "$(Q current)" = "$id" ] || fail "keyboard K2: Return on the sidebar did not open $id ($(Q current))"
   kp tab
+  # The open page's sections are tab stops under its entry (I464): walk past them to the next page's entry.
+  for _ in $(seq 40); do [[ "$(Q focused)" == sub:* ]] || break; echo tab >&3; sleep 0.25; done
 done
 echo "keyboard K2: every sidebar page opened with Tab and Return (${#nav[@]} entries)"
 Q goto layout
@@ -1097,7 +1099,7 @@ echo "keyboard K12: typed 'palette' (the Style and Look name palettes in their h
 #      (UX brief, settings 1). theme.density is forced by Nix (managed.toml).
 Q goto appearance
 Q focusList >/dev/null
-tab_to "chip:theme.density" 200   # past "Apps that follow" and its switches
+tab_to "chip:theme.density" 400   # past "Apps that follow" and its switches, and the materials and chrome rows of session 27
 shot 23-chip-stack
 echo "keyboard K13: the Nix chip of theme.density shows its layers on focus"
 

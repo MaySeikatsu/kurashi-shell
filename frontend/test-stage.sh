@@ -244,7 +244,8 @@ start_frontend
 # power and bluetooth open the quick card's Power and Bluetooth pages (I44) in the quick card's 400 px width (row 79).
 # The quick card is a phone that draws its own chrome (W21-phone, `ownChrome`): the Stage draws no card round it, and the
 # container-coloured part is the phone's screen inside its frame, PHONE_W - 2 px wide (W21-island-morph).
-PHONE_W=386
+# W70 (d): the control centre is a card by default (quick.style = card), 400 px as the other cards; the phone was 386.
+PHONE_W=400
 for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:$PHONE_W bluetooth:$PHONE_W weather:360; do
   face=${spec%%:*}
   width=${spec##*:}
