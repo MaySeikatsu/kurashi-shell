@@ -29,7 +29,7 @@ Loader {
     // even all round (no direction: light has none), in the light's colour and at its own strength, whatever the
     // elevation is set to.
     readonly property bool glow: Theme.frameGlow
-    active: (glow || (Theme.sheetMode !== "off" && Theme.elevationStrength > 0)) && x1 > x0 && y1 > y0 && own.width > 0
+    active: (glow || Theme.edgeTorn || (Theme.sheetMode !== "off" && Theme.elevationStrength > 0)) && x1 > x0 && y1 > y0 && own.width > 0
         && own.height > 0 && width > 0 && height > 0
 
     // I427: a key layer along the light and a faint one all round (the band read as flat with the key alone: one side
@@ -86,15 +86,34 @@ Loader {
         fragmentShader: Qt.resolvedUrl("../shaders/sheet_shadow.frag.qsb")
     }
     sourceComponent: Item {
+        id: passes
         width: ss.width
         height: ss.height
-        Layer { strength: ss.glow ? Theme.frameGlowColor.a * 1.8 : ss.roundAlpha; soft: ss.glow ? Theme.frameGlowR * 2.4 : ss.roundBlur }
+        readonly property bool casts: ss.glow || (Theme.sheetMode !== "off" && Theme.elevationStrength > 0)
+        Layer { visible: passes.casts; strength: ss.glow ? Theme.frameGlowColor.a * 1.8 : ss.roundAlpha; soft: ss.glow ? Theme.frameGlowR * 2.4 : ss.roundBlur }
         Layer {
-            visible: !ss.inward && !ss.glow
+            visible: passes.casts && !ss.inward && !ss.glow
             strength: ss.alpha
             soft: ss.blur
             ox: ss.ux * ss.dist * ss.s
             oy: ss.uy * ss.dist * ss.s
+        }
+        // I471b/d: the sheet's edge torn or painted (shaders/sheet_edge.frag): the sheet drawn a little way into the hole,
+        // over the shadow or the light it casts there. Made only under such an edge.
+        Loader {
+            active: Theme.edgeTorn
+            sourceComponent: ShaderEffect {
+                width: ss.width
+                height: ss.height
+                readonly property vector4d hole: Qt.vector4d(ss.x0 - ss.origin.x, ss.y0 - ss.origin.y, ss.x1 - ss.origin.x, ss.y1 - ss.origin.y)
+                readonly property vector4d clipRect: Qt.vector4d(ss.own.x - ss.origin.x, ss.own.y - ss.origin.y,
+                    ss.own.x + ss.own.width - ss.origin.x, ss.own.y + ss.own.height - ss.origin.y)
+                readonly property color color: Qt.alpha(Theme.surfaceAlpha, 1)
+                readonly property vector4d uEdge: Qt.vector4d(Theme.edgeStyle === "painted" ? 1 : 0, Theme.edgeDepth, Theme.edgeUneven, ss.radius)
+                readonly property point origin: ss.origin
+                readonly property size size: Qt.size(width, height)
+                fragmentShader: Qt.resolvedUrl("../shaders/sheet_edge.frag.qsb")
+            }
         }
     }
 }
