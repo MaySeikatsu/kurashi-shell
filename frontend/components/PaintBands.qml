@@ -18,16 +18,18 @@ Item {
         model: pb.n
         PaintStroke {
             required property int index
-            // (bands lap by a fifth; each is set in or out at its two ends by up to about a tenth of the width)
-            readonly property real lap: pb.n > 1 ? pb.step * 0.2 : 0
-            readonly property real inL: (pb.rnd(index, 1) - 0.35) * Math.min(26, pb.width * 0.09)
-            readonly property real inR: (pb.rnd(index, 2) - 0.35) * Math.min(30, pb.width * 0.11)
+            // Each band is its own stroke of the hand: it laps the next by a third or more, is set in or out at its two
+            // ends by up to a seventh of the width, sits a little high or low and leans a degree or two.
+            readonly property real lap: pb.n > 1 ? pb.step * (0.3 + 0.3 * pb.rnd(index, 4)) : 0
+            readonly property real inL: (pb.rnd(index, 1) - 0.4) * Math.min(44, pb.width * 0.14)
+            readonly property real inR: (pb.rnd(index, 2) - 0.4) * Math.min(52, pb.width * 0.16)
             x: inL
-            y: index * pb.step - lap / 2
+            y: index * pb.step - lap / 2 + (pb.rnd(index, 5) - 0.5) * Math.min(8, pb.step * 0.12)
             width: pb.width - inL - inR
             height: pb.step + lap
+            rotation: pb.width > 120 ? (pb.rnd(index, 6) - 0.5) * 3.4 * Math.min(1, 260 / pb.width) : 0
             seedShift: index * 11 + 3
-            color: Qt.alpha(pb.color, pb.color.a * (0.86 + 0.14 * pb.rnd(index, 3)))
+            color: pb.color
         }
     }
 }

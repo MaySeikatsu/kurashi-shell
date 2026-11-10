@@ -22,6 +22,7 @@ Item {
             (Math.round(ps.width) * 7 + Math.round(ps.height) * 13 + Math.round(ps.mapToItem(null, 0, 0).x) * 3 + ps.seedShift) % 97)
         readonly property color uColor: ps.color
         readonly property vector4d uPaint: Qt.vector4d(Theme.edgeUneven, ps.room, ps.blend, 0)
+        readonly property vector4d uScene: { var o = ps.mapToItem(null, 0, 0); return Qt.vector4d(o.x + x, o.y + y, 0, 0) }
         readonly property color uColor2: Qt.rgba(ps.color2.r, ps.color2.g, ps.color2.b, 1)
         fragmentShader: Qt.resolvedUrl("../shaders/paint_stroke.frag.qsb")
     }

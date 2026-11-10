@@ -108,7 +108,9 @@ Item {
         z: -1
         width: blk.width
         height: blk.faceH
-        active: blk.painted
+        // (a small thing with a ground's fill — a digit's tile, a day, a small key — stands on the surface's paint: no
+        // stroke of its own; one that says something keeps its colour)
+        active: blk.painted && (!blk.paintGround || blk.width >= 96)
         // (a block as tall as a card is covered in bands; a key, a tile or a bar's group is one stroke)
         sourceComponent: PaintBands {
             color: blk.paintGround ? (blk.faceH > 96 ? Theme.paintGround : Theme.paintControl)

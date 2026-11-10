@@ -34,7 +34,7 @@ Item {
         || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000"))
     Loader {
         anchors.fill: parent
-        active: rb.painted
+        active: rb.painted && (!rb.paintIsGround || rb.width >= 96)
         source: active ? "PaintBands.qml" : ""
         onLoaded: item.color = Qt.binding(function () {
             return rb.paintIsGround ? (rb.height > 96 ? Theme.paintGround : Theme.paintControl) : Qt.alpha(rb.color, Math.min(0.9, Math.max(0.6, rb.color.a)))
