@@ -193,10 +193,16 @@ Shape {
     }
     // I471b: under the painted look the column is brushed freely: bands of a brush over its box, no fill or outline.
     Loader {
-        x: sh.x0
-        y: sh.y0
-        width: sh.x1 - sh.x0
-        height: sh.y1 - sh.y0
+        // (a side that lies on the window's edge is joined to the screen's edge or the frame: the paint runs over it,
+        // into the frame's paint, so the column stays connected)
+        readonly property real joinL: sh.x0 <= 1.5 ? 22 : 0
+        readonly property real joinR: sh.x1 >= sh.width - 1.5 ? 22 : 0
+        readonly property real joinT: sh.y0 <= 1.5 ? 22 : 0
+        readonly property real joinB: sh.y1 >= sh.height - 1.5 ? 22 : 0
+        x: sh.x0 - joinL
+        y: sh.y0 - joinT
+        width: sh.x1 - sh.x0 + joinL + joinR
+        height: sh.y1 - sh.y0 + joinT + joinB
         active: Theme.painted && sh.visible && width > 24 && height > 14
         sourceComponent: PaintBands { color: Theme.paintGround; wild: true }
     }

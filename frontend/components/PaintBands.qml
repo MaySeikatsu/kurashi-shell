@@ -36,7 +36,10 @@ Item {
             y: index * pb.step - lap / 2 + (pb.rnd(index, 5) - 0.5) * Math.min(8, pb.step * 0.12)
             width: pb.width - inL - inR
             height: pb.step + lap
-            rotation: pb.width > 120 ? (pb.rnd(index, 6) - 0.5) * (pb.wild ? 7.5 : 3.4) * Math.min(1, 260 / pb.width) : 0
+            // (each stroke has its own direction: up to about six degrees either way, ten on a column brushed freely; less on
+            // a long one, whose ends would otherwise leave the surface; a single stroke under a control leans a little)
+            rotation: (pb.rnd(index, 6) - 0.5) * 2 * Math.min(pb.wild ? 10 : (pb.n > 1 ? 6 : 2.5),
+                Math.atan(Math.max(8, pb.step * (pb.n > 1 ? 0.55 : 0.2)) / Math.max(40, pb.width / 2)) * 180 / Math.PI)
             seedShift: index * 11 + 3
             color: pb.color
         }

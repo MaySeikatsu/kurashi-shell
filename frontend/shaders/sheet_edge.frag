@@ -14,6 +14,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 clipRect;  // x0, y0, x1, y1
     vec4 color;     // the sheet's fill
     vec4 uEdge;     // x: 0 torn, 1 paint; y: depth (px); z: unevenness 0..1; w: the hole's corner radius
+    vec4 uLine;     // the frame's outline along the paint's or the tear's inner edge: rgb, and its width in a (0: none)
     vec2 origin;    // the item's place on the output (px)
     vec2 size;      // the item's size (px)
 };
@@ -56,6 +57,13 @@ void main() {
         float amp = depth * 3.6;
         float reach = amp * (0.35 + 0.65 * fbm(vec2(along / 90.0, 3.0))) + 1.0 * vnoise(g / 5.0);
         if (d > reach) { fragColor = vec4(0.0); return; }
+        // The frame's outline, when it is on: a line drawn by hand along the paint's inner edge (not between the sheet
+        // and its paint), whole also where the bristles gave out.
+        if (uLine.a > 0.0 && d > reach - uLine.a * (0.8 + 0.5 * vnoise(vec2(along / 17.0, 21.0)))) {
+            float la = clamp(reach - d + 0.5, 0.0, 1.0);
+            fragColor = vec4(uLine.rgb * la, la) * qt_Opacity;
+            return;
+        }
         float t = clamp(d / max(reach, 0.001), 0.0, 1.0);
         // The brush ran along the edge: its bristles leave rows parallel to it, and further out more of them have given
         // out (long gaps along the stroke), so the paint ends in streaks, not in a line.

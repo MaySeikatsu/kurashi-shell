@@ -16,9 +16,9 @@ Item {
     property real blend: Theme.paintBlend
     // How far the stroke goes past the block's ends: a control's (a tile, a key, a bar's group) a little, so strokes side
     // by side stay apart; a surface's band further.
-    readonly property real over: height < 96 ? Math.max(4, Math.min(14, height * 0.3)) : Math.max(14, Math.min(52, width * 0.14))
-    // (the stroke is a little lower than a control's box: neighbours one over another do not touch)
-    readonly property real room: height < 96 ? -Math.min(3, height * 0.06) : Math.min(6, height * 0.1)
+    // How far the stroke goes past the block's ends: a control's (a tile, a key, a bar's group) less than a surface's band.
+    readonly property real over: height < 96 ? Math.max(6, Math.min(20, height * 0.45)) : Math.max(14, Math.min(52, width * 0.14))
+    readonly property real room: height < 96 ? 1 : Math.min(6, height * 0.1)
     ShaderEffect {
         x: -ps.over * 0.7
         y: -ps.room

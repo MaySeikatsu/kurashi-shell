@@ -110,6 +110,7 @@ Loader {
                     ss.own.x + ss.own.width - ss.origin.x, ss.own.y + ss.own.height - ss.origin.y)
                 readonly property color color: Qt.alpha(Theme.surfaceAlpha, 1)
                 readonly property vector4d uEdge: Qt.vector4d(Theme.edgeStyle === "painted" ? 1 : 0, Theme.edgeDepth, Theme.edgeUneven, ss.radius)
+                readonly property vector4d uLine: Theme.frameLineOnPaint ? Qt.vector4d(Theme.frameOutlineColor.r, Theme.frameOutlineColor.g, Theme.frameOutlineColor.b, Math.max(1.6, Theme.outlineW + 0.6)) : Qt.vector4d(0, 0, 0, 0)
                 readonly property point origin: ss.origin
                 readonly property size size: Qt.size(width, height)
                 fragmentShader: Qt.resolvedUrl("../shaders/sheet_edge.frag.qsb")

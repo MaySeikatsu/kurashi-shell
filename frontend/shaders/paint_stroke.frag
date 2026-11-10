@@ -35,7 +35,7 @@ void main() {
     float mid = size.y * 0.5 + (fbm(vec2(p.x / 260.0 + seed, 1.0)) - 0.5) * min(room * 2.2, size.y * 0.22)
               + (vnoise(vec2(p.x / 70.0 + seed, 8.0)) - 0.5) * min(room * 0.8, size.y * 0.06);
     float half0 = size.y * 0.5 - room * 0.5;
-    float halfH = half0 * (0.84 + 0.2 * fbm(vec2(p.x / 95.0 + seed, 4.0)));
+    float halfH = half0 * (0.9 + 0.14 * fbm(vec2(p.x / 95.0 + seed, 4.0)));
     float dy = abs(p.y - mid);
     // The edge's fine waver (single bristles standing out).
     float fray = (vnoise(vec2(p.x / 9.0 + seed, p.y / 2.0)) - 0.5) * 2.2 + (vnoise(vec2(p.x / 34.0 + seed, 12.0)) - 0.5) * min(5.0, size.y * 0.09);
@@ -61,7 +61,7 @@ void main() {
     // The stroke is fullest in its middle and narrows towards both ends (the brush is set down and lifted), more at
     // its far end.
     float u = clamp(p.x / len, 0.0, 1.0);
-    float lens = 1.0 - 0.22 * smoothstep(0.3, 0.0, u) - 0.36 * smoothstep(0.62, 1.0, u);
+    float lens = 1.0 - 0.12 * smoothstep(0.25, 0.0, u) - 0.22 * smoothstep(0.68, 1.0, u);
     if (dy > (halfH + fray) * lens) { fragColor = vec4(0.0); return; }
     inside = (halfH + fray) * lens - dy;
     float gone = max(pow(tEnd, 1.5) * 1.05, tStart * tStart * 0.9);
@@ -70,12 +70,11 @@ void main() {
     float cloud = fbm(vec2(p.x / 140.0 + seed, p.y / 60.0));
     float dry = smoothstep(0.55, 1.0, row) * (0.25 + 0.75 * tEnd);
     // (the paint lies as thick as the surface is opaque: only its dry tail and a faint cloudiness thin it)
-    float a = uColor.a * (1.0 - k * (0.06 * (1.0 - cloud) + 0.32 * dry * tEnd)) * (1.0 - 0.3 * tEnd);
-    // The paint loses body towards its edges, as a wash does where the brush carried less: a soft fall, wider on a broad
-    // stroke, and further towards the tip.
-    float feather = clamp(half0 * 0.42, 3.0, 13.0);
-    a *= smoothstep(0.0, feather, inside) * (0.55 + 0.45 * smoothstep(0.0, feather * 2.2, inside));
-    a *= 1.0 - 0.35 * tEnd - 0.2 * tStart;
+    float a = uColor.a * (1.0 - k * (0.04 * (1.0 - cloud) + 0.3 * dry * tEnd));
+    // The paint is solid; only its outermost edge is soft, and its tip a little thinner (a wash's edge, not a fade).
+    float feather = clamp(half0 * 0.12, 1.5, 4.0);
+    a *= smoothstep(0.0, feather, inside);
+    a *= 1.0 - 0.15 * tEnd;
     float rim = 1.0 - smoothstep(0.0, 4.0, inside);
     // Two wet colours run into each other: more of the second towards the stroke's end, in soft clouds, never a line.
     vec2 gp = p + uScene.xy;
