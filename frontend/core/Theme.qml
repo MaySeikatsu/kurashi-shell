@@ -92,6 +92,11 @@ Singleton {
     // K45: soft and line chrome. Read the widths and colours, never `chromeStyle` to pick a look (rule 4); the
     // style name is for logs and tests.
     readonly property string chromeStyle: tok("chrome.style", "flat")
+    // I471d (K121): the edge of every surface: "clean", or "ripped", a sheet torn by hand (components/EdgeWarp.qml). The
+    // environment can force it while a look is tried out (`KURASHI_EDGE=ripped`).
+    readonly property string edgeStyle: String(Quickshell.env("KURASHI_EDGE") || tok("edge.style", "clean"))
+    readonly property bool edgeTorn: edgeStyle === "ripped"
+    readonly property real edgeDepth: tok("edge.depth", 4)
     // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
     // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its
     // own outline on a translucent canvas (Sketch) and sets the alpha itself.

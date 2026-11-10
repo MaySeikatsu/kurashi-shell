@@ -21,6 +21,10 @@ Item {
         && (Qt.colorEqual(rb.color, Theme.surface) || Qt.colorEqual(rb.color, Theme.container)
             || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000")))
     readonly property real lineW: rb.penned ? 0 : rb.bw
+    // I471d (K121): a torn edge. By file (see below): a host without EdgeWarp keeps its clean edge.
+    readonly property Component tornEffect: Theme.edgeTorn === true ? Qt.createComponent("EdgeWarp.qml") : null
+    layer.enabled: tornEffect !== null && tornEffect.status === Component.Ready && rb.color.a > 0.5 && rb.width > 14 && rb.height > 14
+    layer.effect: tornEffect
 
     Rectangle {
         anchors.fill: parent
