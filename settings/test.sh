@@ -661,6 +661,287 @@ qml_errors() {
     fail "QML errors in the settings log"
   fi
 }
+# --- W68 (I453; docs/ux/palettes.md "Custom palettes"): the user's own palettes and their editor. -----------------------
+# C1 the "Your own" category with no palette (the empty line and the New tile); C2 a hand-written file that does not load
+# (greyed, its reason) removed by its Delete, which asks once (keyboard); C3 New palette by keyboard: a name typed, the
+# accent's picker opened from its swatch, a hex typed → the sample card and the daemon's theme document wear the draft
+# (its note too), nothing on disk; C4 a low-contrast accent shows "you picked X, shown as Y"; C5 keyboard only: a swatch,
+# its picker, the square and the hue by arrows, Return confirms → the colour changed; C6 Save → the file, the tile under
+# Your own, `theme.colors.palette` names it; Undo goes back, the CLI picks it again; C7 Settings killed with the editor
+# open → the draft ends (the saved colours are back); reopened, the palette is still there; C8 Delete → gone, the default
+# is in effect; C9 a read-only folder says so. Shots: settings/shots/palettes/. `SETTINGS_PART=palettes` runs only this.
+pshot() { sleep 1; mkdir -p "$SHOTS/palettes"; grim -o HEADLESS-1 "$SHOTS/palettes/$1.png"; [ -s "$SHOTS/palettes/$1.png" ]; }
+# Types text as the virtual keyboard's tokens (letters, digits, space, `-`, `#`).
+ptype() {
+  local s=$1 i c
+  for ((i = 0; i < ${#s}; i++)); do
+    c=${s:i:1}
+    case $c in " ") echo space >&3 ;; "-") echo minus >&3 ;; "#") echo numbersign >&3 ;; *) echo "$c" >&3 ;; esac
+    sleep 0.08
+  done
+  sleep 0.3
+}
+pwait() { for _ in $(seq 60); do [ "$(Q present "$1")" = "${3:-yes}" ] && return 0; sleep 0.1; done; fail "palettes: $2 ($1 present: $(Q present "$1"))"; }
+pnotes() { timeout 5 "$BIN/kurashi" --json sub theme --count 0 | python3 -I -c 'import json,sys; d=json.loads(sys.stdin.readline()); d=d.get("v") or d.get("data") or d; print(" ".join(n["text"] for n in d.get("notes", [])))'; }
+ptoken_is() { for _ in $(seq 60); do [ "$(mtoken "$1")" = "\"$2\"" ] && return 0; sleep 0.1; done; fail "palettes: $3 ($1 is $(mtoken "$1"), expected $2)"; }
+palettes_part() {
+  mkeys
+  local dir=$XDG_CONFIG_HOME/kurashi/palettes
+  rm -rf "$dir"
+  K '{"t":"apply","id":"pa0","ops":[{"set":"theme.colors.scheme","value":"dark"},{"reset":"theme.colors.palette"}]}' | grep -q applied \
+    || fail "palettes: the scheme was not pinned"
+  local pal0; pal0=$(val theme.colors.palette)
+  local acc0; acc0=$(mtoken color.accent)
+  Q goto appearance
+  for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
+  Q category theme.colors.palette custom
+  [[ "$(Q categories theme.colors.palette)" == *inspired,custom* ]] || fail "palettes C1: Your own is not after Inspired ($(Q categories theme.colors.palette))"
+  pwait palettes-empty "C1: no empty line"
+  pwait palette-new "C1: no New tile"
+  Q scrollTo block:theme.colors.palette
+  pshot empty
+  echo "palettes C1: Your own is listed with no palette: the empty line and the New tile"
+
+  # C2: a broken file, hand-written; the folder's watch lists it.
+  mkdir -p "$dir"
+  printf 'name = "broken"\n[dark\nsurface = 1\n' > "$dir/broken.toml"
+  pwait palette-broken:broken "C2: the broken file is not listed"
+  pwait palettes-empty "C2: the empty line stays with a broken file" no
+  pshot broken
+  Q focusList >/dev/null
+  mtab_to palette-delete:broken 300
+  mkp return
+  for _ in $(seq 25); do [ "$(Q focused)" = palette-delete-confirm:broken ] && break; sleep 0.2; done
+  [ "$(Q focused)" = palette-delete-confirm:broken ] || fail "palettes C2: Delete did not ask ($(Q focused))"
+  pshot delete-ask
+  mkp return
+  for _ in $(seq 50); do [ ! -e "$dir/broken.toml" ] && break; sleep 0.1; done
+  [ ! -e "$dir/broken.toml" ] || fail "palettes C2: the broken file was not deleted"
+  pwait palette-broken:broken "C2: the broken tile stays" no
+  echo "palettes C2: a broken file is listed greyed with its reason, and Delete (asked once) removes it"
+
+  # C3: New palette, by keyboard; the name, then the accent by hex.
+  Q focusList >/dev/null
+  mtab_to palette-new 300
+  mkp return
+  pwait palette-editor "C3: the editor did not open"
+  pwait palette-role:accent "C3: the editor has no accent row"
+  for _ in $(seq 25); do [ "$(Q focused)" = Name ] && break; sleep 0.2; done
+  [ "$(Q focused)" = Name ] || fail "palettes C3: the name field has no focus ($(Q focused))"
+  mkp ctrl+a
+  ptype "w68 test"
+  pwait "palette-file:w68-test" "C3: the file name does not follow the name"
+  mtab_to palette-role:accent 60
+  mkp return
+  pwait color-picker "C3: the picker did not open"
+  for _ in $(seq 25); do [ "$(Q focused)" = picker-square ] && break; sleep 0.2; done
+  [ "$(Q focused)" = picker-square ] || fail "palettes C3: the picker's square has no focus ($(Q focused))"
+  mtab_to Hex 10
+  mkp ctrl+a
+  ptype "ff8800"
+  mkp return
+  pwait "palette-sample-accent:#ff8800" "C3: the sample card does not wear the accent"
+  ptoken_is color.accent "#ff8800" "C3: the theme document does not wear the draft"
+  [[ "$(pnotes)" == *theme.note.palette_draft* ]] || fail "palettes C3: the theme's notes do not say it is a draft"
+  [ ! -e "$dir/w68-test.toml" ] || fail "palettes C3: a draft was written to disk"
+  [ "$(val theme.colors.palette)" = "$pal0" ] || fail "palettes C3: the draft changed the config"
+  pshot picker
+  mtab_to picker-ok 20
+  mkp return
+  pwait color-picker "C3: OK did not close the picker" no
+  [ "$(Q focused)" = palette-role:accent ] || fail "palettes C3: the focus is not back on the swatch ($(Q focused))"
+  Q scrollTo palette-editor
+  pshot editor
+  echo "palettes C3: New palette by keyboard; a typed hex → the sample and the theme document wear the draft, nothing saved"
+
+  # C4: a low-contrast accent: shown as another colour, and why.
+  mkp return
+  pwait color-picker "C4: the picker did not open again"
+  mtab_to Hex 10
+  mkp ctrl+a
+  ptype "262626"
+  mkp return
+  pwait palette-moved:accent "C4: no 'shown as' line for a low-contrast accent"
+  pshot shown-as
+  mtab_to Hex 10
+  mkp ctrl+a
+  ptype "ff8800"
+  mkp return
+  pwait palette-moved:accent "C4: the 'shown as' line stays" no
+  mtab_to picker-ok 20
+  mkp return
+  echo "palettes C4: a low-contrast accent says it is shown as another colour, and why"
+
+  # C5: keyboard only — the secondary's swatch, its picker, the square and the hue by arrows, Return.
+  local sec0; sec0=$(mtoken color.secondary)
+  mtab_to palette-role:secondary 30
+  mkp return
+  pwait color-picker "C5: the picker did not open"
+  for _ in $(seq 25); do [ "$(Q focused)" = picker-square ] && break; sleep 0.2; done
+  mkp shift+right shift+right shift+right down
+  mkp tab
+  [ "$(Q focused)" = picker-hue ] || fail "palettes C5: Tab from the square did not reach the hue ($(Q focused))"
+  mkp shift+right shift+right shift+right shift+right right
+  mkp return
+  pwait color-picker "C5: Return did not confirm" no
+  for _ in $(seq 50); do [ "$(mtoken color.secondary)" != "$sec0" ] && break; sleep 0.1; done
+  [ "$(mtoken color.secondary)" != "$sec0" ] || fail "palettes C5: the hue moved but the secondary did not change ($sec0)"
+  echo "palettes C5: keyboard only: swatch → picker → square and hue by arrows → Return ($sec0 → $(mtoken color.secondary))"
+
+  # C5b: the sides — Light shown, its colours removed (the notice says what light mode uses), added back; a role derived.
+  Q focusList >/dev/null
+  mtab_to palette-side 300
+  mkp right
+  pwait palette-remove-side "C5b: Light has no Remove"
+  mtab_to palette-remove-side 20
+  mkp return
+  pwait palette-side-missing "C5b: no notice for a palette without light colours"
+  Q scrollTo palette-editor
+  pshot side-missing
+  Q focusList >/dev/null
+  mtab_to palette-add-side 300
+  mkp return
+  pwait palette-side-missing "C5b: Add light colours did not add them" no
+  pwait palette-derive:outline "C5b: the light outline cannot be derived"
+  mtab_to palette-derive:outline 60
+  mkp return
+  pwait palette-provenance:outline:derived "C5b: Derive did not make the outline derived"
+  Q focusList >/dev/null
+  mtab_to palette-side 300
+  mkp left
+  pwait palette-provenance:outline:yours "C5b: the dark side lost its outline"
+  echo "palettes C5b: Light removed (the notice), added back, its outline derived; Dark unchanged"
+
+  # C6: Save → the file, the tile, the row names it; Undo, and the CLI again.
+  mtab_to palette-save 60
+  mkp return
+  val_is theme.colors.palette '"w68-test"' || fail "palettes C6: Save did not pick the palette ($(val theme.colors.palette))"
+  [ -s "$dir/w68-test.toml" ] || fail "palettes C6: no file was written"
+  grep -q 'category = "custom"' "$dir/w68-test.toml" || fail "palettes C6: the file is not a custom palette"
+  pwait palette-tile:w68-test "C6: no tile under Your own"
+  ptoken_is color.accent "#ff8800" "C6: the saved palette is not in effect"
+  [[ "$(pnotes)" != *palette_draft* ]] || fail "palettes C6: the draft outlived Save"
+  Q scrollTo block:theme.colors.palette
+  pshot saved
+  Q undo
+  val_is theme.colors.palette "$pal0" || fail "palettes C6: Undo did not go back ($(val theme.colors.palette))"
+  "$BIN/kurashi" set theme.colors.palette w68-test | grep -q '^applied' || fail "palettes C6: the CLI could not pick it"
+  echo "palettes C6: Save wrote $dir/w68-test.toml, picked it, Undo went back"
+
+  # C6b: a name another palette has: the editor names the file it would write instead (w68-test-2.toml), and why.
+  Q focusList >/dev/null
+  mtab_to palette-new 300
+  mkp return
+  pwait palette-role:accent "C6b: the editor did not open"
+  for _ in $(seq 25); do [ "$(Q focused)" = Name ] && break; sleep 0.2; done
+  mkp ctrl+a
+  ptype "w68 test"
+  pwait palette-file:w68-test-2 "C6b: a taken name does not move to w68-test-2"
+  pwait palette-name-note "C6b: the editor does not say why"
+  Q scrollTo palette-editor
+  pshot name-clash
+  mkp escape
+  pwait palette-editor "C6b: Escape did not leave the editor" no
+  echo "palettes C6b: a taken name is saved as w68-test-2.toml, and the editor says so"
+
+  # C7: Settings killed with the editor open: the draft ends with it; reopened, the palette is there.
+  Q focusList >/dev/null
+  mtab_to palette-edit:w68-test 300
+  mkp return
+  pwait palette-role:accent "C7: Edit did not open the editor"
+  mtab_to palette-role:accent 60
+  mkp return
+  pwait color-picker "C7: the picker did not open"
+  mtab_to Hex 10
+  mkp ctrl+a
+  ptype "00ff00"
+  mkp return
+  ptoken_is color.accent "#00ff00" "C7: the draft is not worn"
+  kill -9 "$qs_pid"
+  ptoken_is color.accent "#ff8800" "C7: the draft outlived Settings"
+  [[ "$(pnotes)" != *palette_draft* ]] || fail "palettes C7: the theme still says draft"
+  start_qs theme.colors.palette
+  for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+  for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
+  sleep 1
+  Q category theme.colors.palette custom
+  pwait palette-tile:w68-test "C7: reopened, the palette is not listed"
+  echo "palettes C7: Settings killed mid-edit → the draft ended; reopened, w68-test is still there"
+
+  # C8: Delete (asked once) → gone; the default is back.
+  Q focusList >/dev/null
+  mtab_to palette-delete:w68-test 300
+  mkp return
+  for _ in $(seq 25); do [ "$(Q focused)" = palette-delete-confirm:w68-test ] && break; sleep 0.2; done
+  mkp return
+  val_is theme.colors.palette "$pal0" || fail "palettes C8: the default is not back ($(val theme.colors.palette))"
+  for _ in $(seq 50); do [ ! -e "$dir/w68-test.toml" ] && break; sleep 0.1; done
+  [ ! -e "$dir/w68-test.toml" ] || fail "palettes C8: the file is still there"
+  pwait palette-tile:w68-test "C8: the tile stays" no
+  [ "$(mtoken color.accent)" = "$acc0" ] || fail "palettes C8: the accent is $(mtoken color.accent), not the default's $acc0"
+  echo "palettes C8: Delete removed the palette in effect; $pal0 is back"
+
+  # C9: a folder that cannot be written — linked from elsewhere, as Home-Manager links it into the store. (A chmod does not
+  # do: the sandbox's user namespace may map the daemon to root, which writes anyway.)
+  rm -rf "$dir"
+  mkdir -p "$R/managed-palettes"
+  ln -s "$R/managed-palettes" "$dir"
+  Q category theme.colors.palette kurashi
+  Q category theme.colors.palette custom
+  pwait palettes-read-only "C9: a read-only folder is not named"
+  pshot read-only
+  Q focusList >/dev/null
+  mtab_to palette-new 300
+  mkp return
+  pwait palette-editor-read-only "C9: the editor does not say it cannot save"
+  Q scrollTo palette-editor
+  pshot read-only-editor
+  mkp escape
+  pwait palette-editor "C9: Escape did not leave the editor" no
+  rm -f "$dir"
+  echo "palettes C9: a folder linked from elsewhere is read-only, and says so"
+  K '{"t":"apply","id":"pa9","ops":[{"reset":"theme.colors.scheme"}]}' | grep -q applied || fail "palettes: the scheme was not reset"
+  # The palette's own category open again, as the steps after this one expect it.
+  Q category theme.colors.palette kurashi
+}
+palettes_ja() {
+  mkeys
+  Q goto appearance
+  for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
+  Q category theme.colors.palette custom
+  pwait palette-new "ja: no New tile"
+  Q scrollTo block:theme.colors.palette
+  pshot ja-empty
+  Q focusList >/dev/null
+  mtab_to palette-new 300
+  mkp return
+  pwait palette-role:accent "ja: the editor did not open"
+  mtab_to palette-role:accent 60
+  mkp return
+  pwait color-picker "ja: the picker did not open"
+  Q scrollTo palette-editor
+  pshot ja-editor
+  mkp escape
+  mkp escape
+  pwait palette-editor "ja: Escape did not leave the editor" no
+  Q category theme.colors.palette kurashi
+}
+if [ "${SETTINGS_PART:-}" = palettes ]; then
+  palettes_part
+  qml_errors
+  exec 3>&-; kbd_pid=""
+  kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
+  sleep 0.5
+  start_daemon ja_JP.UTF-8
+  start_qs theme.colors.palette
+  for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+  sleep 1.5
+  palettes_ja
+  exec 3>&-; kbd_pid=""
+  qml_errors
+  echo "ok (palettes part, $HOST host): $SHOTS/palettes/"; ls "$SHOTS/palettes"
+  exit 0
+fi
 if [ "${SETTINGS_PART:-}" = motion ]; then
   motion_en
   exec 3>&-; kbd_pid=""
@@ -1905,6 +2186,8 @@ Q goto layout
 
 # W59.6: Settings › Motion (the part defined after the start; SETTINGS_PART=motion runs it alone).
 motion_en
+# W68: the user's own palettes (SETTINGS_PART=palettes runs it alone).
+palettes_part
 
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
@@ -1921,6 +2204,7 @@ shot ja-page-link-records
 Q goto layout
 lshot ja-layout-top
 motion_ja
+palettes_ja
 Q goto appearance
 shot ja-appearance
 Q goto power

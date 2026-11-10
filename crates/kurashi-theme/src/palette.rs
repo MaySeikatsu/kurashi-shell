@@ -2,6 +2,8 @@
 //! format that carries a dark/light pair.
 
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 
 use serde::Deserialize;
 
@@ -272,6 +274,8 @@ pub struct Meta {
     pub family: Option<String>,
     pub variant: Option<String>,
     pub description: Option<String>,
+    /// A user palette's name in words (I453: the file name is its id, a slug); bundled ones take theirs from i18n.
+    pub label: Option<String>,
 }
 
 /// A terminal palette as its authors published it: ground, ink, cursor, selection and the 16 ANSI colours.
@@ -290,6 +294,8 @@ pub struct Terminal {
 #[serde(deny_unknown_fields)]
 struct PaletteFile {
     name: String,
+    #[serde(default)]
+    label: Option<String>,
     #[serde(default)]
     description: Option<String>,
     #[serde(default)]
@@ -396,6 +402,7 @@ impl PaletteSet {
             family: f.family,
             variant: f.variant,
             description: f.description,
+            label: f.label,
         };
         Ok(PaletteSet {
             dark,
@@ -415,6 +422,234 @@ impl PaletteSet {
             ..Default::default()
         }
     }
+
+    /// The first [`REQUIRED`] role a scheme the palette has leaves out (completion would refuse it), if any.
+    pub fn missing_role(&self) -> Option<&'static str> {
+        [&self.dark, &self.light]
+            .into_iter()
+            .flatten()
+            .find_map(|roles| REQUIRED.iter().find(|r| !roles.contains_key(**r)).copied())
+    }
+
+    /// The palette as a file in the bundled format (I453: what Settings' editor saves), roles in [`ROLES`] order. Reads
+    /// back through [`PaletteSet::from_toml`] to the same set.
+    pub fn to_toml(&self) -> String {
+        let q = |s: &str| toml::Value::String(s.to_owned()).to_string();
+        let mut out = String::from(
+            "# A palette of your own (Settings › Appearance › Colours; docs/ux/palettes.md \"Custom palettes\").\n",
+        );
+        out += &format!("name = {}\n", q(&self.name));
+        let m = &self.meta;
+        for (key, v) in [
+            ("label", &m.label),
+            ("description", &m.description),
+            ("category", &m.category),
+            ("family", &m.family),
+            ("variant", &m.variant),
+        ] {
+            if let Some(v) = v {
+                out += &format!("{key} = {}\n", q(v));
+            }
+        }
+        for (word, roles, term) in [
+            ("dark", &self.dark, &self.dark_terminal),
+            ("light", &self.light, &self.light_terminal),
+        ] {
+            let Some(roles) = roles else { continue };
+            out += &format!("\n[{word}]\n");
+            for r in ROLES {
+                if let Some(c) = roles.get(*r) {
+                    out += &format!("{r} = \"{c}\"\n");
+                }
+            }
+            if let Some(t) = term {
+                out += &format!("\n[{word}.terminal]\n");
+                out += &format!(
+                    "background = \"{}\"\nforeground = \"{}\"\n",
+                    t.background, t.foreground
+                );
+                for (k, v) in [
+                    ("cursor", t.cursor),
+                    ("cursor_text_color", t.cursor_text),
+                    ("selection_background", t.selection_background),
+                    ("selection_foreground", t.selection_foreground),
+                ] {
+                    if let Some(c) = v {
+                        out += &format!("{k} = \"{c}\"\n");
+                    }
+                }
+                let colors: Vec<String> = t.colors.iter().map(|c| format!("\"{c}\"")).collect();
+                out += &format!("colors = [{}]\n", colors.join(", "));
+            }
+        }
+        out
+    }
+}
+
+// ---------- the user's palettes (I453) ----------
+
+/// Names a user palette may not take: the wallpaper's colours, and words Settings and the CLI use for no palette.
+pub const RESERVED: &[&str] = &["wallpaper", "draft", "none", "custom", "auto"];
+
+/// Why a user palette's name (its file name) cannot be used; each is an i18n key under `palettes.error.`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NameError {
+    Empty,
+    /// Not a slug: only `a-z`, `0-9` and `-`, starting with a letter or a digit, at most 48 (no path parts).
+    Invalid,
+    /// A bundled palette's name: the bundled one wins, so the file would never be used.
+    Bundled,
+    Reserved,
+}
+
+impl NameError {
+    pub fn key(self) -> &'static str {
+        match self {
+            NameError::Empty => "palettes.error.name_empty",
+            NameError::Invalid => "palettes.error.name_invalid",
+            NameError::Bundled => "palettes.error.name_bundled",
+            NameError::Reserved => "palettes.error.name_reserved",
+        }
+    }
+}
+
+pub fn is_bundled(name: &str) -> bool {
+    BUNDLED.iter().any(|(n, _)| *n == name)
+}
+
+/// Whether `name` can be a user palette's id (its file stem).
+pub fn check_name(name: &str) -> Result<(), NameError> {
+    if name.is_empty() {
+        return Err(NameError::Empty);
+    }
+    let ok_char = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-';
+    if name.len() > 48 || !name.chars().all(ok_char) || name.starts_with('-') {
+        return Err(NameError::Invalid);
+    }
+    if is_bundled(name) {
+        return Err(NameError::Bundled);
+    }
+    if RESERVED.contains(&name) {
+        return Err(NameError::Reserved);
+    }
+    Ok(())
+}
+
+/// A file name from a name in words: lower case, every run of other characters one `-` ("My Rosé 2" → `my-ros-2`).
+pub fn slug(label: &str) -> String {
+    let mut out = String::new();
+    for c in label.chars().flat_map(char::to_lowercase) {
+        if c.is_ascii_lowercase() || c.is_ascii_digit() {
+            out.push(c);
+        } else if !out.ends_with('-') && !out.is_empty() {
+            out.push('-');
+        }
+    }
+    let mut s: String = out.trim_end_matches('-').chars().take(48).collect();
+    while s.ends_with('-') {
+        s.pop();
+    }
+    s
+}
+
+/// One file of the user's palettes directory: its id (the file stem), and the palette or why it is not one.
+#[derive(Clone, Debug)]
+pub struct UserFile {
+    pub name: String,
+    pub path: PathBuf,
+    pub palette: Result<PaletteSet, Problem>,
+}
+
+/// Why a user file is not a palette: an i18n key (`palettes.error.*`) and the parser's own words, if any.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Problem {
+    pub key: &'static str,
+    pub detail: String,
+}
+
+/// Every `*.toml` in `dir`, by name. A bundled or reserved name, a file name that is no slug, and a file that does not
+/// parse are listed with their problem, never dropped. The palette's `name` is its file stem; its category `custom`.
+pub fn load_dir(dir: &Path) -> Vec<UserFile> {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return vec![];
+    };
+    let mut files: Vec<PathBuf> = rd
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "toml") && p.is_file())
+        .collect();
+    files.sort();
+    files
+        .into_iter()
+        .map(|path| {
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default()
+                .to_owned();
+            let palette = check_name(&name)
+                .map_err(|e| Problem {
+                    key: e.key(),
+                    detail: String::new(),
+                })
+                .and_then(|()| {
+                    std::fs::read_to_string(&path).map_err(|e| Problem {
+                        key: "palettes.error.unreadable",
+                        detail: e.to_string(),
+                    })
+                })
+                .and_then(|src| {
+                    PaletteSet::from_toml(&src).map_err(|e| Problem {
+                        key: "palettes.error.parse",
+                        detail: e.to_string(),
+                    })
+                })
+                .and_then(|mut set| {
+                    // The required roles, so a file that names too few is listed now, not when it is picked.
+                    if let Some(r) = set.missing_role() {
+                        return Err(Problem {
+                            key: "palettes.error.parse",
+                            detail: ThemeError::MissingRole(r.to_owned()).to_string(),
+                        });
+                    }
+                    set.name = name.clone();
+                    set.meta.category = Some("custom".into());
+                    Ok(set)
+                });
+            UserFile {
+                name,
+                path,
+                palette,
+            }
+        })
+        .collect()
+}
+
+/// The user's palettes that load (the daemon's [`set_user`]), by name: what [`bundled`] falls back to.
+static USER: RwLock<BTreeMap<String, PaletteSet>> = RwLock::new(BTreeMap::new());
+
+/// Replaces the user's palettes [`bundled`] knows (the good files of [`load_dir`]). A bundled name is never taken.
+pub fn set_user(sets: impl IntoIterator<Item = PaletteSet>) {
+    let map = sets
+        .into_iter()
+        .filter(|s| !is_bundled(&s.name))
+        .map(|s| (s.name.clone(), s))
+        .collect();
+    *USER.write().unwrap_or_else(|e| e.into_inner()) = map;
+}
+
+pub fn user_names() -> Vec<String> {
+    USER.read()
+        .unwrap_or_else(|e| e.into_inner())
+        .keys()
+        .cloned()
+        .collect()
+}
+
+pub fn is_user(name: &str) -> bool {
+    USER.read()
+        .unwrap_or_else(|e| e.into_inner())
+        .contains_key(name)
 }
 
 const BUNDLED: &[(&str, &str)] = &[
@@ -557,10 +792,111 @@ pub fn bundled_category(name: &str) -> Option<String> {
     .flatten()
 }
 
+/// A palette by name: a bundled one, else one of the user's the daemon registered ([`set_user`], I453) — so the
+/// pipeline's source and the preview cards take both. A bundled name always means the bundled palette.
 pub fn bundled(name: &str) -> Result<PaletteSet, ThemeError> {
-    let (_, src) = BUNDLED
-        .iter()
-        .find(|(n, _)| *n == name)
-        .ok_or_else(|| ThemeError::UnknownPalette(name.to_string()))?;
-    PaletteSet::from_toml(src)
+    match BUNDLED.iter().find(|(n, _)| *n == name) {
+        Some((_, src)) => PaletteSet::from_toml(src),
+        None => USER
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(name)
+            .cloned()
+            .ok_or_else(|| ThemeError::UnknownPalette(name.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod user_tests {
+    use super::*;
+
+    fn own() -> PaletteSet {
+        let mut set = bundled("gruvbox").unwrap();
+        set.name = "my-gruvbox".into();
+        set.meta.category = Some("custom".into());
+        set.meta.label = Some("My \"Gruvbox\"".into());
+        set.light = None;
+        set.light_terminal = None;
+        set.dark
+            .as_mut()
+            .unwrap()
+            .insert("accent".into(), Rgb::parse("#ff8800").unwrap());
+        set
+    }
+
+    /// I453: a saved palette reads back as the same set (roles, terminal table, meta).
+    #[test]
+    fn to_toml_round_trips() {
+        let set = own();
+        let back = PaletteSet::from_toml(&set.to_toml()).unwrap();
+        assert_eq!(back.name, set.name);
+        assert_eq!(back.dark, set.dark);
+        assert_eq!(back.light, None);
+        assert_eq!(back.dark_terminal, set.dark_terminal);
+        assert_eq!(back.meta, set.meta);
+        // Every bundled palette survives the writer too.
+        for name in bundled_names() {
+            let b = bundled(name).unwrap();
+            let r = PaletteSet::from_toml(&b.to_toml()).unwrap();
+            assert_eq!((r.dark, r.light), (b.dark, b.light), "{name}");
+            assert_eq!(
+                (r.dark_terminal, r.light_terminal),
+                (b.dark_terminal, b.light_terminal),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn names_are_slugs_and_never_bundled() {
+        assert_eq!(check_name("my-palette-2"), Ok(()));
+        assert_eq!(check_name(""), Err(NameError::Empty));
+        let long = "x".repeat(49);
+        for bad in ["../x", "a/b", "My", "-x", "a.b", "a b", long.as_str()] {
+            assert_eq!(check_name(bad), Err(NameError::Invalid), "{bad}");
+        }
+        assert_eq!(check_name("gruvbox"), Err(NameError::Bundled));
+        assert_eq!(check_name("wallpaper"), Err(NameError::Reserved));
+        assert_eq!(slug("My Rosé  2!"), "my-ros-2");
+        assert_eq!(slug("  -- "), "");
+        assert_eq!(check_name(&slug(&"Long name ".repeat(9))), Ok(()));
+    }
+
+    /// I453: the directory's files — a good one, a broken one with its reason, a bundled name — and the lookup.
+    #[test]
+    fn load_dir_lists_every_file_and_bundled_wins() {
+        let dir = std::env::temp_dir().join(format!("kurashi-palettes-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let write = |n: &str, s: &str| std::fs::write(dir.join(n), s).unwrap();
+        write("my-gruvbox.toml", &own().to_toml());
+        write(
+            "broken.toml",
+            "name = \"broken\"\n[dark]\nsurface = \"#zzz\"\n",
+        );
+        write("gruvbox.toml", &own().to_toml());
+        write(
+            "few.toml",
+            "name = \"few\"\n[dark]\nsurface = \"#000000\"\n",
+        );
+        write("notes.txt", "not a palette");
+        let files = load_dir(&dir);
+        let names: Vec<&str> = files.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["broken", "few", "gruvbox", "my-gruvbox"]);
+        let by = |n: &str| files.iter().find(|f| f.name == n).unwrap();
+        let err = |n: &str| by(n).palette.as_ref().unwrap_err().clone();
+        assert_eq!(err("broken").key, "palettes.error.parse");
+        assert!(err("broken").detail.contains("#zzz"), "{:?}", err("broken"));
+        assert!(err("few").detail.contains("on_surface"), "{:?}", err("few"));
+        assert_eq!(err("gruvbox").key, "palettes.error.name_bundled");
+        let good = by("my-gruvbox").palette.clone().unwrap();
+        assert_eq!(good.meta.category.as_deref(), Some("custom"));
+        set_user(files.into_iter().filter_map(|f| f.palette.ok()));
+        assert!(is_user("my-gruvbox"));
+        assert_eq!(bundled("my-gruvbox").unwrap().dark, good.dark);
+        // A bundled name still means the bundled palette.
+        assert_ne!(bundled("gruvbox").unwrap().dark, good.dark);
+        set_user([]);
+        assert!(bundled("my-gruvbox").is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
