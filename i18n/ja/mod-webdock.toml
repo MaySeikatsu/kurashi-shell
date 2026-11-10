@@ -112,6 +112,12 @@
 "mods.webdock.new_tabs.help" = "ドック内：リンクがページを置き換え、「戻る」で戻ります。ブラウザ：既定のブラウザで開きます。"
 "mods.webdock.new_tabs.dock" = "ドック内"
 "mods.webdock.new_tabs.browser" = "ブラウザ"
+# W69: ページの枠 (docs/ux/webdock.md "Page styles")。
+"mods.webdock.page_style" = "ページのスタイル"
+"mods.webdock.page_style.help" = "スマホ：スマートフォン。大きい表示では横向きのタブレットになります。ノート：開いたリングノートの片側。ページがリングの上でめくれます。シンプル：ドックのカードにページだけを表示します。"
+"mods.webdock.page_style.phone" = "スマホ"
+"mods.webdock.page_style.notebook" = "ノート"
+"mods.webdock.page_style.plain" = "シンプル"
 
 # ホバー、フォーカス、ピンの操作 (K40、W20-webdock-daemon) と、追加・差し替えのアドレスの拒否。
 "webdock.error.address" = "アドレスはウェブのページにしてください (https、http、file)"

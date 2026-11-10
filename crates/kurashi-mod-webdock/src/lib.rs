@@ -524,7 +524,7 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 14] = [
+const SETTING_KEYS: [&str; 15] = [
     "pins",
     "default_view",
     "width",
@@ -539,6 +539,7 @@ const SETTING_KEYS: [&str; 14] = [
     "indicator",
     "strip",
     "new_tabs",
+    "page_style",
 ];
 
 fn forced_of(settings: &Settings) -> BTreeMap<String, String> {

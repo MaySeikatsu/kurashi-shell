@@ -87,6 +87,16 @@ range = [50, 95]
 unit = "%"
 label = "mods.webdock.large"
 
+# W69 (I468; docs/ux/webdock.md "Page styles"): how the card frames its page — a phone (a tablet lying sideways in the
+# large size), one half of an opened spiral notebook, or the shell's plain card.
+[[setting]]
+key = "page_style"
+type = "enum"
+default = "phone"
+choices = ["phone", "notebook", "plain"]
+label = "mods.webdock.page_style"
+help = "mods.webdock.page_style.help"
+
 [[setting]]
 key = "edge"
 type = "enum"
