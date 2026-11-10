@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import "../core"
 import "pen.js" as Pen
 
@@ -19,6 +20,11 @@ Item {
     property var radii: null
     property real inset: 0
     property color color: Theme.outlineColor
+    // Session 28 (colour flow): the frame's line moves through colours while the flow runs. The pen paints on the GUI
+    // thread, a whole Canvas a change, so a flowing line is painted once in its still ink and tinted on the GPU (a
+    // layer, only while the flow's line is on): no repaint as the colour moves.
+    readonly property bool flows: ColorFlow.lineOn && Qt.colorEqual(color, Theme.frameOutlineColor)
+    readonly property color ink: flows ? Theme.frameOutlineStill : color
     property real lineWidth: Theme.outlineW
     // A closed path [{x, y}, …] in item coordinates (the line's centre); null = the rounded rectangle.
     property var points: null
@@ -67,7 +73,7 @@ Item {
             for (var i = 0; i < src.length; i++) pts.push({ x: src[i].x + po.pad, y: src[i].y + po.pad })
             Pen.stroke(ctx, {
                 pts: pts, closed: lines[l].closed !== false, width: lines[l].width > 0 ? lines[l].width : po.lineWidth,
-                color: po.color, line: po.line, pressure: po.pressure, breaks: po.breaks, wobble: po.wobble,
+                color: po.ink, line: po.line, pressure: po.pressure, breaks: po.breaks, wobble: po.wobble,
                 seed: (salt + l * 0x9E3779B1) >>> 0
             })
         }
@@ -82,7 +88,7 @@ Item {
     // what they read, and a repaint is a commit: an idle surface must not commit, test-frame's idle check).
     readonly property string pointsKey: points ? JSON.stringify(points) : ""
     readonly property string pathsKey: shownPaths ? JSON.stringify(shownPaths) : ""
-    readonly property var inputs: [width, height, radius, radii, inset, color.r, color.g, color.b, lineWidth, pointsKey,
+    readonly property var inputs: [width, height, radius, radii, inset, ink.r, ink.g, ink.b, lineWidth, pointsKey,
         pathsKey, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
     onInputsChanged: cv.requestPaint()
 
@@ -93,7 +99,9 @@ Item {
         width: po.width + 2 * po.pad
         height: po.height + 2 * po.pad
         // The colour's alpha is the canvas's: the ink is laid opaque, so overlapping caps never bead.
-        opacity: po.color.a
+        opacity: po.ink.a
+        layer.enabled: po.flows
+        layer.effect: MultiEffect { colorization: 1; colorizationColor: Theme.frameOutlineColor }
         onPaint: po.paint(getContext("2d"))
     }
 }

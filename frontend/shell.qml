@@ -76,6 +76,8 @@ ShellRoot {
     Watch { doc: "i18n" }
     Watch { doc: "svc.workspaces" }
     Watch { doc: "runtime.ui" }
+    // Colour flow that runs while music plays reads the player's state (core/ColorFlow.qml); only then (rule 5).
+    Watch { doc: "svc.media"; active: ColorFlow.wantsMedia }
 
     // The bars and the screen frame of each output (K71, docs/ux/layout.md, docs/ux/frame.md): a bar on every edge whose
     // `runtime.layout` entry has one, and the frame's strips while the frame is on. Mapping order matters (a zone holder is

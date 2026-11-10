@@ -270,6 +270,7 @@ Scope {
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("polkit.title")
+                        TextFx { title: true }
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

@@ -110,6 +110,7 @@ Column {
                 text: rp.recording && rp.ctl ? rp.ctl.elapsed
                     : rp.ctl && rp.ctl.busy ? rp.ctl.pendingText
                     : I18n.tr("quick.recorder.idle")
+                TextFx {}
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

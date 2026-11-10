@@ -565,6 +565,7 @@ Item {
                     font.weight: Theme.wBold
                     font.family: Theme.fam(text, Theme.families)
                     text: quick.clockDoc.hh !== undefined ? quick.clockDoc.hh + ":" + quick.clockDoc.mm : ""
+                    TextFx { title: true }
                 }
                 statusRight: [
                     Icon {
@@ -603,6 +604,7 @@ Item {
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                         text: cPower.battery ? cPower.percent + "%" : ""
+                        TextFx { title: true }
                     }
                 ]
 
@@ -655,6 +657,7 @@ Item {
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                         text: quick.userLetter
+                        TextFx { title: true }
                     }
                     Icon {
                         visible: quick.userLetter === ""
@@ -682,6 +685,7 @@ Item {
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("frontend.quick.greeting." + quick.daypart)
+                        TextFx { title: true }
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

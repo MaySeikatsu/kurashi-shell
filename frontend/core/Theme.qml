@@ -147,7 +147,8 @@ Singleton {
     // The hard shadow's vector in whole px (a crisp edge), 0, 0 for a chrome without one (or strength 0: no sink then).
     readonly property int sinkX: shadowDy > 0 ? Math.round(shadowX) : 0
     readonly property int sinkY: shadowDy > 0 ? Math.round(shadowY) : 0
-    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"),
+    readonly property color softStill: color("chrome.soft_color", "#000000")
+    readonly property color softColor: Qt.alpha(softGlow && ColorFlow.glowOn ? ColorFlow.tint(softStill) : softStill,
         Math.min(1, tok("chrome.soft_alpha", 0) * shadowAlpha))
     readonly property real pressScale: tok("chrome.press_scale", 1)
     // W57 (K78, docs/ux/shadows.md "Elevation"): the surfaces' smooth shadows — mode ("off" | "static" | "follow", auto
@@ -288,6 +289,12 @@ Singleton {
     // (ColumnShape, JoinedCard) follows the frame's outline alone: `frameOutlineW`.
     readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
     readonly property color surfaceLineColor: outlineW > 0 ? outlineColor : (frameOutline ? frameOutlineColor : "transparent")
+    // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
+    // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
+    readonly property string textEffect: String(tok("text.effect", "none"))
+    readonly property string textSpawn: springOn ? String(tok("text.spawn", "none")) : "none"
+    readonly property string textScope: String(tok("text.scope", "titles"))
+    readonly property real textSpawnSpeed: Math.max(0.25, Math.min(3, Number(tok("text.spawn_speed", 1)) || 1))
     // Session 28 (`theme.join`, `theme.join_corner`): how a card meets its bar — "auto" as the look draws it, "fused"
     // joined whatever the look says, "float" a card of its own — and the corner where joined surfaces meet (corner.js
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
@@ -301,12 +308,17 @@ Singleton {
     // colour (with its strength as alpha) and reach. Apart from the chrome: a glowing frame under any chrome, a plain
     // line under the Glow chrome.
     readonly property bool frameGlow: frameOutline && tok("frame.glow", softGlow) === true
-    readonly property color frameGlowColor: Qt.alpha(color("frame.glow_color", "#c9404b"), Math.min(1, tok("frame.glow_alpha", 0.5) * shadowAlpha))
+    // (session 28: under colour flow the glow's colour moves, core/ColorFlow.qml)
+    readonly property color frameGlowStill: color("frame.glow_color", "#c9404b")
+    readonly property color frameGlowColor: Qt.alpha(ColorFlow.glowOn ? ColorFlow.tint(frameGlowStill) : frameGlowStill, Math.min(1, tok("frame.glow_alpha", 0.5) * shadowAlpha))
     readonly property real frameGlowR: tok("frame.glow_radius", 14)
     // In the outline's ink; a chrome without an outline of its own and the chrome's ink: a hairline. Lit under a chrome
     // that does not glow itself: the light's own colour.
-    readonly property color frameOutlineColor: frameGlow && !softGlow ? Qt.alpha(frameGlowColor, 1)
+    readonly property color frameOutlineStill: frameGlow && !softGlow ? Qt.alpha(frameGlowStill, 1)
         : (outlineInk !== "outline" || outlineW > 0 ? outlineColor : outline)
+    // (session 28: under colour flow the line moves through colours, core/ColorFlow.qml; at rest, and with the flow
+    // off, it is the still colour above)
+    readonly property color frameOutlineColor: ColorFlow.lineOn ? ColorFlow.tint(frameOutlineStill) : frameOutlineStill
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")

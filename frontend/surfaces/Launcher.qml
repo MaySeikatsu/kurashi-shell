@@ -1045,6 +1045,7 @@ PanelWindow {
                                     font.weight: Theme.wBold
                                     font.family: Theme.fam(text, Theme.families)
                                     text: (row.entry.name || "?").charAt(0).toUpperCase()
+                                    TextFx { title: true }
                                 }
                                 // K61 (docs/ux/texture.md "Controls"): an opaque fallback tile carries the relief over its glyph,
                                 // in a window that shares its sheet (Relief makes its own otherwise). A picture stays flat.
@@ -1226,6 +1227,7 @@ PanelWindow {
                                 font.weight: Theme.wBold
                                 font.family: Theme.fam(text, Theme.families)
                                 text: String(ap.app.name || "?").charAt(0).toUpperCase()
+                                TextFx { title: true }
                             }
                         }
                     }

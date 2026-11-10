@@ -52,6 +52,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: hd.title
+            TextFx { title: true }
         }
     }
     MouseArea {

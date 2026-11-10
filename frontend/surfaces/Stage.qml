@@ -261,6 +261,7 @@ PanelWindow {
                 font.pixelSize: Theme.fsCaption
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
+                TextFx { title: true }
             }
             Row {
                 id: keys

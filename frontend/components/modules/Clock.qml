@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 import "../../core"
 
 // Module `clock`: the time (svc.clock) as hours and minutes, on one line in a row, on two in a column (the text is never
@@ -49,6 +50,8 @@ ModuleBase {
         lineHeight: m.twoLines ? 1.15 : 1
         text: (m.clock.hh ?? "--") + (m.vertical ? "\n" : ":") + (m.clock.mm ?? "--")
             + (m.twoLines && m.shortDate !== "" ? "\n" + m.shortDate : "")
+        // (a heading for the text effects; the minute's flip is not fresh text)
+        TextFx { title: true }
     }
     // The peek waits for the core source `clock:main` (CONTRACT-CHANGE row 550: kurashid's `ui.peek` accepts only mod, tray
     // and island sources, and the Stage draws only those). Until the lead takes the row, nothing is asked (no refused act

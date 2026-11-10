@@ -54,6 +54,7 @@ Item {
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("notifications.center.title")
                     + (ns.items.length > 0 && !ns.locked ? "  " + ns.items.length : "")
+                TextFx { title: true }
             }
             KeyButton {
                 id: clearAll

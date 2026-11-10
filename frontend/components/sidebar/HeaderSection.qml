@@ -41,6 +41,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: hd.user.charAt(0).toUpperCase()
+            TextFx { title: true }
         }
         Icon {
             visible: hd.user === ""
@@ -68,6 +69,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: hd.user !== "" ? hd.user : I18n.tr("sidebar.header.user")
+            TextFx { title: true }
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

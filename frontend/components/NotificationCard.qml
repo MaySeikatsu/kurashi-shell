@@ -229,6 +229,7 @@ RoundBox {
                 maximumLineCount: 2
                 elide: Text.ElideRight
                 text: c.item.summary || ""
+                TextFx { title: true }
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

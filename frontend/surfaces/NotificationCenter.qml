@@ -175,6 +175,7 @@ PanelWindow {
                     font.family: Theme.fam(text, Theme.families)
                     elide: Text.ElideRight
                     text: I18n.tr("notifications.center.title")
+                    TextFx { title: true }
                 }
                 Button {
                     id: dnd

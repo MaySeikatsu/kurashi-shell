@@ -61,6 +61,7 @@ Item {
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: lv.readout
+            TextFx {}
         }
     }
 }
