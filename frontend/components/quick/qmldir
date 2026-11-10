@@ -14,3 +14,18 @@ PowerPage 1.0 PowerPage.qml
 DisplayPage 1.0 DisplayPage.qml
 FocusPage 1.0 FocusPage.qml
 NightPage 1.0 NightPage.qml
+Control 1.0 Control.qml
+ControlTile 1.0 ControlTile.qml
+WifiControl 1.0 WifiControl.qml
+AirplaneControl 1.0 AirplaneControl.qml
+BluetoothControl 1.0 BluetoothControl.qml
+FocusControl 1.0 FocusControl.qml
+AudioControl 1.0 AudioControl.qml
+MicControl 1.0 MicControl.qml
+PowerControl 1.0 PowerControl.qml
+BrightnessControl 1.0 BrightnessControl.qml
+CaffeineControl 1.0 CaffeineControl.qml
+NightControl 1.0 NightControl.qml
+RecordControl 1.0 RecordControl.qml
+DarkControl 1.0 DarkControl.qml
+singleton QuickNav 1.0 QuickNav.qml

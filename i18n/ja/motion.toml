@@ -37,6 +37,9 @@
 "config.choice.motion.form.pixelate" = "モザイク"
 "config.choice.motion.form.glitch" = "グリッチ"
 "config.choice.motion.form.dissolve" = "燃え落ちる"
+"config.choice.motion.form.splat" = "インクのしぶき"
+"config.choice.motion.form.brush" = "筆で塗る"
+"config.choice.motion.form.snake" = "スネーク"
 
 "config.choice.curve.expressive" = "表情豊か"
 "config.choice.curve.emphasized" = "強調"

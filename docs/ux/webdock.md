@@ -270,8 +270,8 @@ Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along 
   file, nothing polls), so shots are taken by progress.
 
 ### Definition of done (W69)
-- [x] `page_style` setting (mod.toml, i18n en/ja, daemon `page_style` in `mod.webdock`, forced provenance; rows 696,
-      697 for PROTOCOL/MODS and Home-Manager).
+- [x] `page_style` setting (mod.toml, i18n en/ja, daemon `page_style` in `mod.webdock`, forced provenance; rows 702,
+      703 for PROTOCOL/MODS and Home-Manager).
 - [x] Each style draws the page with a pin open (host) and the shell's view/cold/empty card in the same style.
 - [x] A style change and a size change keep the page (no new load report) — `mods/webdock/test/test-styles.sh`.
 - [x] Phone large is a tablet (wider than tall) and back, continuously (held half-way in the shots).

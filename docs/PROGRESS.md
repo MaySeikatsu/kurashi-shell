@@ -357,3 +357,14 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S26.7 | Sidebar keeps its page; a pin per output (B46, B47, W65) | ✅ functional · ✅ UX | main |
 | S26.8 | Bar fit: no overlap, overflow, icon polish (B48, W66, K112) | ✅ functional · 🟡 UX (user to judge; side bars partly, B51) | fix/s26-bar-fit |
 | S26.9 | OpenDyslexic among the shipped fonts | ✅ | feat/s26-extraction |
+| S27.1 | Icon tint keeps an icon's drawing; launcher rows and notifications tinted (K110 rework) | ✅ functional · ✅ UX (user, live) · B62 not seen | feat/s27-icon-tint |
+| S27.2 | Open on hover, a module's own choice; every bar peek joins the bar (I457, I458, K113) | ✅ functional · 🟡 UX (timings and join seen live; the menu row and the launcher on hover to judge) | feat/s27-bar-hover |
+| S27.3 | Paint forms: splat, brush, snake (I467, K114) | ✅ functional · 🟡 UX (stills judged; the user has not seen them move) | feat/s27-paint-forms |
+| S27.5 | Glow chrome (I471a, K116) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-chrome-glow |
+| S27.6 | Tray icons inside their outline on a thin bar (B61, partly) | ✅ · ✅ UX (seen live) | fix/s27-tray-size |
+| S27.7 | Every colour change fades (I472 step 1, K117) | ✅ functional · 🟡 UX (a burst on nested niri; no suite) | feat/s27-colour-blend |
+| S27.8 | Settings: a page's sections in the sidebar (I464 step 1) | ✅ functional · 🟡 UX (seen on nested niri; no suite step; `settings/test.sh` K2 and K13 are red on this branch and on #36, fixed in `feat/s27-control-modules`) | feat/s27-settings-sections |
+| S27.9 | Posted desktop cards: pin or tape (I471c, K118) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-desktop-posted |
+| S27.10 | Your own palettes: files, editor, colour picker, live draft (I453, K119, W68) | ✅ functional · 🟡 UX (the agent's niri shots reviewed; the user judges; rows 696–701 open) | feat/s27-custom-palettes (#29) |
+| S27.12 | Control centre as modules: controls as types, eleven bar modules, `quick.tiles` + edit mode, card or phone (I469, K121, W70) | ✅ functional (stages a to d; mods' tiles open, row 711) · 🟡 UX (the agent's niri shots reviewed; drag and keyboard on the bar not in a suite, B74; the user judges) | feat/s27-control-modules |
+| S27.11 | Web dock page styles: notebook, phone to tablet, plain (I468, K120, W69) | ✅ functional · 🟡 UX (the agent's niri shots reviewed; nine choices for the user) | feat/s27-webdock-styles (#37) |

@@ -138,7 +138,10 @@ fn tint_on_prints_ink_only_where_the_material_has_some() {
     for kind in Kind::ALL {
         let t = generate(&params(kind, true, 0.0));
         let inked = t.rgba.chunks_exact(4).filter(|px| px[3] > 0).count();
-        let has_ink = !matches!(kind, Kind::Wool | Kind::Metal | Kind::Leather);
+        let has_ink = !matches!(
+            kind,
+            Kind::Wool | Kind::Metal | Kind::Leather | Kind::TreadPlate
+        );
         assert_eq!(inked > 0, has_ink, "{kind:?}: {inked} inked texels");
     }
 }

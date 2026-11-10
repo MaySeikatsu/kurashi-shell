@@ -106,6 +106,78 @@
               "restart": false,
               "since": 7,
               "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.bar_hover.preview",
+                  "value": "preview"
+                },
+                {
+                  "label": "config.choice.bar_hover.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.bar_hover.menu",
+                  "value": "menu"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "preview",
+              "help": "config.bar.hover.help",
+              "key": "bar.hover",
+              "label": "config.bar.hover.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_preview.help",
+              "key": "bar.hover_preview",
+              "label": "config.bar.hover_preview.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_card.help",
+              "key": "bar.hover_card",
+              "label": "config.bar.hover_card.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_menu.help",
+              "key": "bar.hover_menu",
+              "label": "config.bar.hover_menu.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
             }
           ]
         },
@@ -970,6 +1042,64 @@
               "type": "bool"
             }
           ]
+        },
+        {
+          "id": "control_centre",
+          "label": "settings.section.control_centre",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_style.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_style.phone",
+                  "value": "phone"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.style.help",
+              "key": "quick.style",
+              "label": "config.quick.style.label",
+              "modules": [
+                "quick"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "quick.tiles",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [
+                "wifi",
+                "bluetooth",
+                "focus",
+                "audio",
+                "power",
+                "brightness",
+                "caffeine",
+                "nightlight",
+                "recorder",
+                "darkmode"
+              ],
+              "help": "config.quick.tiles.help",
+              "key": "quick.tiles",
+              "label": "config.quick.tiles.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            }
+          ]
         }
       ]
     },
@@ -1052,6 +1182,9 @@
               "help": "config.theme.colors.scheme.help",
               "key": "theme.colors.scheme",
               "label": "config.theme.colors.scheme.label",
+              "modules": [
+                "darkmode"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -2389,6 +2522,10 @@
                 {
                   "label": "config.choice.chrome.bevel",
                   "value": "bevel"
+                },
+                {
+                  "label": "config.choice.chrome.glow",
+                  "value": "glow"
                 }
               ],
               "control": "select",
@@ -2899,6 +3036,18 @@
                 {
                   "label": "config.choice.texture.display",
                   "value": "display"
+                },
+                {
+                  "label": "config.choice.texture.tread_plate",
+                  "value": "tread_plate"
+                },
+                {
+                  "label": "config.choice.texture.old_paper",
+                  "value": "old_paper"
+                },
+                {
+                  "label": "config.choice.texture.canvas",
+                  "value": "canvas"
                 }
               ],
               "control": "select",
@@ -3359,6 +3508,18 @@
                 {
                   "label": "config.choice.texture.display",
                   "value": "display"
+                },
+                {
+                  "label": "config.choice.texture.tread_plate",
+                  "value": "tread_plate"
+                },
+                {
+                  "label": "config.choice.texture.old_paper",
+                  "value": "old_paper"
+                },
+                {
+                  "label": "config.choice.texture.canvas",
+                  "value": "canvas"
                 }
               ],
               "control": "select",
@@ -4380,6 +4541,27 @@
               "since": 1,
               "step": 0.05,
               "type": "float"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.motion.blend_colors.help",
+              "key": "theme.motion.blend_colors",
+              "label": "config.theme.motion.blend_colors.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         },
@@ -5967,6 +6149,9 @@
               "help": "config.notifications.dnd.help",
               "key": "notifications.dnd",
               "label": "config.notifications.dnd.label",
+              "modules": [
+                "focus"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6287,6 +6472,41 @@
             },
             {
               "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.desktop_post.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.desktop_post.pin",
+                  "value": "pin"
+                },
+                {
+                  "label": "config.choice.desktop_post.tape",
+                  "value": "tape"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "desktop.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "none",
+              "help": "config.desktop.post.help",
+              "key": "desktop.post",
+              "label": "config.desktop.post.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
               "control": "toggle",
               "couplings": [
                 {
@@ -6461,6 +6681,9 @@
               "help": "config.idle.enabled.help",
               "key": "idle.enabled",
               "label": "config.idle.enabled.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6582,6 +6805,9 @@
               "help": "config.idle.inhibit_while_media.help",
               "key": "idle.inhibit_while_media",
               "label": "config.idle.inhibit_while_media.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6601,6 +6827,9 @@
               "help": "config.night_light.enabled.help",
               "key": "night_light.enabled",
               "label": "config.night_light.enabled.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6624,6 +6853,9 @@
               "label": "config.night_light.temperature.label",
               "max": 6500,
               "min": 1500,
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6661,6 +6893,9 @@
               "help": "config.night_light.schedule.help",
               "key": "night_light.schedule",
               "label": "config.night_light.schedule.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,

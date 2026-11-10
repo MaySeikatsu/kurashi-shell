@@ -48,6 +48,38 @@ These modules' cards open at the bar's centre while cards open under their modul
 - choices: from `modules` (resolved at runtime)
 - since schema v7
 
+#### `bar.hover` — On hover
+
+What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module and what it opened; what a click opened stays.
+
+- type: `choice` · default: `"preview"`
+- choices: `"preview"` | `"card"` | `"menu"`
+- since schema v7
+
+#### `bar.hover_preview` — Modules that show their preview on hover
+
+These modules show their preview whatever the bar does on hover. A module's menu sets it too (On hover).
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
+#### `bar.hover_card` — Modules that open their card on hover
+
+These modules open their card whatever the bar does on hover.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
+#### `bar.hover_menu` — Modules that open their menu on hover
+
+These modules open their menu whatever the bar does on hover.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
 ### Frame
 
 #### `layout.frame.enabled` — Screen frame
@@ -384,6 +416,24 @@ Resting on a window shows it as you last saw it, with its title. The pictures st
 - type: `bool` · default: `true`
 - since schema v7
 
+### Control centre
+
+#### `quick.style` — Control centre look
+
+A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"phone"`
+- since schema v7
+
+#### `quick.tiles` — Control centre tiles
+
+The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+
+- type: `string_list` · default: `["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]`
+- choices: from `quick.tiles` (resolved at runtime)
+- since schema v7
+
 ## Appearance
 
 ### Colors
@@ -433,7 +483,7 @@ One accent: buttons, sliders, switches and tiles all in the accent. Spread: the 
 
 #### `theme.colors.app_icons` — App icons
 
-The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+The icons of apps in the dock, the bar's window list, the tray, the launcher and notifications: as they are, in the text's colour (a picture keeps its drawing as lighter and denser ink), in the palette's tones (dark to light in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
 
 - type: `choice` · default: `"original"`
 - choices: `"original"` | `"ink"` | `"tones"` | `"palette"`
@@ -816,7 +866,7 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80).
 
 - type: `choice` · default: `"flat"`
-- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"`
+- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"`
 - forced to `"flat"` while `a11y.high_contrast` is on
 
 #### `theme.frame_outline` — Frame outline
@@ -942,7 +992,7 @@ Scales spacing and control sizes everywhere.
 A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and shade from the light below, never colours of its own (K59).
 
 - type: `choice` · default: `"none"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"` | `"tread_plate"` | `"old_paper"` | `"canvas"`
 - forced to `"none"` while `a11y.high_contrast` is on
 - forced to `"none"` while `a11y.reduce_transparency` is on
 
@@ -1059,7 +1109,7 @@ Give the wallpaper a material of its own instead of the shell's (it is baked int
 The relief baked into the wallpaper.
 
 - type: `choice` · default: `"paper"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"` | `"display"` | `"tread_plate"` | `"old_paper"` | `"canvas"`
 - only while `theme.texture.wallpaper.own == true`
 - only while `theme.texture.scope != "shell"`
 - only while `theme.texture.scope != "everything"`
@@ -1343,6 +1393,14 @@ Multiplies every motion duration's speed (2.0 = twice as fast).
 - type: `float` · default: `1.0`
 - range: `0.25..=3.0`, step `0.05`
 - only while `theme.motion.profile != "none"`
+
+#### `theme.motion.blend_colors` — Blend colour changes
+
+A change of colours — a palette, light or dark, a look, the wallpaper's colours — fades over a third of a second instead of cutting. Off with reduced motion and with the motion profile None.
+
+- type: `bool` · default: `true`
+- only while `theme.motion.profile != "none"`
+- since schema v7
 
 ### Animation style
 
@@ -2034,6 +2092,15 @@ The column a card neither list below names stands in. Both columns show at once:
 - choices: `"left"` | `"right"`
 - only while `desktop.enabled == true`
 - per-output
+
+#### `desktop.post` — Posted
+
+How the cards are held on the desktop: lying flat, held by a pin, or stuck with tape. A pinned or taped card hangs a little crooked, each its own way.
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"pin"` | `"tape"`
+- only while `desktop.enabled == true`
+- since schema v7
 
 #### `desktop.clock` — Clock
 

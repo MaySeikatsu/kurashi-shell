@@ -5,7 +5,6 @@ import "../island"
 import "../decor"
 import Quickshell
 import "../../surfaces" as S
-import QtQuick.Effects
 
 // Module `launcher` (W53.0b, K80, docs/ux/styles.md "Decided" 10): a button that opens the launcher (`launcher.toggle`),
 // lit while it is open. The style dresses it as its start button (StartHost: `decor.start`, components/decor/start/
@@ -40,7 +39,6 @@ ModuleBase {
     readonly property string tint: tintChoice === "look"
         ? (logo === "os" ? String(Theme.decor("start.logo_tint", "none")) : "none")
         : (tintChoice === "original" ? "none" : tintChoice)
-    readonly property bool shaderTint: tint === "palette" || tint === "tones"
     readonly property bool owned: logoSource !== "" && ownImg.status === Image.Ready
     readonly property Item face: owned ? own : (dressed ? dress : plain)
     width: face.width
@@ -80,42 +78,21 @@ ModuleBase {
             sourceSize.height: height * 2
             fillMode: Image.PreserveAspectFit
             smooth: true
-            // Synchronous: a small icon, and the tint's mask layer is made from it once it has loaded.
-            // Drawn as is, or as the mask of its tint below (then hidden here, kept as a layer for the mask).
-            visible: m.tint === "none" || m.shaderTint
-            // Always layered (a 22 px icon): a layer switched on later, on an item already hidden, never renders.
-            layer.enabled: true
-            layer.effect: m.shaderTint ? paletteTint : null
+            // The tint (K110): one shader for every choice. The look's "console" is the four console colours as quarters
+            // (top left red, top right yellow, bottom right teal, bottom left blue); the text's ink, the palette's
+            // colours as quarters and its tones come from the theme. Session 27: the ink was a masked fill before and
+            // drew nothing.
+            layer.enabled: m.tint !== "none"
+            layer.effect: logoTint
             onStatusChanged: if (status === Image.Error) console.warn("launcher: the button logo " + source + " did not load; the look's mark stays")
         }
-        // The tint: the logo's alpha over the text's ink, or over a conic sweep of the four console colours.
-        Item {
-            id: tintFill
-            anchors.fill: ownImg
-            visible: false
-            layer.enabled: true
-            Rectangle { anchors.fill: parent; visible: m.tint === "ink"; color: Theme.fg }
-            // Four hard quarters (top left red, top right yellow, bottom right teal, bottom left blue), as the
-            // console's four colours stand apart; plain rectangles (a Shape's gradient draws nothing in a bar window).
-            Repeater {
-                model: m.tint === "console" ? [["#e03a3e", 0, 0], ["#f2c230", 1, 0], ["#1fa59a", 1, 1], ["#3d7ec2", 0, 1]] : []
-                Rectangle {
-                    required property var modelData
-                    x: modelData[1] * Math.ceil(tintFill.width / 2)
-                    y: modelData[2] * Math.ceil(tintFill.height / 2)
-                    width: Math.ceil(tintFill.width / 2)
-                    height: Math.ceil(tintFill.height / 2)
-                    color: modelData[0]
-                }
+        Component {
+            id: logoTint
+            IconTint {
+                mode: m.tint === "console" ? "palette" : m.tint
+                sectors: true
+                colors: m.tint === "console" ? [Qt.color("#e03a3e"), Qt.color("#f2c230"), Qt.color("#1fa59a"), Qt.color("#3d7ec2")] : null
             }
-        }
-        Component { id: paletteTint; IconTint { mode: m.tint } }
-        MultiEffect {
-            anchors.fill: ownImg
-            visible: m.tint !== "none" && !m.shaderTint && m.owned
-            source: tintFill
-            maskEnabled: true
-            maskSource: ownImg
         }
         MouseArea {
             id: ownHit

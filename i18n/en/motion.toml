@@ -37,6 +37,9 @@
 "config.choice.motion.form.pixelate" = "Pixelate"
 "config.choice.motion.form.glitch" = "Glitch"
 "config.choice.motion.form.dissolve" = "Burn away"
+"config.choice.motion.form.splat" = "Ink splat"
+"config.choice.motion.form.brush" = "Brush strokes"
+"config.choice.motion.form.snake" = "Snake"
 
 "config.choice.curve.expressive" = "Expressive"
 "config.choice.curve.emphasized" = "Emphasized"

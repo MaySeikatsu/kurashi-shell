@@ -186,6 +186,10 @@ Singleton {
     readonly property int pixelStep: tok("font.pixel_step", 1)
     readonly property int iconSize: tok("icon.size", fs + 4)
     readonly property real iconScale: tok("icon.scale", 1)
+    // B61: the size of a picture on the bar (a tray item's icon): what fits inside a group's outline with room round it,
+    // 20 px on the default bar and smaller on a thin one (a 26 px bar: 16 px), so it neither laps over the outline nor
+    // stands taller than the glyphs beside it.
+    readonly property int barIcon: Math.max(12, Math.min(20, barH - 10))
     readonly property int pixelGrid: tok("decor.pixel", 0)
     // W53.5: the pixel grid of one output (`[decor] pixel` > 0: snes) — one grid pixel in logical px, from the output's own
     // height (pass `Screen.height`): round(height / 224 / pixel), at least 1, doubled under large text (`pixel.scale`).
