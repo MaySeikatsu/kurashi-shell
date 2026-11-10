@@ -3,7 +3,8 @@
 # against docs/ux/webdock.md "Page styles": the real kurashid and frontend, the web host as the daemon starts it, a still
 # file:// page (no network). For each scheme (light, dark) and style (phone, notebook, plain): the card's opening held at
 # three points of its motion and at rest (KURASHI_WEBDOCK_HOLD, a file the host watches: shots by progress, not by
-# timing), the large size (the phone's tablet, held half-way and at rest), and the shell's own card for a view pin.
+# timing), the large size (the phone's tablet, held half-way and at rest), the shell's own card for a view pin and a
+# page that fails to load.
 # Evidence to look at; it fails only when the host never gets ready or logs a QML problem. Shots in
 # mods/webdock/shots/styles/ (each a strip, left to right).
 #   nix develop -c mods/webdock/test/shots-styles.sh [style ...]
@@ -40,6 +41,7 @@ pinned = true
 pins = [
   { id = "still", title = "Still", target = "$PAGES/still.html#still" },
   { id = "weather", title = "Weather", target = "mod:weather:weather" },
+  { id = "bad", title = "Broken", target = "file:///nonexistent/page.html" },
 ]
 T
 }
@@ -88,16 +90,20 @@ for scheme in ${SCHEMES:-light dark}; do
     strip "$style-$scheme-large" "$OUT/shots/$style-$scheme-wide-half.png" "$OUT/shots/$style-$scheme-wide-rest.png"
     K act webdock.size '{"size":"phone"}' > /dev/null
     sleep 1.5
-    # The shell's own card in the same style: a view pin.
+    # The states (brief "States (every style)"): the shell's own card for a view pin, then a page that fails to load.
     K act webdock.open '{"pin":"weather"}' > /dev/null
     sleep 2.5
     shot "$style-$scheme-view"
-    mv "$OUT/shots/$style-$scheme-view.png" "$SHOTS/$style-$scheme-view.png"
-    echo "shots-styles: $SHOTS/$style-$scheme-view.png"
+    K act webdock.open '{"pin":"bad"}' > /dev/null
+    sleep 3
+    shot "$style-$scheme-error"
+    strip "$style-$scheme-states" "$OUT/shots/$style-$scheme-view.png" "$OUT/shots/$style-$scheme-error.png"
     K act webdock.collapse '{}' > /dev/null
     sleep 1
   done
   hostlog > "$OUT/host-$scheme.log"
+  # Which panel form the profile gave plain (its open and close lines, test-only).
+  grep -o "webdock-debug mapped [a-z]* plain [a-z]*:[a-z]*" "$OUT/host-$scheme.log" | sort | uniq -c || true
   "$SB" stop > /dev/null 2>&1
   if grep -E 'WARN.{0,12}(scene|qml)|TypeError|ReferenceError|is not a type|is not defined|Binding loop' "$OUT/host-$scheme.log"; then
     fail "QML problems in the host ($OUT/host-$scheme.log)"

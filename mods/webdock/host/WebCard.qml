@@ -87,7 +87,7 @@ PanelWindow {
     readonly property bool isPhone: !isNotebook && !isPlain
     // W69: the size change is a morph in every style (`wide` 0 the phone size … 1 the large one) on the profile's curves
     // (a Glide; at once with motion off). The phone becomes a tablet lying sideways on the way (DeviceFrame).
-    readonly property Glide wideGlide: Glide { to: card.isLarge ? 1 : 0 }
+    readonly property Glide wideGlide: Glide { to: card.isLarge ? 1 : 0; enabled: card.moves }
     readonly property real wide: holdWide >= 0 ? holdWide : Math.max(0, Math.min(1, wideGlide.value))
     // The size at rest at its end: the window has the card's size then; while it moves the window holds the larger end
     // (a layer surface is not resized every frame) and the page keeps its pixels (`pageBox`).
@@ -139,8 +139,10 @@ PanelWindow {
     readonly property string shownView: modeOf(shownId)
     // The home button shows once the page has left the pin's address (docs/ux/webdock.md "Layout per edge").
     readonly property bool homeShown: !!activePage && shownTarget !== "" && !activePage.atTarget
-    // The theme's motion profile: `none` (reduced motion, the accessibility axis) fades instead of sliding.
-    readonly property bool moves: (Theme.tokens["motion.profile"] || "calm") !== "none"
+    // The theme's motion profile: `none` and `reduced` (reduced motion, the accessibility axis; K83 D1, as the shell's
+    // DockWindow reads it) fade instead of sliding, turning or morphing.
+    readonly property string motionProfile: Theme.tokens["motion.profile"] || "calm"
+    readonly property bool moves: motionProfile !== "none" && motionProfile !== "reduced"
     readonly property bool springs: moves && Theme.springOn
     // Under none the card fades over this fixed time (docs/ux/webdock.md "Motion": fade only); motion.quick_ms is 0
     // there, and a zero-length fade is a cut (I99). The fade is the slide's `slide` value read as opacity below.

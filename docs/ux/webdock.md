@@ -199,14 +199,14 @@ they may want otherwise is listed in the card's report ("questions for the user"
 #### Notebook — one half of an opened spiral notebook
 Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along that edge, a pad bound at the top):
 - **Binding on the dock's side:** a band (22 px) along the edge next to the strip holds the coil: **twin wire loops**
-  through **punched slots** near the sheet's edge, a pair every 26 px, each loop a short arc from its slot over the
+  through **punched slots** near the sheet's edge, a pair every 28 px (the two loops 7 px apart), each loop a short arc from its slot over the
   sheet's edge into the band. The wire is a metal tone from the theme (its `outline` colour lit toward `fg` along the
   loop, with a highlight in `fg` and a contact shadow in `line`). Drawn once as static paths (a Shape with SVG path
   strings built when the size changes): no Canvas, nothing per frame.
 - **The cover:** a board a few px larger than the sheets on the three free sides (6 px), in a surface container tone
-  (`surface_container_high` tinted with the accent, the `book` form's cover recipe), with the theme's outline.
+  (`surface_container_high` shaded toward `outline` and tinted with the accent), with the theme's outline.
 - **The sheets:** the page's ground (`surface_container`, the web card's screen colour), ruled faintly (`outline`, every
-  28 px) with a heading rule under the header in the accent; two sheets below it show as thin edges on the free side; a
+  24 px) with a heading rule under the header in the accent; two sheets below it show as thin edges on the free side; a
   thin gutter shadow along the binding (`line`, fading over 14 px).
 - **On the sheet:** the header row on the top band (back, forward, title written on the heading rule, home, reload, view,
   size, more, collapse — the large card's header), then the web page inside the sheet's margins (10 px sides, 14 px
@@ -280,7 +280,8 @@ Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along 
 - [x] No QML error or warning; idle 0 surface commits in 5 s with a still page open, in each style.
 - [x] Screenshots on nested niri, light and dark: each style opening at three held steps and at rest
       (`<style>-<scheme>-open.png`), the large size held half-way and at rest (`<style>-<scheme>-large.png`, the
-      phone's is the tablet), the shell's view card (`<style>-<scheme>-view.png`) — `mods/webdock/shots/styles/`,
+      phone's is the tablet), the shell's view card and a load error (`<style>-<scheme>-states.png`) —
+      `mods/webdock/shots/styles/`,
       `mods/webdock/test/shots-styles.sh`.
 - [ ] The page turn on the shell's own cards (view, cold, empty): they open in the panel form the profile names, not in
       the page turn (the turn is the host's card's).

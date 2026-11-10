@@ -6,7 +6,9 @@
 #   2 switching the style while the page is open keeps the page: no new load report, the page's own load line once;
 #   3 the large size: the phone becomes a tablet (wider than tall) and back, in every style, the page kept;
 #   4 the notebook's coil is on the dock's side at a right, a left, a top and a bottom edge;
-#   5 the notebook's page turn runs (the sheet's layer comes and goes) with motion on;
+#   5 the notebook's page turn runs (the sheet's layer comes and goes) with motion on; a style change while open with
+#     motion on is a cut that keeps the page; under the profiles none and reduced the notebook fades (no turn); plain
+#     opens and closes in the profile's panel form (expand, fold, slide);
 #   6 idle: 0 surface commits in 5 s with the page open and still, in each style;
 #   7 no QML error or warning in the host's log.
 #   timeout 600 mods/webdock/test/test-styles.sh [sandbox-name]
@@ -167,11 +169,42 @@ sleep 0.5
 n=$(logs "motion: sheet layer up")
 ipc act webdock.collapse '{}' >/dev/null
 sleep 2
+rel0=$(logs "sheet layer webdock book released")
 ipc act webdock.open '{"pin":"still"}' >/dev/null
 wait_new "motion: sheet layer up" "$n" 5 || fail "the notebook opened without its page turn"
-r=$(logs "motion: sheet layer")
-wait_log "released" 6 || fail "the page turn's layer was not released"
+wait_new "sheet layer webdock book released" "$rel0" 6 || fail "the page turn's layer was not released"
 ok "notebook: the page turns over the binding and its layer goes at rest"
+# A style change while the card is open, with motion on: a cut, the page kept; then plain closes and opens again.
+for s in plain phone notebook plain; do
+  set_style "$s"
+  sleep 1
+  [ "$(logs 'webdock.host.loaded {"pin":"still"}')" = "$loads0" ] || fail "the style $s (motion on) reloaded the page"
+done
+n=$(logs "webdock-debug mapped false plain")
+ipc act webdock.collapse '{}' >/dev/null
+wait_new "webdock-debug mapped false plain" "$n" 6 || fail "plain after a style change: the card did not close"
+n=$(logs "webdock-debug mapped true plain")
+ipc act webdock.open '{"pin":"still"}' >/dev/null
+wait_new "webdock-debug mapped true plain" "$n" 6 || fail "plain after a style change: the card did not open"
+sleep 1.5
+ok "a style change while open (motion on) is a cut, the page kept; plain closes and opens after it"
+set_style notebook
+# Reduced motion (the profiles none and reduced): the notebook fades in, no page turn.
+for prof in none reduced; do
+  motion "$prof"
+  sleep 0.5
+  ipc act webdock.collapse '{}' >/dev/null
+  sleep 1
+  n=$(logs "sheet layer up")
+  m=$(logs "webdock-debug mapped true notebook")
+  ipc act webdock.open '{"pin":"still"}' >/dev/null
+  wait_new "webdock-debug mapped true notebook" "$m" 6 || fail "notebook ($prof): the card did not open"
+  sleep 1.5
+  [ "$(logs "sheet layer up")" = "$n" ] || fail "notebook ($prof): the page turned under reduced motion"
+  ok "notebook ($prof): opens with a fade, no page turn"
+done
+motion calm
+sleep 0.5
 if [ -n "${STYLES_PEEK:-}" ]; then
   for p in 0.2 0.45 0.7 0.9; do echo "open $p" > "$R/hold"; peek "turn-$p"; done
   : > "$R/hold"
@@ -192,6 +225,8 @@ for form in expand fold slide; do
   sleep 2
   ok "plain ($prof): opens and closes in the panel form ($(last_debug "mapped true"))"
 done
+# The sheet form ran both ways (its layer came up on the close and on the open: the close was not a cut).
+[ "$(logs "sheet layer up panel fold")" -ge 2 ] || fail "plain (fold): the sheet form did not run on both the close and the open"
 [ "$(logs 'webdock.host.loaded {"pin":"still"}')" = "$loads0" ] || fail "opening and closing reloaded the page"
 motion none
 sleep 1
