@@ -663,6 +663,8 @@ Scope {
                                 lineWidth: ow
                                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
                                 radius: 0
+                                // (the rule's cut under an opening neighbour: drawn once it stands still)
+                                settleMs: 90
                                 paths: bg.ruleSegs.map(function (g) {
                                     return bar.vertical ? { points: [{ x: cx, y: g[0] }, { x: cx, y: g[1] }], closed: false }
                                                         : { points: [{ x: g[0], y: cy }, { x: g[1], y: cy }], closed: false }
