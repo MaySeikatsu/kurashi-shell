@@ -2539,6 +2539,14 @@
                 {
                   "label": "config.choice.chrome.glow",
                   "value": "glow"
+                },
+                {
+                  "label": "config.choice.chrome.painted",
+                  "value": "painted"
+                },
+                {
+                  "label": "config.choice.chrome.ripped",
+                  "value": "ripped"
                 }
               ],
               "control": "select",
@@ -2591,6 +2599,37 @@
               "per_output": false,
               "restart": false,
               "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.edge.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.edge.clean",
+                  "value": "clean"
+                },
+                {
+                  "label": "config.choice.edge.painted",
+                  "value": "painted"
+                },
+                {
+                  "label": "config.choice.edge.ripped",
+                  "value": "ripped"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.edge.help",
+              "key": "theme.edge",
+              "label": "config.theme.edge.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
               "type": "choice"
             },
             {

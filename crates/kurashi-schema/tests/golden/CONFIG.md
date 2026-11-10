@@ -869,10 +869,10 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 
 #### `theme.chrome` — Chrome
 
-How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80).
+How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80); a glowing outline; grounds painted with a brush; or sheets of torn paper.
 
 - type: `choice` · default: `"flat"`
-- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"`
+- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"` | `"painted"` | `"ripped"`
 - forced to `"flat"` while `a11y.high_contrast` is on
 
 #### `theme.frame_outline` — Frame outline
@@ -882,6 +882,13 @@ A line along the frame's inner edge and the sides of what is joined to it — ba
 - type: `choice` · default: `"auto"`
 - choices: `"auto"` | `"on"` | `"off"` | `"glow"`
 - since schema v7
+
+#### `theme.edge` — Edge
+
+How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is laid in strokes of a brush that run past its box, in the accent thinned into the surface, with the material you picked on the paint. Ripped: surfaces are sheets of paper torn by hand, with the paper's white core along the tear. Automatic follows the chrome: painted under Painted, ripped under Ripped paper, clean under the others.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"clean"` | `"painted"` | `"ripped"`
 
 #### `theme.outline_ink` — Outline ink
 

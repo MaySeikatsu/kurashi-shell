@@ -55,3 +55,6 @@ LayoutOffer 1.0 LayoutOffer.qml
 PenOutline 1.0 PenOutline.qml
 Wash 1.0 Wash.qml
 FrameOutlineCards 1.0 FrameOutlineCards.qml
+PaintBands 1.0 PaintBands.qml
+PaintStroke 1.0 PaintStroke.qml
+EdgeWarp 1.0 EdgeWarp.qml

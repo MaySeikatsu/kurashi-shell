@@ -32,7 +32,9 @@ Item {
         height: col.implicitHeight + 2 * Theme.pad
         radius: Theme.rLg
         color: Theme.container
-        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        // (I471: a section's card wears the painted or the torn edge as the shell's cards do)
+        surface: true
+        border.width: Theme.edgeTorn ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.line : Theme.containerHigh
         // The material on the card's fill, under its rows (K63), inside its outline.
         Loader {

@@ -29,6 +29,9 @@ import "../../core/corner.js" as Corner
 // Its springs live in MorphSprings (same folder), which a surface can reuse with it.
 Shape {
     id: sh
+    // I471d (K121): a torn edge: the whole shape through one layer, redrawn only while it morphs.
+    layer.enabled: Theme.edgeTorn && !Theme.painted
+    layer.effect: EdgeWarp {}
     property real x0: 0
     property real y0: 0
     property real w: 0
@@ -86,7 +89,9 @@ Shape {
     readonly property real rb: Math.max(0, Math.min(rBot, w / 2, h / 2))
     readonly property real rt: Math.max(0, Math.min(rTop, w / 2, h / 2, Math.max(0, edgeY - y0)))
     readonly property real n: Math.max(0, Math.min(neck * neckScale * stretch, y1 - edgeY - rb, (y1 - edgeY) / 2))
-    function fa(c, a) { return Qt.rgba(c.r, c.g, c.b, c.a * a) }
+    // (I471b: under the painted look the shape itself draws nothing: no fill, outline, ring or rule; bands of a brush
+    // cover its body, below)
+    function fa(c, a) { return Theme.painted ? Qt.rgba(c.r, c.g, c.b, 0) : Qt.rgba(c.r, c.g, c.b, c.a * a) }
     readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
     readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
     readonly property real gw: Theme.ringW * ringScale
@@ -380,6 +385,15 @@ Shape {
     }
     // I160: on a strip with a head, the fill above the bar's edge in `headFill` and below it in `fill`, each cut by a
     // scissor at the edge (the edge is the bar's own, so the seam is the bar's).
+    Loader {
+        x: sh.x0
+        y: sh.y0
+        width: sh.w
+        height: sh.h
+        opacity: sh.fade
+        active: Theme.painted && sh.visible && sh.w > 24 && sh.h > 14
+        sourceComponent: PaintBands { color: Theme.paintGround }
+    }
     readonly property bool splitFill: !joined && !headless && !Qt.colorEqual(headFill, fill)
     Item {
         visible: sh.splitFill && sh.visible

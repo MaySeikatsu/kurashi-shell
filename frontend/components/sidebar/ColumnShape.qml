@@ -23,6 +23,12 @@ import "../../core/corner.js" as Corner
 // `chrome` (the floating mode) also the ring and the hard shadow. Paths are rebuilt only when a number changes (Ma).
 Shape {
     id: sh
+    // I471d: under the torn edge the column is a sheet torn by hand (a layer of the whole shape; a side that lies on the
+    // window's edge is joined to the screen's edge or the frame and is not torn).
+    layer.enabled: Theme.edgeTorn && !Theme.painted && visible
+    layer.effect: EdgeWarp {
+        sides: Qt.vector4d(sh.x0 <= 1.5 ? 0 : 1, sh.y0 <= 1.5 ? 0 : 1, sh.x1 >= sh.width - 1.5 ? 0 : 1, sh.y1 >= sh.height - 1.5 ? 0 : 1)
+    }
     property real x0: 0
     property real y0: 0
     property real x1: 0
@@ -187,28 +193,45 @@ Shape {
         ShapePath {
             strokeWidth: -1
             strokeColor: "transparent"
-            fillColor: sh.casts ? Theme.line : "transparent"
+            fillColor: sh.casts && !Theme.painted ? Theme.line : "transparent"
             PathSvg { path: sh.casts ? sh.path(0, false, sh.sd) : "" }
         }
+    }
+    // I471b: under the painted look the column is brushed freely: bands of a brush over its box, no fill or outline.
+    Loader {
+        // (a side that lies on the window's edge is joined to the screen's edge or the frame: the paint runs over it,
+        // into the frame's paint, so the column stays connected)
+        readonly property real joinL: sh.x0 <= 1.5 ? 22 : 0
+        readonly property real joinR: sh.x1 >= sh.width - 1.5 ? 22 : 0
+        readonly property real joinT: sh.y0 <= 1.5 ? 22 : 0
+        readonly property real joinB: sh.y1 >= sh.height - 1.5 ? 22 : 0
+        x: sh.x0 - joinL
+        y: sh.y0 - joinT
+        width: sh.x1 - sh.x0 + joinL + joinR
+        height: sh.y1 - sh.y0 + joinT + joinB
+        active: Theme.painted && sh.visible && width > 24 && height > 14
+        // (in the sheet's own colour — the frame's and the bar's — so the column reads as part of them, with only a
+        // breath of the second colour)
+        sourceComponent: PaintBands { color: Theme.paintSheet; wild: true; blend: Theme.paintBlend * 0.3 }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.penOn ? "transparent" : sh.oc
+        fillColor: sh.penOn || Theme.painted ? "transparent" : sh.oc
         PathSvg { path: sh.penOn ? "" : sh.band(0, sh.ow) }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.gw > 0 ? Theme.ring : "transparent"
+        fillColor: sh.gw > 0 && !Theme.painted ? Theme.ring : "transparent"
         PathSvg { path: sh.gw > 0 ? sh.band(sh.ow, sh.ow + sh.gw) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
-        fillColor: sh.fill
+        fillColor: Theme.painted ? "transparent" : sh.fill
         PathSvg { path: sh.fillPath }
     }
 }

@@ -19,7 +19,7 @@ Loader {
     // -1 inside a frame mirrored horizontally (a left sidebar drawn in a right one's frame).
     property real mirror: 1
     z: -1
-    active: Theme.softR > 0 && amount > 0 && Theme.shadowAlpha > 0
+    active: Theme.softR > 0 && amount > 0 && Theme.shadowAlpha > 0 && !Theme.painted
     // B79: a chrome whose soft shadow is light (`chrome.soft_glow`, the Glow chrome) draws a glowing ring instead: the
     // tube on the edge and its light out over the ground and a little way in, also under a see-through fill (light shows
     // through glass). Small things glow at least `chrome.soft_glow_min` of it: a bar's group is lit as a card is.

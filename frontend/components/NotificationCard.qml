@@ -25,7 +25,9 @@ RoundBox {
     property string tailSide: "none"
     property real tailAt: width / 2
     TooltipStyle { id: ts }
-    readonly property bool asTip: tip && ts.has && !bare
+    // (I471: under a painted or a torn edge the card is its own ground — strokes, or a torn sheet — not the look's
+    // tooltip frame, which is a box)
+    readonly property bool asTip: tip && ts.has && !bare && !Theme.edgeTorn
     readonly property color ink: asTip ? ts.ink(Theme.fg) : Theme.fg
     signal dismissed()
     signal invoked(string key)
@@ -45,7 +47,7 @@ RoundBox {
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
     // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
-    border.width: pen.active || bare || asTip || frame.drawsOutline ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    border.width: pen.active || bare || asTip || frame.drawsOutline || Theme.edgeTorn ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
     // The look's tooltip under the content (row 599).
     Loader {
         anchors.fill: parent

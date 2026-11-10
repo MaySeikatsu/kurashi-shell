@@ -31,7 +31,8 @@ Loader {
     property real mirrorY: 1
     // The window's room for the shadow is the owner's: the shadow is drawn where the item lies, never past its window.
     z: -1
-    active: mode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
+    // (I471b: paint casts no shadow: a box's shadow would show under and round the strokes)
+    active: !Theme.painted && mode !== "off" && Theme.elevationStrength > 0 && level > 0 && width > 0 && height > 0
 
     // [ambient blur, ambient alpha, key distance, key blur, key alpha] per level (starting values, tuned on niri).
     readonly property var ladder: Theme.elevLadder

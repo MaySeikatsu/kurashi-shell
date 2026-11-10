@@ -437,7 +437,8 @@ pub struct Theme {
     /// Chrome
     /// How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow
     /// they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or
-    /// bevels, light and dark edges that press in (K42, K45, K80).
+    /// bevels, light and dark edges that press in (K42, K45, K80); a glowing outline; grounds painted with a brush; or
+    /// sheets of torn paper.
     // K80 amends K42: under high contrast a bevel stays (its lines carry pressed and sunken), drawn in the contrast ink;
     // every other chrome is forced flat (`except`: the daemon reads the value beneath the accessibility layer).
     #[kurashi(default = Chrome::Flat, section = "shape",
@@ -450,6 +451,13 @@ pub struct Theme {
     // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
     #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
     pub frame_outline: FrameOutline,
+    /// Edge
+    /// How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is laid in strokes of a brush that
+    /// run past its box, in the accent thinned into the surface, with the material you picked on the paint. Ripped:
+    /// surfaces are sheets of paper torn by hand, with the paper's white core along the tear. Automatic follows the
+    /// chrome: painted under Painted, ripped under Ripped paper, clean under the others.
+    #[kurashi(default = Edge::Auto, section = "shape")]
+    pub edge: Edge,
     /// Outline ink
     /// The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the
     /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
@@ -587,6 +595,24 @@ pub enum Chrome {
     Bevel,
     /// Glow
     Glow,
+    /// Painted (brush strokes)
+    Painted,
+    /// Ripped paper
+    Ripped,
+}
+
+/// I471, I477: how a surface's edge is made, apart from the chrome that picks it by default.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "edge")]
+pub enum Edge {
+    /// Automatic
+    Auto,
+    /// Clean
+    Clean,
+    /// Painted
+    Painted,
+    /// Ripped
+    Ripped,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
