@@ -4,7 +4,8 @@
 #   1. under `theme.chrome = glow` the theme says the soft shadow is light (`chrome.soft_glow`), and the bar's band
 #      holds light: many pixels tinted by the accent that are neither the outline nor the ground, far more than under
 #      `line`, in dark and in light;
-#   2. the light spreads: outside a group's outline the accent's share falls with the distance;
+#   2. on a framed output the bar's rule is unbroken under the groups, and the frame's edge throws light over the
+#      desktop that falls with the distance;
 #   3. idle: 0 frames in 3 s (the ring is static); no QML error.
 #   nix develop -c frontend/test-glow.sh [sandbox-name]
 set -euo pipefail
@@ -88,11 +89,13 @@ for scheme in dark light; do
   echo "ok: $scheme: $gsoft px of light on the bar under Glow ($gstrong of outline), $lsoft under Line"
 done
 
-# 2. The light falls with the distance: down the column under a group's left end, the accent's share 2 px outside the
-#    outline is more than 7 px outside (the bar's first group; found as the first strongly tinted pixel of the band's row).
-conf glow dark; sleep 1.5; wait_settled 4 0.5
-grim -g "0,0 ${W_OUT}x48" -t ppm "$R/band.ppm"
-python3 -I - "$R/band.ppm" <<'PY' || fail "the light does not fall with the distance from the outline"
+# 2. A framed output (the user's layout: the frame on, groups on the bar's strip): the bar's rule is one unbroken line,
+#    also under the groups (no gap where a group stands), and the frame's edge throws light over the desktop that falls
+#    with the distance.
+printf '[idle]\nenabled = false\n[layout.frame]\nenabled = true\nreserve = true\nthickness = 10\n[theme]\nchrome = "glow"\nframe_outline = "on"\n[theme.texture]\nkind = "none"\n[theme.colors]\nscheme = "light"\n' > "$CONF"
+sleep 2; wait_settled 5 0.5
+grim -g "0,0 ${W_OUT}x90" -t ppm "$R/band.ppm"
+python3 -I - "$R/band.ppm" <<'PY' || fail "framed: the bar's rule is broken or the frame throws no light over the desktop"
 import sys
 d = open(sys.argv[1], 'rb').read()
 p = d.split(b'\n', 3)
@@ -100,13 +103,16 @@ w, h = map(int, p[1].split()); px = p[3]
 def k(x, y):
     i = (y * w + x) * 3
     return px[i] - max(px[i + 1], px[i + 2])
-y = h // 2
-xs = [x for x in range(w) if k(x, y) > 90]
-if not xs: sys.exit("no outline found on the bar's middle row")
-x0 = xs[0]
-near, far = k(x0 - 2, y), k(x0 - 7, y)
-print(f"ok: left of the first group's outline the light is {near} at 2 px and {far} at 7 px")
-sys.exit(0 if near > far >= 0 and near > 12 else 1)
+x0, x1 = 80, w - 80          # clear of the frame's corners
+rows = [(sum(1 for x in range(x0, x1) if k(x, y) > 40), y) for y in range(20, h - 20)]
+n, y = max(rows)
+span = x1 - x0
+if n < span * 0.97:
+    sys.exit(f"the rule at y={y} covers {n} of {span} px: broken")
+def mean(yy): return sum(max(0, k(x, yy)) for x in range(x0, x1)) / span
+near, far = mean(y + 4), mean(y + 14)
+print(f"ok: framed: the rule at y={y} is unbroken ({n} of {span} px); the light over the desktop is {near:.1f} at 4 px and {far:.1f} at 14 px")
+sys.exit(0 if near > 4 and near > far * 1.5 else 1)
 PY
 
 # 3. idle and errors
