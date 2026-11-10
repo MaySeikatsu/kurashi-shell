@@ -5350,6 +5350,49 @@
               "restart": false,
               "since": 7,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.layout_move.follow",
+                  "value": "follow"
+                },
+                {
+                  "label": "config.choice.layout_move.part",
+                  "value": "part"
+                },
+                {
+                  "label": "config.choice.layout_move.drip",
+                  "value": "drip"
+                },
+                {
+                  "label": "config.choice.layout_move.fade",
+                  "value": "fade"
+                },
+                {
+                  "label": "config.choice.layout_move.off",
+                  "value": "off"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "follow",
+              "help": "config.theme.motion.layout_move.help",
+              "key": "theme.motion.layout_move",
+              "label": "config.theme.motion.layout_move.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         },

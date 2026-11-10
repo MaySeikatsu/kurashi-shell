@@ -1637,6 +1637,15 @@ A change of colours — a palette, light or dark, a look, the wallpaper's colour
 - only while `theme.motion.profile != "none"`
 - since schema v7
 
+#### `theme.motion.layout_move` — A bar changes its edge
+
+How a bar gets to another edge of the screen. Along the sides: it slides round the corner, the shorter way. Parts: it splits in the middle and each half runs down its side. Drips: it sags, drops and settles. Fades: the new bar fades in. Off: it is there at once.
+
+- type: `choice` · default: `"follow"`
+- choices: `"follow"` | `"part"` | `"drip"` | `"fade"` | `"off"`
+- only while `theme.motion.profile != "none"`
+- since schema v7
+
 ### Animation style
 
 #### `theme.motion.form.open` — Opens with

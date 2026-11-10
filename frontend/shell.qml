@@ -105,6 +105,11 @@ ShellRoot {
             }
         }
     }
+    // Session 28 (I472/I478): a bar that changes its edge travels there (core/Travel.qml); made only for a move.
+    Variants {
+        model: Quickshell.screens
+        delegate: Traveller {}
+    }
     // The edge modules of each output (K71, K72, docs/ux/edge-modules.md): every non-empty zone of an edge without a bar is
     // a group pinned to that edge, mapped after the bars and the frame (a zone-holding group is placed inside their zones).
     Variants {

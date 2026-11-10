@@ -684,6 +684,22 @@ pub enum FrameOutline {
     Glow,
 }
 
+/// I472/I478 (session 28): how a bar travels to another edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "layout_move")]
+pub enum LayoutMove {
+    /// Along the sides
+    Follow,
+    /// Parts in the middle
+    Part,
+    /// Drips
+    Drip,
+    /// Fades
+    Fade,
+    /// Off
+    Off,
+}
+
 /// Session 28: how a card meets its bar, apart from the chrome.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 #[kurashi(i18n = "join")]
@@ -1708,6 +1724,17 @@ pub struct Motion {
         since = 7
     )]
     pub blend_colors: bool,
+    /// A bar changes its edge
+    /// How a bar gets to another edge of the screen. Along the sides: it slides round the corner, the shorter way.
+    /// Parts: it splits in the middle and each half runs down its side. Drips: it sags, drops and settles. Fades: the
+    /// new bar fades in. Off: it is there at once.
+    #[kurashi(
+        default = LayoutMove::Follow,
+        section = "profiles",
+        requires = "theme.motion.profile != none",
+        since = 7
+    )]
+    pub layout_move: LayoutMove,
     // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
     #[kurashi(nested, section = "animation_style")]
     pub form: MotionForms,

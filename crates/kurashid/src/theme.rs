@@ -817,6 +817,14 @@ pub fn document_with(
                 }),
             );
             tokens.insert(
+                "motion.layout_move".into(),
+                json!(if still {
+                    "off".to_owned()
+                } else {
+                    s(store, "theme.motion.layout_move")
+                }),
+            );
+            tokens.insert(
                 "text.spawn_speed".into(),
                 json!(f(store, "theme.typography.fx.spawn_speed", 1.0)),
             );
