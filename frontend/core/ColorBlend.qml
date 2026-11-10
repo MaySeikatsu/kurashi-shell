@@ -107,8 +107,12 @@ Scope {
         var nowTint = "" + (next["media.tint"] || ""), tinted = nowTint !== cb.tint
         var kind = "" + (next["media.blend"] || "fade")
         if (tinted ? kind !== "fade" : next["motion.blend_colors"] !== true) return false
-        if (!differ(was, flat(next))) return false
-        if (Quickshell.env("KURASHI_FADE_LOG") === "1") { var nf = flat(next), ks = []; for (var k in nf) if (was[k] !== undefined && was[k] !== nf[k]) ks.push(k + " " + was[k] + "->" + nf[k]); console.log("colour-fade " + ks.length + " colours: " + ks.slice(0, 6).join(", ")) }
+        // (not for the material's ink alone: it arrives with the material's tiles, seconds after a change of look, and
+        // the tiles themselves come in as a cut — a fade of every window for that one colour is a redraw of the idle
+        // shell)
+        var nf = flat(next), n = 0
+        for (var k in nf) if (was[k] !== undefined && was[k] !== nf[k] && k.indexOf("texture.") !== 0) n++
+        if (n === 0) return false
         if (ticker.running) settle()
         Theme.fadeMs = tinted ? Number(next["media.blend_ms"] || 1200) : Math.max(120, Number(next["motion.blend_colors_ms"] || 320))
         cb.holding = true
