@@ -238,6 +238,8 @@ Item {
         Notice {
             anchors.fill: parent
             visible: text !== ""
+            // (test only: what the well says, mods/webdock/test/test-card.sh)
+            onTextChanged: if (panel.debugLog) console.log("webdock-panel notice " + (text === "" ? "-" : text))
             text: !panel.hasDoc ? I18n.tr("webdock.dock.unavailable")
                 : panel.pins.length === 0 ? I18n.tr("webdock.empty")
                 : panel.sel !== null && panel.sel.kind === "view" ? (viewBody.item === null ? I18n.tr("webdock.view.gone") : "")

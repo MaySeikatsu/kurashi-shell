@@ -50,6 +50,7 @@ PanelWindow {
     exclusiveZone: 0
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: cardRole ? "kurashi-webdock-card" : "kurashi-webdock-side"
+    // (W72: the card's window asks for the keyboard once when the page is asked for it; a click gives it on demand)
     WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     anchors.top: true
     anchors.left: !onRight
@@ -85,6 +86,7 @@ PanelWindow {
         } else {
             side.reportPage(false, false)
             side.pulseSpent = true
+            side.wantKeys = false
         }
     }
     onPageChanged: geometryLog()
@@ -125,14 +127,25 @@ PanelWindow {
     // most a second (WebCard's pulse), then on demand again.
     property bool winActive: false
     property bool pulseSpent: true
+    // The user is using the page: a press in it, or the keyboard asked for it. Only then is the window's keyboard focus
+    // reported as `engaged` (the shell makes the card the user's): a compositor may hand a freshly mapped on-demand layer
+    // the keyboard without anyone using it.
+    property bool wantKeys: false
+    function pressed() {
+        if (!cardRole) return
+        wantKeys = true
+        reportPage(hoverSent, winActive)
+    }
     readonly property bool asksKeys: cardRole && visible && !winActive && !pulseSpent
     onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
     Timer { id: pulseTimer; interval: 1000; onTriggered: side.pulseSpent = true }
     property int focusSeen: -1
     onFocusAsksChanged: {
         if (cardRole && focusSeen >= 0 && focusAsks > focusSeen && visible) {
+            wantKeys = true
             pulseSpent = false
             if (winActive && page) page.engine.forceActiveFocus()
+            reportPage(hoverSent, winActive)
         }
         focusSeen = focusAsks
     }
@@ -151,20 +164,34 @@ PanelWindow {
         anchors.fill: parent
         onWidthChanged: side.geometryLog()
         onHeightChanged: side.geometryLog()
-        // W72: the card's window reports the pointer and the keyboard in it. Its keyboard focus gained is the page's.
-        HoverHandler {
-            enabled: side.cardRole
-            onHoveredChanged: side.reportPage(hovered, side.winActive)
+        // W72: the card's window reports the pointer and the keyboard in it (handlers on top of the page, passive: the page
+        // gets every event). Its keyboard focus gained is the page's.
+        Item {
+            anchors.fill: parent
+            z: 100
+            HoverHandler {
+                enabled: side.cardRole
+                onHoveredChanged: side.reportPage(hovered, side.winActive && side.wantKeys)
+            }
+            PointHandler {
+                enabled: side.cardRole
+                acceptedButtons: Qt.AllButtons
+                onActiveChanged: if (active) side.pressed()
+            }
         }
         Window.onActiveChanged: {
             side.winActive = Window.active
             if (Window.active) side.pulseSpent = true
-            side.reportPage(side.hoverSent, Window.active)
+            side.reportPage(side.hoverSent, Window.active && side.wantKeys)
             if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
         }
-        // W72: Esc the page did not take (QtWebEngine hands unhandled keys to its parents) closes the bar card.
-        Keys.onEscapePressed: event => {
-            if (side.cardRole) { side.closeCard(); event.accepted = true } else event.accepted = false
+        // W72: Esc closes the bar card, wherever the keyboard is in its window (a popover's Esc, as the Stage's own keys).
+        // A shortcut, ahead of the page: QtWebEngine 6.11 hands no unhandled Esc back to its parents (measured on niri),
+        // so a site's own Esc (its dialog) is not reached here — at the edge and in the sidebar the page keeps it.
+        Shortcut {
+            sequence: "Escape"
+            enabled: side.cardRole && side.visible
+            onActivated: side.closeCard()
         }
 
         // The area's frame: the well's colour and radius (the panel draws the same well under it), the page masked to it.
@@ -196,9 +223,7 @@ PanelWindow {
                 height: 36
                 readonly property var engine: side.page ? side.page.engine : null
                 Keys.onEscapePressed: event => {
-                    // (W72: in the bar card Esc on the row closes the card, as Esc on the card's own keys does)
-                    if (side.cardRole) side.closeCard()
-                    else if (side.page) side.page.engine.forceActiveFocus()
+                    if (side.page) side.page.engine.forceActiveFocus()
                     event.accepted = true
                 }
                 Row {

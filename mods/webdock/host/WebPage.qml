@@ -71,7 +71,9 @@ Item {
         visible: page.active
         focus: page.active
         // Hidden pages are Frozen (no timers, no painting) unless they play audio (brief "Fit and constraints").
-        lifecycleState: (page.active || web.recentlyAudible) ? WebEngineView.LifecycleState.Active
+        // (W72: read from the view's own `visible`, so the freeze follows the hide — "page is visible" refused it when the
+        // freeze came first)
+        lifecycleState: (web.visible || web.recentlyAudible) ? WebEngineView.LifecycleState.Active
             : WebEngineView.LifecycleState.Frozen
 
         onLoadingChanged: request => {
