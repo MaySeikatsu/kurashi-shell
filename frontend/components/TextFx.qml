@@ -9,7 +9,8 @@ import "../core"
 //   fresh text   how it appears when it is made, shown again, or (with `onChange`) when its words change: typed,
 //                deciphered, from kana, brushed, rise, ink.
 // `title`: a heading (card and page titles, the clock, the island) — what the scope "Headings" covers; a plain label
-// takes part only under the scope "Every label". With no effect and no spawn in its scope nothing is made at all.
+// takes part only under the scope "Every label". With no effect and no spawn in its scope no copy and no layer is
+// made (this object and its bindings always are: I485 asks for that to be measured).
 // How: the Text's own glyphs are hidden for the moment (its colour, through a Binding that hands the colour back) and a
 // copy drawn in its place inside the Text, so it moves, fades and clips with it. The copy keeps the final layout
 // (letters not yet written are there, unseen), so nothing shifts while it is written. Rich text is left alone.
