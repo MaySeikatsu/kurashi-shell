@@ -14,15 +14,40 @@ Item {
     // The colour the paint runs into along the stroke (the gradient mode's watercolour), and how far (0: one colour).
     property color color2: Theme.paintInto
     property real blend: Theme.paintBlend
-    // How far the stroke goes past the block's ends: a control's (a tile, a key, a bar's group) a little, so strokes side
-    // by side stay apart; a surface's band further.
     // How far the stroke goes past the block's ends: a control's (a tile, a key, a bar's group) less than a surface's band.
     readonly property real over: height < 96 ? Math.max(6, Math.min(20, height * 0.45)) : Math.max(14, Math.min(52, width * 0.14))
     readonly property real room: height < 96 ? 1 : Math.min(6, height * 0.1)
+    // The room the stroke has past the block's two ends before something cuts it: the nearest ancestor that clips (a
+    // list in a sidebar), else the window. With less room than its overshoot the stroke starts and stops at that line
+    // and its ragged ends lie inside the block instead: a stroke is never cut straight.
+    property real fitL: 1e6
+    property real fitR: 1e6
+    function refit(): void {
+        var p = ps.parent, l = 1e6, r = 1e6
+        while (p) {
+            if (p.clip === true) {
+                var o = ps.mapToItem(p, 0, 0)
+                l = o.x; r = p.width - o.x - ps.width
+                break
+            }
+            p = p.parent
+        }
+        if (!p) {
+            var w = ps.mapToItem(null, 0, 0)
+            var win = ps.Window.window
+            l = w.x; r = win ? win.width - w.x - ps.width : 1e6
+        }
+        ps.fitL = Math.max(0, l - 1); ps.fitR = Math.max(0, r - 1)
+    }
+    onWidthChanged: Qt.callLater(refit)
+    onXChanged: Qt.callLater(refit)
+    Component.onCompleted: Qt.callLater(refit)
+    readonly property real outL: Math.min(over * 0.7, fitL)
+    readonly property real outR: Math.min(over * 1.5, fitR)
     ShaderEffect {
-        x: -ps.over * 0.7
+        x: -ps.outL
         y: -ps.room
-        width: ps.width + ps.over * 0.7 + ps.over * 1.5
+        width: ps.width + ps.outL + ps.outR
         height: ps.height + 2 * ps.room
         readonly property vector4d uGeo: Qt.vector4d(width, height, ps.over,
             (ps.seed0 + ps.seedShift) % 97)
