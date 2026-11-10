@@ -78,8 +78,11 @@ Column {
         ed.pal = p
         ed.send()
     }
+    // A hand-written file's own words (description, family, variant), kept through an edit.
+    property var meta: ({})
     function args() {
         var a = { label: ed.label, dark: ed.pal.dark, light: ed.pal.light }
+        for (var k in ed.meta) if (ed.meta[k]) a[k] = ed.meta[k]
         if (ed.mode === "edit") a.replaces = ed.name
         return a
     }
@@ -130,7 +133,10 @@ Column {
             ed.pal = { dark: p.dark || null, light: p.light || null }
             ed.resolved = d.resolved || ({})
             ed.managed = !!d.managed
-            if (ed.mode === "edit") ed.label = p.label || ed.name
+            if (ed.mode === "edit") {
+                ed.label = p.label || ed.name
+                ed.meta = { description: p.description || "", family: p.family || "", variant: p.variant || "" }
+            }
             else {
                 var from = d.from_label || (d.label_key ? I18n.tr(d.label_key) : ed.name)
                 ed.label = I18n.fmt("palettes.editor.copy_of", { name: from })
@@ -522,7 +528,7 @@ Column {
                                 id: chip
                                 anchors.centerIn: parent
                                 text: ed.roleName(parent.modelData)
-                                color: ed.shown("on_" + parent.modelData)
+                                color: ed.shown(({ error: "on_error", warning: "on_warning", success: "on_success" })[parent.modelData])
                                 font.pixelSize: Theme.fsCaption
                                 font.family: Theme.fam(text, Theme.families)
                             }

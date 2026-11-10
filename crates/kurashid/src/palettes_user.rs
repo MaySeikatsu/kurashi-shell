@@ -50,8 +50,14 @@ pub struct Entry {
 
 /// The directory's files, as read last (a global as the theme crate's table is: the offers and the theme read it).
 static ENTRIES: Mutex<Vec<Entry>> = Mutex::new(Vec::new());
-/// The editor's draft as palette TOML.
-static DRAFT: Mutex<Option<String>> = Mutex::new(None);
+/// The editor's draft as palette TOML, with the store it belongs to ([`store_key`]): the daemon has one store, a test
+/// process many — a draft never reaches another store's theme.
+static DRAFT: Mutex<Option<(usize, String)>> = Mutex::new(None);
+
+/// Which store a draft belongs to: its address (stable: the store lives in an `Arc` for the daemon's lifetime).
+pub fn store_key(store: &ConfigStore) -> usize {
+    std::ptr::from_ref(store) as usize
+}
 
 /// Reads the directory again: the list, and the palettes the theme crate resolves by name.
 pub fn reload(dir: &Path) {
@@ -76,21 +82,29 @@ pub fn entries() -> Vec<Entry> {
     ENTRIES.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
-pub fn draft() -> Option<String> {
-    DRAFT.lock().unwrap_or_else(|e| e.into_inner()).clone()
-}
-
-fn set_draft(text: Option<String>) {
-    *DRAFT.lock().unwrap_or_else(|e| e.into_inner()) = text;
-}
-
-/// Ends the draft; true when there was one (the theme has to be republished).
-pub fn drop_draft() -> bool {
+/// The draft `store`'s theme wears, if any.
+pub fn draft(store: &ConfigStore) -> Option<String> {
+    let key = store_key(store);
     DRAFT
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .take()
-        .is_some()
+        .as_ref()
+        .filter(|(k, _)| *k == key)
+        .map(|(_, t)| t.clone())
+}
+
+fn set_draft(store: &ConfigStore, text: Option<String>) {
+    *DRAFT.lock().unwrap_or_else(|e| e.into_inner()) = text.map(|t| (store_key(store), t));
+}
+
+/// Ends the draft of the store `key` names; true when there was one (the theme has to be republished).
+pub fn drop_draft(key: usize) -> bool {
+    let mut d = DRAFT.lock().unwrap_or_else(|e| e.into_inner());
+    if d.as_ref().is_some_and(|(k, _)| *k == key) {
+        *d = None;
+        return true;
+    }
+    false
 }
 
 /// Whether files can be written in `dir` (or, before it exists, in the directory it would be made in).
@@ -135,17 +149,20 @@ fn without_nulls(v: &Value) -> Value {
     }
 }
 
-/// The palette the args describe (the file's shape: `label`, `dark`, `light`), validated as a file is: known roles,
-/// colours, 16 terminal colours, the required roles of each scheme, at least one scheme.
+/// The palette the args describe (the file's shape: `label`, `description`, `family`, `variant`, `dark`, `light`),
+/// validated as a file is: known roles, colours, 16 terminal colours, the required roles of each scheme, a scheme.
 fn from_args(args: &Value, name: &str) -> Result<PaletteSet, ActionError> {
     let bad = || ActionError::Invalid(E_ARGS.into());
     let mut doc = Map::new();
     doc.insert("name".into(), json!(name));
     doc.insert("category".into(), json!("custom"));
-    if let Some(l) = args.get("label").and_then(Value::as_str) {
-        let l = l.trim();
-        if !l.is_empty() {
-            doc.insert("label".into(), json!(l));
+    // A hand-written file's own words are kept through an edit.
+    for key in ["label", "description", "family", "variant"] {
+        if let Some(l) = args.get(key).and_then(Value::as_str) {
+            let l = l.trim();
+            if !l.is_empty() {
+                doc.insert(key.into(), json!(l));
+            }
         }
     }
     for side in ["dark", "light"] {
@@ -373,7 +390,7 @@ fn entry_json(e: &Entry) -> Value {
         "managed": e.managed,
     });
     if let Some(p) = &e.problem {
-        v["problem"] = json!({"key": p.key, "detail": p.detail});
+        v["fault"] = json!({"key": p.key, "detail": p.detail});
     }
     v
 }
@@ -457,7 +474,7 @@ impl Ctx {
         self.store.packs_changed();
     }
 
-    /// `{dir, writable, palettes: [{name, label, path, dark, light, managed, problem?}], swatches: {palette, wallpaper}}`.
+    /// `{dir, writable, palettes: [{name, label, path, dark, light, managed, fault?}], swatches: {palette, wallpaper}}`.
     pub fn list(&self, _: &Value) -> Reply {
         let d = dir(&self.store);
         Ok(Some(json!({
@@ -517,8 +534,8 @@ impl Ctx {
         let (name, note) = name_of(v)?;
         let set = from_args(v, &name)?;
         let text = set.to_toml();
-        if draft().as_deref() != Some(text.as_str()) {
-            set_draft(Some(text));
+        if draft(&self.store).as_deref() != Some(text.as_str()) {
+            set_draft(&self.store, Some(text));
             self.republish();
         }
         Ok(Some(json!({
@@ -529,7 +546,7 @@ impl Ctx {
     }
 
     pub fn clear(&self, _: &Value) -> Reply {
-        if drop_draft() {
+        if drop_draft(store_key(&self.store)) {
             self.republish();
         }
         Ok(None)
@@ -567,7 +584,7 @@ impl Ctx {
         {
             let _ = std::fs::remove_file(&e.path);
         }
-        drop_draft();
+        drop_draft(store_key(&self.store));
         self.changed();
         let mut out = json!({"name": name, "path": path, "note": note});
         let select = v.get("select").and_then(Value::as_bool).unwrap_or(true);
@@ -599,7 +616,8 @@ impl Ctx {
             return Err(ActionError::Unavailable(E_READ_ONLY.into()));
         }
         let mut out = json!({"reset": false});
-        if crate::theme::s(&self.store, KEY) == name {
+        // (A file named as a bundled palette never was the one in effect: the bundled one was.)
+        if crate::theme::s(&self.store, KEY) == name && !palette::is_bundled(name) {
             let done = self
                 .store
                 .apply(&[ApplyOp::Reset {
@@ -639,7 +657,7 @@ mod tests {
             Arc::new(kurashi_theme::FakeFonts::new(&[]));
         crate::theme::register(&hub, &store, fonts.clone());
         reload(&dir(&store));
-        set_draft(None);
+        set_draft(&store, None);
         let ctx = Ctx::new(hub.clone(), store.clone(), fonts);
         (root, hub, store, ctx)
     }
@@ -799,7 +817,7 @@ mod tests {
         assert_eq!(m["against"], "surface");
         // The editor goes (Settings closed or crashed): the draft ends, the saved colours are back.
         hub.unsubscribe(crate::theme::PREVIEWS_DOC);
-        assert!(draft().is_none());
+        assert!(draft(&store).is_none());
         crate::theme::republish(&hub, &store, &kurashi_theme::FakeFonts::new(&[]));
         assert_eq!(token(&hub, "color.accent"), default_accent);
         assert!(!notes(&hub).contains("palette_draft"));
@@ -815,7 +833,7 @@ mod tests {
         assert_eq!(back.dark.unwrap()["accent"].hex(), "#3366ff");
         assert_eq!(back.meta.label.as_deref(), Some("My Gruvbox"));
         assert_eq!(back.meta.category.as_deref(), Some("custom"));
-        assert!(draft().is_none());
+        assert!(draft(&store).is_none());
         assert_eq!(crate::theme::s(&store, KEY), "my-gruvbox");
         assert_eq!(token(&hub, "color.accent"), "#3366ff");
         // The same label again (a new palette): another file name, and the reply says why.

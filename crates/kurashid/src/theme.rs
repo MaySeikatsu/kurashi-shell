@@ -684,7 +684,7 @@ pub fn document_with(
     let saved = input_with(store, picture);
     // I453: the palette editor's draft, worn by the shell while the editor is open; the config and the files stay as
     // they are, and the apps keep the saved colours (below).
-    let draft = crate::palettes_user::draft();
+    let draft = crate::palettes_user::draft(store);
     let input = match &draft {
         Some(text) => ThemeInput {
             source: Source::PaletteToml(text.clone()),
@@ -880,6 +880,8 @@ pub const PREVIEWS_DOC: &str = "theme.previews";
 /// subscription — so a draft never outlives its editor (`again` republishes the theme without it).
 struct SwatchWatch {
     again: Arc<dyn Fn() + Send + Sync>,
+    /// The store whose draft ends with the previews (`palettes_user::store_key`).
+    store: usize,
 }
 
 impl crate::hub::Provider for SwatchWatch {
@@ -889,7 +891,7 @@ impl crate::hub::Provider for SwatchWatch {
 
     fn stop(&self) {
         crate::texture::want_swatches(false);
-        if crate::palettes_user::drop_draft() {
+        if crate::palettes_user::drop_draft(self.store) {
             // Not under the hub's lifecycle lock: the republish sets this document.
             let again = self.again.clone();
             match tokio::runtime::Handle::try_current() {
@@ -926,7 +928,11 @@ pub fn register(
             }
         })
     };
-    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(SwatchWatch { again })));
+    let watch = SwatchWatch {
+        again,
+        store: crate::palettes_user::store_key(store),
+    };
+    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(watch)));
     // K55: scheme `auto` follows the portal's preference, watched only while that mode is chosen.
     let watcher = Arc::new(crate::os_scheme::Watcher::default());
     let follow = {

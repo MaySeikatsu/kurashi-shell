@@ -788,6 +788,30 @@ palettes_part() {
   [ "$(mtoken color.secondary)" != "$sec0" ] || fail "palettes C5: the hue moved but the secondary did not change ($sec0)"
   echo "palettes C5: keyboard only: swatch → picker → square and hue by arrows → Return ($sec0 → $(mtoken color.secondary))"
 
+  # C5b: the sides — Light shown, its colours removed (the notice says what light mode uses), added back; a role derived.
+  Q focusList >/dev/null
+  mtab_to palette-side 300
+  mkp right
+  pwait palette-remove-side "C5b: Light has no Remove"
+  mtab_to palette-remove-side 20
+  mkp return
+  pwait palette-side-missing "C5b: no notice for a palette without light colours"
+  Q scrollTo palette-editor
+  pshot side-missing
+  Q focusList >/dev/null
+  mtab_to palette-add-side 300
+  mkp return
+  pwait palette-side-missing "C5b: Add light colours did not add them" no
+  pwait palette-derive:outline "C5b: the light outline cannot be derived"
+  mtab_to palette-derive:outline 60
+  mkp return
+  pwait palette-provenance:outline:derived "C5b: Derive did not make the outline derived"
+  Q focusList >/dev/null
+  mtab_to palette-side 300
+  mkp left
+  pwait palette-provenance:outline:yours "C5b: the dark side lost its outline"
+  echo "palettes C5b: Light removed (the notice), added back, its outline derived; Dark unchanged"
+
   # C6: Save → the file, the tile, the row names it; Undo, and the CLI again.
   mtab_to palette-save 60
   mkp return
@@ -877,6 +901,8 @@ palettes_part() {
   rm -f "$dir"
   echo "palettes C9: a folder linked from elsewhere is read-only, and says so"
   K '{"t":"apply","id":"pa9","ops":[{"reset":"theme.colors.scheme"}]}' | grep -q applied || fail "palettes: the scheme was not reset"
+  # The palette's own category open again, as the steps after this one expect it.
+  Q category theme.colors.palette kurashi
 }
 palettes_ja() {
   mkeys
@@ -898,6 +924,7 @@ palettes_ja() {
   mkp escape
   mkp escape
   pwait palette-editor "ja: Escape did not leave the editor" no
+  Q category theme.colors.palette kurashi
 }
 if [ "${SETTINGS_PART:-}" = palettes ]; then
   palettes_part

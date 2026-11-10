@@ -162,7 +162,7 @@ Column {
                         text: I18n.fmt("palettes.custom.broken", {
                             file: tile.modelData.value + ".toml",
                             reason: I18n.tr(tile.modelData.reason || "palettes.error.parse")
-                                + (tile.file && tile.file.problem && tile.file.problem.detail ? " (" + tile.file.problem.detail + ")" : "")
+                                + (tile.file && tile.file.fault && tile.file.fault.detail ? " (" + tile.file.fault.detail + ")" : "")
                         })
                     }
                 }
