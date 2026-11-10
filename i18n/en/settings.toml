@@ -3,6 +3,7 @@
 # Window, header and search.
 "settings.ui.title" = "Kurashi settings"
 "settings.ui.search" = "Search settings"
+"settings.ui.section_push" = "Keep scrolling for the whole page"
 "settings.ui.undo" = "Undo"
 "settings.ui.redo" = "Redo"
 "settings.ui.advanced" = "Advanced"

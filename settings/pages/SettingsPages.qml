@@ -488,12 +488,90 @@ Flickable {
     // (its own objects: the view already has handlers of these names)
     Connections { target: p; function onViewChanged() { Qt.callLater(p.refreshNav) } }
     Timer { interval: 0; running: true; onTriggered: p.refreshNav() }
+    // I479 (scroll resistance; the user: "showing just the setting when clicked, but when scrolled a bit more it pops
+    // out"): while one section is shown alone, scrolling on past its end (or back past its start) for a few notches opens
+    // the whole page again at that section, on the side the scrolling came from. `push`: how far along (px of wheel);
+    // it relaxes after a pause, so a single stray notch does nothing.
+    readonly property real pushOutAt: 420
+    property real push: 0
+    property int pushDir: 0
+    WheelHandler {
+        enabled: p.solo !== "" && !p.searching
+        target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: event => {
+            // (a touchpad scrolls in phases, in px; a wheel in notches of 120, and since Qt 6.12 reports a pixelDelta too:
+            // KineticWheel, B42. A notch counts as 140 px: three notches open the page)
+            var dy = event.phase !== Qt.NoScrollPhase ? event.pixelDelta.y : event.angleDelta.y / 120 * 140
+            if (dy === 0) return
+            var down = dy < 0
+            var fits = p.contentHeight <= p.height + 1
+            var atEnd = fits || p.contentY >= p.contentHeight - p.height - 1
+            var atTop = fits || p.contentY <= 1
+            if ((down && atEnd) || (!down && atTop)) {
+                var dir = down ? 1 : -1
+                if (dir !== p.pushDir) { p.pushDir = dir; p.push = 0 }
+                p.push += Math.abs(dy)
+                relax.restart()
+                if (p.push >= p.pushOutAt) p.popOut(dir)
+            } else if (p.push !== 0) {
+                p.push = 0
+            }
+        }
+    }
+    Timer { id: relax; interval: 900; onTriggered: p.push = 0 }
+    function popOut(dir) {
+        var id = solo
+        push = 0
+        solo = ""
+        Qt.callLater(function () { p.toSection(id, dir) })
+    }
+    // Brings section `id` of the whole page into view: its top under the header, or (dir > 0, coming from its end) its
+    // end at the view's bottom, so the scrolling goes on where it was.
+    function toSection(id, dir) {
+        var cards = sectionCards()
+        for (var i = 0; i < cards.length; i++) {
+            if (cards[i].id !== id) continue
+            var top = cards[i].item.mapToItem(p.contentItem, 0, 0).y
+            var y = dir > 0 ? top + cards[i].item.height - p.height + Theme.gap : top - stickyH - Theme.gap
+            p.contentY = Math.max(0, Math.min(Math.max(0, p.contentHeight - p.height), y))
+            break
+        }
+        spy()
+    }
     // Shows `id` alone and brings it to the top; "" shows the whole page from its top.
     function showSection(id) {
         solo = id
         pinKey = ""
         contentY = 0
         Qt.callLater(spy)
+    }
+    // I479: the resistance, shown: while the scrolling pushes against a section's end, a pill at that end says what going
+    // on will do and how far along it is (so the page never opens by surprise).
+    Rectangle {
+        objectName: "sectionPush"
+        z: 11
+        visible: p.push > 0 && p.solo !== ""
+        readonly property real t: Math.min(1, p.push / p.pushOutAt)
+        width: Math.min(p.width - 2 * Theme.pad, pushText.implicitWidth + 2 * Theme.pad)
+        height: Theme.controlH
+        x: (p.width - width) / 2
+        y: p.pushDir > 0 ? p.contentY + p.height - height - Theme.gap : p.contentY + p.stickyH + 2 * Theme.gap
+        radius: height / 2
+        color: Theme.containerHigh
+        border.width: 1
+        border.color: Theme.outline
+        clip: true
+        Rectangle { width: parent.width * parent.t; height: parent.height; color: Theme.selected }
+        Text {
+            id: pushText
+            anchors.centerIn: parent
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            color: Theme.fg
+            font.pixelSize: Theme.fs - 1
+            font.family: Theme.fam(text, Theme.families)
+            text: I18n.tr("settings.ui.section_push")
+        }
     }
     Item {
         id: sticky
