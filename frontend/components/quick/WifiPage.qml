@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 import ".."
 
@@ -31,6 +32,10 @@ Column {
     // scan says so (svc.network has no such field yet: CONTRACT-CHANGE 713): the switch then draws off and inert, and the
     // reason stands once, under the switch it explains — not under airplane mode, not again at the list's end.
     readonly property bool noDevice: scan.available === false && String(scan.reason || "") === "error.network.no_wifi_device"
+    // Test only (KURASHI_QUICK_LOG=1, test-quick-sections.sh): what the switch draws when the scan says there is no device.
+    readonly property bool testLog: Quickshell.env("KURASHI_QUICK_LOG") === "1"
+    onNoDeviceChanged: if (testLog) Qt.callLater(function () {
+        console.log("quick-wifi nodevice " + wifi.noDevice + " checked " + sw.checked + " enabled " + sw.enabled) })
 
     // The list: the scan's networks (the daemon's order: the active one first, then by strength), eight at most.
     ListModel { id: nets }

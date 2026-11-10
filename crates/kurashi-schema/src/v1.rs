@@ -2416,7 +2416,7 @@ pub struct QuickClicks {
     pub focus: QuickClick,
     /// A click on sound
     /// Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
-    #[kurashi(default = QuickClick::Switch, module = "volume", module = "audio", since = 7)]
+    #[kurashi(default = QuickClick::Switch, module = "volume", module = "audio", module = "volume_level", since = 7)]
     pub volume: QuickClick,
     /// A click on the microphone
     /// Opens its card (the inputs), or mutes and unmutes the microphone.

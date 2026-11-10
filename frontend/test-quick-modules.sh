@@ -380,6 +380,21 @@ mv_to "$AWAY_X" "$AWAY_Y"
 wait_until 3 closed || fail "bar.hover = card: the card stayed after the pointer left: $(ui)"
 K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover":{"value":"preview"}}}}' >/dev/null || true
 echo "ok: bar.hover = card: resting on the sound glance opens its card, leaving closes it"
+# W71: a module listed by another id (`audio`, the sound module's old one) is the card's origin by its zone's id: the card
+# a rest on it opens comes out under it (I340's `module:<id>`), not at the bar's centre.
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":["audio"]}}}}' >/dev/null || fail "the mock refused bar.hover_card"
+sleep 0.5
+read -r hx hy < <(where audio)
+mv_to "$hx" "$hy"
+wait_until 3 ui_is '.panel == "quick"' || fail "hover on audio opened no card: $(ui)"
+sleep 1.2
+read -r vx vy vw vh < <(grep -o 'quick-at viewport .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+[ "$hx" -ge $(( vx - 40 )) ] && [ "$hx" -le $(( vx + vw + 40 )) ] \
+  || fail "the card audio opened does not come out under it (module x $hx, card $vx..$(( vx + vw )))"
+mv_to "$AWAY_X" "$AWAY_Y"
+wait_until 3 closed || close_all
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":[]}}}}' >/dev/null || true
+echo "ok: the card a module listed as audio opens comes out under it (x $hx in $vx..$(( vx + vw )))"
 
 # ---- 4. unavailable: inert, and it says why ----
 K act mock.doc '{"doc":"svc.idle","patch":{"reason":"power.idle.reason.no_protocol"}}' >/dev/null || fail "mock.doc refused svc.idle"

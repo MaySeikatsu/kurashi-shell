@@ -697,6 +697,17 @@ click "$(( tx + tw - 8 ))" "$(( ty + th / 2 ))"
 settle 1.5
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "card style: the tile's arrow did not open the Wi-Fi page"
 card_shot card-wifi-page 0.5 8
+# W71 (the user's review, point 4): NetworkManager says the radio is on, the scan says there is no Wi-Fi device — the
+# switch draws off and inert, and the reason stands once (shot card-wifi-no-device).
+scan0=$(doc svc.network.scan)
+K act mock.doc '{"doc":"svc.network.scan","patch":{"available":false,"reason":"error.network.no_wifi_device","networks":null}}' >/dev/null \
+  || fail "mock.doc refused svc.network.scan"
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = true ] || fail "the radio is not on for the no-device check"
+wait_until 3 sh -c "grep -o 'quick-wifi nodevice .*' '$R/qs.log' | tail -1 | grep -q 'nodevice true checked false enabled false'" \
+  || fail "no Wi-Fi device: the page's switch does not draw off and inert ($(grep -o 'quick-wifi nodevice .*' "$R/qs.log" | tail -1))"
+card_shot card-wifi-no-device 0.5 8
+K act mock.doc "{\"doc\":\"svc.network.scan\",\"patch\":$(jq -c '{available: .available, reason: .reason, networks: .networks}' <<<"$scan0")}" >/dev/null || true
+echo "ok: no Wi-Fi device: the switch draws off and inert, the reason once (card-wifi-no-device)"
 press escape
 settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "card style: Escape did not leave the Wi-Fi page"

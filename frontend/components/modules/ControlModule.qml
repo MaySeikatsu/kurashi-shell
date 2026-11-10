@@ -51,10 +51,15 @@ ModuleBase {
     property bool wheels: false
     signal wheeled(real dy)
 
+    // W71: the id its zone lists it by (ModuleHost's, the host the loader stands in): `audio` and `volume_level` are the
+    // sound module, `brightness_level` the brightness — a press, the card's origin (`module:<id>`, I340), its menu and
+    // which module drew the card pressed name the zone's id, not the control's.
+    readonly property string who: parent && parent.parent && parent.parent.mid !== undefined && parent.parent.mid !== ""
+        ? String(parent.parent.mid) : (ctl ? ctl.mid : "")
     readonly property string cardPage: ctl ? ctl.page : ""
     // The control's card is up: its page, opened by this module (the card's state is runtime.ui's; the page QuickNav's).
     readonly property bool cardShown: cardPage !== "" && QuickNav.cardOpen && QuickNav.shown === cardPage
-        && QuickNav.by === (ctl ? ctl.mid : "")
+        && QuickNav.by === m.who
     readonly property bool inert: !ctl || ctl.inert
     readonly property bool lit: !!ctl && ctl.on && !inert && !ctl.failed
     readonly property bool showValue: valueText !== "" && !vertical && !compact
@@ -81,14 +86,14 @@ ModuleBase {
     // The card: the control's page in the control centre, or the control's own action when it has no page.
     function openCard() {
         if (cardPage === "") return
-        Isl.IslandGeom.notePress(m.output, m.ctl.mid)
-        QuickNav.open(cardPage, m.ctl.mid)
+        Isl.IslandGeom.notePress(m.output, m.who)
+        QuickNav.open(cardPage, m.who)
     }
     // (a hover's: opens, never closes; ModuleHost's `hoverSurface: "page"`)
     function showCard() {
         if (cardPage === "" || cardShown) return
-        Isl.IslandGeom.notePress(m.output, m.ctl.mid)
-        QuickNav.show(cardPage, m.ctl.mid)
+        Isl.IslandGeom.notePress(m.output, m.who)
+        QuickNav.show(cardPage, m.who)
     }
     function click() {
         if (!ctl) return
@@ -102,8 +107,8 @@ ModuleBase {
         else click()
     }
     function openMenu() {
-        Isl.IslandGeom.notePress(m.output, m.ctl.mid)
-        Store.act("tray.menu.open", { id: "module:" + m.ctl.mid })
+        Isl.IslandGeom.notePress(m.output, m.who)
+        Store.act("tray.menu.open", { id: "module:" + m.who })
     }
 
     // ---- keys and a11y ----

@@ -1200,7 +1200,8 @@
               "label": "config.quick.click.volume.label",
               "modules": [
                 "volume",
-                "audio"
+                "audio",
+                "volume_level"
               ],
               "per_output": false,
               "restart": false,
