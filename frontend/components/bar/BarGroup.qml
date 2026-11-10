@@ -9,7 +9,8 @@ import ".."
 // `Theme.shadowDy`) this is where the face always stood.
 Block {
     required property Item around
-    readonly property real padX: Theme.gap + 2
+    // (I471d: a scrap of paper is a little longer than what lies on it, so its torn ends have room)
+    readonly property real padX: Theme.gap + 2 + (Theme.edgeStyle === "ripped" ? 6 : 0)
     // (`[decor] bar.group = none`: one strip, no block round each group — 98's taskbar; contract row 596.)
     visible: Theme.groups && around.visible && around.width > 0 && Theme.decor("bar.group", "block") !== "none"
     x: around.x - padX

@@ -43,7 +43,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         visible: !rb.sq && !rb.painted
-        radius: rb.radius
+        // (I471d: a torn sheet's corners are nearly square)
+        radius: Theme.edgeStyle === "ripped" && !Theme.hosted ? Math.min(rb.radius, 3) : rb.radius
         color: rb.color
         border.width: rb.lineW
         border.color: rb.border.color

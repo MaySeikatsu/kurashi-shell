@@ -70,7 +70,10 @@ void torn(vec4 c) {
     float bay = fbm(p / 46.0);
     float jag = vnoise(p / 3.2) * 0.65 + vnoise(p / 1.3 + 9.0) * 0.35;
     // A small thing (a tile, a key) keeps its shape: a fine jag only; the bays come in with size.
-    float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), uMode.z * 0.42);
+    // (a thing from about a tile's height up is torn in bays too, shallower than a card's; a thinner one only when its
+    // owner says it stands as a sheet by itself)
+    float sheet = max(uMode.z, step(34.0, min(size.x, size.y)));
+    float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), sheet * 0.42);
     float r = depth * (0.35 + 2.4 * bay * bay) * big + min(depth, 1.6) * (0.3 + 0.9 * jag);
     // (never deeper than about a twelfth of the thing: a bar's group keeps its body)
     r = min(r, 0.08 * min(size.x, size.y) + 0.6);

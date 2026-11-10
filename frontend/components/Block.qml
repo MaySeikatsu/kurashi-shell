@@ -127,7 +127,8 @@ Item {
         layer.enabled: Theme.edgeTorn && !blk.painted && !blk.bare && blk.fill.a > 0.5 && blk.width > 14 && blk.height > 14
         layer.effect: EdgeWarp { bold: blk.paintAlways; fillHint: Qt.rgba(face.shownFill.r, face.shownFill.g, face.shownFill.b, 1) }
         // The face's corner, and the fill's inside the outline and the ring.
-        readonly property real r: Math.min(blk.radius, blk.faceH / 2)
+        // (I471d: a torn sheet has no round corners: under the torn edge a block is a scrap with nearly square ones)
+        readonly property real r: Theme.edgeStyle === "ripped" && !blk.bare ? Math.min(blk.radius, 3) : Math.min(blk.radius, blk.faceH / 2)
         readonly property real innerR: Math.max(0, r - blk.inset)
         // The fill as drawn: it follows `fill` through one colour animation (the ring's colour never animates).
         property color shownFill: blk.fill
