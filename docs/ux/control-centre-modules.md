@@ -92,9 +92,13 @@ larger face pushed the last row's label past the card). The Wi-Fi page draws its
 Wi-Fi device and says so once, under that switch (the scan's reason; `svc.network` has no such field: CONTRACT-CHANGE
 713); Bluetooth's switch draws off while there is no adapter (B73). `test-quick-sections.sh` step 18 reads the ring's four
 sides in the pixels round the first tile, the last tile and the back key, on the card and on a compact flyout with
-fluent's "double" ring 6 px outside, and checks every tile stands inside the viewport. Not reproduced on nested niri: the
-right column cut and the page narrower than the card before it (the default look, material and fluent fit at 1920 px);
-the suite's containment check guards it.
+fluent's "double" ring 6 px outside, and checks every tile stands inside the viewport (the centre's own clip only: it
+does not see the Stage card's edge). Not reproduced, so not fixed: the right column cut by the card's edge and the page
+narrower than the card before it (default, material and fluent at 1920 px, fluent also at scale 1.25 over a patterned
+wallpaper). Seen there instead: a faint rectangle with a hard edge about 12 px round the fluent flyout's body (below and to
+the right) — the card's box behind the flyout, its blur region or the flyout's shadow cut by the card's clip; three tries
+(the blur behind the body only, no card shadow under a view with its own chrome, shadow room as wide as the shadow) did
+not change it and were taken back. The user's scale and config would help.
 
 **(a) A click opens the card.** Every control module's click opens its card — Wi-Fi, Bluetooth, power, brightness as
 before, and now Focus, the microphone, keep awake, night light, dark mode and airplane mode (I475 3). Sound keeps its mute
@@ -232,8 +236,9 @@ Open from W71 (choices made where the answers left room):
 5. The recorder: a click while recording stops it whatever `quick.click.recorder` says; idle it opens the card. Right?
 
 ## Definition of done — round two (W71)
-- [x] the review's four points: the focus ring whole (card, compact flyout; a suite reads its four sides), compact tiles
-  fit, no-device Wi-Fi says so once; the page/card width mismatch and the right column cut not reproduced (guarded).
+- [x] the review's points 1 and 4: the focus ring whole (card, compact flyout; a suite reads its four sides), compact
+  tiles measure their label, no-device Wi-Fi off and inert, said once (a suite renders it).
+- [ ] the review's points 2 and 3 (the right column cut, the page narrower than the card): not reproduced, not fixed.
 - [x] (a) a click opens the card for every control; the override per module; new pages (keep awake, dark mode); options
   from the schema; Esc closes a module's card; B72.
 - [x] (b) glances with values (Wi-Fi's name, sound's level), elided; hover as `bar.hover` says.
@@ -242,7 +247,8 @@ Open from W71 (choices made where the answers left room):
 - [x] (e) the phone an advanced setting; the decor value's fate is row 716; B73 (the phone a Loader).
 - [x] (f) the recorder: a brief from the other shells, the module always there, its card (start, stop, time, screen,
   sound, folder, last file); what the daemon lacks is row 717.
-- [x] (g) the sidebar follows `quick.tiles`; a single-control section needs row 718.
+- [x] (g) the sidebar follows `quick.tiles`.
+- [ ] (g) a single control as a sidebar section: `TogglesSection.only` exists, never instantiated; row 718.
 - [ ] Options in a card can be read by a suite only once the mock serves the schema (row 715); seen on nested niri.
 
 ## Definition of done (when built)
