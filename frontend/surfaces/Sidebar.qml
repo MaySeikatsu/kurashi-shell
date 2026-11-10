@@ -415,6 +415,8 @@ Scope {
             LazyLoader {
                 active: col.held && col.barsFirst
                 PanelWindow {
+                    // (the change of colour as a cross-fade: components/ColorFade.qml)
+                    ColorFade {}
                     id: win
                     screen: col.scr
                     // A toggled column (hidden mode) takes the usable area's input: a click outside closes it.

@@ -250,6 +250,8 @@ Scope {
         id: winL
         active: bar.windowWanted && bar.after
         PanelWindow {
+            // (the change of colour as a cross-fade: components/ColorFade.qml)
+            ColorFade {}
             id: win
             screen: bar.scr
             // QuickButton and SidebarButton read it (their origins register on top and bottom bars only).

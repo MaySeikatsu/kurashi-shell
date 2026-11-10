@@ -10,7 +10,17 @@ Singleton {
     // The one Theme of the shell and of Settings (session 17: Settings links this file into its core/): the shell's Store
     // keeps the theme in `docs`, Settings' Store in `theme`.
     readonly property var themeDoc: (Store.docs && Store.docs["theme"]) || Store.theme || null
-    readonly property var tokens: (themeDoc && themeDoc.tokens) ? themeDoc.tokens : ({})
+    // The tokens as the daemon has them, and the tokens the shell wears. They are the same but for the moment a change
+    // of colour is taken as a cross-fade (ColorBlend, `fadeGate`): the windows take a picture of themselves first, then the
+    // new tokens come in under it. Settings has no gate: it follows at once.
+    readonly property var sourceTokens: (themeDoc && themeDoc.tokens) ? themeDoc.tokens : ({})
+    property var tokens: sourceTokens
+    property var fadeGate: null
+    onSourceTokensChanged: { if (fadeGate !== null && fadeGate(sourceTokens)) return; tokens = sourceTokens }
+    property int fadeCapture: 0
+    property int fadeShow: 0
+    property int fadeRun: 0
+    property int fadeMs: 320
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
     // K87: the colours in between while ColorBlend moves the shell from one track's colours to the next; null at rest.
     property var liveColors: null

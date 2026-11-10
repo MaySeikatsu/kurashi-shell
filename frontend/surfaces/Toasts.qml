@@ -138,6 +138,10 @@ Scope {
     NotificationCenter { screen: root.screen }
 
     PanelWindow {
+
+        // (the change of colour as a cross-fade: components/ColorFade.qml)
+
+        ColorFade {}
         id: win
         screen: root.latched
         visible: cards.count > 0 && !root.held     // unmapped at idle: mapped-surface budget (docs/BENCH.md)
