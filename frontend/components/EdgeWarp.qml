@@ -9,6 +9,9 @@ ShaderEffect {
     readonly property int seed0: Math.floor(Math.random() * 97)
     // A thing that is small but stands by itself as a sheet (a bar's group): torn in bays as a card is, less deep.
     property bool bold: false
+    // The face's own fill, when its owner knows it: the white core then lies on the fill alone, not on text or icons.
+    property color fillHint: "transparent"
+    readonly property vector4d uFill: Qt.vector4d(fillHint.r, fillHint.g, fillHint.b, fillHint.a > 0 ? 1 : 0)
     readonly property vector4d uSize: Qt.vector4d(width, height, depth, seed0)
     readonly property vector4d uMode: Qt.vector4d(Theme.edgeStyle === "painted" ? 1 : 0, Theme.edgeUneven, bold ? 1 : 0, 0)
     // Which of the layer's own borders are edges of the shape (left, top, right, bottom): all, for a face that fills its

@@ -22,7 +22,7 @@ Block {
     paintAlways: true
     // (I471d: under the torn edge a group is a scrap of paper lying on the bar: a tone of its own, so it reads as one
     // sheet; its tear and its short shadow do the rest)
-    fill: Theme.edgeStyle === "ripped" ? (Theme.darkScheme ? Theme.containerHigh : Qt.tint(Theme.surface, Qt.rgba(1, 1, 1, 0.62)))
+    fill: Theme.edgeStyle === "ripped" ? Theme.containerHigh
         : (Theme.lifted ? Theme.surfaceAlpha : "transparent")
     // (a scrap casts a fuller shadow than a group of the soft chrome: it is what sets it off the bar)
     softScale: Theme.edgeStyle === "ripped" ? 0.55 : 0.3

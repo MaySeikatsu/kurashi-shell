@@ -12,6 +12,8 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     vec4 uSize;   // xy the item (px), z the edge's depth (px), w the seed
     vec4 uMode;   // x: 0 torn paper, 1 paint; y: the paint's unevenness 0..1; z: 1 a small thing torn as a sheet
+    vec4 uFill;   // the face's own fill, when its owner knows it (a 0: not known): the tear's white core and the paper's age
+                  // go on the fill alone, never on what is written or drawn on it
     vec4 uSides;  // left, top, right, bottom: 1 where the layer's own border is an edge of the shape (a face that fills
                   // its layer), 0 where the shape runs on past it (a side joined to a bar or lying on the screen's edge)
 };
@@ -70,16 +72,19 @@ void torn(vec4 c) {
     // A small thing (a tile, a key) keeps its shape: a fine jag only; the bays come in with size.
     float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), uMode.z * 0.42);
     float r = depth * (0.35 + 2.4 * bay * bay) * big + min(depth, 1.6) * (0.3 + 0.9 * jag);
+    // (never deeper than about a twelfth of the thing: a bar's group keeps its body)
+    r = min(r, 0.08 * min(size.x, size.y) + 0.6);
     float thr = c.a * 0.5;
     if (reach(qt_TexCoord0, r) < thr) { fragColor = vec4(0.0); return; }
     vec3 col = c.rgb / c.a;
     // The age: darker and warmer towards the edge, faintly.
     float wide = big > 0.5 && reach(qt_TexCoord0, r + depth * 4.0) < thr ? 1.0 : 0.0;
-    col *= 1.0 - 0.05 * wide * (0.5 + 0.5 * vnoise(p / 17.0));
+    float onFill = uFill.a > 0.0 ? 1.0 - smoothstep(0.05, 0.14, distance(col, uFill.rgb)) : 1.0;
+    col *= 1.0 - 0.05 * wide * onFill * (0.5 + 0.5 * vnoise(p / 17.0));
     // The core: white fibres along the tear.
     // (a small thing — a bar's group, a key — has a hair of core only: a full rim would whiten all of it, its text too)
     float rimW = depth * (0.6 + 0.7 * vnoise(p / 9.0 + 31.0)) * (0.2 + 0.8 * big);
-    if (reach(qt_TexCoord0, r + rimW) < thr) col = mix(col, vec3(1.0), 0.72 + 0.2 * vnoise(p / 1.7));
+    if (reach(qt_TexCoord0, r + rimW) < thr) col = mix(col, vec3(1.0), (0.72 + 0.2 * vnoise(p / 1.7)) * onFill);
     fragColor = vec4(col * c.a, c.a) * qt_Opacity;
 }
 
