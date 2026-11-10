@@ -447,6 +447,7 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 0.97,
             groups: true,
+            // (B79: the frame's line is a tube too: FramePieces lights it as the blocks' outlines are lit)
             frame_outline: true,
         },
         Chrome::Bevel => Ch {
@@ -475,10 +476,36 @@ pub fn build(
     t.insert("chrome.groups".into(), json!(ch.groups));
     let frame_outline = match axes.frame_outline {
         FrameOutline::Auto => ch.frame_outline,
-        FrameOutline::On => true,
+        FrameOutline::On | FrameOutline::Glow => true,
         FrameOutline::Off => false,
     };
     t.insert("frame.outline".into(), json!(frame_outline));
+    // B79: the frame's line lit, apart from the chrome: asked for (`glow`, under any chrome), or automatic under the
+    // Glow chrome; `on` there keeps the line without its light. `frame.outline_auto` is what Automatic gives under this
+    // chrome, for Settings' preview of that choice.
+    let auto_glow = axes.chrome == Chrome::Glow;
+    let frame_glow = match axes.frame_outline {
+        FrameOutline::Glow => true,
+        FrameOutline::Auto => auto_glow,
+        FrameOutline::On | FrameOutline::Off => false,
+    };
+    t.insert("frame.glow".into(), json!(frame_glow));
+    px(&mut t, "frame.glow_radius", 14.0);
+    t.insert(
+        "frame.glow_alpha".into(),
+        json!(if p.dark { 0.75 } else { 0.5 }),
+    );
+    col(&mut t, "frame.glow_color", g("accent"));
+    t.insert(
+        "frame.outline_auto".into(),
+        json!(if auto_glow {
+            "glow"
+        } else if ch.frame_outline {
+            "on"
+        } else {
+            "off"
+        }),
+    );
     t.insert("outline.ink".into(), json!(axes.outline_ink));
     // W57 (K78): the surfaces' elevation shadows. Automatic: where blocks lift (keycap, soft) the surfaces do too; flat
     // and line looks read as deliberately shadowless.
@@ -506,7 +533,16 @@ pub fn build(
     let (oc, oa) = match axes.chrome {
         Chrome::Keycap => (g("line"), 1.0),
         Chrome::Line => (g("outline"), 1.0),
-        Chrome::Glow => (g("accent"), 1.0),
+        // (B79: the outline is the tube itself: the accent heated towards white on a dark ground, where light shows;
+        // on paper the accent as it is, since a pale line would vanish)
+        Chrome::Glow => (
+            if p.dark {
+                g("accent").mix(WHITE, 0.45)
+            } else {
+                g("accent")
+            },
+            1.0,
+        ),
         Chrome::Soft => (
             if p.dark { WHITE } else { g("on_surface") },
             if p.dark { 0.16 } else { 0.10 },
@@ -607,6 +643,10 @@ pub fn build(
         "chrome.soft_color",
         if glow { g("accent") } else { g("shadow") },
     );
+    // B79: the glow's "shadow" is light: SoftShadow draws a ring (the tube and what it throws, out and a little way in)
+    // instead of a drop shadow, and small things show at least this much of it.
+    t.insert("chrome.soft_glow".into(), json!(glow));
+    t.insert("chrome.soft_glow_min".into(), json!(0.7));
     t.insert(
         "chrome.soft_alpha".into(),
         json!(match (glow, p.dark) {

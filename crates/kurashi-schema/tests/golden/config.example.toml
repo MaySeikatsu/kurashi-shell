@@ -249,8 +249,9 @@
 #
 # Frame outline — A line along the frame's inner edge and the sides of what is joined to
 # it — bars, dock, sidebars — drawn in the chrome's style. Automatic is on for Keycap
-# and Lines, off for Flat and Soft.
-#   choices: "auto" | "on" | "off" · since schema v7
+# and Lines, off for Flat and Soft, and glows under Glow. Glow lights the line under any
+# chrome; On under the Glow chrome keeps the line without its light.
+#   choices: "auto" | "on" | "off" | "glow" · since schema v7
 # frame_outline = "auto"
 #
 # Outline ink — The colour of every outline the shell draws — blocks, the frame, the

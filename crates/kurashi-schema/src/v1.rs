@@ -445,7 +445,8 @@ pub struct Theme {
     pub chrome: Chrome,
     /// Frame outline
     /// A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the
-    /// chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft.
+    /// chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft, and glows under Glow. Glow lights
+    /// the line under any chrome; On under the Glow chrome keeps the line without its light.
     // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
     #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
     pub frame_outline: FrameOutline,
@@ -623,6 +624,8 @@ pub enum FrameOutline {
     Auto,
     On,
     Off,
+    /// Glow
+    Glow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

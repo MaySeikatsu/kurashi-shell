@@ -11,18 +11,47 @@ Loader {
     id: sh
     property real radius: 0
     property real amount: 1
+    // B79: the room round the shape for a ring of light (px; -1: as far as the light reaches). A bar's group has a few px
+    // to its window's edge and to the bar's rule: its light ends there instead of being cut or lapping over the rule.
+    property real room: -1
     // -1 inside a frame mirrored vertically (a shape drawn under a bottom bar): the shadow still falls the screen's way.
     property real direction: 1
     // -1 inside a frame mirrored horizontally (a left sidebar drawn in a right one's frame).
     property real mirror: 1
     z: -1
     active: Theme.softR > 0 && amount > 0 && Theme.shadowAlpha > 0
-    sourceComponent: RectangularShadow {
+    // B79: a chrome whose soft shadow is light (`chrome.soft_glow`, the Glow chrome) draws a glowing ring instead: the
+    // tube on the edge and its light out over the ground and a little way in, also under a see-through fill (light shows
+    // through glass). Small things glow at least `chrome.soft_glow_min` of it: a bar's group is lit as a card is.
+    sourceComponent: Theme.softGlow ? ring : shadow
+    Component {
+        id: ring
+        Item {
+            readonly property real amt: Math.max(sh.amount, Theme.softGlowMin)
+            readonly property real reach: sh.room >= 0 ? Math.min(sh.room, Theme.softR * amt) : Theme.softR * amt
+            readonly property real pad: Math.ceil(reach) + 2
+            ShaderEffect {
+                x: -parent.pad
+                y: -parent.pad
+                width: parent.width + 2 * parent.pad
+                height: parent.height + 2 * parent.pad
+                readonly property vector4d uGeo: Qt.vector4d(width, height, parent.pad, Math.min(sh.radius, Math.min(parent.width, parent.height) / 2))
+                readonly property color uColor: Qt.alpha(Theme.softColor, 1)
+                readonly property vector4d uLight: Qt.vector4d(parent.reach, Math.min(parent.reach * 0.55, Math.min(parent.width, parent.height) / 2),
+                    Theme.softColor.a, Math.max(1, Theme.outlineW))
+                fragmentShader: Qt.resolvedUrl("../shaders/glow_ring.frag.qsb")
+            }
+        }
+    }
+    Component {
+        id: shadow
+        RectangularShadow {
         offset.x: Theme.shadowX * sh.amount * sh.mirror
         offset.y: Theme.shadowY * sh.amount * sh.direction
         blur: Theme.softR * sh.amount
         spread: -1
         radius: Math.min(sh.radius, Math.min(width, height) / 2)
         color: Theme.softColor
+    }
     }
 }

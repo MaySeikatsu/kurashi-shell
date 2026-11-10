@@ -25,14 +25,18 @@ Loader {
     property point origin: Qt.point(0, 0)
     property rect own: Qt.rect(0, 0, 0, 0)
     z: -1
-    active: Theme.sheetMode !== "off" && Theme.elevationStrength > 0 && x1 > x0 && y1 > y0 && own.width > 0
+    // B79: while the frame's line is lit (`Theme.frameGlow`: asked for, or a chrome that glows) the sheet's edge glows instead: the same pass,
+    // even all round (no direction: light has none), in the light's colour and at its own strength, whatever the
+    // elevation is set to.
+    readonly property bool glow: Theme.frameGlow
+    active: (glow || (Theme.sheetMode !== "off" && Theme.elevationStrength > 0)) && x1 > x0 && y1 > y0 && own.width > 0
         && own.height > 0 && width > 0 && height > 0
 
     // I427: a key layer along the light and a faint one all round (the band read as flat with the key alone: one side
     // only, 4 px), or, Inward, one all round, as Caelestia's sheet casts: no direction.
     readonly property real s: Theme.elevationStrength
     readonly property real dark: Theme.darkScheme ? 1.6 : 1
-    readonly property color ink: Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
+    readonly property color ink: glow ? Qt.alpha(Theme.frameGlowColor, 1) : Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
     readonly property bool inward: Theme.sheetMode === "inward"
     readonly property real dist: 6
     readonly property real blur: 10
@@ -72,21 +76,21 @@ Loader {
         readonly property vector4d hole: Qt.vector4d(ss.x0 - ss.origin.x, ss.y0 - ss.origin.y, ss.x1 - ss.origin.x, ss.y1 - ss.origin.y)
         readonly property vector4d clipRect: Qt.vector4d(ss.own.x - ss.origin.x, ss.own.y - ss.origin.y,
             ss.own.x + ss.own.width - ss.origin.x, ss.own.y + ss.own.height - ss.origin.y)
-        readonly property color color: Qt.rgba(ss.ink.r, ss.ink.g, ss.ink.b, Math.min(0.9, strength * ss.s * ss.dark))
+        readonly property color color: Qt.rgba(ss.ink.r, ss.ink.g, ss.ink.b, ss.glow ? Math.min(0.9, strength) : Math.min(0.9, strength * ss.s * ss.dark))
         readonly property vector4d cut: ss.cardBox ? Qt.vector4d(ss.cardBox.x - ss.origin.x, ss.cardBox.y - ss.origin.y,
             ss.cardBox.x + ss.cardBox.width - ss.origin.x, ss.cardBox.y + ss.cardBox.height - ss.origin.y) : Qt.vector4d(0, 0, 0, 0)
         readonly property point offset: Qt.point(ox, oy)
         readonly property size size: Qt.size(width, height)
         readonly property real radius: ss.radius
-        readonly property real sigma: soft * Math.max(0.5, ss.s) / 2
+        readonly property real sigma: ss.glow ? soft / 2 : soft * Math.max(0.5, ss.s) / 2
         fragmentShader: Qt.resolvedUrl("../shaders/sheet_shadow.frag.qsb")
     }
     sourceComponent: Item {
         width: ss.width
         height: ss.height
-        Layer { strength: ss.roundAlpha; soft: ss.roundBlur }
+        Layer { strength: ss.glow ? Theme.frameGlowColor.a * 1.8 : ss.roundAlpha; soft: ss.glow ? Theme.frameGlowR * 2.4 : ss.roundBlur }
         Layer {
-            visible: !ss.inward
+            visible: !ss.inward && !ss.glow
             strength: ss.alpha
             soft: ss.blur
             ox: ss.ux * ss.dist * ss.s
