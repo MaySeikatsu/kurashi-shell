@@ -363,7 +363,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.5 | Glow chrome (I471a, K116) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-chrome-glow |
 | S27.6 | Tray icons inside their outline on a thin bar (B61, partly) | ✅ · ✅ UX (seen live) | fix/s27-tray-size |
 | S27.7 | Every colour change fades (I472 step 1, K117) | ✅ functional · 🟡 UX (a burst on nested niri; no suite) | feat/s27-colour-blend |
-| S27.8 | Settings: a page's sections in the sidebar (I464 step 1) | ✅ functional · 🟡 UX (seen on nested niri; no suite step) | feat/s27-settings-sections |
+| S27.8 | Settings: a page's sections in the sidebar (I464 step 1) | ✅ functional · 🟡 UX (seen on nested niri; no suite step; `settings/test.sh` K2 and K13 are red on this branch and on #36, fixed in `feat/s27-control-modules`) | feat/s27-settings-sections |
 | S27.9 | Posted desktop cards: pin or tape (I471c, K118) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-desktop-posted |
 | S27.10 | Your own palettes: files, editor, colour picker, live draft (I453, K119, W68) | ✅ functional · 🟡 UX (the agent's niri shots reviewed; the user judges; rows 696–701 open) | feat/s27-custom-palettes (#29) |
 | S27.12 | Control centre as modules: controls as types, eleven bar modules, `quick.tiles` + edit mode, card or phone (I469, K121, W70) | ✅ functional (stages a to d; mods' tiles open, row 711) · 🟡 UX (the agent's niri shots reviewed; drag and keyboard on the bar not in a suite, B74; the user judges) | feat/s27-control-modules |
