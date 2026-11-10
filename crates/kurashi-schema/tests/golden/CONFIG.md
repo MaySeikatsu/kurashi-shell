@@ -48,6 +48,13 @@ These modules' cards open at the bar's centre while cards open under their modul
 - choices: from `modules` (resolved at runtime)
 - since schema v7
 
+#### `bar.popups_follow` — Cards follow the pointer
+
+A card that a click, a key or the command line opened moves to the screen the pointer goes to and opens there again, under the same module where that screen's bar has it. What a hover opened closes as the pointer leaves, and sidebars stay on their screen.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 #### `bar.hover` — On hover
 
 What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module and what it opened; what a click opened stays.
@@ -895,6 +902,75 @@ The icon theme the apps that follow use (GTK, Qt, KDE), written with their colou
 - type: `string` · default: `""`
 - choices: from `icon_themes` (resolved at runtime)
 
+### Colour flow
+
+#### `theme.colors.flow.on` — Colour flow
+
+Colours move: the chrome's gradient drifts, the frame's outline and its glow run through colours. It draws frames while it runs, so it is off by default and stops with the motion profile None and with reduced motion.
+
+- type: `bool` · default: `false`
+- since schema v7
+
+#### `theme.colors.flow.when` — Runs
+
+Always; only while a card, a sidebar or the launcher is open; or only while music plays.
+
+- type: `choice` · default: `"active"`
+- choices: `"always"` | `"active"` | `"media"`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.pattern` — Pattern
+
+Drift: the colours travel slowly along the line and across the gradient. Breathe: they swell and fade. Cycle: they turn round the colour wheel. Chase: a light runs along the line.
+
+- type: `choice` · default: `"drift"`
+- choices: `"drift"` | `"breathe"` | `"cycle"` | `"chase"`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.colours` — Colours
+
+Tones: the accent from darker to lighter. Palette: the accent, the secondary and the tertiary run into each other. Rainbow: the whole wheel.
+
+- type: `choice` · default: `"palette"`
+- choices: `"tones"` | `"palette"` | `"rainbow"`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.gradient` — Gradient
+
+The chrome's gradient moves (while the gradient is on).
+
+- type: `bool` · default: `true`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.outline` — Frame outline
+
+The frame's outline and the outline of what is joined to it move through the colours (a hand-drawn stroke keeps its ink).
+
+- type: `bool` · default: `true`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.glow` — Glow
+
+The frame's glow and the Glow chrome's light move through the colours.
+
+- type: `bool` · default: `true`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
+#### `theme.colors.flow.speed` — Speed
+
+1 is one round in about twelve seconds.
+
+- type: `float` · default: `1.0`
+- range: `0.25..=4.0`, step `0.25`
+- only while `theme.colors.flow.on == true`
+- since schema v7
+
 ### Shape
 
 #### `theme.shape.corners` — Corners
@@ -1097,6 +1173,42 @@ While the light follows the pointer or the spotlight aims at it, the surfaces' s
 - type: `bool` · default: `false`
 - only while `theme.material.elevation == "follow"`
 - forced to `false` while `a11y.reduce_motion` is on
+- since schema v7
+
+### Connection
+
+#### `theme.join` — Connection
+
+How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it. Joined: the card grows out of the bar as one shape with it. Floating: a card of its own, a gap off the bar.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"fused"` | `"float"`
+- since schema v7
+
+#### `theme.join_corner` — Connection corner
+
+The corner where two joined surfaces meet — a card and its bar, the dock, a sidebar and the frame: rounded into each other, cut straight across, stepped as pixels, bulging outward as a drop, or square. Its size is the joins' radius.
+
+- type: `choice` · default: `"round"`
+- choices: `"round"` | `"chamfer"` | `"steps"` | `"bulge"` | `"square"`
+- since schema v7
+
+### Controls
+
+#### `theme.slider` — Sliders
+
+How every slider is drawn, in the shell and in Settings. Automatic: the look's own. Line: a thin track and a knob. Expressive: a thick pill with a handle bar and a stop mark. Capsule: the fill is the level, no knob. Wave: the filled part is a wave that moves while you drag. Blocks: one block per step. Ink: a stroke of a brush with a blot for a knob. Glow: a lit line.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"line"` | `"expressive"` | `"capsule"` | `"wave"` | `"blocks"` | `"ink"` | `"glow"`
+- since schema v7
+
+#### `theme.toggle` — Switches
+
+How every switch is drawn, in the shell and in Settings. Automatic: the look's own. Switch: a knob in a track. Expressive: the knob grows and carries a check. Capsule: a wide track, a flat knob. Lamp: a light that goes on. Stamp: a seal pressed in ink. Flip: a rocker with its two sides.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"switch"` | `"expressive"` | `"capsule"` | `"lamp"` | `"stamp"` | `"flip"`
 - since schema v7
 
 ### Layout
@@ -1933,6 +2045,42 @@ The fonts, in order. Any installed font, your own too.
 - type: `string_list` · default: `["Kalam", "Patrick Hand", "Handlee"]`
 - choices: from `fonts.installed` (resolved at runtime)
 - only while `theme.typography.mix.preset == "custom"`
+- since schema v7
+
+### Text effects
+
+#### `theme.typography.fx.effect` — Text effect
+
+How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a colour fringe and scan lines. Candle: a warm light that flickers. Rainbow: every letter its own colour. Shimmer: a light passes over the text now and then.
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"glow"` | `"crt"` | `"candle"` | `"rainbow"` | `"shimmer"`
+- since schema v7
+
+#### `theme.typography.fx.spawn` — Fresh text
+
+How text appears when its surface opens or its words change. Typed: letter by letter, as in old games. Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there. Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks in from a blur.
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"type"` | `"decipher"` | `"kana"` | `"brush"` | `"rise"` | `"ink"`
+- only while `theme.motion.profile != "none"`
+- since schema v7
+
+#### `theme.typography.fx.scope` — Applies to
+
+Headings alone (card and page titles, the clock, the island), or every label that can take it.
+
+- type: `choice` · default: `"titles"`
+- choices: `"titles"` | `"all"`
+- since schema v7
+
+#### `theme.typography.fx.spawn_speed` — Speed of fresh text
+
+1 writes a short heading in about a third of a second.
+
+- type: `float` · default: `1.0`
+- range: `0.25..=3.0`, step `0.25`
+- only while `theme.typography.fx.spawn != "none"`
 - since schema v7
 
 ### Typography

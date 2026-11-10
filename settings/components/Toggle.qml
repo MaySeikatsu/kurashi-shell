@@ -1,5 +1,6 @@
 import QtQuick
 import "../core"
+import "decor"
 
 // Switch. `checked` is the daemon's effective value; a click, Space or Return only emits the wished value. The focus ring
 // sits 3 px outside the track: an inner ring would sit on the accent fill of an ON switch (as the shell's ToggleSwitch).
@@ -12,7 +13,21 @@ Item {
 
     function flip() { if (t.enabled) t.toggled(!t.checked) }
 
-    implicitWidth: track.width
+    // Session 28: the one switch of the shell (the look's `[slots] toggle`, or `theme.toggle`), as ToggleSwitch hosts it.
+    DecorHost {
+        id: part
+        slot: "toggle"
+        anchors.centerIn: parent
+        width: item ? item.implicitWidth : 0
+        height: item ? item.implicitHeight : 0
+        onLoaded: {
+            item.checked = Qt.binding(function () { return t.checked })
+            item.pressed = Qt.binding(function () { return area.pressed })
+            if (item.hasOwnProperty("hovered")) item.hovered = Qt.binding(function () { return area.containsMouse })
+            if (item.hasOwnProperty("focused")) item.focused = Qt.binding(function () { return t.activeFocus })
+        }
+    }
+    implicitWidth: part.ready ? part.width : track.width
     implicitHeight: Theme.controlH
     opacity: t.enabled ? 1 : 0.5
     activeFocusOnTab: t.enabled
@@ -26,6 +41,7 @@ Item {
 
     Rectangle {
         id: track
+        visible: !part.has
         anchors.centerIn: parent
         width: Theme.keycap ? 46 : 40
         height: Theme.keycap ? 26 : 22
@@ -50,14 +66,16 @@ Item {
         }
     }
     MouseArea {
+        id: area
         anchors.fill: parent
         enabled: t.enabled
+        hoverEnabled: true
         onClicked: t.flip()
     }
     FocusRing {
-        anchors.fill: track
+        anchors.fill: part.ready ? part : track
         anchors.margins: -3
         shown: t.activeFocus
-        corner: track.radius + 3
+        corner: part.ready ? (part.item.corner !== undefined ? part.item.corner + 3 : 0) : track.radius + 3
     }
 }

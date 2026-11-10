@@ -104,7 +104,7 @@ PanelWindow {
     // stands beside it when it opens near a corner, with no room for a fillet there (Caelestia's popouts). Not a look's own start menu.
     readonly property var outLay: ShellLayout.of(scr ? scr.name : "")
     function holeSide(e) { return FG.holeSide(outLay, e, Theme.barH) }
-    readonly property bool joinsAt: place === "at" && !!startAt && !skin && Theme.decor("surface.join", true) !== false
+    readonly property bool joinsAt: place === "at" && !!startAt && !skin && Theme.surfaceJoin
         && FG.edgeOf(outLay, atEdge).bar === true && FG.edgeOf(outLay, atEdge).draw === "dynamic"
     readonly property bool sideways: atEdge === "left" || atEdge === "right"
     readonly property real mergeRoom: 2 * Theme.rJoin + Theme.pad
@@ -642,7 +642,7 @@ PanelWindow {
                 anchors.fill: parent
                 radius: Theme.rLg
                 fill: Theme.panel
-                flatBorder: Theme.outline
+                flatBorder: Theme.surfaceHair
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).
                 penSeed: 0x1A0C
             }

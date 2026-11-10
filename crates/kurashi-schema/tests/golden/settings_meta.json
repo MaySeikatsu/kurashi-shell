@@ -109,6 +109,19 @@
             },
             {
               "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.bar.popups_follow.help",
+              "key": "bar.popups_follow",
+              "label": "config.bar.popups_follow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.bar_hover.preview",
@@ -2611,6 +2624,221 @@
           ]
         },
         {
+          "id": "colour_flow",
+          "label": "settings.section.colour_flow",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.flow.on.help",
+              "key": "theme.colors.flow.on",
+              "label": "config.theme.colors.flow.on.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.flow_when.always",
+                  "value": "always"
+                },
+                {
+                  "label": "config.choice.flow_when.active",
+                  "value": "active"
+                },
+                {
+                  "label": "config.choice.flow_when.media",
+                  "value": "media"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "active",
+              "help": "config.theme.colors.flow.when.help",
+              "key": "theme.colors.flow.when",
+              "label": "config.theme.colors.flow.when.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.flow_pattern.drift",
+                  "value": "drift"
+                },
+                {
+                  "label": "config.choice.flow_pattern.breathe",
+                  "value": "breathe"
+                },
+                {
+                  "label": "config.choice.flow_pattern.cycle",
+                  "value": "cycle"
+                },
+                {
+                  "label": "config.choice.flow_pattern.chase",
+                  "value": "chase"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "drift",
+              "help": "config.theme.colors.flow.pattern.help",
+              "key": "theme.colors.flow.pattern",
+              "label": "config.theme.colors.flow.pattern.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.flow_colours.tones",
+                  "value": "tones"
+                },
+                {
+                  "label": "config.choice.flow_colours.palette",
+                  "value": "palette"
+                },
+                {
+                  "label": "config.choice.flow_colours.rainbow",
+                  "value": "rainbow"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "palette",
+              "help": "config.theme.colors.flow.colours.help",
+              "key": "theme.colors.flow.colours",
+              "label": "config.theme.colors.flow.colours.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.theme.colors.flow.gradient.help",
+              "key": "theme.colors.flow.gradient",
+              "label": "config.theme.colors.flow.gradient.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.theme.colors.flow.outline.help",
+              "key": "theme.colors.flow.outline",
+              "label": "config.theme.colors.flow.outline.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.theme.colors.flow.glow.help",
+              "key": "theme.colors.flow.glow",
+              "label": "config.theme.colors.flow.glow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.colors.flow.speed.help",
+              "key": "theme.colors.flow.speed",
+              "label": "config.theme.colors.flow.speed.label",
+              "max": 4.0,
+              "min": 0.25,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 0.25,
+              "type": "float"
+            }
+          ]
+        },
+        {
           "id": "shape",
           "label": "settings.section.shape",
           "rows": [
@@ -3330,6 +3558,170 @@
               "restart": false,
               "since": 7,
               "type": "bool"
+            }
+          ]
+        },
+        {
+          "id": "connection",
+          "label": "settings.section.connection",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.join.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.join.fused",
+                  "value": "fused"
+                },
+                {
+                  "label": "config.choice.join.float",
+                  "value": "float"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.join.help",
+              "key": "theme.join",
+              "label": "config.theme.join.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.join_corner.round",
+                  "value": "round"
+                },
+                {
+                  "label": "config.choice.join_corner.chamfer",
+                  "value": "chamfer"
+                },
+                {
+                  "label": "config.choice.join_corner.steps",
+                  "value": "steps"
+                },
+                {
+                  "label": "config.choice.join_corner.bulge",
+                  "value": "bulge"
+                },
+                {
+                  "label": "config.choice.join_corner.square",
+                  "value": "square"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "round",
+              "help": "config.theme.join_corner.help",
+              "key": "theme.join_corner",
+              "label": "config.theme.join_corner.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "controls",
+          "label": "settings.section.controls",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.slider_style.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.slider_style.line",
+                  "value": "line"
+                },
+                {
+                  "label": "config.choice.slider_style.expressive",
+                  "value": "expressive"
+                },
+                {
+                  "label": "config.choice.slider_style.capsule",
+                  "value": "capsule"
+                },
+                {
+                  "label": "config.choice.slider_style.wave",
+                  "value": "wave"
+                },
+                {
+                  "label": "config.choice.slider_style.blocks",
+                  "value": "blocks"
+                },
+                {
+                  "label": "config.choice.slider_style.ink",
+                  "value": "ink"
+                },
+                {
+                  "label": "config.choice.slider_style.glow",
+                  "value": "glow"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.slider.help",
+              "key": "theme.slider",
+              "label": "config.theme.slider.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.toggle_style.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.toggle_style.switch",
+                  "value": "switch"
+                },
+                {
+                  "label": "config.choice.toggle_style.expressive",
+                  "value": "expressive"
+                },
+                {
+                  "label": "config.choice.toggle_style.capsule",
+                  "value": "capsule"
+                },
+                {
+                  "label": "config.choice.toggle_style.lamp",
+                  "value": "lamp"
+                },
+                {
+                  "label": "config.choice.toggle_style.stamp",
+                  "value": "stamp"
+                },
+                {
+                  "label": "config.choice.toggle_style.flip",
+                  "value": "flip"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.toggle.help",
+              "key": "theme.toggle",
+              "label": "config.theme.toggle.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         },
@@ -6079,6 +6471,149 @@
               "restart": false,
               "since": 7,
               "type": "string_list"
+            }
+          ]
+        },
+        {
+          "id": "text_effects",
+          "label": "settings.section.text_effects",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.text_effect.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.text_effect.glow",
+                  "value": "glow"
+                },
+                {
+                  "label": "config.choice.text_effect.crt",
+                  "value": "crt"
+                },
+                {
+                  "label": "config.choice.text_effect.candle",
+                  "value": "candle"
+                },
+                {
+                  "label": "config.choice.text_effect.rainbow",
+                  "value": "rainbow"
+                },
+                {
+                  "label": "config.choice.text_effect.shimmer",
+                  "value": "shimmer"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "none",
+              "help": "config.theme.typography.fx.effect.help",
+              "key": "theme.typography.fx.effect",
+              "label": "config.theme.typography.fx.effect.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.text_spawn.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.text_spawn.type",
+                  "value": "type"
+                },
+                {
+                  "label": "config.choice.text_spawn.decipher",
+                  "value": "decipher"
+                },
+                {
+                  "label": "config.choice.text_spawn.kana",
+                  "value": "kana"
+                },
+                {
+                  "label": "config.choice.text_spawn.brush",
+                  "value": "brush"
+                },
+                {
+                  "label": "config.choice.text_spawn.rise",
+                  "value": "rise"
+                },
+                {
+                  "label": "config.choice.text_spawn.ink",
+                  "value": "ink"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "none",
+              "help": "config.theme.typography.fx.spawn.help",
+              "key": "theme.typography.fx.spawn",
+              "label": "config.theme.typography.fx.spawn.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.text_fx_scope.titles",
+                  "value": "titles"
+                },
+                {
+                  "label": "config.choice.text_fx_scope.all",
+                  "value": "all"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "titles",
+              "help": "config.theme.typography.fx.scope.help",
+              "key": "theme.typography.fx.scope",
+              "label": "config.theme.typography.fx.scope.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.typography.fx.spawn",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.typography.fx.spawn_speed.help",
+              "key": "theme.typography.fx.spawn_speed",
+              "label": "config.theme.typography.fx.spawn_speed.label",
+              "max": 3.0,
+              "min": 0.25,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 0.25,
+              "type": "float"
             }
           ]
         },

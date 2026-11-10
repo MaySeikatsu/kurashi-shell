@@ -334,7 +334,7 @@ PanelWindow {
         height: inner.childrenRect.height + 2 * Theme.pad + 2 * inset + Theme.shadowDy
         radius: Theme.rWidget
         fill: Theme.surfaceAlpha
-        flatBorder: Theme.outline
+        flatBorder: Theme.surfaceHair
         // Inside the Block's fill (its default property), which already sits within the outline and ring.
         Item {
             id: inner

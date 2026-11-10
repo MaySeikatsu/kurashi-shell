@@ -777,6 +777,49 @@ pub fn document_with(
                     json!(f(store, &format!("theme.pen.{k}"), 0.0)),
                 );
             }
+            // Session 28: the connection, the controls' faces, colour flow and the text effects — choices the frontend
+            // draws as they are (values in effect: reduced motion and the motion profile None stop what moves).
+            let still = b(store, "a11y.reduce_motion") || s(store, "theme.motion.profile") == "none";
+            for (token, key) in [
+                ("join.kind", "theme.join"),
+                ("join.corner", "theme.join_corner"),
+                ("control.slider", "theme.slider"),
+                ("control.toggle", "theme.toggle"),
+                ("flow.when", "theme.colors.flow.when"),
+                ("flow.pattern", "theme.colors.flow.pattern"),
+                ("flow.colours", "theme.colors.flow.colours"),
+                ("text.effect", "theme.typography.fx.effect"),
+                ("text.scope", "theme.typography.fx.scope"),
+            ] {
+                tokens.insert(token.into(), json!(s(store, key)));
+            }
+            tokens.insert(
+                "flow.on".into(),
+                json!(b(store, "theme.colors.flow.on") && !still),
+            );
+            for (token, key) in [
+                ("flow.gradient", "theme.colors.flow.gradient"),
+                ("flow.outline", "theme.colors.flow.outline"),
+                ("flow.glow", "theme.colors.flow.glow"),
+            ] {
+                tokens.insert(token.into(), json!(b(store, key)));
+            }
+            tokens.insert(
+                "flow.speed".into(),
+                json!(f(store, "theme.colors.flow.speed", 1.0)),
+            );
+            tokens.insert(
+                "text.spawn".into(),
+                json!(if still {
+                    "none".to_owned()
+                } else {
+                    s(store, "theme.typography.fx.spawn")
+                }),
+            );
+            tokens.insert(
+                "text.spawn_speed".into(),
+                json!(f(store, "theme.typography.fx.spawn_speed", 1.0)),
+            );
             let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
             shadow_tokens(store, &mut tokens, &input);
             // I374: the OS's logo icon name (`/etc/os-release` `LOGO`, else `ID`), for the launcher button's "OS logo".

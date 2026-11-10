@@ -43,8 +43,34 @@ ShellRoot {
     onWantChanged: {
         if (want) stageScreen = (ui && ui.panel === "tray" && trayOrigin) ? trayOrigin : focusedScreen()
         else trayOrigin = null
+        hopping = false
         stageOpen = want
     }
+    // Session 28 (`bar.popups_follow`, on by default): a card that was opened on purpose — a click, a key, the command
+    // line — follows the pointer to another screen: the compositor's focused output changes (the daemon's
+    // `svc.workspaces`), the card folds where it is and opens on that screen, under the same module where its bar has
+    // it. Not what a hover opened (it closes as the pointer leaves it), not a tray item's menu (it belongs to its icon),
+    // and never a sidebar (a surface of its own, on its own screen).
+    readonly property bool follows: {
+        var c = Store.docs["config"], p = c && c.values ? c.values["bar.popups_follow"] : undefined
+        return p === undefined || p.value !== false
+    }
+    property bool hopping: false
+    readonly property var nowFocused: { var d = Store.docs["svc.workspaces"]; return focusedScreen() }
+    onNowFocusedChanged: {
+        if (!stageOpen || hopping || !follows || !nowFocused || nowFocused === stageScreen) return
+        if (Peeks.hoverOwner !== "" || (ui && ui.panel === "tray")) return
+        hopping = true
+        hopLimit.restart()
+    }
+    function hopLand() {
+        if (!hopping) return
+        hopLimit.stop()
+        if (want) stageScreen = focusedScreen()
+        hopping = false
+    }
+    // (a card that does not report it is gone must not stay held)
+    Timer { id: hopLimit; interval: 900; onTriggered: root.hopLand() }
 
     Watch { doc: "theme" }
     Watch { doc: "i18n" }
@@ -175,5 +201,7 @@ ShellRoot {
     Stage {
         screen: root.stageScreen
         want: root.stageOpen
+        hold: root.hopping
+        onShownChanged: if (!shown) root.hopLand()
     }
 }

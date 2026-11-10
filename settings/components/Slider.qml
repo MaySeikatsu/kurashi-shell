@@ -1,5 +1,6 @@
 import QtQuick
 import "../core"
+import "decor"
 
 // Slider. While dragging only the shown number moves; the value goes out once, on release (`committed`), so one drag
 // is one change. Arrow keys move one step (`previewed`, so a previewable row can show it first); Return commits what
@@ -77,23 +78,42 @@ Item {
         anchors.rightMargin: Theme.gap
         height: 4
         radius: 2
-        color: Theme.containerHigh
+        color: face.has ? "transparent" : Theme.containerHigh
         opacity: s.enabled ? 1 : 0.5
+        readonly property real level: s.to > s.from ? (s.shown - s.from) / (s.to - s.from) : 0
         Rectangle {
-            width: parent.width * (s.to > s.from ? (s.shown - s.from) / (s.to - s.from) : 0)
+            visible: !face.has
+            width: parent.width * track.level
             height: parent.height
             radius: 2
             color: Theme.accent
         }
         Rectangle {
+            visible: !face.has
             width: 14
             height: 14
             radius: 7
             anchors.verticalCenter: parent.verticalCenter
-            x: parent.width * (s.to > s.from ? (s.shown - s.from) / (s.to - s.from) : 0) - width / 2
+            x: parent.width * track.level - width / 2
             color: Theme.fg
         }
+        // Session 28: the one slider of the shell (the look's `[slots] slider`, or `theme.slider`): the same face the
+        // quick settings and the bar draw, 20 px tall round the rail.
+        DecorHost {
+            id: face
+            slot: "slider"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            height: 20
+            onLoaded: {
+                item.value = Qt.binding(function () { return track.level })
+                item.pressed = Qt.binding(function () { return s.dragging })
+                if (item.hovered !== undefined) item.hovered = Qt.binding(function () { return hover.hovered && s.enabled })
+            }
+        }
     }
+    HoverHandler { id: hover }
     Text {
         id: readout
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

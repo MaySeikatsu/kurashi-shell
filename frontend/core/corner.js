@@ -68,8 +68,14 @@ function rect(x, y, w, h, tl, tr, br, bl, sq) {
 // (`sq` false: the path as it is). An arc that is not a quarter turn stays an arc, and so do two quarter arcs of one
 // radius with (almost) no straight piece between them: a half circle, a pill's end, stays round (a capsule is a
 // capsule in every look).
-function squircled(svg, sq) {
-    if (!sq || !svg) return svg
+// `join` (session 28, I270; `theme.join_corner`, token `join.corner`): what stands in for a concave quarter arc — the
+// fillet where two joined surfaces meet (a card and its bar, the dock, a sidebar and the frame) —: "chamfer" a straight
+// cut, "steps" a pixel stair, "bulge" the quarter turned outward (a drop), "square" the bare corner; "round" (or none)
+// leaves the fillet. Concave is told from the subpath's own direction: its corners turn the way it runs, a fillet the
+// other way, so mirrored shapes need no flag.
+function squircled(svg, sq, join) {
+    if (join === "round" || join === undefined || join === "") join = null
+    if ((!sq && !join) || !svg) return svg
     var t = svg.trim().split(/\s+/), segs = [], i = 0, cx = 0, cy = 0, sx = 0, sy = 0, cmd = ""
     while (i < t.length) {
         var tok = t[i]
@@ -109,11 +115,37 @@ function squircled(svg, sq) {
         }
         return null
     }
+    // Each subpath's direction (twice its signed area: > 0 runs clockwise on screen, y down), for telling fillets.
+    if (join) {
+        var from = 0, area = 0
+        var close = function (end) { for (var n = from; n < end; n++) segs[n].cw = area > 0; from = end; area = 0 }
+        for (var m = 0; m < segs.length; m++) {
+            var e = segs[m]
+            if (e.c === "M") { if (m > from) close(m); continue }
+            area += e.px * e.y - e.x * e.py
+        }
+        close(segs.length)
+    }
     var out = []
     for (var k = 0; k < segs.length; k++) {
         var g = segs[k]
         if (g.c === "Z") out.push("Z")
         else if (g.c !== "A") out.push(g.c, g.a.join(" "))
+        else if (join && g.q && (+g.a[4] === 1) !== g.cw) {
+            // A fillet from p to q round the bare corner c.
+            var c = cornerOf(g.px, g.py, g.x, g.y, +g.a[4])
+            if (join === "chamfer") out.push("L", f(g.x) + " " + f(g.y))
+            else if (join === "square") out.push("L", f(c.x) + " " + f(c.y), "L", f(g.x) + " " + f(g.y))
+            else if (join === "steps") {
+                var st = Math.max(2, Math.min(6, Math.round(g.r / 5)))
+                var ux = (c.x - g.px) / st, uy = (c.y - g.py) / st, vx = (g.x - c.x) / st, vy = (g.y - c.y) / st
+                for (var w = 1; w <= st; w++) {
+                    out.push("L", f(g.px + ux * w + vx * (w - 1)) + " " + f(g.py + uy * w + vy * (w - 1)))
+                    out.push("L", f(g.px + ux * w + vx * w) + " " + f(g.py + uy * w + vy * w))
+                }
+            } else if (join === "bulge") out.push(quarter(g.px, g.py, g.r, 1 - (+g.a[4]), g.x, g.y, sq).trim())
+            else out.push("A", g.a.join(" "))
+        } else if (!sq) out.push("A", g.a.join(" "))
         else {
             var nb = neighbour(k, -1), na = neighbour(k, 1)
             var halfCircle = (nb && Math.abs(nb.r - g.r) < 0.6) || (na && Math.abs(na.r - g.r) < 0.6)

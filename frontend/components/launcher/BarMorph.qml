@@ -59,7 +59,7 @@ Item {
     readonly property real cardRFar: Theme.rLg
 
     // W53.5 (`[decor] surface.join = false`): the look keeps its cards apart from the bar (they slide in as blocks).
-    readonly property bool morph: onBar && Theme.decor("surface.join", true) !== false
+    readonly property bool morph: onBar && Theme.surfaceJoin
     // The look moves the sliding card in a form of its own (Entrance: slide, zoom, fade, flip): the slide here steps aside.
     readonly property bool formed: !morph && form.form !== "grow" && form.form !== "none"
     // On screen: opening, open or folding back.

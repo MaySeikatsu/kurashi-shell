@@ -47,7 +47,7 @@ RoundBox {
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
     // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
-    border.width: pen.active || bare || asTip || frame.drawsOutline || Theme.edgeTorn ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    border.width: pen.active || bare || asTip || frame.drawsOutline || Theme.edgeTorn ? 0 : Theme.surfaceLineW
     // The look's tooltip under the content (row 599).
     Loader {
         anchors.fill: parent
@@ -59,7 +59,7 @@ RoundBox {
             item.tailAt = Qt.binding(function () { return c.tailAt })
         }
     }
-    border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+    border.color: urgent ? Theme.accent : Theme.surfaceLineColor
     Loader {
         id: pen
         z: 3
@@ -68,7 +68,7 @@ RoundBox {
         sourceComponent: PenOutline {
             radius: c.radius
             color: c.border.color
-            lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+            lineWidth: Theme.surfaceLineW
             // Salted by the notification's id: a card keeps its line while it is swiped, and two cards differ.
             seed: c.item && c.item.id !== undefined ? (Math.imul(Number(c.item.id) | 0, 0x9E3779B1) >>> 1) : 0
         }

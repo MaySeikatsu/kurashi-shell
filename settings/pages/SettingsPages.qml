@@ -108,11 +108,16 @@ Flickable {
                                        "theme.light.color": cLightSwatches, "theme.material.shadow": cShadowPreview,
                                        "theme.material.elevation": cElevationPreview,
                                        "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus,
-                                       "layout.draw": cDrawModes, "theme.frame_outline": cFrameOutline })
+                                       "layout.draw": cDrawModes, "theme.frame_outline": cFrameOutline,
+                                       "theme.chrome": cChromeCards, "theme.join": cJoinCards,
+                                       "theme.join_corner": cJoinCornerCards, "theme.slider": cSliderCards,
+                                       "theme.toggle": cToggleCards })
     // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
     // dropdown (SettingRow.picker), with the provenance line under them.
     readonly property var pickers: ({ "theme.texture.kind": true, "theme.colors.ink": true, "theme.light.color": true,
-                                      "theme.texture.wallpaper.kind": true, "layout.draw": true, "theme.frame_outline": true })
+                                      "theme.texture.wallpaper.kind": true, "layout.draw": true, "theme.frame_outline": true,
+                                      "theme.chrome": true, "theme.join": true, "theme.join_corner": true,
+                                      "theme.slider": true, "theme.toggle": true })
     // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
     // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
@@ -152,6 +157,12 @@ Flickable {
     Component { id: cLightSwatches; LightSwatches {} }
     Component { id: cShadowPreview; ShadowPreview {} }
     Component { id: cFrameOutline; FrameOutlineCards {} }
+    // Session 28: a choice shown as pictures of what it gives (the chrome, the connection, the controls' faces).
+    Component { id: cChromeCards; ChoiceCards { kind: "chrome" } }
+    Component { id: cJoinCards; ChoiceCards { kind: "join" } }
+    Component { id: cJoinCornerCards; ChoiceCards { kind: "join_corner" } }
+    Component { id: cSliderCards; ChoiceCards { kind: "slider" } }
+    Component { id: cToggleCards; ChoiceCards { kind: "toggle" } }
     Component { id: cElevationPreview; ElevationPreview {} }
     Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
     Component { id: cKeysStatus; KeysStatus {} }

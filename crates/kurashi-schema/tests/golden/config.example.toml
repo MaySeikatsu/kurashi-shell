@@ -55,6 +55,13 @@
 #   choices: from `modules` (resolved at runtime) · since schema v7
 # popups_other = []
 #
+# Cards follow the pointer — A card that a click, a key or the command line opened moves
+# to the screen the pointer goes to and opens there again, under the same module where that
+# screen's bar has it. What a hover opened closes as the pointer leaves, and sidebars stay
+# on their screen.
+#   since schema v7
+# popups_follow = true
+#
 # On hover — What resting the pointer on a bar module opens: its small preview, its card
 # (a module without a card shows its preview), or its menu, as a right click does. What a
 # hover opened closes when the pointer has left the module and what it opened; what a click
@@ -268,6 +275,35 @@
 # blocks), or the accent. Looks set it with the rest of their outline.
 #   choices: "outline" | "text" | "accent" · since schema v7
 # outline_ink = "outline"
+#
+# Connection — How a card meets the bar it opens from, apart from the chrome. Automatic:
+# as the look and its chrome draw it. Joined: the card grows out of the bar as one shape
+# with it. Floating: a card of its own, a gap off the bar.
+#   choices: "auto" | "fused" | "float" · since schema v7
+# join = "auto"
+#
+# Connection corner — The corner where two joined surfaces meet — a card and its bar,
+# the dock, a sidebar and the frame: rounded into each other, cut straight across, stepped
+# as pixels, bulging outward as a drop, or square. Its size is the joins' radius.
+#   choices: "round" | "chamfer" | "steps" | "bulge" | "square" · since schema v7
+# join_corner = "round"
+#
+# Sliders — How every slider is drawn, in the shell and in Settings. Automatic: the look's
+# own. Line: a thin track and a knob. Expressive: a thick pill with a handle bar and a stop
+# mark. Capsule: the fill is the level, no knob. Wave: the filled part is a wave that moves
+# while you drag. Blocks: one block per step. Ink: a stroke of a brush with a blot for a
+# knob. Glow: a lit line.
+#   choices: "auto" | "line" | "expressive" | "capsule" | "wave" | "blocks" | "ink" | "glow"
+#   · since schema v7
+# slider = "auto"
+#
+# Switches — How every switch is drawn, in the shell and in Settings. Automatic: the
+# look's own. Switch: a knob in a track. Expressive: the knob grows and carries a check.
+# Capsule: a wide track, a flat knob. Lamp: a light that goes on. Stamp: a seal pressed in
+# ink. Flip: a rocker with its two sides.
+#   choices: "auto" | "switch" | "expressive" | "capsule" | "lamp" | "stamp" | "flip" · since
+#   schema v7
+# toggle = "auto"
 #
 # Density — Scales spacing and control sizes everywhere.
 #   choices: "compact" | "regular" | "airy"
@@ -499,6 +535,50 @@
 # side; off, each screen has its own.
 #   only while theme.colors.gradient.on == true
 # span_outputs = true
+
+# [theme.colors.flow]
+#
+# Colour flow — Colours move: the chrome's gradient drifts, the frame's outline and its
+# glow run through colours. It draws frames while it runs, so it is off by default and stops
+# with the motion profile None and with reduced motion.
+#   since schema v7
+# on = false
+#
+# Runs — Always; only while a card, a sidebar or the launcher is open; or only while music
+# plays.
+#   choices: "always" | "active" | "media" · only while theme.colors.flow.on == true · since
+#   schema v7
+# when = "active"
+#
+# Pattern — Drift: the colours travel slowly along the line and across the gradient.
+# Breathe: they swell and fade. Cycle: they turn round the colour wheel. Chase: a light runs
+# along the line.
+#   choices: "drift" | "breathe" | "cycle" | "chase" · only while theme.colors.flow.on ==
+#   true · since schema v7
+# pattern = "drift"
+#
+# Colours — Tones: the accent from darker to lighter. Palette: the accent, the secondary
+# and the tertiary run into each other. Rainbow: the whole wheel.
+#   choices: "tones" | "palette" | "rainbow" · only while theme.colors.flow.on == true ·
+#   since schema v7
+# colours = "palette"
+#
+# Gradient — The chrome's gradient moves (while the gradient is on).
+#   only while theme.colors.flow.on == true · since schema v7
+# gradient = true
+#
+# Frame outline — The frame's outline and the outline of what is joined to it move through
+# the colours (a hand-drawn stroke keeps its ink).
+#   only while theme.colors.flow.on == true · since schema v7
+# outline = true
+#
+# Glow — The frame's glow and the Glow chrome's light move through the colours.
+#   only while theme.colors.flow.on == true · since schema v7
+# glow = true
+#
+# Speed — 1 is one round in about twelve seconds.
+#   range: 0.25..=4.0, step 0.25 · only while theme.colors.flow.on == true · since schema v7
+# speed = 1.0
 
 # [theme.colors.media]
 #
@@ -955,6 +1035,33 @@
 #   choices: from `fonts.installed` (resolved at runtime) · only while
 #   theme.typography.mix.preset == "custom" · since schema v7
 # fonts = ["Kalam", "Patrick Hand", "Handlee"]
+
+# [theme.typography.fx]
+#
+# Text effect — How headings and labels are lit. Glow: a soft light in the text's own
+# colour. CRT: a phosphor glow with a colour fringe and scan lines. Candle: a warm light
+# that flickers. Rainbow: every letter its own colour. Shimmer: a light passes over the text
+# now and then.
+#   choices: "none" | "glow" | "crt" | "candle" | "rainbow" | "shimmer" · since schema v7
+# effect = "none"
+#
+# Fresh text — How text appears when its surface opens or its words change. Typed: letter
+# by letter, as in old games. Deciphered: signs settle into the letters. From kana: Japanese
+# letters turn into the ones that belong there. Brushed: painted in from the left. Rise:
+# each letter rises into place. Ink: it soaks in from a blur.
+#   choices: "none" | "type" | "decipher" | "kana" | "brush" | "rise" | "ink" · only while
+#   theme.motion.profile != "none" · since schema v7
+# spawn = "none"
+#
+# Applies to — Headings alone (card and page titles, the clock, the island), or every
+# label that can take it.
+#   choices: "titles" | "all" · since schema v7
+# scope = "titles"
+#
+# Speed of fresh text — 1 writes a short heading in about a third of a second.
+#   range: 0.25..=3.0, step 0.25 · only while theme.typography.fx.spawn != "none" · since
+#   schema v7
+# spawn_speed = 1.0
 
 # [theme.typography]
 #

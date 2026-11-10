@@ -260,6 +260,12 @@ pub struct Bar {
     /// cards open at the centre.
     #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
     pub popups_other: Vec<String>,
+    /// Cards follow the pointer
+    /// A card that a click, a key or the command line opened moves to the screen the pointer goes to and opens there
+    /// again, under the same module where that screen's bar has it. What a hover opened closes as the pointer leaves, and
+    /// sidebars stay on their screen.
+    #[kurashi(default = true, since = 7)]
+    pub popups_follow: bool,
     /// On hover
     /// What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its
     /// preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module
@@ -463,6 +469,30 @@ pub struct Theme {
     /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
     #[kurashi(default = OutlineInk::Outline, section = "shape", since = 7)]
     pub outline_ink: OutlineInk,
+    /// Connection
+    /// How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it.
+    /// Joined: the card grows out of the bar as one shape with it. Floating: a card of its own, a gap off the bar.
+    #[kurashi(default = Join::Auto, section = "connection", since = 7)]
+    pub join: Join,
+    /// Connection corner
+    /// The corner where two joined surfaces meet — a card and its bar, the dock, a sidebar and the frame: rounded into
+    /// each other, cut straight across, stepped as pixels, bulging outward as a drop, or square. Its size is the
+    /// joins' radius.
+    #[kurashi(default = JoinCorner::Round, section = "connection", since = 7)]
+    pub join_corner: JoinCorner,
+    /// Sliders
+    /// How every slider is drawn, in the shell and in Settings. Automatic: the look's own. Line: a thin track and a
+    /// knob. Expressive: a thick pill with a handle bar and a stop mark. Capsule: the fill is the level, no knob. Wave:
+    /// the filled part is a wave that moves while you drag. Blocks: one block per step. Ink: a stroke of a brush with a
+    /// blot for a knob. Glow: a lit line.
+    #[kurashi(default = SliderStyle::Auto, section = "controls", since = 7)]
+    pub slider: SliderStyle,
+    /// Switches
+    /// How every switch is drawn, in the shell and in Settings. Automatic: the look's own. Switch: a knob in a track.
+    /// Expressive: the knob grows and carries a check. Capsule: a wide track, a flat knob. Lamp: a light that goes on.
+    /// Stamp: a seal pressed in ink. Flip: a rocker with its two sides.
+    #[kurashi(default = ToggleStyle::Auto, section = "controls", since = 7)]
+    pub toggle: ToggleStyle,
     #[kurashi(nested, section = "motion")]
     pub motion: Motion,
     /// Density
@@ -654,6 +684,76 @@ pub enum FrameOutline {
     Glow,
 }
 
+/// Session 28: how a card meets its bar, apart from the chrome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "join")]
+pub enum Join {
+    /// Automatic
+    Auto,
+    /// Joined
+    Fused,
+    /// Floating
+    Float,
+}
+
+/// Session 28 (I270): the corner where two joined surfaces meet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "join_corner")]
+pub enum JoinCorner {
+    /// Rounded
+    Round,
+    /// Cut
+    Chamfer,
+    /// Steps
+    Steps,
+    /// Drop
+    Bulge,
+    /// Square
+    Square,
+}
+
+/// Session 28: the slider every surface draws.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "slider_style")]
+pub enum SliderStyle {
+    /// Automatic
+    Auto,
+    /// Line
+    Line,
+    /// Expressive
+    Expressive,
+    /// Capsule
+    Capsule,
+    /// Wave
+    Wave,
+    /// Blocks
+    Blocks,
+    /// Ink
+    Ink,
+    /// Glow
+    Glow,
+}
+
+/// Session 28: the switch every surface draws.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "toggle_style")]
+pub enum ToggleStyle {
+    /// Automatic
+    Auto,
+    /// Switch
+    Switch,
+    /// Expressive
+    Expressive,
+    /// Capsule
+    Capsule,
+    /// Lamp
+    Lamp,
+    /// Stamp
+    Stamp,
+    /// Flip
+    Flip,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum Scheme {
     /// Follow the system
@@ -821,6 +921,8 @@ pub struct Colors {
     pub chrome_fill: ChromeFill,
     #[kurashi(nested)]
     pub gradient: ChromeGradient,
+    #[kurashi(nested, section = "colour_flow")]
+    pub flow: ColourFlow,
     /// Contrast
     /// Raises the contrast between surfaces and text.
     #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
@@ -869,6 +971,82 @@ pub enum ChromeFill {
     Neutral,
     /// Strong colour
     Strong,
+}
+
+/// Session 28: colour in motion — the gradient, the frame's line and the glow move through colours.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct ColourFlow {
+    /// Colour flow
+    /// Colours move: the chrome's gradient drifts, the frame's outline and its glow run through colours. It draws
+    /// frames while it runs, so it is off by default and stops with the motion profile None and with reduced motion.
+    #[kurashi(default = false, since = 7)]
+    pub on: bool,
+    /// Runs
+    /// Always; only while a card, a sidebar or the launcher is open; or only while music plays.
+    #[kurashi(default = FlowWhen::Active, requires = "theme.colors.flow.on == true", since = 7)]
+    pub when: FlowWhen,
+    /// Pattern
+    /// Drift: the colours travel slowly along the line and across the gradient. Breathe: they swell and fade. Cycle:
+    /// they turn round the colour wheel. Chase: a light runs along the line.
+    #[kurashi(default = FlowPattern::Drift, requires = "theme.colors.flow.on == true", since = 7)]
+    pub pattern: FlowPattern,
+    /// Colours
+    /// Tones: the accent from darker to lighter. Palette: the accent, the secondary and the tertiary run into each
+    /// other. Rainbow: the whole wheel.
+    #[kurashi(default = FlowColours::Palette, requires = "theme.colors.flow.on == true", since = 7)]
+    pub colours: FlowColours,
+    /// Gradient
+    /// The chrome's gradient moves (while the gradient is on).
+    #[kurashi(default = true, requires = "theme.colors.flow.on == true", since = 7)]
+    pub gradient: bool,
+    /// Frame outline
+    /// The frame's outline and the outline of what is joined to it move through the colours (a hand-drawn stroke
+    /// keeps its ink).
+    #[kurashi(default = true, requires = "theme.colors.flow.on == true", since = 7)]
+    pub outline: bool,
+    /// Glow
+    /// The frame's glow and the Glow chrome's light move through the colours.
+    #[kurashi(default = true, requires = "theme.colors.flow.on == true", since = 7)]
+    pub glow: bool,
+    /// Speed
+    /// 1 is one round in about twelve seconds.
+    #[kurashi(default = 1.0, range = 0.25..=4.0, step = 0.25, requires = "theme.colors.flow.on == true", since = 7)]
+    pub speed: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "flow_when")]
+pub enum FlowWhen {
+    /// Always
+    Always,
+    /// While something is open
+    Active,
+    /// While music plays
+    Media,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "flow_pattern")]
+pub enum FlowPattern {
+    /// Drift
+    Drift,
+    /// Breathe
+    Breathe,
+    /// Cycle
+    Cycle,
+    /// Chase
+    Chase,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "flow_colours")]
+pub enum FlowColours {
+    /// Tones
+    Tones,
+    /// Palette
+    Palette,
+    /// Rainbow
+    Rainbow,
 }
 
 /// I460: the chrome's gradient, one continuous sheet that every ground shows its own part of.
@@ -1745,6 +1923,8 @@ pub enum Density {
 pub struct Typography {
     #[kurashi(nested, section = "font_mix")]
     pub mix: FontMix,
+    #[kurashi(nested, section = "text_effects")]
+    pub fx: TextFx,
     /// Font family
     /// Fallback chain; the first installed family wins (resolved via fontconfig).
     #[kurashi(default = FontFamilies::of(&["Inter", "Noto Sans CJK JP", "sans-serif"]))]
@@ -1764,6 +1944,76 @@ pub struct Typography {
     #[kurashi(default = 1.0, range = 0.75..=2.0, step = 0.05,
               overridden_by = "a11y.large_text => 1.25")]
     pub scale: f64,
+}
+
+/// I473 (session 28, `docs/ux/text-effects.md`): how text looks and how fresh text appears.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct TextFx {
+    /// Text effect
+    /// How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a
+    /// colour fringe and scan lines. Candle: a warm light that flickers. Rainbow: every letter its own colour. Shimmer:
+    /// a light passes over the text now and then.
+    #[kurashi(default = TextEffect::None, since = 7)]
+    pub effect: TextEffect,
+    /// Fresh text
+    /// How text appears when its surface opens or its words change. Typed: letter by letter, as in old games.
+    /// Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there.
+    /// Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks in from a blur.
+    #[kurashi(default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
+    pub spawn: TextSpawn,
+    /// Applies to
+    /// Headings alone (card and page titles, the clock, the island), or every label that can take it.
+    #[kurashi(default = TextFxScope::Titles, since = 7)]
+    pub scope: TextFxScope,
+    /// Speed of fresh text
+    /// 1 writes a short heading in about a third of a second.
+    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.25, requires = "theme.typography.fx.spawn != none", since = 7)]
+    pub spawn_speed: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "text_effect")]
+pub enum TextEffect {
+    /// None
+    None,
+    /// Glow
+    Glow,
+    /// CRT
+    Crt,
+    /// Candle
+    Candle,
+    /// Rainbow
+    Rainbow,
+    /// Shimmer
+    Shimmer,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "text_spawn")]
+pub enum TextSpawn {
+    /// None
+    None,
+    /// Typed
+    Type,
+    /// Deciphered
+    Decipher,
+    /// From kana
+    Kana,
+    /// Brushed
+    Brush,
+    /// Rise
+    Rise,
+    /// Ink
+    Ink,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "text_fx_scope")]
+pub enum TextFxScope {
+    /// Headings
+    Titles,
+    /// Every label
+    All,
 }
 
 /// A mix of fonts per letter, so that text looks less even, as handwriting does (I176, K93, `docs/ux/fonts.md`).

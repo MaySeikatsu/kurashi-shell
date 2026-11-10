@@ -49,8 +49,10 @@ Shape {
     property color fill: Theme.panel
 
     // A shape joined to the frame's ruled band (`ruled`) is outlined as the frame is (its ink and stroke, I303).
-    readonly property real ow: ruled ? Theme.frameOutlineW : (Theme.outlineW > 0 ? Theme.outlineW : 1)
-    readonly property color oc: ruled ? Theme.frameOutlineColor : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+    // One that floats (`chrome`) is a surface by itself: the chrome's outline, or the hairline the frame's outline gives
+    // (Theme.surfaceLineW). Joined and not ruled — the frame's outline is off — it has no line at all.
+    readonly property real ow: ruled ? Theme.frameOutlineW : (chrome ? Theme.surfaceLineW : 0)
+    readonly property color oc: ruled ? Theme.frameOutlineColor : Theme.surfaceLineColor
     readonly property real gw: chrome ? Theme.ringW * 0.5 : 0
     // The hard shadow's vector (K67; `Theme.shadowDy` straight down by default), in the canonical frame.
     readonly property real sdx: chrome ? (flipX ? -1 : 1) * Theme.sinkX : 0
@@ -145,7 +147,7 @@ Shape {
             }
             s += ln(X0, T)
         } else s += ln(X0, Y0 + tl)
-        return Corner.squircled(s + " Z", Theme.squircle)
+        return Corner.squircled(s + " Z", Theme.squircle, Theme.joinCorner)
     }
     function band(a, b) { var p = path(a, true, 0), q = path(b, true, 0); return p === "" ? "" : p + " " + q }
 
