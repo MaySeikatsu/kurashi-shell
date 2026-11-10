@@ -98,6 +98,19 @@ Singleton {
     // (an edge effect is on: a layer on a surface's face; "ripped" tears it, "painted" lays it as a brush's stroke)
     readonly property bool edgeTorn: edgeStyle === "ripped" || edgeStyle === "painted"
     readonly property real edgeUneven: tok("edge.uneven", 1)
+    // I471b: the painted look's grounds: strokes of a brush in place of boxes. The paint of a ground (a surface, a
+    // card, a bar's group): the accent thinned into the surface, lying thin, so text keeps its contrast and what is
+    // behind shows through as through a wash; of a control standing on one: a little thicker.
+    readonly property bool painted: edgeStyle === "painted"
+    readonly property color paintGround: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.30)), 0.9)
+    readonly property color paintControl: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.48)), 0.92)
+    // What the paint runs into along a stroke, as two wet colours meet (the user: "like the watercolor blend in the
+    // Gradient mode"): the gradient's far stop while the chrome's gradient is on, else the palette's second colour;
+    // thinned into the surface as the paint is.
+    readonly property color paintInto: washOn && washStops.length > 1
+        ? Qt.tint(surface, Qt.alpha(washStops[washStops.length - 1], 0.6))
+        : Qt.tint(surface, Qt.alpha(secondary, 0.36))
+    readonly property real paintBlend: tok("paint.blend", 0.85)
     readonly property real edgeDepth: tok("edge.depth", 4)
     // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
     // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its

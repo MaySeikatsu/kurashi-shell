@@ -97,11 +97,29 @@ Item {
             sourceComponent: SquircleRect { radius: face.r; color: Theme.line }
         }
     }
+    // I471b: under the painted edge a block's ground is one stroke of a brush, past its ends and with no outline, ring or
+    // shadow: a ground's own fill (the surface, a container, none) is laid in the accent, thin; a fill that says
+    // something (the accent of a pressed key, a selected tone) in that colour, thicker.
+    readonly property bool painted: Theme.edgeStyle === "painted" && !blk.bare && blk.width > 14 && blk.height > 10
+    readonly property bool paintGround: blk.fill.a < 0.5 || Qt.colorEqual(blk.fill, Theme.surface) || Qt.colorEqual(blk.fill, Theme.surfaceAlpha)
+        || Qt.colorEqual(blk.fill, Theme.container) || Qt.colorEqual(blk.fill, Theme.containerHigh)
+        || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_low", "#000"))
+    Loader {
+        z: -1
+        width: blk.width
+        height: blk.faceH
+        active: blk.painted
+        // (a block as tall as a card is covered in bands; a key, a tile or a bar's group is one stroke)
+        sourceComponent: PaintBands {
+            color: blk.paintGround ? (blk.faceH > 96 ? Theme.paintGround : Theme.paintControl)
+                : Qt.alpha(blk.fill, Math.min(0.9, Math.max(0.6, blk.fill.a)))
+        }
+    }
     Item {
         id: face
         // I471d: a torn edge, the whole face through one layer (outline, ring, fill and what stands on it).
         // Only a face with a fill of its own: on a clear one the layer's edges would be its text's.
-        layer.enabled: Theme.edgeTorn && !blk.bare && blk.fill.a > 0.5 && blk.width > 14 && blk.height > 14
+        layer.enabled: Theme.edgeTorn && !blk.painted && !blk.bare && blk.fill.a > 0.5 && blk.width > 14 && blk.height > 14
         layer.effect: EdgeWarp {}
         // The face's corner, and the fill's inside the outline and the ring.
         readonly property real r: Math.min(blk.radius, blk.faceH / 2)
@@ -175,7 +193,7 @@ Item {
         SoftShadow {
             anchors.fill: parent
             radius: blk.radius
-            amount: blk.bare ? 0 : blk.softScale
+            amount: blk.bare || blk.painted ? 0 : blk.softScale
             room: blk.glowRoom
         }
         Rectangle {
@@ -185,7 +203,7 @@ Item {
             readonly property color fillC: blk.ringW > 0 ? Theme.ring : face.shownFill
             // A frame that draws the outline itself (kami's pen), or the pen (K62), replaces the straight line.
             readonly property real lineW: over.item !== null && over.item.hidesOutline ? 0 : blk.outlineWidth
-            visible: !blk.bare
+            visible: !blk.bare && !blk.painted
             color: blk.sq ? "transparent" : fillC
             border.width: blk.sq ? 0 : lineW
             border.color: blk.outlineInk
@@ -220,7 +238,7 @@ Item {
             // panels, menus; ≥ 120 × 64 as a frame's card kind), never on keys and tiles.
             readonly property bool pattern: blk.fill.a > 0 && blk.width >= 120 && blk.faceH >= 64
                 && Theme.decor("pattern.kind", "none") !== "none" && Theme.decor("pattern.strength", 0) > 0
-            active: !blk.bare && (blk.flashes || relief || sheen || pattern || blk.banded)
+            active: !blk.bare && !blk.painted && (blk.flashes || relief || sheen || pattern || blk.banded)
             anchors.fill: parent
             sourceComponent: Item {
                 // W53.5: the fill in hard bands, top to bottom, inside the outer grid pixel (the frame's outline and the

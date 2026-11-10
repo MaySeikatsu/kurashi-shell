@@ -23,12 +23,26 @@ Item {
     readonly property real lineW: rb.penned ? 0 : rb.bw
     // I471d (K121): a torn edge. By file (see below): a host without EdgeWarp keeps its clean edge.
     readonly property Component tornEffect: Theme.edgeTorn === true ? Qt.createComponent("EdgeWarp.qml") : null
-    layer.enabled: tornEffect !== null && tornEffect.status === Component.Ready && rb.color.a > 0.5 && rb.width > 14 && rb.height > 14
+    layer.enabled: tornEffect !== null && !rb.painted && tornEffect.status === Component.Ready && rb.color.a > 0.5 && rb.width > 14 && rb.height > 14
     layer.effect: tornEffect
 
+    // I471b: under the painted look a box with a ground's fill is strokes of a brush, with no outline (by file, as the
+    // other loaders: RoundBox is linked into hosts that have no PaintBands).
+    readonly property bool painted: Theme.painted === true && !Theme.hosted && rb.color.a > 0.5 && rb.width > 24 && rb.height > 14
+    readonly property bool paintIsGround: Qt.colorEqual(rb.color, Theme.surface) || Qt.colorEqual(rb.color, Theme.surfaceAlpha)
+        || Qt.colorEqual(rb.color, Theme.container) || Qt.colorEqual(rb.color, Theme.containerHigh)
+        || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000"))
+    Loader {
+        anchors.fill: parent
+        active: rb.painted
+        source: active ? "PaintBands.qml" : ""
+        onLoaded: item.color = Qt.binding(function () {
+            return rb.paintIsGround ? (rb.height > 96 ? Theme.paintGround : Theme.paintControl) : Qt.alpha(rb.color, Math.min(0.9, Math.max(0.6, rb.color.a)))
+        })
+    }
     Rectangle {
         anchors.fill: parent
-        visible: !rb.sq
+        visible: !rb.sq && !rb.painted
         radius: rb.radius
         color: rb.color
         border.width: rb.lineW
@@ -36,7 +50,7 @@ Item {
     }
     Loader {
         anchors.fill: parent
-        active: rb.sq
+        active: rb.sq && !rb.painted
         sourceComponent: SquircleRect {
             radius: rb.radius
             color: rb.color
