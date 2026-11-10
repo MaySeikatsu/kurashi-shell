@@ -62,6 +62,8 @@ pub struct Config {
     pub title_bar: TitleBar,
     #[kurashi(nested)]
     pub cursor: Cursor,
+    #[kurashi(nested)]
+    pub quick: Quick,
 }
 
 // --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
@@ -753,7 +755,7 @@ pub struct Colors {
     /// Light or dark
     /// Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
-    #[kurashi(default = Scheme::Auto)]
+    #[kurashi(default = Scheme::Auto, module = "darkmode")]
     pub scheme: Scheme,
     /// Wallpaper colours
     /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
@@ -1836,7 +1838,7 @@ pub struct Notifications {
     pub server: bool,
     /// Do not disturb
     /// Store notifications silently; critical ones still show.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "focus")]
     pub dnd: bool,
     /// History size
     /// How many notifications are kept.
@@ -2103,7 +2105,7 @@ pub struct Idle {
     /// Idle actions
     /// Dim, lock, turn the screens off and suspend after a time without input. Apps that play video
     /// or calls that are on keep the screen awake (they inhibit idle).
-    #[kurashi(default = true)]
+    #[kurashi(default = true, module = "caffeine")]
     pub enabled: bool,
     /// Dim after
     /// Lowers the brightness a little before locking. 0 = never.
@@ -2123,7 +2125,7 @@ pub struct Idle {
     pub suspend_after: u32,
     /// Stay awake while media plays
     /// Music or video that plays keeps the screen on.
-    #[kurashi(default = true, requires = "idle.enabled == true")]
+    #[kurashi(default = true, requires = "idle.enabled == true", module = "caffeine")]
     pub inhibit_while_media: bool,
 }
 
@@ -2144,15 +2146,15 @@ pub enum NightSchedule {
 pub struct NightLight {
     /// Night light
     /// Warmer colours in the evening (wlsunset). Off by default.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "nightlight")]
     pub enabled: bool,
     /// Warmth
     /// Colour temperature at night; lower is warmer.
-    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true")]
+    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true", module = "nightlight")]
     pub temperature: u32,
     /// Schedule
     /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
-    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true")]
+    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true", module = "nightlight")]
     pub schedule: NightSchedule,
     /// From
     /// Start of the night colours, as HH:MM.
@@ -2334,6 +2336,47 @@ pub struct Sidebar {
     /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
+}
+
+// --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
+
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
+pub const QUICK_TILES: [&str; 10] = [
+    "wifi",
+    "bluetooth",
+    "focus",
+    "audio",
+    "power",
+    "brightness",
+    "caffeine",
+    "nightlight",
+    "recorder",
+    "darkmode",
+];
+
+/// How the control centre looks (W70 stage d).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "quick_style")]
+pub enum QuickStyle {
+    /// A card, as the others
+    Card,
+    /// A phone
+    Phone,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout", section = "control_centre")]
+pub struct Quick {
+    /// Control centre look
+    /// A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own
+    /// flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
+    #[kurashi(default = QuickStyle::Card, module = "quick", since = 7)]
+    pub style: QuickStyle,
+    /// Control centre tiles
+    /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
+    pub tiles: Vec<String>,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

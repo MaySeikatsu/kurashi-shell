@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// The core modules (K72), in the order Settings offers them and `unplaced` lists them.
-pub const CORE_MODULES: [&str; 12] = [
+pub const CORE_MODULES: [&str; 23] = [
     "workspaces",
     "windows",
     "island",
@@ -28,10 +28,35 @@ pub const CORE_MODULES: [&str; 12] = [
     "sidebar_left",
     "sidebar_right",
     "launcher",
+    "wifi",
+    "bluetooth",
+    "audio",
+    "mic",
+    "power",
+    "brightness",
+    "focus",
+    "caffeine",
+    "nightlight",
+    "darkmode",
+    "airplane",
 ];
 /// Core modules no default bar has, offered in Settings but never listed as `unplaced`: a start button (W53.0b, K80) is
-/// something a user or a style's layout preset adds, not something that went missing.
-pub const OPTIONAL_MODULES: [&str; 1] = ["launcher"];
+/// something a user or a style's layout preset adds, not something that went missing; so is each control of the control
+/// centre as a module of its own (W70: the centre holds them; a bar takes one when the user pins it).
+pub const OPTIONAL_MODULES: [&str; 12] = [
+    "launcher",
+    "wifi",
+    "bluetooth",
+    "audio",
+    "mic",
+    "power",
+    "brightness",
+    "focus",
+    "caffeine",
+    "nightlight",
+    "darkmode",
+    "airplane",
+];
 /// The pseudo module: every enabled mod widget no zone of the output names (where mod widgets went before K71).
 pub const MODS: &str = "mods";
 

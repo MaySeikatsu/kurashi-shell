@@ -1042,6 +1042,64 @@
               "type": "bool"
             }
           ]
+        },
+        {
+          "id": "control_centre",
+          "label": "settings.section.control_centre",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_style.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_style.phone",
+                  "value": "phone"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.style.help",
+              "key": "quick.style",
+              "label": "config.quick.style.label",
+              "modules": [
+                "quick"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "quick.tiles",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [
+                "wifi",
+                "bluetooth",
+                "focus",
+                "audio",
+                "power",
+                "brightness",
+                "caffeine",
+                "nightlight",
+                "recorder",
+                "darkmode"
+              ],
+              "help": "config.quick.tiles.help",
+              "key": "quick.tiles",
+              "label": "config.quick.tiles.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            }
+          ]
         }
       ]
     },
@@ -1124,6 +1182,9 @@
               "help": "config.theme.colors.scheme.help",
               "key": "theme.colors.scheme",
               "label": "config.theme.colors.scheme.label",
+              "modules": [
+                "darkmode"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6088,6 +6149,9 @@
               "help": "config.notifications.dnd.help",
               "key": "notifications.dnd",
               "label": "config.notifications.dnd.label",
+              "modules": [
+                "focus"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6617,6 +6681,9 @@
               "help": "config.idle.enabled.help",
               "key": "idle.enabled",
               "label": "config.idle.enabled.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6738,6 +6805,9 @@
               "help": "config.idle.inhibit_while_media.help",
               "key": "idle.inhibit_while_media",
               "label": "config.idle.inhibit_while_media.label",
+              "modules": [
+                "caffeine"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6757,6 +6827,9 @@
               "help": "config.night_light.enabled.help",
               "key": "night_light.enabled",
               "label": "config.night_light.enabled.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6780,6 +6853,9 @@
               "label": "config.night_light.temperature.label",
               "max": 6500,
               "min": 1500,
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -6817,6 +6893,9 @@
               "help": "config.night_light.schedule.help",
               "key": "night_light.schedule",
               "label": "config.night_light.schedule.label",
+              "modules": [
+                "nightlight"
+              ],
               "per_output": false,
               "restart": false,
               "since": 1,

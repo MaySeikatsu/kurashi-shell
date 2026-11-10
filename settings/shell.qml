@@ -732,6 +732,7 @@ ShellRoot {
                                             id: sub
                                             required property var modelData
                                             readonly property bool here: settingsPages.sectionId === modelData.id
+                                            objectName: "sub:" + modelData.id
                                             width: subs.width
                                             height: Theme.controlH - 6
                                             activeFocusOnTab: true

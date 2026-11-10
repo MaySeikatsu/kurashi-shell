@@ -175,7 +175,14 @@ PanelWindow {
     // A view that draws its own chrome (`ownChrome`, the quick settings phone): no card fill, border, padding or Close row
     // around it; the island's shape (or the slide) still brings it in. Known per kind before the view is made (I192: the
     // view loads asynchronously, and the card's padding must not jump when it arrives).
-    readonly property bool ownChrome: viewing && (["quick", "power", "bluetooth"].indexOf(contentKind) >= 0
+    // W70 (d): the control centre is such a view only as a phone (`quick.style = phone`) or a look's flyout; as a card
+    // (the default) the Stage draws its chrome as for every other card (QuickPanel reads the same setting).
+    readonly property bool quickPhone: {
+        var v = ((Store.docs["config"] || {}).values || {})["quick.style"]
+        return !!v && v.value === "phone"
+    }
+    readonly property bool quickOwnChrome: quickPhone || Theme.decor("quick.frame", "phone") === "flyout"
+    readonly property bool ownChrome: viewing && ((["quick", "power", "bluetooth"].indexOf(contentKind) >= 0 && quickOwnChrome)
         || (view.item !== null && view.item.ownChrome === true))
     // I192 (W36): the view is made asynchronously, so the patch that opens a panel is answered by a frame at once. The
     // card takes the size that view had the last time it was shown (per kind; a mod panel and a mod face's view per
@@ -203,7 +210,7 @@ PanelWindow {
     // W53.4 (lead review): quick settings drawn as a flyout (`[decor] quick.frame = flyout`) are their own chrome — a menu
     // extra's drop-down, Control Centre, 11's flyout — and get no caption or window frame round them.
     readonly property bool flyoutView: ["quick", "power", "bluetooth"].indexOf(contentKind) >= 0
-        && Theme.decor("quick.frame", "phone") === "flyout"
+        && !quickPhone && Theme.decor("quick.frame", "phone") === "flyout"
     readonly property bool titled: titleDoc !== null && contentKind !== "" && !flyoutView
     // A flyout that hangs from its bar (`[decor] flyout.hang`, Mac OS X's menu extras) meets the bar's edge (BarConfig's
     // 4 px inset left out; the flyout leaves out its own shadow room on that side).
@@ -1077,7 +1084,8 @@ PanelWindow {
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
     readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
-    readonly property string ownKey: contentKind === "quick" ? "quick"
+    // (W70: the quick card a control's module opened comes out under that module, I340's `module:<id>`, not the button)
+    readonly property string ownKey: contentKind === "quick" ? (openedFrom !== "" && openedFrom !== "quick" ? "" : "quick")
         : (contentKind === "tray" ? (moduleMenuShown ? shownTray : "tray:" + shownTray)
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none

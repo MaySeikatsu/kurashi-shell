@@ -85,8 +85,10 @@ Item {
     readonly property string hoverMode: mid !== "" ? Peeks.hoverModeOf(mid) : "preview"
     // The module's card, where a hover can open it without toggling it shut: a mod's panel, the clock's face, the quick
     // settings card, the launcher. "" for a module that has none: its hover stays its preview.
+    // W70: a control's module (ControlModule) — its page in the control centre ("page"; one without a page has no card).
     readonly property string hoverSurface: isMod ? (item && item.hasPanel ? "mod" : "")
-        : (["clock", "launcher"].indexOf(mid) >= 0 || (mid === "quick" && item && item.opensCard === true) ? mid : "")
+        : (["clock", "launcher"].indexOf(mid) >= 0 || (mid === "quick" && item && item.opensCard === true) ? mid
+        : (item && item.cardPage !== undefined && item.cardPage !== "" ? "page" : ""))
     HoverHandler {
         id: hov
         enabled: host.shown && host.mid !== "" && host.hoverMode !== "preview"
@@ -108,6 +110,9 @@ Item {
             if ((Peeks.ui.panel || "") === "quick") return
             Isl.IslandGeom.notePress(output, mid)
             Store.act("quick.toggle")
+        } else if (hoverSurface === "page") {
+            if (item.cardShown) return
+            item.showCard()
         } else return
         Peeks.dismiss()
         Peeks.hoverOpened(host.mid)
@@ -145,7 +150,10 @@ Item {
     readonly property var core: ({
         workspaces: workspaces, windows: windows, island: island, volume: volume, recorder: recorder,
         keyboard: keyboard, clock: clock, quick: quick, tray: tray, sidebar_left: sidebarLeft, sidebar_right: sidebarRight,
-        launcher: launcher
+        launcher: launcher,
+        // W70: the control centre's controls, each a module of its own.
+        wifi: wifiM, bluetooth: bluetoothM, audio: audioM, mic: micM, power: powerM, brightness: brightnessM, focus: focusM,
+        caffeine: caffeineM, nightlight: nightlightM, darkmode: darkmodeM, airplane: airplaneM
     })
     Loader {
         id: loader
@@ -164,5 +172,16 @@ Item {
     Component { id: sidebarLeft; SidebarToggle { side: "left"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: sidebarRight; SidebarToggle { side: "right"; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: launcher; Launcher { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: wifiM; Wifi { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: bluetoothM; Bluetooth { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: audioM; AudioOut { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: micM; Mic { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: powerM; Power { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: brightnessM; Brightness { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: focusM; Focus { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: caffeineM; Caffeine { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: nightlightM; NightLight { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: darkmodeM; DarkMode { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: airplaneM; Airplane { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: modWidget; ModWidget { mod: host.entry.mod || ""; provide: host.entry.provide || ""; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
 }
