@@ -287,6 +287,15 @@ Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along 
       the page turn (the turn is the host's card's).
 
 ## In the bar's card (W72, session 27; I482)
+**The user's answers (session 28, 2026-11-10).** (1) *Esc: the page first, then close.* Built: with the keys in the
+page the first Esc is handed to the page (a key event the host makes: `isTrusted` is false, so a site that answers only
+the keyboard's own events does not react) and the card stays; a second Esc within 1.5 s closes the card; with the keys
+on the card's own row Esc closes at once. (2) *A click on the module opens the card*, a second click closes it; the
+dock at the edge is a middle click, its key or the command line. Built; an entry in the module's menu is not (I488).
+(3) *The card's size is a setting* (Phone, Tablet, Wide; one for all pins). Not built (I488). (4) *Last opened wins*:
+the place opened most recently shows the pin's page, the others say "shown elsewhere" with a key to bring it here. Not
+built (I488). Suite: `mods/webdock/test/test-card.sh` steps 6 and 6b.
+
 **User (2026-11-10, with a screenshot of a bottom bar's right corner):** "make the webdock actually appear in the corner it
 opens from on hover, basically filling the blank field with web content here". The bar module's card (click, or a rest
 under `bar.hover = card`) showed the pins and an empty well saying "Sites show here when the web dock is a sidebar tab".

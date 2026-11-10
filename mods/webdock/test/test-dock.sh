@@ -507,8 +507,9 @@ phase_intents() {
   docq "[p['id'] for p in d['pins']]==['mail','example-test']" && r=1 || r=0
   check "$r" "add: the mock adds the pin, and the form closes with the keyboard back on the add control"
   click 2256 17   # W23: the keyboard layout chip sits right of the widget (was 2338); K58: the sidebar button too (was 2304)
-  seen "i['action']=='webdock.toggle' and i['args'].get('output')=='HEADLESS-1'" && r=1 || r=0
-  check "$r" "bar widget: a click sends webdock.toggle for the output the bar is on"
+  # (I482, session 28: a click opens the dock's card; the dock at the edge is a middle click. The click's fixed x is I403's.)
+  seen "i['action']=='mod.panel.open' and i['args'].get('id')=='webdock'" && r=1 || r=0
+  check "$r" "bar widget: a click asks for the dock's card (mod.panel.open)"
   stop_phase
 }
 
