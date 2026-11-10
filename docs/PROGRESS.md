@@ -360,3 +360,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.1 | Icon tint keeps an icon's drawing; launcher rows and notifications tinted (K110 rework) | ✅ functional · ✅ UX (user, live) · B62 not seen | feat/s27-icon-tint |
 | S27.2 | Open on hover, a module's own choice; every bar peek joins the bar (I457, I458, K113) | ✅ functional · 🟡 UX (timings and join seen live; the menu row and the launcher on hover to judge) | feat/s27-bar-hover |
 | S27.3 | Paint forms: splat, brush, snake (I467, K114) | ✅ functional · 🟡 UX (stills judged; the user has not seen them move) | feat/s27-paint-forms |
+| S27.5 | Glow chrome (I471a, K116) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-chrome-glow |

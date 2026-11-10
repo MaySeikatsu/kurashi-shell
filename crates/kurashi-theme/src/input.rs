@@ -110,7 +110,8 @@ pub use kurashi_motion::Request as MotionRequest;
 /// How a block of chrome is drawn (K42, K45): flat fills; keycaps — outline, light ring, fill and a
 /// hard shadow straight down that the block sinks into when pressed; soft — a hairline rim and a
 /// soft drop shadow, pressed blocks shrink a little; line — ink outlines, no shadow, crisp; bevel (W53.0a, K80) — two
-/// 1 px light/dark pairs, light from the top left, swapped while pressed or sunken (Windows 9x).
+/// 1 px light/dark pairs, light from the top left, swapped while pressed or sunken (Windows 9x); glow (I471) — an accent
+/// outline and an accent glow straight out of every block (a neon tube).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Chrome {
     #[default]
@@ -119,6 +120,8 @@ pub enum Chrome {
     Soft,
     Line,
     Bevel,
+    /// I471 (K116): an outline in the accent and a glow of it round every block, straight out, no offset.
+    Glow,
 }
 
 impl Chrome {
@@ -129,6 +132,7 @@ impl Chrome {
             "soft" => Chrome::Soft,
             "line" => Chrome::Line,
             "bevel" => Chrome::Bevel,
+            "glow" => Chrome::Glow,
             _ => Chrome::Flat,
         }
     }

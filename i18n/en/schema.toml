@@ -326,6 +326,7 @@
 "config.choice.chrome.soft" = "Soft"
 "config.choice.chrome.line" = "Lines"
 "config.choice.chrome.bevel" = "Bevel"
+"config.choice.chrome.glow" = "Glow"
 "config.theme.frame_outline.label" = "Frame outline"
 "config.theme.frame_outline.help" = "A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft."
 "config.choice.frame_outline.auto" = "Automatic"

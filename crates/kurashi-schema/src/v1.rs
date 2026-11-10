@@ -582,6 +582,8 @@ pub enum Chrome {
     Line,
     /// Bevel
     Bevel,
+    /// Glow
+    Glow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

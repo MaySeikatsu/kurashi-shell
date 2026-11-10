@@ -463,6 +463,7 @@
 "config.choice.chrome.soft" = "ソフト"
 "config.choice.chrome.line" = "線"
 "config.choice.chrome.bevel" = "ベベル"
+"config.choice.chrome.glow" = "グロー（光る縁）"
 "config.theme.frame_outline.label" = "フレームの輪郭"
 "config.theme.frame_outline.help" = "フレームの内側の縁と、そこにつながるもの（バー・ドック・サイドバー）の側面に沿って、クロームの描き方で線を引きます。自動はキーキャップと線でオン、フラットとソフトでオフ。"
 "config.choice.frame_outline.auto" = "自動"

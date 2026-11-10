@@ -848,7 +848,7 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80).
 
 - type: `choice` · default: `"flat"`
-- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"`
+- choices: `"flat"` | `"keycap"` | `"soft"` | `"line"` | `"bevel"` | `"glow"`
 - forced to `"flat"` while `a11y.high_contrast` is on
 
 #### `theme.frame_outline` — Frame outline

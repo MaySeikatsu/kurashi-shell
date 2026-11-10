@@ -2461,6 +2461,10 @@
                 {
                   "label": "config.choice.chrome.bevel",
                   "value": "bevel"
+                },
+                {
+                  "label": "config.choice.chrome.glow",
+                  "value": "glow"
                 }
               ],
               "control": "select",

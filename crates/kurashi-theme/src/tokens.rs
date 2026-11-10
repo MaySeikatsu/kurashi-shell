@@ -316,7 +316,7 @@ pub fn build(
     let (icon_fill, icon_weight) = match axes.chrome {
         Chrome::Keycap => (1, 600),
         Chrome::Soft | Chrome::Flat | Chrome::Bevel => (0, 400),
-        Chrome::Line => (0, 300),
+        Chrome::Line | Chrome::Glow => (0, 300),
     };
     let own_or = |key: &str, d: i64| match dnum(key) as i64 {
         v if v >= 0 => v,
@@ -348,6 +348,8 @@ pub fn build(
         Chrome::Soft => "soft",
         Chrome::Line => "line",
         Chrome::Bevel => "bevel",
+        // (the motion's automatic profile knows the five; a glowing outline moves as the lines do)
+        Chrome::Glow => "line",
     };
     let motion = kurashi_motion::resolve::resolve(&axes.motion, axes.motion_speed, chrome);
     t.extend(motion.tokens);
@@ -434,6 +436,19 @@ pub fn build(
         },
         // W53.0a (K80): the bevel's lines are its own tokens (`bevel.*`, below): no outline, ring or shadow; a press swaps
         // the pairs and moves the content (`bevel.press_offset`), it neither sinks nor shrinks.
+        // I471 (K116): glow. The outline is the tube, the soft shadow its light: no offset (it shines every way), coloured
+        // by the accent below. Blocks stand as groups, as the lines do; a press dims nothing, it shrinks a little.
+        Chrome::Glow => Ch {
+            style: "glow",
+            outline: 1.5,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 14.0,
+            soft_dy: 0.0,
+            press_scale: 0.97,
+            groups: true,
+            frame_outline: true,
+        },
         Chrome::Bevel => Ch {
             style: "bevel",
             outline: 0.0,
@@ -491,6 +506,7 @@ pub fn build(
     let (oc, oa) = match axes.chrome {
         Chrome::Keycap => (g("line"), 1.0),
         Chrome::Line => (g("outline"), 1.0),
+        Chrome::Glow => (g("accent"), 1.0),
         Chrome::Soft => (
             if p.dark { WHITE } else { g("on_surface") },
             if p.dark { 0.16 } else { 0.10 },
@@ -583,10 +599,22 @@ pub fn build(
         t.insert(format!("font.{part}"), json!(own));
     }
     t.insert("chrome.outline_alpha".into(), json!(oa));
-    col(&mut t, "chrome.soft_color", g("shadow"));
+    // I471: a glow is light, so it takes the accent and is strongest on a dark ground; on a light one it is a coloured
+    // halo, fainter, since light does not show on paper.
+    let glow = axes.chrome == Chrome::Glow;
+    col(
+        &mut t,
+        "chrome.soft_color",
+        if glow { g("accent") } else { g("shadow") },
+    );
     t.insert(
         "chrome.soft_alpha".into(),
-        json!(if p.dark { 0.45 } else { 0.18 }),
+        json!(match (glow, p.dark) {
+            (true, true) => 0.75,
+            (true, false) => 0.5,
+            (false, true) => 0.45,
+            (false, false) => 0.18,
+        }),
     );
     // Keycap type is heavier: the rounded families it is paired with read thin at 500.
     if keycap {
