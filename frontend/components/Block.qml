@@ -131,7 +131,10 @@ Item {
         readonly property real r: Theme.edgeStyle === "ripped" && !blk.bare ? Math.min(blk.radius, 3) : Math.min(blk.radius, blk.faceH / 2)
         readonly property real innerR: Math.max(0, r - blk.inset)
         // The fill as drawn: it follows `fill` through one colour animation (the ring's colour never animates).
-        property color shownFill: blk.fill
+        // (I471d: under the torn edge a scrap with a ground's fill is a shade off the sheet it lies on, so it reads as its
+        // own piece of paper)
+        property color shownFill: Theme.edgeStyle === "ripped" && !blk.bare && blk.fill.a > 0.5 && blk.paintGround && !blk.paintAlways
+            ? Qt.tint(blk.fill, Theme.darkScheme ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(0, 0, 0, 0.085)) : blk.fill
         Behavior on shownFill { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
         // 0 at rest, 1 pressed: the sink along the vector and the shrink to the press scale, one eased value (a chrome
         // has one or the other). At the ends it is exactly what it stands for, so a block at rest or held is unchanged.

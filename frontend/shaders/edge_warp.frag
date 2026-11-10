@@ -73,10 +73,10 @@ void torn(vec4 c) {
     // (a thing from about a tile's height up is torn in bays too, shallower than a card's; a thinner one only when its
     // owner says it stands as a sheet by itself)
     float sheet = max(uMode.z, step(34.0, min(size.x, size.y)));
-    float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), sheet * 0.42);
+    float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), sheet * 0.62);
     float r = depth * (0.35 + 2.4 * bay * bay) * big + min(depth, 1.6) * (0.3 + 0.9 * jag);
     // (never deeper than about a twelfth of the thing: a bar's group keeps its body)
-    r = min(r, 0.08 * min(size.x, size.y) + 0.6);
+    r = min(r, 0.11 * min(size.x, size.y) + 0.6);
     float thr = c.a * 0.5;
     if (reach(qt_TexCoord0, r) < thr) { fragColor = vec4(0.0); return; }
     // A small scrap (a key, a workspace's number) has a corner or two torn off: each corner its own chance and size,
