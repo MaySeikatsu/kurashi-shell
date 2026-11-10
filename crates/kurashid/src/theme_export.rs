@@ -365,7 +365,7 @@ pub struct Run<'a> {
     /// `theme.export_fonts` (K104, K105), `theme.export_fonts_pages`.
     pub fonts: bool,
     pub fonts_pages: bool,
-    /// The apps' own palette (I454, K122) while `theme.colors.real_palettes` is on and in effect.
+    /// The apps' own palette (I454, K123) while `theme.colors.real_palettes` is on and in effect.
     pub apps: Option<&'a kurashi_theme::apps_palette::AppsPalette>,
 }
 
@@ -857,7 +857,7 @@ pub fn register_actions(actions: &mut crate::actions::ActionRegistry, store: Arc
     );
 }
 
-/// The apps' own palette (I454, K122) for the theme the apps see, or `None`: the switch is off, or the high contrast
+/// The apps' own palette (I454, K123) for the theme the apps see, or `None`: the switch is off, or the high contrast
 /// or a colour-blind aid is on (they need the shell's own colours, which the stages made legible). The pick is kept
 /// between runs, so a near-tie does not flip a terminal's theme (`kurashi_theme::apps_palette::pick`).
 fn apps_palette(

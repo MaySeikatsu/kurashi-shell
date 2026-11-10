@@ -122,7 +122,7 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: !mat ? "" : I18n.tr("theme.export.material." + (mat.how === "off" ? "off_" + mat.why : mat.how))
             }
-            // I454 (K122): the palette a terminal or its tool wears instead of the shell's colours, and why that one.
+            // I454 (K123): the palette a terminal or its tool wears instead of the shell's colours, and why that one.
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType

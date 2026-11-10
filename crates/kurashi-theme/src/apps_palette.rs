@@ -1,4 +1,4 @@
-//! The apps' own palette (I454, K122): with `theme.colors.real_palettes` on, terminals and the tools that run in them
+//! The apps' own palette (I454, K123): with `theme.colors.real_palettes` on, terminals and the tools that run in them
 //! wear a published theme as its authors made it — the 16 terminal colours verbatim, the rest from the same palette —
 //! instead of colours derived from the shell's roles. The palette the shell wears is taken when it publishes a table
 //! for the scheme (`Why::Own`); else the published theme whose colours lie closest to the shell's (`Why::Closest`).

@@ -127,7 +127,7 @@ pub struct Inputs<'a> {
     pub titlebars: bool,
     /// The palette, for the titlebar lines (they are written whole, so their colours are filled here).
     pub palette: &'a Palette,
-    /// The terminal colours of the apps' own palette (I454, K122), or `None`: the 16 colours derived from the roles.
+    /// The terminal colours of the apps' own palette (I454, K123), or `None`: the 16 colours derived from the roles.
     pub term: Option<&'a crate::palette::Terminal>,
 }
 
@@ -866,7 +866,7 @@ pub struct Target {
 }
 
 /// Written in place of a superseded file (see [`Target::legacy`]). Comments only: an empty include is valid for niri.
-/// Whether target `name` wears the apps' own palette while `theme.colors.real_palettes` is on (I454, K122): the
+/// Whether target `name` wears the apps' own palette while `theme.colors.real_palettes` is on (I454, K123): the
 /// terminals and the tools that run inside one. The desktop's toolkits, the browsers, the editors with a window of
 /// their own and the compositors keep the shell's colours.
 pub fn wears_apps_palette(name: &str) -> bool {
