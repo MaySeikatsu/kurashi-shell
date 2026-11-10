@@ -253,16 +253,37 @@ Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along 
   while it turns (a SheetForm loaded for the transition); the tablet morph's Glide rests at its end; 0 frames in 5 s with
   a page open and still (measured). The phone's minute clock is watched only in the phone style.
 
+### As built (W69)
+- **Binding side:** the card's wording ("the right-hand sheet, at a left edge the left-hand one") and its acceptance
+  ("the binding on the dock's side") disagree; built: the binding on the **dock's side** (a right edge binds on the
+  right, so the sheet is a left-hand page). A question for the user.
+- **Plain's join:** the card stands against the strip with the dock card's own hinge (as the shell's view card); no
+  concave fillets into the strip — the strip is the shell's surface and usually shorter than the card, and the host
+  does not know its span. The panel form opens it from a 32 px mouth in the middle of the span (row 694's ask).
+- **Material:** the shell's cards (view, cold, empty) take the look's relief on the device's screen (DeviceFrame's
+  `relief`, as PhoneFrame); the web host's theme has no texture (its Theme has no `texShell`), so the host's frames are
+  the look's colours, outline and shadow without relief — as the phone was before.
+- **Frames** live once in `mods/webdock/host/frames/` (DeviceFrame, NotebookGeom/Back/Sheet/Wire, FrameBox) and the
+  shell reaches them through the link `mods/webdock/qml/frames`; they import nothing of either tree and take the
+  caller's Theme, RoundBox and Relief as values (`theme`, `box`, `relief`).
+- **Test aid:** `KURASHI_WEBDOCK_HOLD=<file>` (test only): the host holds the card at `open <p>` or `wide <p>` (a watched
+  file, nothing polls), so shots are taken by progress.
+
 ### Definition of done (W69)
-- [ ] `page_style` setting (mod.toml, i18n en/ja, daemon `page_style` in `mod.webdock`, forced provenance).
-- [ ] Each style draws the page with a pin open (host) and the shell's view/cold/empty card in the same style.
-- [ ] A style change and a size change keep the page (no new load report).
-- [ ] Phone large is a tablet (wider than tall) and back, continuously.
-- [ ] The notebook's binding is on the dock's side at a left and a right edge.
-- [ ] Notebook page turn, plain panel form; reduced motion fades.
-- [ ] No QML error or warning; idle 0 frames in 5 s with a static page open.
-- [ ] Screenshots on nested niri, light and dark: each style closed → open at three steps and at rest, the phone
-      extended — `mods/webdock/shots/styles/`.
+- [x] `page_style` setting (mod.toml, i18n en/ja, daemon `page_style` in `mod.webdock`, forced provenance; rows 696,
+      697 for PROTOCOL/MODS and Home-Manager).
+- [x] Each style draws the page with a pin open (host) and the shell's view/cold/empty card in the same style.
+- [x] A style change and a size change keep the page (no new load report) — `mods/webdock/test/test-styles.sh`.
+- [x] Phone large is a tablet (wider than tall) and back, continuously (held half-way in the shots).
+- [x] The notebook's binding is on the dock's side at a left, right, top and bottom edge.
+- [x] Notebook page turn, plain panel form (expand, fold, slide checked); reduced motion fades (motion profile none).
+- [x] No QML error or warning; idle 0 surface commits in 5 s with a still page open, in each style.
+- [x] Screenshots on nested niri, light and dark: each style opening at three held steps and at rest
+      (`<style>-<scheme>-open.png`), the large size held half-way and at rest (`<style>-<scheme>-large.png`, the
+      phone's is the tablet), the shell's view card (`<style>-<scheme>-view.png`) — `mods/webdock/shots/styles/`,
+      `mods/webdock/test/shots-styles.sh`.
+- [ ] The page turn on the shell's own cards (view, cold, empty): they open in the panel form the profile names, not in
+      the page turn (the turn is the host's card's).
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
