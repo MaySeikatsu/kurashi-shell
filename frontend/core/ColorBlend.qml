@@ -94,12 +94,57 @@ Scope {
         Theme.liveColors = null
     }
 
+    // ---- The cross-fade (session 27; components/ColorFade.qml). A change of colour that fades (`motion.blend_colors`, or
+    // Dynamic Media Color's `fade`) is not stepped colour by colour: the gate holds the new tokens back, every window
+    // takes a picture of itself, the tokens come in under the pictures and the pictures fade. The wheel blends of
+    // Dynamic Media Color still step (below): they turn colours, which a cross-fade cannot.
+    property bool holding: false
+    property bool crossed: false
+    // KURASHI_FADE_LOG=1: which colours started a cross-fade (an idle shell must start none: test-frame's idle check).
+    readonly property bool logs: Quickshell.env("KURASHI_FADE_LOG") === "1"
+    function gate(next) {
+        if (cb.holding) return true                      // (a change while one is held: the release takes the latest)
+        var was = cb.rest
+        if (!was || !Theme.springOn) return false
+        var nowTint = "" + (next["media.tint"] || ""), tinted = nowTint !== cb.tint
+        var kind = "" + (next["media.blend"] || "fade")
+        if (tinted ? kind !== "fade" : next["motion.blend_colors"] !== true) return false
+        // (not for the material's ink alone: it arrives with the material's tiles, seconds after a change of look, and
+        // the tiles themselves come in as a cut — a fade of every window for that one colour is a redraw of the idle
+        // shell)
+        var nf = flat(next), n = 0
+        var why = []
+        for (var k in nf) if (was[k] !== undefined && was[k] !== nf[k] && k.indexOf("texture.") !== 0) { n++; if (cb.logs) why.push(k + " " + was[k] + ">" + nf[k]) }
+        if (n === 0) return false
+        if (cb.logs) console.log("kurashi-fade gate", n, why.slice(0, 12).join(", "))
+        if (ticker.running) settle()
+        Theme.fadeMs = tinted ? Number(next["media.blend_ms"] || 1200) : Math.max(120, Number(next["motion.blend_colors_ms"] || 320))
+        cb.holding = true
+        cb.crossed = true
+        Theme.fadeCapture++
+        release.restart()
+        return true
+    }
+    Component.onCompleted: Theme.fadeGate = cb.gate
+    // (two frames for every window's picture to be taken; then the new tokens come in)
+    Timer {
+        id: release
+        interval: 45
+        onTriggered: {
+            Theme.fadeShow++
+            Theme.tokens = Theme.sourceTokens
+            cb.holding = false
+            Qt.callLater(function () { Theme.fadeRun++ })
+        }
+    }
+
     onTokensChanged: {
         var was = cb.rest, now = flat(tokens), nowTint = "" + (tokens["media.tint"] || "")
         var changed = nowTint !== cb.tint
         cb.rest = now
         cb.tint = nowTint
         if (!was) return                                    // the first theme: nothing to come from
+        if (cb.crossed) { cb.crossed = false; return }      // (the cross-fade has this change)
         if (!changed) {
             if (ticker.running) { cb.to = now; return }     // a theme change mid-blend: the same way, to the new colours
             // I472 (K117): any other change of colour — a palette, the scheme, a look, the wallpaper's colours — fades

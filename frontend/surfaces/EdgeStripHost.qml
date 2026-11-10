@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../components"
 
 // The edge strips of one output (EdgeStrips, K71): for each edge, a 4 px window with a 2 px input zone at the very edge,
 // only while something on that edge reveals on hover. It reports the pointer's place along the edge and nothing else;
@@ -17,6 +18,8 @@ Scope {
         LazyLoader {
             active: EdgeStrips.wanted(host.modelData ? host.modelData.name : "", st.edge)
             PanelWindow {
+                // (the change of colour as a cross-fade: components/ColorFade.qml)
+                ColorFade {}
                 id: win
                 screen: host.modelData
                 implicitWidth: st.side ? 4 : 0

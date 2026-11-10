@@ -45,6 +45,8 @@ import "../components/bar/framegeom.js" as FG
 // one is open retargets the one shape (the view fades first, then the content swaps). The window is the box round origin
 // and card (left-anchored, `boxL`), fitted when the shape comes out and only grown while it is out.
 PanelWindow {
+    // (the change of colour as a cross-fade: components/ColorFade.qml)
+    ColorFade {}
     id: stage
 
     // K59: this window's tile set, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
@@ -303,6 +305,36 @@ PanelWindow {
         id: modPanelView
         ModLoader { provide: stage.shownPanel; mod: stage.shownPanelMod }
     }
+    // W72: a mod panel that shows a window of its own process over part of itself (the web dock's page) declares
+    // `property var cardPlacement` and is handed where it rests on the output: `{output, rest, x, y, width, height}`,
+    // logical px from the output's top-left corner (the Stage ignores zones), `rest: false` (no rect) while the card opens,
+    // moves, resizes or closes. The sidebar's Placement, from this window's origin on the output. Generic: no mod named.
+    readonly property point outOrigin: {
+        var w = card.Window.window, sw = screen ? screen.width : 0, sh = screen ? screen.height : 0
+        var ww = w ? w.width : 0, wh = w ? w.height : 0
+        return Qt.point(anchors.left ? margins.left : (anchors.right ? sw - margins.right - ww : Math.round((sw - ww) / 2)),
+                        anchors.top ? margins.top : (anchors.bottom ? sh - margins.bottom - wh : Math.round((sh - wh) / 2)))
+    }
+    readonly property bool cardAtRest: open && shown && !gate && viewReady && !swapping && !resizing && !run.busy
+        && (morphMode ? reached : p >= 1)
+    readonly property bool modPlaces: modPanel !== null && modPanel.cardPlacement !== undefined
+    Placement {
+        id: modPlacement
+        target: stage.modPlaces && stage.cardAtRest ? stage.modPanel : null
+        win: card.Window.window
+        output: stage.outName
+        origin: Qt.point(-stage.outOrigin.x, -stage.outOrigin.y)
+    }
+    // (handed over on the next turn, not by a Binding: the panel's size follows its value, and its size moves the rect)
+    readonly property var modPlace: modPlacement.value ? { output: modPlacement.value.output, rest: true,
+        x: modPlacement.value.inset, y: modPlacement.value.top, width: modPlacement.value.width,
+        height: modPlacement.value.height } : { output: outName, rest: false }
+    function handPlace() {
+        var mp = modPanel
+        if (mp && mp.cardPlacement !== undefined) mp.cardPlacement = modPlace
+    }
+    onModPlaceChanged: Qt.callLater(handPlace)
+    onModPanelChanged: Qt.callLater(handPlace)
     // A mod face's expanded view (K28, `island-face:<name>:expanded`), or the generic card when the mod has none.
     Component {
         id: modFaceView
@@ -1698,7 +1730,8 @@ PanelWindow {
         onWidthChanged: stage.recordSize()
         onHeightChanged: stage.recordSize()
         // I458: what a hover opened stays while the pointer is on it, and is the user's once they press in it.
-        HoverHandler { onHoveredChanged: hovered ? Peeks.hoverHold() : Peeks.hoverLeave() }
+        // (W72: and says it is on the card, so an overlay window's leave onto the card does not close it)
+        HoverHandler { onHoveredChanged: { Peeks.onCard = hovered; hovered ? Peeks.hoverHold() : Peeks.hoverLeave() } }
         PointHandler { acceptedButtons: Qt.AllButtons; onActiveChanged: if (active) Peeks.hoverKeep() }
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the view is in (the reveal is
         // the shape's growth, or the slide), so opening the card does not animate its height from the closed size, nor

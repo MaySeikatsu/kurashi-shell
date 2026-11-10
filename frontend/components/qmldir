@@ -46,3 +46,4 @@ EdgeWarp 1.0 EdgeWarp.qml
 PaintStroke 1.0 PaintStroke.qml
 PaintBands 1.0 PaintBands.qml
 PostMark 1.0 PostMark.qml
+ColorFade 1.0 ColorFade.qml

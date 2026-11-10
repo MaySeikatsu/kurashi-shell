@@ -413,6 +413,8 @@ Scope {
                 id: winLoader
                 active: dock.everShown
                 PanelWindow {
+                    // (the change of colour as a cross-fade: components/ColorFade.qml)
+                    ColorFade {}
                     id: win
                     screen: dock.scr
                     visible: dock.wantShown || dock.shownAmt > 0

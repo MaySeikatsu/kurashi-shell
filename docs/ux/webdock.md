@@ -114,8 +114,8 @@ of being phone shaped." The edge dock stays exactly as it is; the sidebar is a s
   `webdock.sidebar {on, output, side, inset, top, width, height}`; the daemon publishes `mod.webdock.sidebar {pin?,
   place?}` and the host follows it. A click on a pin is `webdock.sidebar_select {pin}` (the daemon's state; an open
   sidebar without a chosen pin shows the first).
-- **Outside a sidebar** (the panel in a Stage card, no placement): the pins still show; a click shows the pin at the
-  edge (`webdock.open`), and the well says so with a "Show at the edge" button.
+- **Outside a sidebar** (the panel in a Stage card): W72 shows the page in the card's well too — see "In the bar's card".
+  (Before W72 a click there showed the pin at the edge and the well said so with a "Show at the edge" button.)
 
 ### States
 - **No pins:** the well says `webdock.empty` with "Add a site" (Settings › Web dock › pins).
@@ -285,6 +285,129 @@ Anatomy (a right edge; a left edge mirrors it; a top or bottom edge binds along 
       `mods/webdock/test/shots-styles.sh`.
 - [ ] The page turn on the shell's own cards (view, cold, empty): they open in the panel form the profile names, not in
       the page turn (the turn is the host's card's).
+
+## In the bar's card (W72, session 27; I482)
+**User (2026-11-10, with a screenshot of a bottom bar's right corner):** "make the webdock actually appear in the corner it
+opens from on hover, basically filling the blank field with web content here". The bar module's card (click, or a rest
+under `bar.hover = card`) showed the pins and an empty well saying "Sites show here when the web dock is a sidebar tab".
+Now the well shows the picked site's page, in that card, where it opened.
+
+### How others show a web page in a popover (from the products; not re-checked online for this card)
+- **Vivaldi / Edge / Opera side panels:** the page fills a pane of the browser's own chrome, a slim toolbar over it (back,
+  forward, reload, the address, "open in a tab"); the pane is the frame, the page has none of its own. Vivaldi keeps the
+  page loaded while the panel is closed.
+- **Arc's Little Arc:** a small floating window, a one-line title row (the host, "open in Arc"); "open in Arc" grows it
+  into a full tab — the way out to the larger place.
+- **macOS menu-bar web apps** (MenubarX, Fluid's menu-bar mode, Multi): an icon in the menu bar opens a popover hanging
+  from it with the site inside, a small toolbar (back, reload, pin the popover open, open in the browser); a click outside
+  closes it, the page stays alive in the background, and the next click shows it as it was (no reload).
+- **GNOME / KDE web widgets** (Plasma's Web Browser widget, GNOME Shell extensions with a WebKit popup): the page fills the
+  plasmoid's or popup's body, the panel icon toggles it; Plasma keeps the view while the popup is hidden.
+- **Taken:** the page fills the card's well edge to edge (the card is its frame, as a side panel's pane), a slim
+  navigation row on top (Vivaldi, MenubarX), the page kept alive while the card is closed (macOS menu-bar apps, Vivaldi), and
+  a way out to the larger place — "Show at the edge" (Little Arc's "open in Arc", MenubarX's "open in browser").
+
+### Design
+- **Anatomy (top → bottom):** the card hangs from the bar's module (the shell's Stage card, its join, outline and material);
+  the pins as one row of 40 px app keys with the settings key at its end (unchanged, the panel's row); under it the **well**,
+  `radius.lg`, filled by the page: a 36 px navigation row (back, forward, title, home once the page left the pin's address,
+  reload, mobile/desktop view, **Show at the edge**, open in browser) and the page under it, masked to the well's radius.
+- **Size:** the card asks for the dock's phone width (`geometry.width`, 412 px, plus the card's padding: contract row 66's
+  `cardWidth`), so a mobile site gets the width it gets at the edge; the well is 1.6 × its width tall, at most the output
+  less the bars and margins, at least 240 px. Not resizable here: "Show at the edge" is the way to the large size.
+- **Page style:** plain. `mods.webdock.page_style` (phone, notebook, plain) is the edge card's (and the sidebar's well is
+  plain too): in the bar's card the card is the frame; a phone or notebook inside a card would be a frame in a frame.
+- **Which pin:** the card has a pin of its own (`card.pin`, kept while the card is closed, like the sidebar's): a click on a
+  pin key shows it here (`webdock.card_select`); the first opening shows the first pin. A view pin is drawn by the shell in
+  the well, as in the sidebar.
+- **How the page gets there (one mechanism with the sidebar, W30):** the page is the host's (one host, one page per pin,
+  K38), so the shell cannot hold it. The Stage hands a mod panel that declares `property var cardPlacement` where it rests
+  on the output (`{output, rest, x, y, width, height}`, logical px from the output's top-left corner; `rest: false` while
+  the card opens, moves, resizes or closes — the sidebar's `Placement` with the Stage window's own origin; generic, no mod
+  named). The panel adds the well's offset and reports `webdock.card {on, output, x, y, width, height}` on change only; the
+  daemon publishes `mod.webdock.card {pin?, place?}` and the host maps a layer window (Overlay, exclusion ignored, anchored
+  top-left with those margins) exactly over the well. The page **moves** into that window (a reparent, no reload).
+- **One page, three places — who shows it:** a pin's page is in one window at a time. Priority: **the sidebar, then the bar's
+  card, then the edge card.** The sidebar keeps it (the user put it there; the larger, lasting place) and the bar's card
+  says "This page is shown in the sidebar"; the bar's card takes it from the edge card (the card under the pointer is the
+  one looked at), and the edge card says "This page is shown in the bar's card" (`webdock.card.elsewhere`). Different pins
+  show live in every place at once. Nothing is reloaded when the card closes and opens again, when its pin changes back and
+  forth, or when the page moves between places (the host's load reports are counted in the test).
+- **Lifetime (Ma):** a site in the open card counts as shown — kept past `max_loaded`, the idle clock waits; closed, its
+  page is Frozen like any hidden page and unloads by the dock's rules. The host's card window exists only while it is mapped.
+
+### States (in the well)
+- **No pins:** `webdock.empty` with "Add a site" (Settings › Web dock › pins). The settings key stays at the row's end.
+- **Mod unavailable / no document:** `webdock.dock.unavailable`.
+- **Engine not installed:** `webdock.host.missing` (names `programs.kurashi.webdock`); view pins still work. **Host failed:**
+  the failure's reason. No "Show at the edge" there: the edge needs the same engine.
+- **Engine starting:** "Starting the web engine…" in the well (drawn by the shell) until the host's window maps.
+- **Loading:** the skeleton in the host's window (no white flash) and the progress line along the navigation row's foot.
+- **Load error** (offline included: the engine's code, e.g. "no connection"): the code, Retry, Open in browser. **Renderer
+  crashed:** "The page stopped", Reload. **Offline:** the page's own offline state or the load error (the host has no
+  `svc.network`); a `file://` page works offline.
+- **A site that refuses to be framed:** framing headers (`X-Frame-Options`, CSP `frame-ancestors`) do not apply: the page is
+  not in a frame, it is the top-level document of its own view. A site that refuses the embedded engine (Google sign-in)
+  is the dock's existing case: the sign-in sheet says so with "Open in browser" (`webdock.signin_refused`).
+- **Shown in the sidebar:** `webdock.side.elsewhere`; the pin keys still switch to another pin.
+- **The card opening or moving:** the well is empty (the card's colour) and the page appears once the card rests.
+
+### Hover, keyboard, a11y
+- **Hover (`bar.hover = card`):** the page's window is another surface, so the Stage's card sees the pointer leave when it
+  enters the page. The host reports the pointer in its window (`webdock.card_page {hover, engaged}`); the panel holds the
+  card through the shell's generic overlay hook (`Peeks.hoverOverlay(key, on)`: an overlay window over a card counts as the
+  card; the card's own hover is known, so pointer page → card padding never closes it). Leaving both closes the card after
+  the hover grace (380 ms). A press in the page makes the card the user's (as a press in the card does: `Peeks.hoverKeep`).
+- **Keyboard:** the pin keys and the settings key are Tab stops in the Stage card (Enter opens, Menu opens the pins'
+  settings); Tab from the settings key hands the keyboard to the page (`webdock.card_focus`: the host's window asks for it
+  once, as the edge card does on a keybind reveal). A click in the page gives it the keyboard (on demand). **Esc closes
+  the card** wherever the keyboard is in the page's window (`webdock.card_close` → `ui.close`), as Esc does on the Stage's
+  own keys and on a popover. As built: a window shortcut, ahead of the page — QtWebEngine 6.11 hands no unhandled Esc back
+  to its parents (measured on niri, in a text field and on the page's body), so "Esc the page did not take" cannot be
+  told; a site's own Esc (closing its dialog) is therefore not reached in the bar card. At the edge and in the sidebar the
+  page keeps Esc.
+- **a11y:** the navigation row's buttons have names (the sidebar's), "Show at the edge" names where (`webdock.side.at_edge`);
+  the well's notices are text the screen reader reads; the page is the engine's own accessible tree.
+
+### Motion, outputs, budget
+- **Motion:** the page waits for the card: the Stage withdraws the placement the moment the card opens, moves, resizes or
+  closes, and offers it 160 ms after it rests; the host's window then fades in (`motion.quick`, 120 ms). Following the card
+  frame by frame would need a round trip through the daemon per frame and the page would trail its card (the sidebar chose
+  the same, W30). Closing cuts the page at once and the card carries the close. Reduced motion (`motion.profile` none or
+  reduced): a cut.
+- **Every bar edge and output:** the place is output-absolute (the Stage window's origin from its own anchors and margins),
+  so a top, bottom, left or right bar, a card near a screen corner and any output read the same; the host maps on the
+  place's output. HiDPI: logical px on both sides (layer margins are logical).
+- **Ma / budget:** card closed = no placement, the host's card window unmapped (0 frames), the page Frozen; the Placement
+  watches the Stage window's swapped frames only while the card is open (none at rest); the geometry is sent on change
+  only. No new process, no polling.
+
+### As built (W72)
+- **Focus on map:** sway and niri hand a freshly mapped on-demand layer the keyboard, so the page's window takes the keys
+  when it appears (measured: "keyboard in" on the map). That is not counted as using the page: `engaged` is a press in the
+  page or the keyboard asked for it, so a hover-opened card still closes when the pointer leaves. A click on a pin key gives
+  the keys back to the card (its Tab stops).
+- **Engine lifecycle:** a hidden page used to be frozen in the same turn as its hide; QtWebEngine refused that ("page is
+  visible") and the page stayed Active. The freeze now follows the engine's `recommendedState` (Active while visible or
+  audible), in every place the page is shown.
+- **One window type:** the bar card's window is the sidebar's `SideWindow` in its card role (`cardRole`), so the two share
+  the navigation row, the states and the page's mask.
+- **Mock:** the mock does not know the card's actions (CONTRACT-CHANGE 722); under it the well shows its notices only.
+
+### Definition of done (W72)
+- [x] With a pin, the bar card shows the page in its well: the host window's rect equals the well's (logs), on a top and a
+      bottom bar — `mods/webdock/test/test-card.sh` (sway).
+- [x] Close and reopen, pin back and forth, the same pin at the edge: no new load report (the host's load reports
+      counted); the edge card says "This page is shown in the bar's card" while the card holds it (not shot).
+- [x] Pointer from the module into the page keeps the card (hover mode); page → card keeps it; leaving closes it; Esc
+      from the page closes it; Tab past the card's keys and a click in the page give it the keyboard (typed text arrives).
+- [x] No pin: the empty state with "Add a site"; engine missing: its message (the panel's notice, not shot).
+- [x] Idle: the card's window draws 0 frames in 3 s after the card closed; no QML error or warning in the shell or the
+      host (test-card.sh greps both logs, the engine's lifecycle warning included).
+- [x] Shots on nested niri: bottom bar's right corner and top bar, light and dark; the empty and the error state —
+      `mods/webdock/test/shots-card.sh` → `mods/webdock/shots/card/card-{bottom,top,error,empty}-{light,dark}.png`.
+- [ ] Left and right bars, a second output, HiDPI: the geometry is output-absolute and logical by construction; not
+      measured in a test.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per

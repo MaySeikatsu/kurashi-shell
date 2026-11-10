@@ -101,6 +101,8 @@ Scope {
     // One strip. Its pieces are given in output coordinates; `ox`/`oy` is where the strip really stands on the output
     // (see the header), so its pieces lay the output's plane under the window.
     component Strip: PanelWindow {
+        // (the change of colour as a cross-fade: components/ColorFade.qml)
+        ColorFade {}
         id: strip
         // The frame's Scope (an inline component does not see the file's ids).
         required property var host

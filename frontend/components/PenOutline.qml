@@ -24,6 +24,20 @@ Item {
     property var points: null
     // Several lines [{points, closed, width (default lineWidth)}]; overrides `points`.
     property var paths: null
+    // A line that follows something moving for a moment (a rule cut where a neighbour opens) can wait until it stands
+    // still: the pen paints on the GUI thread, a whole Canvas a change (12 ms a window on a real session). 0: at once.
+    property int settleMs: 0
+    property var shownPaths: null
+    // (The same lines again start no wait: callers rebuild their arrays on every patch of what they read, and a timer
+    // that starts wakes every window of the shell for one frame — the idle shell redrew at each layout patch,
+    // test-frame's idle check.)
+    onPathsChanged: {
+        if (settleMs <= 0 || shownPaths === null) { shownPaths = paths; return }
+        if ((paths ? JSON.stringify(paths) : "") === pathsKey) settleWait.stop()
+        else settleWait.restart()
+    }
+    Component.onCompleted: shownPaths = paths
+    Timer { id: settleWait; interval: po.settleMs; onTriggered: po.shownPaths = po.paths }
     property string line: Theme.penLine
     property real pressure: Theme.penPressure
     property real breaks: Theme.penBreaks
@@ -39,7 +53,7 @@ Item {
         ctx.reset()
         var w = po.width, h = po.height
         if (w < 1 || h < 1 || po.lineWidth <= 0) return
-        var lines = po.paths
+        var lines = po.shownPaths
         if (!lines) {
             var r = po.radii ? po.radii : Math.min(po.radius, w / 2, h / 2)
             if (w < 4 || h < 4) return
@@ -67,7 +81,7 @@ Item {
     // The lines by content (strings: they notify only when a point moves — callers rebuild their arrays on every patch of
     // what they read, and a repaint is a commit: an idle surface must not commit, test-frame's idle check).
     readonly property string pointsKey: points ? JSON.stringify(points) : ""
-    readonly property string pathsKey: paths ? JSON.stringify(paths) : ""
+    readonly property string pathsKey: shownPaths ? JSON.stringify(shownPaths) : ""
     readonly property var inputs: [width, height, radius, radii, inset, color.r, color.g, color.b, lineWidth, pointsKey,
         pathsKey, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
     onInputsChanged: cv.requestPaint()

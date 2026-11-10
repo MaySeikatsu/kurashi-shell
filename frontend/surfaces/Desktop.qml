@@ -27,6 +27,8 @@ import "../components/island"
 // (or Space) shows or hides any card, and Done writes both lists, the switches and the hidden list as one `apply` (one
 // undo step); Escape puts everything back. Nothing is written while editing.
 PanelWindow {
+    // (the change of colour as a cross-fade: components/ColorFade.qml)
+    ColorFade {}
     id: desk
     required property var modelData
     screen: modelData

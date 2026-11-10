@@ -122,8 +122,13 @@ QtObject {
     // S21: the latched form's pace (forms meta, `pace`): a sheet form tells a longer story than the profile's curve allows
     // — every role's curve runs that much longer while this form runs (the speed setting is already in the curves).
     readonly property real pace: { var m = form !== "" ? Theme.formMeta(form) : null; return m && m.pace > 0 ? m.pace : 1 }
+    // A large surface takes a little longer (the user, session 27: a form that reads well on a card is hurried on a
+    // sidebar a screen tall): `extent` is the surface's longer side in px; from 400 px the form runs up to half as long
+    // again at 1200 px and more. 0: not said, no stretch.
+    property real extent: 0
+    readonly property real stretch: extent > 0 ? 1 + 0.5 * Math.max(0, Math.min(1, (extent - 400) / 800)) : 1
     readonly property var pacedCurves: {
-        var c = Theme.motionCurves, f = r.pace
+        var c = Theme.motionCurves, f = r.pace * r.stretch
         if (f === 1) return c
         return { open: C.stretch(c.open, f), close: C.stretch(c.close, f), fast: C.stretch(c.fast, f),
                  effects: C.stretch(c.effects, f) }

@@ -59,6 +59,14 @@ PanelWindow {
     property Item sideSlot: null
     readonly property bool shownInSide: sideOpen && shownId === sidePin
     readonly property var sidePage: sideOpen ? pageFor(sidePin, rep.count) : null
+    // W72: the bar card rests open on the web pin `cardPin`; its page is drawn in `cardSlot` (SideWindow, `card`). One page
+    // per pin, the sidebar first, then the bar card, then this edge card (docs/ux/webdock.md "One page, three places").
+    property string cardPin: ""
+    property bool cardOpen: false
+    property Item cardSlot: null
+    readonly property bool cardLive: cardOpen && !(sideOpen && sidePin === cardPin)
+    readonly property bool shownInCard: cardLive && shownId === cardPin
+    readonly property var cardPage: cardLive ? pageFor(cardPin, rep.count) : null
 
     readonly property int gap: Theme.gap
     readonly property bool sideways: edge === "left" || edge === "right"
@@ -133,7 +141,7 @@ PanelWindow {
     onAvailHChanged: geometryLog()
 
     // The page the card shows: none while the sidebar shows the same pin (the sidebar wins; the card says so).
-    readonly property var activePage: shownInSide ? null : pageFor(shownId, rep.count)
+    readonly property var activePage: shownInSide || shownInCard ? null : pageFor(shownId, rep.count)
     readonly property var shownPin: pinById(shownId)
     readonly property string shownTarget: targetOf(shownId)
     readonly property string shownView: modeOf(shownId)
@@ -876,10 +884,13 @@ PanelWindow {
                                     report: card.report
                                     mode: card.modeOf(pid)
                                     readonly property bool inSide: card.sideOpen && pid === card.sidePin && card.sideSlot !== null
+                                    // W72: the bar card's page, unless the sidebar shows the same pin
+                                    readonly property bool inCard: !inSide && card.cardLive && pid === card.cardPin
+                                        && card.cardSlot !== null
                                     home: pageBox
-                                    sideHost: inSide ? card.sideSlot : null
+                                    sideHost: inSide ? card.sideSlot : (inCard ? card.cardSlot : null)
                                     debugLog: card.debugLog
-                                    active: inSide || (card.open && pid === card.shownId)
+                                    active: inSide || inCard || (card.open && pid === card.shownId)
                                     newTabsInDock: card.newTabs !== "browser"
                                 }
                             }
@@ -965,11 +976,12 @@ PanelWindow {
                             Text {
                                 anchors.centerIn: parent
                                 width: pane.width - 2 * Theme.pad
-                                visible: card.open && card.shownInSide
+                                visible: card.open && (card.shownInSide || card.shownInCard)
                                 z: 3
                                 wrapMode: Text.Wrap
                                 horizontalAlignment: Text.AlignHCenter
-                                text: I18n.tr("webdock.side.elsewhere")
+                                // (W72: or in the bar's card)
+                                text: I18n.tr(card.shownInSide ? "webdock.side.elsewhere" : "webdock.card.elsewhere")
                                 color: Theme.dim
                                 font.pixelSize: Theme.fs
                                 font.family: Theme.fam(text, Theme.families)
