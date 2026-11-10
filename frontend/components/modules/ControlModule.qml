@@ -22,7 +22,11 @@ ModuleBase {
     property string glanceIcon: ctl ? ctl.icon : ""
     property string glanceGlyph: ctl ? ctl.glyph : ""
     // The short value after the mark ("" draws the mark alone). Dropped in the compact form and on a side bar.
+    // W71 (I475 4): a long one (a network's name) elides to the bar's room: the module is elastic while it has a value, its
+    // least width the mark and a few letters, its most `valueMaxW` px of text.
     property string valueText: ""
+    property bool valueDim: false
+    property real valueMaxW: 140
     // W71 (I475 3): a click opens the control's card, where its switch, its options and why it cannot be used stand; the
     // module's own setting `quick.click.<clickKey>` (its menu, its card, Settings › Layout › Control centre) makes it the
     // switch instead. `defaultClick` is the schema's default, for the moment before the config document is there.
@@ -49,11 +53,16 @@ ModuleBase {
 
     // ---- the fit ----
     readonly property real boxW: thickness
-    readonly property real valueW: showValueM.advanceWidth > 0 ? Math.ceil(showValueM.advanceWidth) + Theme.gap : 0
+    readonly property real valueW: showValueM.advanceWidth > 0
+        ? Math.min(valueMaxW, Math.ceil(showValueM.advanceWidth)) + Theme.gap : 0
     TextMetrics { id: showValueM; text: m.valueText; font.pixelSize: Theme.fsCaption; font.weight: Theme.wBold; font.family: Theme.fam(text, Theme.families) }
     fullW: vertical ? thickness : boxW + (valueText !== "" ? valueW : 0)
     compactW: vertical ? thickness : boxW
-    width: vertical ? thickness : boxW + (showValue ? valueW : 0)
+    elastic: !vertical && valueText !== ""
+    // (the mark and about four letters, or the whole value when it is shorter)
+    minW: vertical ? thickness : boxW + (valueText !== "" ? Math.min(valueW, 4 * Theme.fsCaption) : 0)
+    readonly property real valueShownW: showValue ? Math.max(0, Math.min(valueW, room - boxW)) : 0
+    width: vertical ? thickness : boxW + valueShownW
     height: thickness
     slotHeights: [thickness]
     function geo() { return [[m.ctl ? m.ctl.mid : "control", m]] }
@@ -146,7 +155,9 @@ ModuleBase {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: m.cardShown ? Theme.fgOnAccent : m.inert ? Theme.dim : Theme.fg
+            color: m.cardShown ? Theme.fgOnAccent : m.inert || m.valueDim ? Theme.dim : Theme.fg
+            width: Math.max(0, m.valueShownW - Theme.gap)
+            elide: Text.ElideRight
             font.pixelSize: Theme.fsCaption
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)

@@ -11,6 +11,9 @@ ControlModule {
     ctl: c
     glanceIcon: c.glanceIcon
     clickKey: "volume"
+    // W71 (I475 4): the level after the mark, dim while muted (the mark says muted; the level is what unmuting gives).
+    valueText: c.ok ? c.pct + " %" : ""
+    valueDim: c.muted
     defaultClick: "switch"
     wheels: true
     // A notch is one 5 % step from the last value sent, so fast scrolling loses no steps before the echo (Volume.qml).

@@ -114,6 +114,13 @@ control that cannot be used opens its card even when set to switch: the card say
 - **B72**: the quick card comes out under a module only when that module asked for its page (latched when the card
   opens), not under any module pressed in the last 1.5 s.
 
+**(b) Glances with values.** Wi-Fi shows the network's name after its mark (a Wi-Fi link only: wired and VPN say
+themselves by the mark; nothing while the radio is off or not connected), sound its level (dim while muted: the mark says
+muted, the level is what unmuting gives), power the battery's percent as before. A module with a value is elastic (bar
+fit): the value elides to the room the bar gives it, at most 140 px of text, at least the mark and about four letters;
+compact is the mark alone. A hover opens the card as `bar.hover` says, the bar's shared default or the module's own
+(K113).
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The control centre's controls as modules of their own (W70, I469, docs/ux/control-centre-modules.md) against kurashi-mock,
 # invisibly (headless sway sandbox), by one persistent virtual pointer:
-#   1. a top bar listing the eleven control modules shows each of them (the bar's own log, KURASHI_BAR_GEOMETRY);
+#   1. a top bar listing the eleven control modules shows each of them (the bar's own log, KURASHI_BAR_GEOMETRY); W71 (b):
+#      Wi-Fi shows the network's name and sound its level after the mark, and a long name elides (bar-glances-long);
 #   2a. W71 (I475 3, 7): a click on Focus, the microphone, airplane mode, keep awake, night light and dark mode switches
 #      nothing and opens the control centre on the control's page (keep awake and dark mode have their own; shots
 #      card-*); Esc closes a card a module opened;
@@ -170,6 +171,22 @@ for id in wifi bluetooth audio mic power brightness focus caffeine nightlight da
   wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
 done
 echo "ok: the bar shows the eleven control modules"
+# W71 (b, I475 4): the glances carry values — Wi-Fi the network's name, sound its level — beside the mark, and a long
+# name elides to the bar's room (at most 140 px of text). Widths from the bar's own log (x0 y0 x1 y1).
+mod_w() { grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ print $8 - $6 }'; }
+THICK=$(grep -o "BARZONE HEADLESS-1 top end focus .*" "$R/qs.log" | tail -1 | awk '{ print $8 - $6 }')
+[ "$(mod_w wifi)" -gt $(( THICK + 20 )) ] || fail "the Wi-Fi glance shows no network name (width $(mod_w wifi), a mark $THICK)"
+[ "$(mod_w audio)" -gt $(( THICK + 15 )) ] || fail "the sound glance shows no level (width $(mod_w audio), a mark $THICK)"
+K act mock.doc '{"doc":"svc.network","patch":{"primary":{"name":"a-very-long-network-name-that-a-cafe-gave-its-guest-wifi-2026"}}}' >/dev/null \
+  || fail "mock.doc refused svc.network"
+wait_until 5 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end wifi .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( THICK + 100 )) ]" \
+  || fail "the Wi-Fi glance did not follow the long name (width $(mod_w wifi))"
+[ "$(mod_w wifi)" -le $(( THICK + 140 + 12 )) ] || fail "a long network name is not elided (width $(mod_w wifi))"
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+wait_settled 1 0.3
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-glances-long.png" || fail "grim failed on the bar"
+K act mock.doc '{"doc":"svc.network","patch":{"primary":{"name":"home-wifi"}}}' >/dev/null || true
+echo "ok: the glances show the network's name and the sound level; a long name elides (width $(mod_w wifi), bar-glances-long)"
 read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar.png" || fail "grim failed on the bar"
 click_mod() { local x y; read -r x y < <(where "$1"); [ -n "$x" ] || fail "no place for $1"; ptr "$x" "$y" "${2:-left}"; }
@@ -337,6 +354,19 @@ mv_to "$AWAY_X" "$AWAY_Y"
 wait_until 3 closed || fail "hover: the card stayed after the pointer left: $(ui)"
 K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":[]}}}}' >/dev/null || true
 echo "ok: bar.hover_card: resting on Wi-Fi opens its card, Bluetooth turns it, leaving closes it"
+# W71 (b, I475 4): the bar's shared default `bar.hover = card` — resting on the sound glance opens its card (the sound
+# page), leaving closes it.
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover":{"value":"card"}}}}' >/dev/null || fail "the mock refused bar.hover"
+sleep 0.5
+read -r hx hy < <(where audio)
+mv_to "$hx" "$hy"
+wait_until 3 ui_is '.panel == "quick"' || fail "bar.hover = card: resting on sound opened no card: $(ui)"
+wait_until 3 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = audio ]" \
+  || fail "bar.hover = card: the sound card is not on its page (page $(page_now))"
+mv_to "$AWAY_X" "$AWAY_Y"
+wait_until 3 closed || fail "bar.hover = card: the card stayed after the pointer left: $(ui)"
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover":{"value":"preview"}}}}' >/dev/null || true
+echo "ok: bar.hover = card: resting on the sound glance opens its card, leaving closes it"
 
 # ---- 4. unavailable: inert, and it says why ----
 K act mock.doc '{"doc":"svc.idle","patch":{"reason":"power.idle.reason.no_protocol"}}' >/dev/null || fail "mock.doc refused svc.idle"
