@@ -74,10 +74,11 @@ void torn(vec4 c) {
     if (reach(qt_TexCoord0, r) < thr) { fragColor = vec4(0.0); return; }
     vec3 col = c.rgb / c.a;
     // The age: darker and warmer towards the edge, faintly.
-    float wide = reach(qt_TexCoord0, r + depth * 4.0) < thr ? 1.0 : 0.0;
+    float wide = big > 0.5 && reach(qt_TexCoord0, r + depth * 4.0) < thr ? 1.0 : 0.0;
     col *= 1.0 - 0.05 * wide * (0.5 + 0.5 * vnoise(p / 17.0));
     // The core: white fibres along the tear.
-    float rimW = depth * (0.6 + 0.7 * vnoise(p / 9.0 + 31.0));
+    // (a small thing — a bar's group, a key — has a hair of core only: a full rim would whiten all of it, its text too)
+    float rimW = depth * (0.6 + 0.7 * vnoise(p / 9.0 + 31.0)) * (0.2 + 0.8 * big);
     if (reach(qt_TexCoord0, r + rimW) < thr) col = mix(col, vec3(1.0), 0.72 + 0.2 * vnoise(p / 1.7));
     fragColor = vec4(col * c.a, c.a) * qt_Opacity;
 }

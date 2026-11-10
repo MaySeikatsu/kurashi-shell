@@ -247,11 +247,11 @@ Singleton {
     // `theme.frame_outline` (I303): a line along the frame's inner edge and the sides of what joins it (bars' edges, the
     // dock, sidebars, edge groups), in the chrome's own outline — its ink, or a hairline where the chrome draws none. The
     // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
-    // (prototype, I471b: no frame outline under the painted look by default; the daemon will resolve Automatic so)
-    readonly property bool frameOutline: tok("frame.outline", boxed) === true && !painted
-    // (under the painted look the frame's outline, when on, is a hand-drawn line along the paint's inner edge:
+    // (no straight rule under a painted or a torn edge: the daemon resolves Automatic to off under those chromes)
+    readonly property bool frameOutline: tok("frame.outline", boxed) === true && !edgeTorn
+    // (under a painted or a torn edge the frame's outline, when on, is a hand-drawn line along that edge:
     // shaders/sheet_edge.frag; the straight rule between the sheet and its paint is not drawn)
-    readonly property bool frameLineOnPaint: painted && tok("frame.outline", false) === true
+    readonly property bool frameLineOnPaint: edgeTorn && tok("frame.outline", false) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
     // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's
     // colour (with its strength as alpha) and reach. Apart from the chrome: a glowing frame under any chrome, a plain

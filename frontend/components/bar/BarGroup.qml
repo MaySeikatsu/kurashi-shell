@@ -21,5 +21,7 @@ Block {
     softScale: 0.3
     glowRoom: 3
     paintAlways: true
-    fill: Theme.lifted ? Theme.surfaceAlpha : "transparent"
+    // (I471d: under the torn edge a group is a scrap of paper lying on the bar: a tone of its own, so it reads as one
+    // sheet; its tear and its short shadow do the rest)
+    fill: Theme.edgeStyle === "ripped" ? Theme.container : (Theme.lifted ? Theme.surfaceAlpha : "transparent")
 }

@@ -23,6 +23,12 @@ import "../../core/corner.js" as Corner
 // `chrome` (the floating mode) also the ring and the hard shadow. Paths are rebuilt only when a number changes (Ma).
 Shape {
     id: sh
+    // I471d: under the torn edge the column is a sheet torn by hand (a layer of the whole shape; a side that lies on the
+    // window's edge is joined to the screen's edge or the frame and is not torn).
+    layer.enabled: Theme.edgeTorn && !Theme.painted && visible
+    layer.effect: EdgeWarp {
+        sides: Qt.vector4d(sh.x0 <= 1.5 ? 0 : 1, sh.y0 <= 1.5 ? 0 : 1, sh.x1 >= sh.width - 1.5 ? 0 : 1, sh.y1 >= sh.height - 1.5 ? 0 : 1)
+    }
     property real x0: 0
     property real y0: 0
     property real x1: 0
