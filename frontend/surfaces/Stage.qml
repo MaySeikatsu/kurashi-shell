@@ -824,7 +824,7 @@ PanelWindow {
         height: stage.peekBoxH
         transform: Scale { yScale: stage.peekFlip ? -1 : 1; origin.y: stage.peekBoxH / 2 }
         SoftShadow {
-            visible: peekShape.h > 1
+            visible: peekShape.h > 1 && !Theme.softGlow   // (B79: the shape glows itself)
             x: peekShape.x0
             y: peekShape.y0
             width: peekShape.w
@@ -1482,7 +1482,7 @@ PanelWindow {
         // The soft chrome's shadow under the head and the body (static RectangularShadows that follow the springs; I122:
         // every morphing panel casts it).
         SoftShadow {
-            visible: stage.joined && stage.headMode
+            visible: stage.joined && stage.headMode && !Theme.softGlow
             opacity: stage.shapeFade * cardHost.sheetShadow
             x: stage.pillCx - stage.pillW / 2
             y: stage.pillTop
@@ -1492,7 +1492,7 @@ PanelWindow {
             direction: stage.flip ? -1 : 1
         }
         SoftShadow {
-            visible: shape.h > 1
+            visible: shape.h > 1 && !Theme.softGlow
             opacity: stage.shapeFade * cardHost.sheetShadow
             x: shape.x0
             y: shape.y0

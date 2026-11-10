@@ -50,6 +50,8 @@ Item {
     property real ringScale: 1
     // How much of the soft shadow this block casts: 1 for a card or a key, less for small things inside other blocks.
     property real softScale: 1
+    // (B79: the room a ring of light has round this block, SoftShadow's `room`)
+    property real glowRoom: -1
     // K62: the pen's salt for this block's outline (≥ 0); -1 = the block's place in its parent (pen.js `salt`).
     property int penSeed: -1
     // W53.5: false keeps the look's frame off this block (a text field drawn as an underline: `[decor] field.form`).
@@ -170,6 +172,7 @@ Item {
             anchors.fill: parent
             radius: blk.radius
             amount: blk.bare ? 0 : blk.softScale
+            room: blk.glowRoom
         }
         Rectangle {
             id: rim

@@ -101,6 +101,9 @@ Singleton {
     readonly property color outlineInkOpaque: outlineInk === "text" ? fg : outlineInk === "accent" ? accent
         : Qt.rgba(chromeOutline.r, chromeOutline.g, chromeOutline.b, 1)
     readonly property int softR: tok("chrome.soft", 0)
+    // B79: the soft shadow is light (a glowing ring, SoftShadow), and the least of it a small thing shows.
+    readonly property bool softGlow: tok("chrome.soft_glow", false) === true
+    readonly property real softGlowMin: tok("chrome.soft_glow_min", 0.7)
     readonly property int softDy: tok("chrome.soft_dy", 0)
     // K67 (docs/ux/shadows.md): the vector every shadow falls along — the user's strength and direction, or away from the
     // light — for the hard shadow and its sink as for the soft shadow's offset. `shadowDy`/`softDy` stay the look's own
@@ -223,8 +226,16 @@ Singleton {
     // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
     readonly property bool frameOutline: tok("frame.outline", boxed) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
-    // In the outline's ink; a chrome without an outline of its own and the chrome's ink: a hairline.
-    readonly property color frameOutlineColor: outlineInk !== "outline" || outlineW > 0 ? outlineColor : outline
+    // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's
+    // colour (with its strength as alpha) and reach. Apart from the chrome: a glowing frame under any chrome, a plain
+    // line under the Glow chrome.
+    readonly property bool frameGlow: frameOutline && tok("frame.glow", softGlow) === true
+    readonly property color frameGlowColor: Qt.alpha(color("frame.glow_color", "#c9404b"), Math.min(1, tok("frame.glow_alpha", 0.5) * shadowAlpha))
+    readonly property real frameGlowR: tok("frame.glow_radius", 14)
+    // In the outline's ink; a chrome without an outline of its own and the chrome's ink: a hairline. Lit under a chrome
+    // that does not glow itself: the light's own colour.
+    readonly property color frameOutlineColor: frameGlow && !softGlow ? Qt.alpha(frameGlowColor, 1)
+        : (outlineInk !== "outline" || outlineW > 0 ? outlineColor : outline)
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")

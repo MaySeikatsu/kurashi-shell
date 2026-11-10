@@ -871,10 +871,10 @@ How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and 
 
 #### `theme.frame_outline` — Frame outline
 
-A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft.
+A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft, and glows under Glow. Glow lights the line under any chrome; On under the Glow chrome keeps the line without its light.
 
 - type: `choice` · default: `"auto"`
-- choices: `"auto"` | `"on"` | `"off"`
+- choices: `"auto"` | `"on"` | `"off"` | `"glow"`
 - since schema v7
 
 #### `theme.outline_ink` — Outline ink

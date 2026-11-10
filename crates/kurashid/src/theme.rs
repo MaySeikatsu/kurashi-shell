@@ -316,6 +316,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         frame_outline: match s(store, "theme.frame_outline").as_str() {
             "on" => kurashi_theme::FrameOutline::On,
             "off" => kurashi_theme::FrameOutline::Off,
+            "glow" => kurashi_theme::FrameOutline::Glow,
             _ => kurashi_theme::FrameOutline::Auto,
         },
         outline_ink: match s(store, "theme.outline_ink").as_str() {
