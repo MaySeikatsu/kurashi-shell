@@ -184,6 +184,10 @@ RoundBox {
             source: c.icon
             asynchronous: true
             fillMode: Image.PreserveAspectFit
+            // The app icons' tint (`theme.colors.app_icons`, K110): an app's icon only, never the notification's own
+            // picture (an avatar, a photo).
+            layer.enabled: Theme.iconTint !== "original" && visible && (c.item.image || "") === ""
+            layer.effect: IconTint { mode: Theme.iconTint }
         }
         Column {
             id: col

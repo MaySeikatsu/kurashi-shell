@@ -442,8 +442,59 @@ Flickable {
         }
         if (t !== stickySection) stickySection = t
     }
-    onContentYChanged: findSection()
+    onContentYChanged: { findSection(); spy() }
     onStickyOnChanged: findSection()
+
+    // ---- I464 (docs/ux/settings-sections.md): a page's sections, for the sidebar ----
+    // `solo`: the one section shown ("" = the whole page): a click on a section in the sidebar shows that section alone,
+    // a click on its page shows all of it again. `sectionId`: the section in view, for the sidebar's mark.
+    property string solo: ""
+    property string sectionId: ""
+    // The cards of the page in order, as {id, item}: the sections that have rows to show now.
+    function sectionCards() {
+        var out = []
+        var walk = function (item) {
+            var n = item.objectName || ""
+            // (a pack's block — Style, Look, Palette — is a section of the sidebar too, by its key)
+            if (n.indexOf("block:") === 0) { out.push({ id: n, item: item }); return }
+            if (n.indexOf("section:") === 0) { out.push({ id: n.substring(n.indexOf(".") + 1), item: item }); return }
+            var kids = item.children || []
+            for (var i = 0; i < kids.length; i++) walk(kids[i])
+        }
+        walk(col)
+        return out
+    }
+    // The section whose card holds the line just under the header; the first one at the page's top.
+    function spy() {
+        if (p.searching) { if (sectionId !== "") sectionId = ""; return }
+        if (solo !== "") { if (sectionId !== solo) sectionId = solo; return }
+        var cards = sectionCards(), y = p.contentY + stickyH + 2 * Theme.gap, hit = cards.length ? cards[0].id : ""
+        for (var i = 0; i < cards.length; i++) {
+            if (!cards[i].item.visible) continue
+            var top = cards[i].item.mapToItem(p.contentItem, 0, 0).y
+            if (top <= y) hit = cards[i].id
+        }
+        if (hit !== sectionId) sectionId = hit
+    }
+    // What the sidebar lists under the open page: {id, title} of every card, in the page's order. Refreshed when the
+    // page's cards are made (never per frame): the cards are the truth of what the page shows.
+    property var navSections: []
+    function refreshNav() {
+        var cards = p.searching ? [] : sectionCards(), out = []
+        for (var i = 0; i < cards.length; i++) out.push({ id: cards[i].id, title: String(cards[i].item.title || "") })
+        navSections = out
+        spy()
+    }
+    // (its own objects: the view already has handlers of these names)
+    Connections { target: p; function onViewChanged() { Qt.callLater(p.refreshNav) } }
+    Timer { interval: 0; running: true; onTriggered: p.refreshNav() }
+    // Shows `id` alone and brings it to the top; "" shows the whole page from its top.
+    function showSection(id) {
+        solo = id
+        pinKey = ""
+        contentY = 0
+        Qt.callLater(spy)
+    }
     Item {
         id: sticky
         z: 10
@@ -576,6 +627,8 @@ Flickable {
                         required property var modelData
                         objectName: "block:" + modelData.row.key
                         width: col.width
+                        // I464: a section chosen in the sidebar is shown alone.
+                        visible: p.searching || p.solo === "" || p.solo === objectName
                         title: I18n.tr(modelData.row.label)
                         icon: p.packIcons[modelData.row.choices_from] || "palette"
                         SettingRow {
@@ -635,6 +688,8 @@ Flickable {
                         header: !p.searching
                         title: I18n.tr(modelData.label)
                         icon: p.sectionIcon(pageOf, modelData.id)
+                        // I464: a section chosen in the sidebar is shown alone.
+                        visible: p.searching || p.solo === "" || modelData.id === p.solo
                         // Settings › Layout: the selected edge's bar with no modules says so, under the section's header (UX brief,
                         // docs/ux/layout.md "States"). Only that section, and only on the page.
                         Loader {

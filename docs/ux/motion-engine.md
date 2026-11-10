@@ -151,6 +151,9 @@ Two families, because they draw differently (D2, user: the hinge stays joined):
 | `pixelate` | sheet · frag | mosaic resolves 32 → 1 px in steps | (lead idea) | — | ps2/snes option |
 | `glitch` | sheet · frag | slices offset with RGB split, decaying; never full-screen flicker, < 3 Hz | (lead idea) | — | yorha |
 | `dissolve` | sheet · frag | noise threshold with a glowing edge (burning paper, embers) | (lead idea) | edge role | souls, hallownest |
+| `splat` | sheet · frag | drops of ink land one after another and spread (lobes, droplets, a smooth union, a last flood); the card shows where ink landed a moment before | user (session 27: Splatoon's ink) | drops 3–12, ink role | — |
+| `brush` | sheet · frag | strokes laid forth and back, slightly diagonal, away from the bar; bristle streaks at the edges, a head that runs dry; fresh paint is the ink and turns into the card | user (session 27) | strokes 2–12, slope, ink role | — |
+| `snake` | sheet · frag | the card as a grid of cells drawn by a snake: along a row, down one, back; the head a cell in the text's colour, the body in the ink | user (session 27: the snake game) | cell px, length, ink role | — |
 
 Each form declares (in code, published as `motion.forms` meta): **surfaces** it may serve, **family**, **retarget**
 (morph · finish-then-morph), **overshoot** (whether p > 1 is drawn or clamped), **flags** `vestibular` (large rotation,

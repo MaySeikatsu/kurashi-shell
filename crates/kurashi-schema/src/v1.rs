@@ -258,6 +258,36 @@ pub struct Bar {
     /// cards open at the centre.
     #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
     pub popups_other: Vec<String>,
+    /// On hover
+    /// What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its
+    /// preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module
+    /// and what it opened; what a click opened stays.
+    #[kurashi(default = BarHover::Preview, since = 7)]
+    pub hover: BarHover,
+    /// Modules that show their preview on hover
+    /// These modules show their preview whatever the bar does on hover. A module's menu sets it too (On hover).
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_preview: Vec<String>,
+    /// Modules that open their card on hover
+    /// These modules open their card whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_card: Vec<String>,
+    /// Modules that open their menu on hover
+    /// These modules open their menu whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_menu: Vec<String>,
+}
+
+/// What a hover on a bar module opens (I458; Caelestia's popouts open on hover).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "bar_hover")]
+pub enum BarHover {
+    /// Its preview
+    Preview,
+    /// Its card
+    Card,
+    /// Its menu
+    Menu,
 }
 
 /// Where a bar module's card comes out (I340; Noctalia's "panel position": at the widget or centred).
@@ -552,6 +582,8 @@ pub enum Chrome {
     Line,
     /// Bevel
     Bevel,
+    /// Glow
+    Glow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -738,8 +770,9 @@ pub struct Colors {
     #[kurashi(default = ControlColours::Auto)]
     pub controls: ControlColours,
     /// App icons
-    /// The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the
-    /// palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+    /// The icons of apps in the dock, the bar's window list, the tray, the launcher and notifications: as they are, in
+    /// the text's colour (a picture keeps its drawing as lighter and denser ink), in the palette's tones (dark to light
+    /// in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
     #[kurashi(default = AppIconTint::Original)]
     pub app_icons: AppIconTint,
     /// Chrome fill
@@ -959,6 +992,12 @@ pub enum TextureKind {
     Brush,
     /// Display (pixel grid)
     Display,
+    /// Tread plate (steel)
+    TreadPlate,
+    /// Old paper (stained)
+    OldPaper,
+    /// Canvas (a little dirty)
+    Canvas,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1443,6 +1482,16 @@ pub struct Motion {
     #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
+    /// Blend colour changes
+    /// A change of colours — a palette, light or dark, a look, the wallpaper's colours — fades over a third of a second
+    /// instead of cutting. Off with reduced motion and with the motion profile None.
+    #[kurashi(
+        default = true,
+        section = "profiles",
+        requires = "theme.motion.profile != none",
+        since = 7
+    )]
+    pub blend_colors: bool,
     // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
     #[kurashi(nested, section = "animation_style")]
     pub form: MotionForms,
@@ -1820,6 +1869,18 @@ pub struct Clock {
 
 // --- desktop widgets (K43) --------------------------------------------------------------------
 
+/// How a desktop card is held (I471c, K118).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "desktop_post")]
+pub enum DesktopPost {
+    /// Flat
+    None,
+    /// Pinned
+    Pin,
+    /// Taped
+    Tape,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum Side {
     Left,
@@ -1838,6 +1899,11 @@ pub struct Desktop {
     /// the right below (or in the desk's edit mode, Alt+Left/Right).
     #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
     pub side: Side,
+    /// Posted
+    /// How the cards are held on the desktop: lying flat, held by a pin, or stuck with tape. A pinned or taped card
+    /// hangs a little crooked, each its own way.
+    #[kurashi(default = DesktopPost::None, requires = "desktop.enabled == true", since = 7)]
+    pub post: DesktopPost,
     /// Clock
     /// The time in big keys, with the date.
     #[kurashi(default = true, requires = "desktop.enabled == true")]

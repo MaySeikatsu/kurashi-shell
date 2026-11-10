@@ -79,6 +79,39 @@ Item {
         onTapped: host.openMenu()
     }
     Keys.onMenuPressed: openMenu()
+
+    // ---- Open on hover (I458, K113, docs/ux/bar-hover.md) ----
+    // What holds for this module (`bar.hover`, or its own entry in `bar.hover_*`).
+    readonly property string hoverMode: mid !== "" ? Peeks.hoverModeOf(mid) : "preview"
+    // The module's card, where a hover can open it without toggling it shut: a mod's panel, the clock's face, the quick
+    // settings card, the launcher. "" for a module that has none: its hover stays its preview.
+    readonly property string hoverSurface: isMod ? (item && item.hasPanel ? "mod" : "")
+        : (["clock", "launcher"].indexOf(mid) >= 0 || (mid === "quick" && item && item.opensCard === true) ? mid : "")
+    HoverHandler {
+        id: hov
+        enabled: host.shown && host.mid !== "" && host.hoverMode !== "preview"
+        onHoveredChanged: {
+            if (hovered) { if (Peeks.hoverOwner === host.mid) Peeks.hoverHold(); else hoverIntent.restart() }
+            else { hoverIntent.stop(); Peeks.hoverLeft(host.mid) }
+        }
+    }
+    Timer { id: hoverIntent; interval: Peeks.hoverIntentMs; onTriggered: host.hoverOpen() }
+    function hoverOpen() {
+        if (!hov.hovered || Peeks.hoverOwner === host.mid) return
+        // (what a click opened stays as it is: only a hover's own card gives way to the next module's)
+        if (Peeks.cardOpen && Peeks.hoverOwner === "") return
+        if (hoverMode === "menu") openMenu()
+        else if (hoverSurface === "mod" || hoverSurface === "clock" || hoverSurface === "launcher") {
+            if (hoverSurface === "launcher" && Peeks.ui.launcher === true) return
+            activate()
+        } else if (hoverSurface === "quick") {
+            if ((Peeks.ui.panel || "") === "quick") return
+            Isl.IslandGeom.notePress(output, mid)
+            Store.act("quick.toggle")
+        } else return
+        Peeks.dismiss()
+        Peeks.hoverOpened(host.mid)
+    }
     C.FocusRing {
         anchors.fill: parent
         anchors.margins: 1

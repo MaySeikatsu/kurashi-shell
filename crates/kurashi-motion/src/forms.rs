@@ -154,6 +154,10 @@ pub const FORMS: &[FormMeta] = &[
     f("pixelate", Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
     f("glitch",   Sheet, ALL,                                                   Finish, false, FLASH,      Layer,     true),
     f("dissolve", Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
+    // I467 (K114): paint. Fragment forms as dissolve is: a reveal over the captured card.
+    f("splat",    Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
+    f("brush",    Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
+    f("snake",    Sheet, ALL,                                                   Finish, false, 0,          Layer,     true),
 ];
 
 /// The form with this id.
@@ -173,7 +177,8 @@ impl FormMeta {
     /// story (a fold per panel, a bead that gathers, falls and spreads) that a 240 ms slide curve crosses in a few frames.
     pub fn pace(&self) -> f64 {
         match self.id {
-            "drop" => 1.9,
+            "drop" | "brush" | "snake" => 1.9,
+            "splat" => 1.6,
             "genie" | "noren" => 1.5,
             "fold" | "book" | "fan" | "crumple" => 1.4,
             "roll" | "dissolve" => 1.3,
@@ -263,7 +268,9 @@ mod tests {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
-        for id in ["fan", "noren", "fold", "pixelate", "glitch", "dissolve"] {
+        for id in [
+            "fan", "noren", "fold", "pixelate", "glitch", "dissolve", "splat", "brush", "snake",
+        ] {
             assert!(form(id).unwrap().available, "{id}");
         }
         // W59.9a: the last one (liquid) has landed; the shape forms reach the peek, toasts, sidebars and dock.

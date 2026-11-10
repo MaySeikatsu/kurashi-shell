@@ -155,9 +155,29 @@ Scope {
             if (!live && inertWhy(list[i + 1] || {}, nextP) !== why) kids.push({ id: id + 50, label: why, enabled: false })
         }
         if (list.length === 0 && schema) kids.push({ id: 999998, label: I18n.tr("frontend.module.none"), enabled: false })
+        // I458: what a hover on this module opens: as the bar (`bar.hover`), or its own (`bar.hover_preview|card|menu`).
+        if (bars) {
+            var own = Peeks.hoverOwn(module), modes = ["", "preview", "card", "menu"], hk = []
+            for (var hi = 0; hi < modes.length; hi++)
+                hk.push({ id: 950001 + hi, label: I18n.tr("frontend.module.hover." + (modes[hi] || "bar")), toggle: "radio",
+                          checked: own === modes[hi], act: { ops: hoverOps(modes[hi]) } })
+            if (kids.length > 0) kids.push({ id: 950000, separator: true })
+            kids.push({ id: 950010, label: I18n.tr("frontend.module.hover") + ": "
+                + I18n.tr("frontend.module.hover." + (own || "bar")), children: hk })
+        }
         if (kids.length > 0) kids.push({ id: 999997, separator: true })
         kids.push({ id: settingsId, label: I18n.tr("frontend.module.settings"), act: { open: true } })
         return { children: kids }
+    }
+    // The module out of every `bar.hover_*` list, then into the one chosen ("" follows the bar): one transaction.
+    function hoverOps(mode) {
+        var ops = [], l = Peeks.hoverLists, m = module
+        for (var k in l) {
+            var has = l[k].indexOf(m) >= 0
+            if (k === mode && !has) ops.push({ set: "bar.hover_" + k, value: l[k].concat([m]) })
+            else if (k !== mode && has) ops.push({ set: "bar.hover_" + k, value: l[k].filter(function (x) { return x !== m }) })
+        }
+        return ops
     }
     // Chooses a row; returns true when the menu is done (Settings opened), false when it stays for the next change.
     function find(id, list) {
@@ -177,6 +197,10 @@ Scope {
             else if (list.length > 0) Store.act("settings.open", { key: list[0].key })
             else Store.act("settings.open", { page: "layout" })
             return true
+        }
+        if (a.ops) {
+            if (a.ops.length > 0) Store.apply(a.ops)
+            return false
         }
         if (a.action) {
             Store.act(a.action, a.args)
