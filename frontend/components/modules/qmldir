@@ -17,7 +17,6 @@ Launcher 1.0 Launcher.qml
 ControlModule 1.0 ControlModule.qml
 Wifi 1.0 Wifi.qml
 Bluetooth 1.0 Bluetooth.qml
-AudioOut 1.0 AudioOut.qml
 Mic 1.0 Mic.qml
 Power 1.0 Power.qml
 Brightness 1.0 Brightness.qml

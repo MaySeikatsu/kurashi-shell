@@ -5,7 +5,7 @@
 # (`layout.module.<id>` as every module's; they live here, with the controls, so this card's work stays in one domain.)
 "layout.module.wifi" = "Wi-Fi"
 "layout.module.bluetooth" = "Bluetooth"
-"layout.module.audio" = "Sound output"
+"layout.module.audio" = "Sound (the same module as Volume)"
 "layout.module.mic" = "Microphone"
 "layout.module.power" = "Battery and power"
 "layout.module.brightness" = "Brightness"

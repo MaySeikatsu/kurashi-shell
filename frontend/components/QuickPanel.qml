@@ -111,19 +111,29 @@ Item {
     // mode, K48). Nothing is written while editing. An id this frontend has no control for is left out (a newer daemon's).
     Watch { doc: "config" }
     readonly property var controls: ({
-        wifi: cWifi, bluetooth: cBt, focus: cFocus, audio: cAudio, mic: cMic, power: cPower, brightness: cBright,
+        wifi: cWifi, bluetooth: cBt, focus: cFocus, volume: cAudio, mic: cMic, power: cPower, brightness: cBright,
         caffeine: cCaffeine, nightlight: cNight, recorder: cRecord, darkmode: cDark, airplane: cAir
     })
+    // W71 (c): an old name is the same control — `audio` (W70's sound output) is the one sound module `volume` now.
+    readonly property var tileAliases: ({ audio: "volume" })
     // Every control that has a tile, in the order the add row offers them (the schema's choices).
-    readonly property var tileChoices: ["wifi", "bluetooth", "focus", "audio", "mic", "power", "brightness", "caffeine",
+    readonly property var tileChoices: ["wifi", "bluetooth", "focus", "volume", "mic", "power", "brightness", "caffeine",
         "nightlight", "recorder", "darkmode", "airplane"]
     readonly property var cfgTiles: {
         var v = ((Store.docs["config"] || {}).values || {})["quick.tiles"]
         return v && Array.isArray(v.value) ? v.value : null
     }
-    // (until the config document is there: the schema's default, the ten tiles of before)
-    readonly property var savedTiles: (cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "audio", "power",
-        "brightness", "caffeine", "nightlight", "recorder", "darkmode"]).filter(function (id) { return quick.controls[id] !== undefined })
+    // (until the config document is there: the schema's default; an old name read as the control's, each control once)
+    readonly property var savedTiles: {
+        var src = cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine",
+            "nightlight", "recorder", "darkmode"]
+        var out = []
+        for (var i = 0; i < src.length; i++) {
+            var id = tileAliases[src[i]] || src[i]
+            if (quick.controls[id] !== undefined && out.indexOf(id) < 0) out.push(id)
+        }
+        return out
+    }
     ListModel { id: tileModel }
     property int tileRev: 0             // bumped on every change of tileModel (what is left to add follows it)
     function tileIds() {

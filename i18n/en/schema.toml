@@ -870,7 +870,7 @@
 "config.choice.quick_style.card" = "A card, as the others"
 "config.choice.quick_style.phone" = "A phone"
 "config.quick.tiles.label" = "Control centre tiles"
-"config.quick.tiles.help" = "The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these."
+"config.quick.tiles.help" = "The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. `audio` is the old name of `volume` (sound) and still places it."
 "config.quick.click.wifi.label" = "A click on Wi-Fi"
 "config.quick.click.wifi.help" = "Opens its card (the networks), or switches the radio on or off."
 "config.choice.quick_click.card" = "Opens its card"

@@ -4,7 +4,7 @@
 # モジュールとしての各コントロールの名前（設定 › レイアウト、モジュールのメニュー、端のグループ）。
 "layout.module.wifi" = "Wi-Fi"
 "layout.module.bluetooth" = "Bluetooth"
-"layout.module.audio" = "サウンド出力"
+"layout.module.audio" = "サウンド（音量と同じモジュール）"
 "layout.module.mic" = "マイク"
 "layout.module.power" = "バッテリーと電源"
 "layout.module.brightness" = "明るさ"

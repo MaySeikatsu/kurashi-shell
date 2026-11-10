@@ -27,6 +27,12 @@ ModuleBase {
     property string valueText: ""
     property bool valueDim: false
     property real valueMaxW: 140
+    // W71 (c, d): what follows the value — the sound's and the brightness' slider (`tail`, made only while shown): `tailW`
+    // px in a row (its gap included), `tailH` px under the mark in a column. Dropped in the compact form.
+    property Component tail: null
+    property real tailW: 0
+    property real tailH: 0
+    readonly property bool tailShown: tail !== null && !compact && (vertical ? tailH > 0 : tailW > 0)
     // W71 (I475 3): a click opens the control's card, where its switch, its options and why it cannot be used stand; the
     // module's own setting `quick.click.<clickKey>` (its menu, its card, Settings › Layout › Control centre) makes it the
     // switch instead. `defaultClick` is the schema's default, for the moment before the config document is there.
@@ -56,15 +62,17 @@ ModuleBase {
     readonly property real valueW: showValueM.advanceWidth > 0
         ? Math.min(valueMaxW, Math.ceil(showValueM.advanceWidth)) + Theme.gap : 0
     TextMetrics { id: showValueM; text: m.valueText; font.pixelSize: Theme.fsCaption; font.weight: Theme.wBold; font.family: Theme.fam(text, Theme.families) }
-    fullW: vertical ? thickness : boxW + (valueText !== "" ? valueW : 0)
+    readonly property real tailRowW: tail !== null ? tailW : 0
+    fullW: vertical ? thickness : boxW + (valueText !== "" ? valueW : 0) + tailRowW
     compactW: vertical ? thickness : boxW
     elastic: !vertical && valueText !== ""
-    // (the mark and about four letters, or the whole value when it is shorter)
-    minW: vertical ? thickness : boxW + (valueText !== "" ? Math.min(valueW, 4 * Theme.fsCaption) : 0)
-    readonly property real valueShownW: showValue ? Math.max(0, Math.min(valueW, room - boxW)) : 0
-    width: vertical ? thickness : boxW + valueShownW
-    height: thickness
-    slotHeights: [thickness]
+    // (the mark and about four letters, or the whole value when it is shorter, and the slider)
+    minW: vertical ? thickness : boxW + (valueText !== "" ? Math.min(valueW, 4 * Theme.fsCaption) : 0) + tailRowW
+    readonly property real valueShownW: showValue
+        ? Math.max(0, Math.min(valueW, room - boxW - (tailShown ? tailW : 0))) : 0
+    width: vertical ? thickness : boxW + valueShownW + (tailShown ? tailW : 0)
+    height: vertical && tailShown ? thickness + tailH : thickness
+    slotHeights: [height]
     function geo() { return [[m.ctl ? m.ctl.mid : "control", m]] }
 
     // ---- what a press does ----
@@ -111,20 +119,21 @@ ModuleBase {
     Accessible.name: a11yName
 
     // ---- the glance ----
-    HoverHandler { id: hover }
+    readonly property real faceW: vertical ? thickness : boxW + valueShownW
+    readonly property real faceH: thickness
     readonly property bool hot: cardShown || tap.pressed || hover.hovered
     Rectangle {
         x: 3
         y: 3
-        width: m.width - 6
-        height: m.height - 6
+        width: m.faceW - 6
+        height: m.faceH - 6
         radius: Theme.rSm
         // QuickButton's roles: the accent while its card is up, the raised container under the pointer.
         color: m.cardShown ? Theme.accent : (tap.pressed || hover.hovered ? Theme.containerHigh : "transparent")
         opacity: m.cardShown && (tap.pressed || hover.hovered) ? 0.85 : 1
     }
     Row {
-        anchors.verticalCenter: parent.verticalCenter
+        y: (m.faceH - height) / 2
         x: (m.boxW - mark.width) / 2
         spacing: (m.boxW - mark.width) / 2 + Theme.xs
         Icon {
@@ -164,11 +173,25 @@ ModuleBase {
             text: m.valueText
         }
     }
-    // A left click is the module's; the host's right click opens the menu (ModuleHost, I408).
-    TapHandler {
-        id: tap
-        acceptedButtons: Qt.LeftButton
-        onTapped: m.click()
+    // A left click is the module's; the host's right click opens the menu (ModuleHost, I408). On the mark and its value:
+    // the slider after them takes its own presses.
+    Item {
+        width: m.faceW
+        height: m.faceH
+        HoverHandler { id: hover }
+        TapHandler {
+            id: tap
+            acceptedButtons: Qt.LeftButton
+            onTapped: m.click()
+        }
+    }
+    Loader {
+        active: m.tailShown
+        x: m.vertical ? 0 : m.boxW + m.valueShownW
+        y: m.vertical ? m.thickness : 0
+        width: m.vertical ? m.thickness : m.tailW - Theme.gap
+        height: m.vertical ? m.tailH : m.thickness
+        sourceComponent: m.tail
     }
     WheelHandler {
         enabled: m.wheels && !m.inert
@@ -179,8 +202,8 @@ ModuleBase {
     FocusRing {
         x: 3
         y: 3
-        width: m.width - 6
-        height: m.height - 6
+        width: m.faceW - 6
+        height: m.faceH - 6
         shown: m.activeFocus
         corner: Theme.rSm
         stroke: m.cardShown ? Theme.fgOnAccent : Theme.focusRing

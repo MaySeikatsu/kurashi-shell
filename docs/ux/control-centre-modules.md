@@ -121,6 +121,16 @@ fit): the value elides to the room the bar gives it, at most 140 px of text, at 
 compact is the mark alone. A hover opens the card as `bar.hover` says, the bar's shared default or the module's own
 (K113).
 
+**(c) One sound module** (I475 5). `volume` is sound now: the output's mark (muted, or the level in three steps), its
+level, then the slider (W70's `volume`); a click on the mark mutes (`quick.click.volume`, default switch; card opens the
+sound page), the wheel steps 5 % anywhere on it (B71: the slider's wheel takes a touchpad and the virtual pointer too),
+Enter opens its card, hover as `bar.hover` says. `audio` (W70's sound output) is the same module wherever a list names
+it: a bar's zone (`ModuleHost` loads `Volume` for both; `kurashi_layout`'s lists and the fixtures are unchanged, so
+`audio` stays offered, named "Sound (the same module as Volume)"), and `quick.tiles` (read as `volume`, each control
+once; the schema's help says so). A bar listing both shows it twice, as any module listed twice. The press face, the hit
+area and the focus ring cover the mark and its level; the slider takes its own presses. In a column the mark stands over
+the upright slider; compact is the mark alone (a click mutes, the wheel steps).
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).

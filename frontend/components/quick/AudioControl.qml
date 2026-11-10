@@ -5,7 +5,8 @@ import "../../core"
 // page lists the outputs, the inputs and what plays (AudioPage). W70: the logic QuickPanel held.
 Control {
     id: c
-    mid: "audio"
+    // W71 (c): the one sound module's id; `audio` (W70's) is the same module wherever a list names it.
+    mid: "volume"
     page: "audio"
     Watch { doc: "svc.audio"; active: c.live }
     readonly property var d: Store.docs["svc.audio"] || ({})

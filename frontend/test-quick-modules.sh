@@ -23,6 +23,8 @@
 #      adds the microphone at the end, a tile's remove key (−) takes one out; Done writes the edit's list as one apply
 #      (the relay's log); the mock refuses it, so the edit stays and says so (shot), Escape puts the setting back; the
 #      centre follows the setting when it changes elsewhere (mock.doc, as Settings' list would write it; shot);
+#   7. W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
+#      `quick.tiles` naming both shows the sound tile once;
 #   5. idle: with the pointer away and nothing open, the shell commits no frame for 3 s (Ma; WAYLAND_DEBUG commits);
 #      the frontend logs no QML error.
 # Shots (evidence to read) in frontend/shots/quick-modules/.
@@ -164,10 +166,11 @@ mv_to "$AWAY_X" "$AWAY_Y"
 
 # ---- 1. each module on the bar ----
 # where <id> → "cx cy": the middle of the module's last logged box on the top bar.
+# (W71: the mark's middle, the module's first square: the sound module's slider and a glance's value follow it)
 where() {
-  grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", ($6 + $8) / 2, ($7 + $9) / 2 }'
+  grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $6 + ($9 - $7) / 2, ($7 + $9) / 2 }'
 }
-for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane; do
+for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane; do   # (audio: W70's id)
   wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
 done
 echo "ok: the bar shows the eleven control modules"
@@ -187,6 +190,9 @@ wait_settled 1 0.3
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-glances-long.png" || fail "grim failed on the bar"
 K act mock.doc '{"doc":"svc.network","patch":{"primary":{"name":"home-wifi"}}}' >/dev/null || true
 echo "ok: the glances show the network's name and the sound level; a long name elides (width $(mod_w wifi), bar-glances-long)"
+# W71 (c, I475 5): one sound module — `audio` in the bar's list (W70's id) places it: the mark, the level and the slider.
+[ "$(mod_w audio)" -gt $(( THICK + 110 )) ] || fail "the bar's audio entry is not the sound module with its slider (width $(mod_w audio))"
+echo "ok: the old id audio places the one sound module, its slider after its level (width $(mod_w audio))"
 read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar.png" || fail "grim failed on the bar"
 click_mod() { local x y; read -r x y < <(where "$1"); [ -n "$x" ] || fail "no place for $1"; ptr "$x" "$y" "${2:-left}"; }
@@ -402,7 +408,7 @@ echo "ok: a right click opens the module's menu (wifi, focus, caffeine, power)"
 
 # ---- 6. the centre as a container: `quick.tiles` and its edit mode (W70 stage c) ----
 # The keys stand where the card logs them (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px).
-DEFAULT=wifi,bluetooth,focus,audio,power,brightness,caffeine,nightlight,recorder,darkmode
+DEFAULT=wifi,bluetooth,focus,volume,power,brightness,caffeine,nightlight,recorder,darkmode
 K act quick.toggle >/dev/null || fail "quick.toggle refused"
 wait_until 5 ui_is '.panel == "quick"' || fail "quick.toggle opened no card"
 wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
@@ -419,10 +425,10 @@ press alt+right
 wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,wifi,focus'" \
   || fail "Alt+Right did not move Wi-Fi one place on: $(tiles_now)"
 press delete
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,focus,audio'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,focus,volume'" \
   || fail "Delete did not take Wi-Fi out: $(tiles_now)"
 press alt+down
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,audio,power,focus'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,volume,power,focus'" \
   || fail "Alt+Down did not move Focus a row down: $(tiles_now)"
 echo "ok: edit mode by keys: Alt+Right and Alt+Down move a tile, Delete takes it out ($(tiles_now))"
 sleep 0.8
@@ -465,6 +471,20 @@ wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edited.png" || fail "grim failed"
 close_all
 echo "ok: the centre follows quick.tiles as the daemon has it ($WANT)"
+
+# ---- 7. W71 (c): the new id `volume` places the sound module as `audio` did, and an old `quick.tiles` with `audio`
+#      shows the sound tile once ----
+K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","volume","clock"]}}}}' >/dev/null \
+  || fail "the mock refused the bar's modules"
+wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end volume ' '$R/qs.log'" || fail "the bar does not show module volume"
+wait_until 3 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end volume .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( THICK + 110 )) ]" \
+  || fail "volume is not the sound module with its slider"
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["audio","wifi","volume"]}}}}' >/dev/null || fail "mock.doc refused quick.tiles"
+K act quick.toggle >/dev/null || fail "quick.toggle refused"
+wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'volume,wifi' ]" \
+  || fail "quick.tiles [audio, wifi, volume] does not show the sound tile once: $(tiles_now)"
+close_all
+echo "ok: volume places the sound module; quick.tiles naming audio and volume shows one sound tile (volume,wifi)"
 
 # ---- 5. idle ----
 mv_to "$AWAY_X" "$AWAY_Y"

@@ -773,7 +773,7 @@ tiles_inside() {
   local vx vy vw vh id tx ty tw th
   read -r vx vy vw vh < <(grep -o 'quick-at viewport .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
   [ -n "${vx:-}" ] || fail "$1: the card logged no viewport"
-  for id in wifi bluetooth focus audio power brightness caffeine nightlight recorder darkmode; do
+  for id in wifi bluetooth focus volume power brightness caffeine nightlight recorder darkmode; do
     read -r tx ty tw th < <(tile_at "$id")
     [ -n "${tx:-}" ] || continue
     [ "$tx" -ge "$vx" ] && [ "$ty" -ge "$vy" ] && [ $(( tx + tw )) -le $(( vx + vw )) ] && [ $(( ty + th )) -le $(( vy + vh )) ] \

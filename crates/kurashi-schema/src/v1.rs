@@ -2345,7 +2345,7 @@ pub const QUICK_TILES: [&str; 10] = [
     "wifi",
     "bluetooth",
     "focus",
-    "audio",
+    "volume",
     "power",
     "brightness",
     "caffeine",
@@ -2374,7 +2374,8 @@ pub struct Quick {
     pub style: QuickStyle,
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
-    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. `audio`
+    /// is the old name of `volume` (sound) and still places it.
     #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
     pub tiles: Vec<String>,
     #[kurashi(nested)]

@@ -151,8 +151,9 @@ Item {
         workspaces: workspaces, windows: windows, island: island, volume: volume, recorder: recorder,
         keyboard: keyboard, clock: clock, quick: quick, tray: tray, sidebar_left: sidebarLeft, sidebar_right: sidebarRight,
         launcher: launcher,
-        // W70: the control centre's controls, each a module of its own.
-        wifi: wifiM, bluetooth: bluetoothM, audio: audioM, mic: micM, power: powerM, brightness: brightnessM, focus: focusM,
+        // W70: the control centre's controls, each a module of its own. W71 (c): `audio` (W70's sound output) is the one
+        // sound module `volume` now, so a config that names either places it.
+        wifi: wifiM, bluetooth: bluetoothM, audio: volume, mic: micM, power: powerM, brightness: brightnessM, focus: focusM,
         caffeine: caffeineM, nightlight: nightlightM, darkmode: darkmodeM, airplane: airplaneM
     })
     Loader {
@@ -174,7 +175,6 @@ Item {
     Component { id: launcher; Launcher { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: wifiM; Wifi { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: bluetoothM; Bluetooth { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
-    Component { id: audioM; AudioOut { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: micM; Mic { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: powerM; Power { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: brightnessM; Brightness { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
