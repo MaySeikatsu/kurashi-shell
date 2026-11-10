@@ -137,8 +137,10 @@ Item {
         Store.act("webdock.card", args)
     }
     onCardWellPlaceChanged: reportCard()
-    // The pointer in the host's window over the well holds the card as the card itself does; a press there (the window
-    // took the keyboard) makes it the user's. Esc the page did not take, or "Show at the edge", asks the card to close.
+    // The pointer in the host's window over the well holds the card as the card itself does; a press there (or the
+    // keyboard asked for the page) makes it the user's. Esc in the page's window, or "Show at the edge", asks the card to
+    // close: the counter's value when the panel first sees the document is the baseline (an earlier close is not this
+    // card's).
     readonly property bool pageHover: inCard && cardDoc.hover === true
     onPageHoverChanged: Peeks.hoverOverlay("webdock", pageHover)
     readonly property bool pageEngaged: inCard && cardDoc.engaged === true
@@ -146,10 +148,12 @@ Item {
     readonly property int closeAsks: cardDoc.close !== undefined ? cardDoc.close : 0
     property int closeSeen: -1
     onCloseAsksChanged: {
+        if (!hasDoc) return
         if (closeSeen >= 0 && closeAsks > closeSeen && inCard) Store.act("ui.close")
         closeSeen = closeAsks
     }
-    Component.onCompleted: closeSeen = closeAsks
+    onHasDocChanged: if (hasDoc && closeSeen < 0) closeSeen = closeAsks
+    Component.onCompleted: if (hasDoc) closeSeen = closeAsks
 
     Accessible.role: Accessible.Pane
     Accessible.name: I18n.tr("webdock.dock.name")

@@ -14,10 +14,10 @@ import "core"
 // sidebar's Top-layer window. It sends no hover or engage report: the edge dock's state machine is not its business.
 // W72 (`cardRole: true`, docs/ux/webdock.md "In the bar's card"): the same window over the bar card's well, where
 // `mod.webdock.card.place` says it rests — on that output, `x`, `y` px from its top-left corner (zones ignored, as the
-// shell's Stage), `width` × `height`; above the Stage's Overlay window (mapped after it). There it reports the pointer and
-// the keyboard in it (`webdock.card_page`: the shell holds the card while the pointer is on the page), Esc the page did not
-// take closes the card (`webdock.card_close`), "Show at the edge" moves the pin to the edge card, and the keyboard asked
-// for the page (`card.focus`) is taken once. It fades in once mapped (a cut under reduced motion).
+// shell's Stage), `width` × `height`; above the Stage's Overlay window (mapped after it). There it reports the pointer in
+// it and a press in it (`webdock.card_page`: the shell holds the card while the pointer is on the page and makes it the
+// user's on a press), Esc closes the card (`webdock.card_close`), "Show at the edge" moves the pin to the edge card, and
+// the keyboard asked for the page (`card.focus`) is taken once. It fades in once mapped (a cut under reduced motion).
 PanelWindow {
     id: side
 

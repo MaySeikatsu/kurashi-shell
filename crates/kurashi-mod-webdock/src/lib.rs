@@ -416,7 +416,7 @@ impl Shared {
         Ok(None)
     }
 
-    /// `webdock.card_page {hover, engaged}` (W72, the host): the pointer and the keyboard in its window over the card.
+    /// `webdock.card_page {hover, engaged}` (W72, the host): the pointer in its window over the card, and the user using it.
     fn card_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let hover = opt_bool(args, "hover")?.unwrap_or(false);
         let engaged = opt_bool(args, "engaged")?.unwrap_or(false);

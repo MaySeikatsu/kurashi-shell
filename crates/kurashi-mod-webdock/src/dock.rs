@@ -371,8 +371,9 @@ pub struct CardPlace {
 }
 
 /// The bar card's page (W72, docs/ux/webdock.md "In the bar's card"): its own pin (kept while the card is closed), its
-/// place while the card rests open, the pointer and the keyboard in the host's window over it, and two counters the
-/// shell and the host answer: a close the page asked for (Esc, "Show at the edge") and the keyboard asked for the page.
+/// place while the card rests open, the pointer in the host's window over it and the user's use of it (a press, or the
+/// keyboard asked for the page), and two counters the shell and the host answer: a close the page asked for (Esc, "Show
+/// at the edge") and the keyboard asked for the page.
 #[derive(Debug, Default)]
 struct Card {
     pin: Option<String>,
@@ -535,7 +536,7 @@ impl Dock {
     }
 
     /// `webdock.card` (W72): the bar card's page area at rest (`Some`), or the card moved, closed or went (`None`; the
-    /// pointer and the keyboard in the host's window over it go with it — its unmap sends no leave). An open card with no
+    /// pointer and the use of the host's window over it go with it — its unmap sends no leave). An open card with no
     /// pin of its own shows the first pin. True when it shows a site (the host starts).
     pub fn card_place(&mut self, place: Option<CardPlace>) -> bool {
         if place.is_none() {
@@ -555,7 +556,7 @@ impl Dock {
         Ok(self.touch_card())
     }
 
-    /// `webdock.card_page {hover, engaged}` (W72): the pointer and the keyboard in the host's window over the card. Only
+    /// `webdock.card_page {hover, engaged}` (W72): the pointer in the host's window over the card and the user using it. Only
     /// while the card is placed: a late report after the card closed is dropped.
     pub fn card_page(&mut self, hover: bool, engaged: bool) {
         if self.card.place.is_some() {

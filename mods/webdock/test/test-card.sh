@@ -118,12 +118,14 @@ loads() { count "sent webdock.host.loaded {\"pin\":\"$1\"}" "$HOSTLOG"; }
 panel_card() { { grep -F 'webdock-panel card ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel card //'; }
 # The host's last card window line for the pin $1: <pin> win <w> <h> page <x> <y> <w> <h> place <out> <x> <y> <w> <h>
 card_line() { { grep -F "webdock-debug card $1 win " "$HOSTLOG" 2>/dev/null || true; } | tail -1 | sed 's/.*webdock-debug card //'; }
+# QML problems and the scene's and QML's warnings (a refusal while the daemon or the shell goes away is not one).
+QML_BAD='TypeError|ReferenceError|is not a type|is not defined|Cannot assign|Binding loop|caused by|failed to transition|WARN.{0,12}(scene|qml)'
+QML_OK='Unable to assign \[undefined\]|refused: unavailable disconnected|refused this scope|refused this host'
 qml_errors() {
   local f
   for f in "$R/qs.log" "$HOSTLOG"; do
-    if grep -E 'TypeError|ReferenceError|is not a type|is not defined|Cannot assign|Binding loop|caused by|failed to transition' "$f" 2>/dev/null \
-        | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
-      grep -E 'TypeError|ReferenceError|is not a type|is not defined|Cannot assign|Binding loop|caused by|failed to transition' "$f" | head -20 >&2
+    if grep -E "$QML_BAD" "$f" 2>/dev/null | grep -vE "$QML_OK" >/dev/null; then
+      grep -E "$QML_BAD" "$f" | grep -vE "$QML_OK" | head -20 >&2
       fail "QML problems in $f"
     fi
   done
@@ -239,7 +241,39 @@ wait_until 10 eval '[ "$(grep -F "webdock-debug card hidden" "$HOSTLOG" | wc -l)
 sleep 1
 [ "$(loads site)" = "$L0" ] || fail "moving the page between the card and the edge reloaded it ($L0 → $(loads site))"
 K act webdock.hide >/dev/null
-ok "the same pin at the edge: the card keeps the page, the edge takes it once the card closes, no reload"
+ok "the same pin at the edge: the card keeps the page while the edge shows the pin; closing the card reloads nothing"
+qml_errors
+
+# ---- 4b. the same pin in the sidebar: the sidebar keeps the page, the card says so; closed, the card takes it ----
+K set sidebar.left.sections '["mod:webdock:webdock"]' >/dev/null || fail "sidebar.left.sections with the dock was refused"
+K act webdock.sidebar_select '{"pin":"site"}' >/dev/null
+K act sidebar.toggle "{\"side\":\"left\",\"output\":\"$OUT\"}" >/dev/null
+wait_until 10 doc_is "'place' in d.get('sidebar', {})" || fail "the sidebar never placed the dock's page ($(doc "d.get('sidebar')"))"
+wait_until 10 grep -qF 'webdock-debug side shown' "$HOSTLOG" || fail "the host did not show the page in the sidebar"
+shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
+n0=$(count 'webdock-panel notice This page is shown in the sidebar' "$R/qs.log")
+K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
+wait_until 5 panel_open || fail "the card did not open beside the sidebar"
+if doc_is "'place' in d.get('sidebar', {})"; then
+  wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown in the sidebar" "$R/qs.log")" -gt '"$n0"' ]' \
+    || fail "the card does not say its pin is shown in the sidebar"
+  sleep 1
+  [ "$(count 'webdock-debug card shown' "$HOSTLOG")" = "$shown0" ] || fail "the card took the page the sidebar shows"
+  K act sidebar.toggle '{"side":"left"}' >/dev/null
+  wait_until 10 doc_is "'place' not in d.get('sidebar', {})" || fail "the sidebar did not close"
+  panel_open || fail "closing the sidebar closed the card"
+  wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' \
+    || fail "the card did not take the page once the sidebar closed"
+  wait_px "$CX" "$CY" '#2b3a55' 15
+  ok "the same pin in the sidebar: the sidebar keeps the page, the card says so; closed, the card shows it"
+else
+  ok "(opening the card closed the sidebar: no both-at-once case to check)"
+fi
+[ "$(loads site)" = "$L0" ] || fail "the page moved between the sidebar and the card with a reload ($L0 → $(loads site))"
+K act ui.close >/dev/null
+wait_until 5 panel_closed || true
+K act sidebar.close >/dev/null || true
+K set sidebar.left.sections '[]' >/dev/null || true
 qml_errors
 
 # ---- 5. hover: the pointer from the module into the page keeps the card ----

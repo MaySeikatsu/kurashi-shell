@@ -72,7 +72,7 @@ QtObject {
     // The module whose card or menu a hover opened ("" when none, or when a click opened what is open).
     property string hoverOwner: ""
     readonly property bool cardOpen: (ui.panel || "") !== "" || (ui.tray || "") !== "" || ui.launcher === true
-    onCardOpenChanged: if (!cardOpen) { hoverOwner = ""; hoverGrace.stop() }
+    onCardOpenChanged: if (!cardOpen) { hoverOwner = ""; hoverGrace.stop(); onCard = false; overlayHolds = [] }
     function hoverOpened(mid) { hoverOwner = mid; hoverGrace.stop() }
     function hoverLeft(mid) { if (hoverOwner === mid) hoverGrace.restart() }
     // The pointer is on what the hover opened: it stays. It left: it goes after the grace. A press in it keeps it: the
