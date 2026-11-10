@@ -264,6 +264,8 @@ Scope {
             SurfaceForm {
                 id: sbRun
                 surface: "sidebar"
+                // (a column a screen tall: its form takes a little longer than a card's)
+                extent: col.sh
                 shapes: ["expand", "iris", "stamp", "outline"]
                 // (a slide still in flight keeps its way: a reversal continues it)
                 hold: col.held && (spring.running || timedP.running || (col.p > 0.001 && col.p < 0.999))
