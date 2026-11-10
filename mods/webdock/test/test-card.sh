@@ -10,7 +10,8 @@
 #   4. the same pin at the edge while the card shows it: the card keeps the page (no load); the edge takes it once the card
 #      closes (no load);
 #   5. `bar.hover = card`: a rest on the module opens the card; the pointer moved into the page keeps it; leaving closes it;
-#   6. a click in the page gives it the keyboard (typed text arrives); Esc closes the card;
+#   6. Tab past the card's keys hands the keyboard to the page; a click in the page gives it the keyboard (typed text
+#      arrives either way); Esc closes the card;
 #   7. a bottom bar: the same geometry checks; shots mods/webdock/shots/card-{top,bottom}.png;
 #   8. no pin: the well says how to add one; no QML error or warning in the shell or the host.
 #   nix develop -c mods/webdock/test/test-card.sh [sandbox-name]
@@ -279,15 +280,31 @@ K set bar.hover '"preview"' >/dev/null
 K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
 wait_until 5 panel_open || fail "the card did not open"
 wait_px "$CX" "$CY" '#2b3a55' 15
+# By keyboard: a click on the first pin's key gives the card the keys; Tab walks the keys and, past the settings key,
+# hands the keyboard to the page (`webdock.card_focus`); typed text arrives; Esc closes the card.
+ptr $(( PX + 20 )) $(( PY + 20 ))
+for _ in 1 2 3 4 5; do
+  keys tab
+  doc_is "d['card'].get('focus', 0) >= 1" && break
+done
+wait_until 5 doc_is "d['card'].get('focus', 0) >= 1" || fail "Tab past the card's keys did not ask the keyboard for the page"
+wait_until 5 grep -qF 'webdock-debug card keyboard in' "$HOSTLOG" || fail "the page did not take the keyboard it was asked for"
+keys k b
+wait_until 5 grep -qF 'INPUT kb' "$HOSTLOG" || fail "typing after Tab did not reach the page ($HOSTLOG)"
+keys escape
+wait_until 5 panel_closed || fail "Esc in the page did not close the card (keyboard path)"
+ok "Tab past the card's keys hands the keyboard to the page; typed text arrives; Esc closes the card"
+K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
+wait_until 5 panel_open || fail "the card did not open"
+wait_px "$CX" "$CY" '#2b3a55' 15
 read -r _ _ _ _ _ _ GY _ <<< "$(card_line site)"
 # the page's text field: under the heading (site.html: an h1, then the input)
 mv_to $(( X + 60 )) $(( Y + GY + 100 ))
 sleep 0.3
 ptr $(( X + 60 )) $(( Y + GY + 100 ))
 wait_until 5 doc_is "d['card'].get('engaged') == True" || fail "a click in the page was not reported (engaged)"
-wait_until 5 grep -qF 'webdock-debug card keyboard in' "$HOSTLOG" || fail "a click in the page did not give it the keyboard"
 keys h i
-wait_until 5 grep -qF 'INPUT hi' "$HOSTLOG" || fail "typing did not reach the page ($HOSTLOG)"
+wait_until 5 grep -qE 'INPUT [a-z]*hi$' "$HOSTLOG" || fail "typing did not reach the page ($HOSTLOG)"
 keys escape
 wait_until 5 panel_closed || fail "Esc in the page did not close the card"
 ok "a click in the page gives it the keyboard (typed text arrives); Esc closes the card"
