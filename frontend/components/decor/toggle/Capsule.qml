@@ -14,7 +14,7 @@ ToggleBase {
     Rectangle {
         anchors.fill: parent
         radius: Math.min(height / 2, Theme.rFull)
-        color: tg.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.selected
+        color: tg.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.containerHigh
         Behavior on color { enabled: Theme.timed; ColorAnimation { duration: Theme.stdMs } }
         Rectangle {
             visible: tg.checked

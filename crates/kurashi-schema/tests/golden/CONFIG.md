@@ -909,6 +909,8 @@ The icon theme the apps that follow use (GTK, Qt, KDE), written with their colou
 Colours move: the chrome's gradient drifts, the frame's outline and its glow run through colours. It draws frames while it runs, so it is off by default and stops with the motion profile None and with reduced motion.
 
 - type: `bool` · default: `false`
+- only while `theme.motion.profile != "none"`
+- forced to `false` while `a11y.reduce_motion` is on
 - since schema v7
 
 #### `theme.colors.flow.when` — Runs
@@ -944,6 +946,7 @@ The chrome's gradient moves (while the gradient is on).
 
 - type: `bool` · default: `true`
 - only while `theme.colors.flow.on == true`
+- only while `theme.colors.gradient.on == true`
 - since schema v7
 
 #### `theme.colors.flow.outline` — Frame outline
@@ -1179,10 +1182,10 @@ While the light follows the pointer or the spotlight aims at it, the surfaces' s
 
 #### `theme.join` — Connection
 
-How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it. Joined: the card grows out of the bar as one shape with it. Floating: a card of its own, a gap off the bar.
+How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it (most grow the card out of the bar as one shape). Floating: a card of its own under its module, a gap off the bar.
 
 - type: `choice` · default: `"auto"`
-- choices: `"auto"` | `"fused"` | `"float"`
+- choices: `"auto"` | `"float"`
 - since schema v7
 
 #### `theme.join_corner` — Connection corner
@@ -2060,7 +2063,7 @@ The fonts, in order. Any installed font, your own too.
 
 #### `theme.typography.fx.effect` — Text effect
 
-How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a colour fringe and scan lines. Candle: a warm light that flickers. Rainbow: every letter its own colour. Shimmer: a light passes over the text now and then.
+How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a colour fringe. Candle: a warm light that flickers while something is open. Rainbow: every letter its own colour. Shimmer: a light passes over the text now and then.
 
 - type: `choice` · default: `"none"`
 - choices: `"none"` | `"glow"` | `"crt"` | `"candle"` | `"rainbow"` | `"shimmer"`
@@ -2068,7 +2071,7 @@ How headings and labels are lit. Glow: a soft light in the text's own colour. CR
 
 #### `theme.typography.fx.spawn` — Fresh text
 
-How text appears when its surface opens or its words change. Typed: letter by letter, as in old games. Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there. Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks in from a blur.
+How text appears when its surface opens or its words change. Typed: letter by letter, as in old games. Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there. Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks into the paper.
 
 - type: `choice` · default: `"none"`
 - choices: `"none"` | `"type"` | `"decipher"` | `"kana"` | `"brush"` | `"rise"` | `"ink"`

@@ -472,8 +472,9 @@ pub struct Theme {
     #[kurashi(default = OutlineInk::Outline, section = "shape", since = 7)]
     pub outline_ink: OutlineInk,
     /// Connection
-    /// How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it.
-    /// Joined: the card grows out of the bar as one shape with it. Floating: a card of its own, a gap off the bar.
+    /// How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it
+    /// (most grow the card out of the bar as one shape). Floating: a card of its own under its module, a gap off the
+    /// bar.
     #[kurashi(default = Join::Auto, section = "connection", since = 7)]
     pub join: Join,
     /// Connection corner
@@ -708,8 +709,6 @@ pub enum LayoutMove {
 pub enum Join {
     /// Automatic
     Auto,
-    /// Joined
-    Fused,
     /// Floating
     Float,
 }
@@ -997,7 +996,12 @@ pub struct ColourFlow {
     /// Colour flow
     /// Colours move: the chrome's gradient drifts, the frame's outline and its glow run through colours. It draws
     /// frames while it runs, so it is off by default and stops with the motion profile None and with reduced motion.
-    #[kurashi(default = false, since = 7)]
+    #[kurashi(
+        default = false,
+        requires = "theme.motion.profile != none",
+        overridden_by = "a11y.reduce_motion => false",
+        since = 7
+    )]
     pub on: bool,
     /// Runs
     /// Always; only while a card, a sidebar or the launcher is open; or only while music plays.
@@ -1015,7 +1019,12 @@ pub struct ColourFlow {
     pub colours: FlowColours,
     /// Gradient
     /// The chrome's gradient moves (while the gradient is on).
-    #[kurashi(default = true, requires = "theme.colors.flow.on == true", since = 7)]
+    #[kurashi(
+        default = true,
+        requires = "theme.colors.flow.on == true",
+        requires = "theme.colors.gradient.on == true",
+        since = 7
+    )]
     pub gradient: bool,
     /// Frame outline
     /// The frame's outline and the outline of what is joined to it move through the colours (a hand-drawn stroke
@@ -1980,14 +1989,14 @@ pub struct Typography {
 pub struct TextFx {
     /// Text effect
     /// How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a
-    /// colour fringe and scan lines. Candle: a warm light that flickers. Rainbow: every letter its own colour. Shimmer:
-    /// a light passes over the text now and then.
+    /// colour fringe. Candle: a warm light that flickers while something is open. Rainbow: every letter its own
+    /// colour. Shimmer: a light passes over the text now and then.
     #[kurashi(default = TextEffect::None, since = 7)]
     pub effect: TextEffect,
     /// Fresh text
     /// How text appears when its surface opens or its words change. Typed: letter by letter, as in old games.
     /// Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there.
-    /// Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks in from a blur.
+    /// Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks into the paper.
     #[kurashi(default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
     pub spawn: TextSpawn,
     /// Applies to

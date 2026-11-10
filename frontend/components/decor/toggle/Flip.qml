@@ -13,7 +13,7 @@ ToggleBase {
     Rectangle {
         anchors.fill: parent
         radius: tg.corner
-        color: Theme.selected
+        color: Theme.containerHigh
         border.width: 1
         border.color: tg.hovered ? Theme.dim : Theme.outline
     }

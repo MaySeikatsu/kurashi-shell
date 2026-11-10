@@ -2630,7 +2630,21 @@
             {
               "advanced": false,
               "control": "toggle",
-              "couplings": [],
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                },
+                {
+                  "forces": false,
+                  "key": "a11y.reduce_motion",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
               "default": false,
               "help": "config.theme.colors.flow.on.help",
               "key": "theme.colors.flow.on",
@@ -2755,6 +2769,13 @@
               "couplings": [
                 {
                   "key": "theme.colors.flow.on",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                },
+                {
+                  "key": "theme.colors.gradient.on",
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
@@ -3571,10 +3592,6 @@
                 {
                   "label": "config.choice.join.auto",
                   "value": "auto"
-                },
-                {
-                  "label": "config.choice.join.fused",
-                  "value": "fused"
                 },
                 {
                   "label": "config.choice.join.float",

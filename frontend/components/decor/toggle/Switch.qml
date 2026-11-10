@@ -14,7 +14,7 @@ ToggleBase {
     Rectangle {
         anchors.fill: parent
         radius: Math.min(height / 2, Theme.rFull)
-        color: tg.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.selected
+        color: tg.checked ? Theme.colorOr("toggle.track.on", Theme.accent) : Theme.containerHigh
         border.width: tg.checked ? 0 : 1
         border.color: Theme.outline
         Behavior on color { enabled: Theme.timed; ColorAnimation { duration: Theme.fastMs } }
@@ -43,7 +43,7 @@ ToggleBase {
             width: 6; height: 6; radius: 3
             color: "transparent"
             border.width: 1.5
-            border.color: Theme.selected
+            border.color: Theme.containerHigh
         }
     }
 }

@@ -5,7 +5,7 @@ import "../core/corner.js" as Corner
 // A choice as pictures (session 28; SettingRow.picker, as FrameOutlineCards): each offer of the row as a small card
 // that shows what it gives, so the difference is seen before it is picked. `kind` says what the cards draw:
 //   chrome       a block and a button as that chrome draws them (flat, keycap, soft, line, bevel, glow, painted, ripped)
-//   join         a card and the bar it opens from (as the look draws it, joined, floating)
+//   join         a card and the bar it opens from (as the look draws it, floating)
 //   join_corner  the corner where a joined card meets its bar, large (round, chamfer, steps, bulge, square)
 //   slider       the slider's own face at a level (the part that the shell draws: decor/slider/…)
 //   toggle       the switch's own face, on and off

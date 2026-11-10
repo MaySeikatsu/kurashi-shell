@@ -14,7 +14,7 @@ ToggleBase {
         anchors.fill: parent
         anchors.topMargin: tg.pressed ? 1 : 0
         radius: tg.corner
-        color: Theme.selected
+        color: Theme.containerHigh
         border.width: 1
         border.color: tg.hovered ? Theme.dim : Theme.outline
         // The light thrown on the housing: rings round the lens, fainter outward.

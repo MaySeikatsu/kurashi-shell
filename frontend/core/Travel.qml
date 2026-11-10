@@ -52,6 +52,12 @@ Singleton {
     }
     // The bar on this edge of this output is on its way: it stays unseen until the traveller has brought it.
     function hides(name, edge) { var m = moves[name]; return m !== undefined && m.to === edge }
+    // (a traveller that never lands — its output gone mid-move — must not leave a bar unseen for good)
+    readonly property Timer limit: Timer {
+        interval: 1500
+        onTriggered: tr.moves = ({})
+    }
+    onMovesChanged: { var any = false; for (var k in moves) { any = true; break }; if (any) limit.restart(); else limit.stop() }
     function done(name, n) {
         var m = moves[name]
         if (m === undefined || m.n !== n) return

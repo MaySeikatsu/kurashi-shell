@@ -3,6 +3,7 @@ singleton Theme 1.0 Theme.qml
 singleton I18n 1.0 I18n.qml
 singleton Changes 1.0 Changes.qml
 singleton Light 1.0 Light.qml
+singleton ColorFlow 1.0 ColorFlow.qml
 Glide 1.0 Glide.qml
 Watch 1.0 Watch.qml
 ColorBlend 1.0 ColorBlend.qml

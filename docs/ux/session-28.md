@@ -36,7 +36,7 @@ have no hover preview on the live shell.
 
 ## 3. Connections (K129)
 **Job.** "Rework connection styles … a separate setting … without being dependent on chrome."
-`theme.join`: Automatic (the look's), Joined, Floating (a card of its own under its module, a gap off the bar).
+`theme.join`: Automatic (the look's), Floating (a card of its own under its module, a gap off the bar). A third choice, Joined (join even where the look keeps cards apart), was built and dropped: under `terminal` it changed nothing that could be seen.
 `theme.join_corner`: Rounded, Cut, Steps (I270), Drop, Square — for every joined fillet (cards, the island's card,
 dock, sidebars, edge modules), drawn by one path post-processor (`corner.js` `squircled(…, join)`).
 **Others.** Caelestia and Noctalia: rounded fillets only; end-4: floating; DankMaterialShell: either; macOS notch

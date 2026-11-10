@@ -117,12 +117,19 @@ function squircled(svg, sq, join) {
     }
     // Each subpath's direction (twice its signed area: > 0 runs clockwise on screen, y down), for telling fillets.
     if (join) {
-        var from = 0, area = 0
-        var close = function (end) { for (var n = from; n < end; n++) segs[n].cw = area > 0; from = end; area = 0 }
+        // (an open line — a pen's rule, a U round a card — is closed for the count by its last point's way back to its
+        // first, or its direction would depend on where it lies in the window)
+        var from = 0, area = 0, bx = 0, by = 0, lx = 0, ly = 0
+        var close = function (end) {
+            area += lx * by - bx * ly
+            for (var n = from; n < end; n++) segs[n].cw = area > 0
+            from = end; area = 0
+        }
         for (var m = 0; m < segs.length; m++) {
             var e = segs[m]
-            if (e.c === "M") { if (m > from) close(m); continue }
+            if (e.c === "M") { if (m > from) close(m); bx = e.x; by = e.y; lx = e.x; ly = e.y; continue }
             area += e.px * e.y - e.x * e.py
+            lx = e.x; ly = e.y
         }
         close(segs.length)
     }

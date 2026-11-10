@@ -779,7 +779,8 @@ pub fn document_with(
             }
             // Session 28: the connection, the controls' faces, colour flow and the text effects — choices the frontend
             // draws as they are (values in effect: reduced motion and the motion profile None stop what moves).
-            let still = b(store, "a11y.reduce_motion") || s(store, "theme.motion.profile") == "none";
+            let still =
+                b(store, "a11y.reduce_motion") || s(store, "theme.motion.profile") == "none";
             for (token, key) in [
                 ("join.kind", "theme.join"),
                 ("join.corner", "theme.join_corner"),
