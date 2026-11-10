@@ -48,13 +48,14 @@ void main() {
         float reach = depth * (0.35 + 2.4 * bay * bay) + depth * 0.9 * jag;
         if (d > reach) { fragColor = vec4(0.0); return; }
         float rimW = depth * (0.6 + 0.7 * vnoise(g / 9.0 + 31.0));
-        if (d > reach - rimW) col = mix(col, vec3(1.0), 0.72 + 0.2 * vnoise(g / 1.7));
-        // The frame's outline, when it is on: a line drawn by hand along the tear itself (as along the paint's edge),
-        // taking a little of the sheet's colour.
+        // The tear's core: the paper's white; or, with the frame's outline on, the outline itself: the core in the
+        // outline's ink, a little wider, taking some of the sheet's colour where it runs thin (as ink on wet paper).
         if (uLine.a > 0.0) {
-            float lw = uLine.a * (0.8 + 0.5 * vnoise(g / 15.0 + 21.0));
-            float into = 0.15 + 0.22 * vnoise(g / 44.0 + 33.0);
-            col = mix(col, mix(uLine.rgb, color.rgb, into), smoothstep(reach - lw - 1.0, reach - lw + 0.4, d));
+            float lw = rimW + uLine.a * 0.6;
+            float into = 0.10 + 0.25 * vnoise(g / 38.0 + 33.0);
+            col = mix(col, mix(uLine.rgb, color.rgb, into), smoothstep(reach - lw - 1.2, reach - lw + 0.6, d));
+        } else if (d > reach - rimW) {
+            col = mix(col, vec3(1.0), 0.72 + 0.2 * vnoise(g / 1.7));
         }
         a = color.a * clamp(reach - d + 0.5, 0.0, 1.0);
     } else {

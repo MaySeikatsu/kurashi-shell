@@ -251,6 +251,9 @@ Singleton {
     readonly property bool frameOutline: tok("frame.outline", boxed) === true && !edgeTorn
     // (under a painted or a torn edge the frame's outline, when on, is a hand-drawn line along that edge:
     // shaders/sheet_edge.frag; the straight rule between the sheet and its paint is not drawn)
+    // Its colour there: the outline's ink as chosen (the accent, the text's), else the chrome's ink line: a chrome with
+    // no outline of its own (paint, torn paper) has no outline colour to give.
+    readonly property color frameLineInk: outlineInk === "accent" ? accent : (outlineInk === "text" ? fg : line)
     readonly property bool frameLineOnPaint: edgeTorn && tok("frame.outline", false) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
     // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's
