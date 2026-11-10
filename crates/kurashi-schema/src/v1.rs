@@ -258,6 +258,36 @@ pub struct Bar {
     /// cards open at the centre.
     #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
     pub popups_other: Vec<String>,
+    /// On hover
+    /// What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its
+    /// preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module
+    /// and what it opened; what a click opened stays.
+    #[kurashi(default = BarHover::Preview, since = 7)]
+    pub hover: BarHover,
+    /// Modules that show their preview on hover
+    /// These modules show their preview whatever the bar does on hover. A module's menu sets it too (On hover).
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_preview: Vec<String>,
+    /// Modules that open their card on hover
+    /// These modules open their card whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_card: Vec<String>,
+    /// Modules that open their menu on hover
+    /// These modules open their menu whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_menu: Vec<String>,
+}
+
+/// What a hover on a bar module opens (I458; Caelestia's popouts open on hover).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "bar_hover")]
+pub enum BarHover {
+    /// Its preview
+    Preview,
+    /// Its card
+    Card,
+    /// Its menu
+    Menu,
 }
 
 /// Where a bar module's card comes out (I340; Noctalia's "panel position": at the widget or centred).

@@ -54,6 +54,28 @@
 # cards open under their module, or under their module while cards open at the centre.
 #   choices: from `modules` (resolved at runtime) · since schema v7
 # popups_other = []
+#
+# On hover — What resting the pointer on a bar module opens: its small preview, its card
+# (a module without a card shows its preview), or its menu, as a right click does. What a
+# hover opened closes when the pointer has left the module and what it opened; what a click
+# opened stays.
+#   choices: "preview" | "card" | "menu" · since schema v7
+# hover = "preview"
+#
+# Modules that show their preview on hover — These modules show their preview whatever the
+# bar does on hover. A module's menu sets it too (On hover).
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_preview = []
+#
+# Modules that open their card on hover — These modules open their card whatever the bar
+# does on hover.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_card = []
+#
+# Modules that open their menu on hover — These modules open their menu whatever the bar
+# does on hover.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_menu = []
 
 # [edges.top]
 #

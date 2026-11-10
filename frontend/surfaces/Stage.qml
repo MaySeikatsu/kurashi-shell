@@ -686,9 +686,10 @@ PanelWindow {
     // (A look's tooltip part draws a free balloon: no morph out of the bar, W53 row 591.)
     readonly property bool peekMorph: peekLayout && !peekSide && Theme.springOn && !peekBalloon
     TooltipStyle { id: peekTip }
-    // I457 (session 27): a window's or a workspace's preview is a small card, not a tooltip: it grows out of the bar and
-    // joins it as a module's menu does, in a look with a tooltip part too. The look's balloon stays for the lines.
-    readonly property bool peekBalloon: peekTip.has && shownKind !== "preview"
+    // I457 (session 27, user): on a top or bottom bar every peek grows out of the bar and joins it as a module's menu
+    // does — a preview, the island's, a tray item's, a mod's — in a look with a tooltip part too. The look's balloon
+    // stays where a peek cannot join: beside a side bar, and with the springs off.
+    readonly property bool peekBalloon: peekTip.has && (peekSide || !Theme.springOn)
     // K98, as a card: in dynamic a peek near the frame's corner runs into it instead of standing a few px beside it.
     readonly property bool peekDynamic: peekMorph && !joined && Theme.decor("surface.join", true) !== false
         && FG.edgeOf(outLay, peekFlip ? "bottom" : "top").draw === "dynamic"
@@ -831,7 +832,8 @@ PanelWindow {
             anchors.fill: parent
             joined: stage.joined
             headless: true
-            neckF: Theme.rSm
+            // (the join's radii are the cards': one fillet everywhere a surface meets the bar, user, session 27)
+            neckF: Theme.rJoin
             neckCx: stage.peekNeckCx
             attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - stage.peekNeckWant) / 32)
             neckScale: stage.peekSf ? 1 : peekSprings.neckScale
@@ -841,9 +843,9 @@ PanelWindow {
             w: stage.peekShapeW
             h: Math.max(0, stage.peekFoot - stage.peekBodyTop)
             rTop: Theme.rSm
-            rBot: Theme.rSm
+            rBot: Math.min(Theme.rLg, Math.max(Theme.rSm, w / 4))
             edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
-            neck: stage.joined ? 0 : Theme.rSm
+            neck: stage.joined ? 0 : Theme.rJoin
             // (I277: the peek is the bar's sheet, as the card it grows out of; a look's tooltip fill, W53)
             fill: stage.peekBalloon ? peekTip.fill(Theme.surfaceAlpha) : Theme.surfaceAlpha
             edgeL: stage.peekMergesL ? stage.holeL - stage.peekBoxL : -1e6
@@ -1681,8 +1683,9 @@ PanelWindow {
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH + 2 * stage.frameW
         onWidthChanged: stage.recordSize()
         onHeightChanged: stage.recordSize()
-        // PROTOTYPE (session 27, I458): a card a hover opened stays while the pointer is on it.
+        // I458: what a hover opened stays while the pointer is on it, and is the user's once they press in it.
         HoverHandler { onHoveredChanged: hovered ? Peeks.hoverHold() : Peeks.hoverLeave() }
+        PointHandler { acceptedButtons: Qt.AllButtons; onActiveChanged: if (active) Peeks.hoverKeep() }
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the view is in (the reveal is
         // the shape's growth, or the slide), so opening the card does not animate its height from the closed size, nor
         // from the size it had last time to the view's when it arrives (I192: the springs take that up).

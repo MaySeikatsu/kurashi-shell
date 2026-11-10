@@ -48,6 +48,38 @@ These modules' cards open at the bar's centre while cards open under their modul
 - choices: from `modules` (resolved at runtime)
 - since schema v7
 
+#### `bar.hover` — On hover
+
+What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module and what it opened; what a click opened stays.
+
+- type: `choice` · default: `"preview"`
+- choices: `"preview"` | `"card"` | `"menu"`
+- since schema v7
+
+#### `bar.hover_preview` — Modules that show their preview on hover
+
+These modules show their preview whatever the bar does on hover. A module's menu sets it too (On hover).
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
+#### `bar.hover_card` — Modules that open their card on hover
+
+These modules open their card whatever the bar does on hover.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
+#### `bar.hover_menu` — Modules that open their menu on hover
+
+These modules open their menu whatever the bar does on hover.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
 ### Frame
 
 #### `layout.frame.enabled` — Screen frame

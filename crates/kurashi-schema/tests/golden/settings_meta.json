@@ -106,6 +106,78 @@
               "restart": false,
               "since": 7,
               "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.bar_hover.preview",
+                  "value": "preview"
+                },
+                {
+                  "label": "config.choice.bar_hover.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.bar_hover.menu",
+                  "value": "menu"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "preview",
+              "help": "config.bar.hover.help",
+              "key": "bar.hover",
+              "label": "config.bar.hover.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_preview.help",
+              "key": "bar.hover_preview",
+              "label": "config.bar.hover_preview.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_card.help",
+              "key": "bar.hover_card",
+              "label": "config.bar.hover_card.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.hover_menu.help",
+              "key": "bar.hover_menu",
+              "label": "config.bar.hover_menu.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
             }
           ]
         },
