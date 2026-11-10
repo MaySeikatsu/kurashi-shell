@@ -135,5 +135,6 @@
 "webdock.side.unplaced" = "ウェブドックをサイドバーのタブにすると、ここにサイトが表示されます。ここでは画面の端で開きます。"
 "webdock.side.at_edge" = "端で表示"
 "webdock.side.elsewhere" = "このページはサイドバーに表示されています"
+"webdock.card.elsewhere" = "このページはバーのカードに表示されています"
 "action.webdock.sidebar" = "サイドバーのウェブドックが位置に落ち着いた、または離れた"
 "action.webdock.sidebar_select" = "ピンをサイドバーに表示する"

@@ -97,6 +97,30 @@ ShellRoot {
         sidePin: root.sidePinId
         sideOpen: root.sideOpen
         sideSlot: side.slot
+        cardPin: root.barCardPinId
+        cardOpen: root.barCardOpen
+        cardSlot: barCard.slot
+    }
+
+    // W72: the bar card's page, where the bar card's well rests (`card.place`), while it shows a site (and the sidebar
+    // does not show the same pin: the sidebar keeps it, the card's well says so).
+    readonly property var barCardDoc: doc.card || ({})
+    readonly property string barCardPinId: barCardDoc.pin || ""
+    readonly property var barCardPinObj: pinById(barCardPinId)
+    readonly property bool barCardOpen: !!barCardDoc.place && !!barCardPinObj && barCardPinObj.kind === "web"
+        && keepWeb.indexOf(barCardPinId) >= 0
+    readonly property var barCardPage: card.cardPage
+    SideWindow {
+        id: barCard
+        cardRole: true
+        place: root.barCardDoc.place || null
+        open: root.barCardOpen && root.barCardPage !== null
+        pin: root.barCardPinObj
+        page: root.barCardPage
+        view: root.barCardPinObj ? profiles.viewOf(root.barCardPinObj.profile || root.barCardPinObj.id) : "mobile"
+        report: root.report
+        dockEdge: root.doc.edge || "right"
+        focusAsks: root.barCardDoc.focus || 0
     }
 
     // W30: the sidebar's page, where the sidebar panel's page area rests (`sidebar.place`), while it shows a site.

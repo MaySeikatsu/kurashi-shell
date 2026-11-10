@@ -135,5 +135,6 @@
 "webdock.side.unplaced" = "Sites show here when the web dock is a sidebar tab. Here, open them at the screen edge."
 "webdock.side.at_edge" = "Show at the edge"
 "webdock.side.elsewhere" = "This page is shown in the sidebar"
+"webdock.card.elsewhere" = "This page is shown in the bar's card"
 "action.webdock.sidebar" = "The sidebar's web dock panel rests at a place, or left it"
 "action.webdock.sidebar_select" = "Show a pin in the sidebar"

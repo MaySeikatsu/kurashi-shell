@@ -12,6 +12,12 @@ import "core"
 // moved into `slot` while the sidebar shows its pin, one page per pin, K38). Mapped only while the sidebar rests open on
 // a site: closed, sliding or scrolled away, it is unmapped and draws nothing (Ma). The Overlay layer keeps it above the
 // sidebar's Top-layer window. It sends no hover or engage report: the edge dock's state machine is not its business.
+// W72 (`cardRole: true`, docs/ux/webdock.md "In the bar's card"): the same window over the bar card's well, where
+// `mod.webdock.card.place` says it rests — on that output, `x`, `y` px from its top-left corner (zones ignored, as the
+// shell's Stage), `width` × `height`; above the Stage's Overlay window (mapped after it). There it reports the pointer and
+// the keyboard in it (`webdock.card_page`: the shell holds the card while the pointer is on the page), Esc the page did not
+// take closes the card (`webdock.card_close`), "Show at the edge" moves the pin to the edge card, and the keyboard asked
+// for the page (`card.focus`) is taken once. It fades in once mapped (a cut under reduced motion).
 PanelWindow {
     id: side
 
@@ -23,8 +29,14 @@ PanelWindow {
     property var report: null
     readonly property Item slot: slotItem
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
+    // W72: the bar card's window (`place` is `{output, x, y, width, height}`), the dock's edge (the way out's icon), and the
+    // focus counter of `mod.webdock.card`.
+    property bool cardRole: false
+    property string dockEdge: "right"
+    property int focusAsks: 0
+    readonly property string tag: cardRole ? "card" : "side"
 
-    readonly property bool onRight: !!place && place.side === "right"
+    readonly property bool onRight: !cardRole && !!place && place.side === "right"
     function screenFor(name) {
         var all = Quickshell.screens
         for (var i = 0; i < all.length; i++)
@@ -34,36 +46,100 @@ PanelWindow {
     screen: screenFor(place ? place.output : "")
     visible: open && !!place
     color: "transparent"
-    exclusionMode: ExclusionMode.Normal
+    exclusionMode: cardRole ? ExclusionMode.Ignore : ExclusionMode.Normal
     exclusiveZone: 0
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "kurashi-webdock-side"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.namespace: cardRole ? "kurashi-webdock-card" : "kurashi-webdock-side"
+    WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     anchors.top: true
     anchors.left: !onRight
     anchors.right: onRight
-    margins.top: place ? place.top : 0
-    margins.left: place && !onRight ? place.inset : 0
+    margins.top: !place ? 0 : (cardRole ? place.y : place.top)
+    margins.left: !place || onRight ? 0 : (cardRole ? place.x : place.inset)
     margins.right: place && onRight ? place.inset : 0
     implicitWidth: place ? Math.max(1, place.width) : 1
     implicitHeight: place ? Math.max(1, place.height) : 1
 
-    // Test only (KURASHI_WEBDOCK_DEBUG=1, mods/webdock/test/test-sidebar.sh): the window, the page in it, its frames.
+    // Test only (KURASHI_WEBDOCK_DEBUG=1, mods/webdock/test/test-sidebar.sh, test-card.sh): the window, the page in it,
+    // its frames. (A card's place reads `<output> <x> <y> <w> <h>`.)
     function geometryLog() {
         if (!debugLog || !visible) return
         var pg = side.page
-        console.log("webdock-debug side " + (pin ? pin.id : "-") + " win " + Math.round(area.width) + " " + Math.round(area.height)
+        console.log("webdock-debug " + tag + " " + (pin ? pin.id : "-") + " win " + Math.round(area.width) + " "
+            + Math.round(area.height)
             + " page " + (pg && pg.parent === slotItem ? Math.round(slotItem.x) + " " + Math.round(slotItem.y) + " "
                 + Math.round(pg.width) + " " + Math.round(pg.height) : "none")
-            + " place " + (place ? place.output + " " + place.side + " " + place.inset + " " + place.top + " " + place.width
-                + " " + place.height : "-"))
+            + " place " + (!place ? "-" : cardRole ? place.output + " " + place.x + " " + place.y + " " + place.width + " "
+                + place.height : place.output + " " + place.side + " " + place.inset + " " + place.top + " " + place.width
+                + " " + place.height))
     }
-    onVisibleChanged: if (debugLog) console.log("webdock-debug side " + (visible ? "shown" : "hidden"))
+    onVisibleChanged: {
+        if (debugLog) console.log("webdock-debug " + tag + " " + (visible ? "shown" : "hidden"))
+        if (!cardRole) return
+        // W72: the page fades in once the card rests (a cut under reduced motion); unmapped, the pointer and the keyboard
+        // are out of it, whatever the compositor sent last.
+        if (visible) {
+            fade.stop()
+            area.opacity = side.moves ? 0 : 1
+            if (side.moves) fade.start()
+        } else {
+            side.reportPage(false, false)
+            side.pulseSpent = true
+        }
+    }
     onPageChanged: geometryLog()
+    onPinChanged: geometryLog()
     Connections {
         target: side.debugLog ? frame.Window.window : null
-        function onFrameSwapped() { console.log("webdock-debug side frame") }
+        function onFrameSwapped() { console.log("webdock-debug " + side.tag + " frame") }
     }
+
+    // ---- W72: the bar card's window ----
+    readonly property string motionProfile: Theme.tokens["motion.profile"] || "calm"
+    readonly property bool moves: motionProfile !== "none" && motionProfile !== "reduced" && Theme.quickMs > 0
+    NumberAnimation {
+        id: fade
+        target: area
+        property: "opacity"
+        from: 0
+        to: 1
+        duration: Theme.quickMs
+        easing.type: Easing.OutCubic
+    }
+    // The pointer and the keyboard in the window, on change only.
+    property bool hoverSent: false
+    property bool engagedSent: false
+    function reportPage(hover, engaged) {
+        if (!cardRole || (hover === hoverSent && engaged === engagedSent)) return
+        hoverSent = hover
+        engagedSent = engaged
+        if (report) report("webdock.card_page", { hover: hover, engaged: engaged })
+    }
+    function closeCard() { if (cardRole && report) report("webdock.card_close", {}) }
+    function toEdge() {
+        if (!report || !pin) return
+        report("webdock.open", { pin: pin.id, output: place ? place.output : "" })
+        closeCard()
+    }
+    // The keyboard asked for the page (Tab past the card's keys): the window asks for it exclusively until it has it, at
+    // most a second (WebCard's pulse), then on demand again.
+    property bool winActive: false
+    property bool pulseSpent: true
+    readonly property bool asksKeys: cardRole && visible && !winActive && !pulseSpent
+    onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
+    Timer { id: pulseTimer; interval: 1000; onTriggered: side.pulseSpent = true }
+    property int focusSeen: -1
+    onFocusAsksChanged: {
+        if (cardRole && focusSeen >= 0 && focusAsks > focusSeen && visible) {
+            pulseSpent = false
+            if (winActive && page) page.engine.forceActiveFocus()
+        }
+        focusSeen = focusAsks
+    }
+    Component.onCompleted: focusSeen = focusAsks
+    // The edge the way out points to (the dock's edge).
+    readonly property string edgeIcon: dockEdge === "left" ? "left_panel_open"
+        : (dockEdge === "right" ? "right_panel_open" : "dock_to_bottom")
 
     function hostOf(u) {
         var m = /^[a-z][a-z0-9+.-]*:\/\/([^\/?#:]+)/i.exec(String(u || ""))
@@ -75,6 +151,21 @@ PanelWindow {
         anchors.fill: parent
         onWidthChanged: side.geometryLog()
         onHeightChanged: side.geometryLog()
+        // W72: the card's window reports the pointer and the keyboard in it. Its keyboard focus gained is the page's.
+        HoverHandler {
+            enabled: side.cardRole
+            onHoveredChanged: side.reportPage(hovered, side.winActive)
+        }
+        Window.onActiveChanged: {
+            side.winActive = Window.active
+            if (Window.active) side.pulseSpent = true
+            side.reportPage(side.hoverSent, Window.active)
+            if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
+        }
+        // W72: Esc the page did not take (QtWebEngine hands unhandled keys to its parents) closes the bar card.
+        Keys.onEscapePressed: event => {
+            if (side.cardRole) { side.closeCard(); event.accepted = true } else event.accepted = false
+        }
 
         // The area's frame: the well's colour and radius (the panel draws the same well under it), the page masked to it.
         Rectangle {
@@ -105,7 +196,9 @@ PanelWindow {
                 height: 36
                 readonly property var engine: side.page ? side.page.engine : null
                 Keys.onEscapePressed: event => {
-                    if (side.page) side.page.engine.forceActiveFocus()
+                    // (W72: in the bar card Esc on the row closes the card, as Esc on the card's own keys does)
+                    if (side.cardRole) side.closeCard()
+                    else if (side.page) side.page.engine.forceActiveFocus()
                     event.accepted = true
                 }
                 Row {
@@ -168,6 +261,15 @@ PanelWindow {
                         enabled: !!side.pin
                         onClicked: if (side.report) side.report("webdock.view",
                             { pin: side.pin.id, view: side.view === "mobile" ? "desktop" : "mobile" })
+                    }
+                    // W72: the way out to the larger place: the pin at the edge (its large size); the card closes.
+                    HostButton {
+                        visible: side.cardRole
+                        glyph: "⇥"
+                        icon: side.edgeIcon
+                        a11y: I18n.tr("webdock.side.at_edge")
+                        enabled: !!side.pin
+                        onClicked: side.toEdge()
                     }
                     HostButton {
                         glyph: "↗"

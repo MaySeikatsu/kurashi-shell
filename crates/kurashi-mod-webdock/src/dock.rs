@@ -358,7 +358,34 @@ pub struct Place {
     pub height: u32,
 }
 
+/// Where the bar card's page area rests (W72, `webdock.card {on: true, …}`): on `output`, `x`, `y` logical px from the
+/// output's top-left corner (zones ignored, as the shell's Stage window), `width` × `height`. The host maps its card
+/// window there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CardPlace {
+    pub output: String,
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// The bar card's page (W72, docs/ux/webdock.md "In the bar's card"): its own pin (kept while the card is closed), its
+/// place while the card rests open, the pointer and the keyboard in the host's window over it, and two counters the
+/// shell and the host answer: a close the page asked for (Esc, "Show at the edge") and the keyboard asked for the page.
+#[derive(Debug, Default)]
+struct Card {
+    pin: Option<String>,
+    place: Option<CardPlace>,
+    hover: bool,
+    engaged: bool,
+    close: u32,
+    focus: u32,
+}
+
 pub struct Dock {
+    /// The bar card's page (W72).
+    card: Card,
     /// The pin the sidebar panel shows (W30), kept while the sidebar is closed.
     side_pin: Option<String>,
     /// The sidebar panel's page area while the panel is at rest in an open sidebar; `None` otherwise.
@@ -389,6 +416,7 @@ impl Dock {
     /// The dock as the settings say it is now, hidden, with the host off.
     pub fn new(settings: &Settings, profiles: PathBuf, icons: PathBuf) -> Self {
         let mut dock = Self {
+            card: Card::default(),
             side_pin: None,
             place: None,
             pins: Vec::new(),
@@ -452,6 +480,16 @@ impl Dock {
             self.side_pin = None;
         }
         self.default_side_pin();
+        // W72: the bar card's pin likewise.
+        if self
+            .card
+            .pin
+            .as_ref()
+            .is_some_and(|s| !self.pins.iter().any(|p| &p.id == s))
+        {
+            self.card.pin = None;
+        }
+        self.default_card_pin();
         self.sanitize();
         self.settle(now);
     }
@@ -496,6 +534,74 @@ impl Dock {
         self.side_pin.clone().filter(|id| self.is_web(id))
     }
 
+    /// `webdock.card` (W72): the bar card's page area at rest (`Some`), or the card moved, closed or went (`None`; the
+    /// pointer and the keyboard in the host's window over it go with it — its unmap sends no leave). An open card with no
+    /// pin of its own shows the first pin. True when it shows a site (the host starts).
+    pub fn card_place(&mut self, place: Option<CardPlace>) -> bool {
+        if place.is_none() {
+            self.card.hover = false;
+            self.card.engaged = false;
+        }
+        self.card.place = place;
+        self.default_card_pin();
+        self.touch_card()
+    }
+
+    /// `webdock.card_select {pin}` (W72): the bar card shows `pin`. True when the card is open on a site (the host
+    /// starts); a closed card keeps the pin for its next opening.
+    pub fn card_select(&mut self, pin: &str) -> Result<bool, DockError> {
+        let (id, _) = self.find(pin)?;
+        self.card.pin = Some(id);
+        Ok(self.touch_card())
+    }
+
+    /// `webdock.card_page {hover, engaged}` (W72): the pointer and the keyboard in the host's window over the card. Only
+    /// while the card is placed: a late report after the card closed is dropped.
+    pub fn card_page(&mut self, hover: bool, engaged: bool) {
+        if self.card.place.is_some() {
+            self.card.hover = hover;
+            self.card.engaged = engaged;
+        }
+    }
+
+    /// `webdock.card_close {}` (W72): the page asked the card to close (Esc it did not take, "Show at the edge"); the
+    /// shell's panel answers with `ui.close`. Only while the card is placed.
+    pub fn card_close(&mut self) {
+        if self.card.place.is_some() {
+            self.card.close = self.card.close.wrapping_add(1);
+        }
+    }
+
+    /// `webdock.card_focus {}` (W72): the keyboard is asked for the page (Tab past the card's keys); the host's window
+    /// takes it once. Only while the card shows a site.
+    pub fn card_focus(&mut self) {
+        if self.card_web().is_some() {
+            self.card.focus = self.card.focus.wrapping_add(1);
+        }
+    }
+
+    fn default_card_pin(&mut self) {
+        if self.card.place.is_some() && self.card.pin.is_none() {
+            self.card.pin = self.pins.first().map(|p| p.id.clone());
+        }
+    }
+
+    fn touch_card(&mut self) -> bool {
+        match self.card_web() {
+            Some(id) => {
+                self.touch(&id);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// The site the open bar card shows, if it shows one (W72).
+    fn card_web(&self) -> Option<String> {
+        self.card.place.as_ref()?;
+        self.card.pin.clone().filter(|id| self.is_web(id))
+    }
+
     /// The host's state as the daemon reports it. Without a connected host nothing is loaded or audible (Shōjiki).
     /// A host that crashed takes its card with it: the card's leave and the focus loss never come, so the dock
     /// forgets them (K40), or it would stay open for good.
@@ -509,6 +615,9 @@ impl Dock {
         if matches!(state, HostState::Failed { .. } | HostState::Missing) && state != self.host {
             self.inside.card = false;
             self.engaged = false;
+            // (W72: the bar card's page window went with the host too)
+            self.card.hover = false;
+            self.card.engaged = false;
             self.settle(Instant::now());
         }
         self.host = state;
@@ -795,15 +904,18 @@ impl Dock {
         let cap = self.config.max_loaded as usize;
         let (first, rest) = web.split_at(web.len().min(cap));
         let mut keep = first.to_vec();
-        // Beyond the cap: an audible site, and a site on screen (the edge card's and the sidebar's at once, W30).
+        // Beyond the cap: an audible site, and a site on screen (the edge card's, the sidebar's and the bar card's at once,
+        // W30, W72).
         let shown = self.edge_web();
         let side = self.side_web();
+        let card = self.card_web();
         keep.extend(
             rest.iter()
                 .filter(|id| {
                     self.is_audible(id)
                         || shown.as_deref() == Some(id.as_str())
                         || side.as_deref() == Some(id.as_str())
+                        || card.as_deref() == Some(id.as_str())
                 })
                 .cloned(),
         );
@@ -877,6 +989,37 @@ impl Dock {
                 });
             }
             doc["sidebar"] = side;
+        }
+        // W72: the bar card's pin, its page area while the card rests open, and the host window's reports and the two
+        // counters while they are set (absent otherwise; CONTRACT-CHANGE row 719).
+        let c = &self.card;
+        if c.pin.is_some() || c.place.is_some() || c.close > 0 || c.focus > 0 {
+            let mut card = json!({});
+            if let Some(pin) = &c.pin {
+                card["pin"] = json!(pin);
+            }
+            if let Some(p) = &c.place {
+                card["place"] = json!({
+                    "output": p.output,
+                    "x": p.x,
+                    "y": p.y,
+                    "width": p.width,
+                    "height": p.height,
+                });
+            }
+            if c.hover {
+                card["hover"] = json!(true);
+            }
+            if c.engaged {
+                card["engaged"] = json!(true);
+            }
+            if c.close > 0 {
+                card["close"] = json!(c.close);
+            }
+            if c.focus > 0 {
+                card["focus"] = json!(c.focus);
+            }
+            doc["card"] = card;
         }
         doc
     }
@@ -999,9 +1142,9 @@ impl Dock {
         }
     }
 
-    /// A site is on screen: the edge card's, or the open sidebar's (W30).
+    /// A site is on screen: the edge card's, the open sidebar's (W30) or the open bar card's (W72).
     fn web_visible(&self) -> bool {
-        self.edge_web().is_some() || self.side_web().is_some()
+        self.edge_web().is_some() || self.side_web().is_some() || self.card_web().is_some()
     }
 
     /// The site the edge card shows, if it shows one.
@@ -1901,6 +2044,86 @@ mod tests {
             "its place"
         );
         assert_eq!(doc["sidebar"]["place"]["side"], "left");
+    }
+
+    fn card_place() -> CardPlace {
+        CardPlace {
+            output: "DP-1".into(),
+            x: 1480,
+            y: 540,
+            width: 412,
+            height: 640,
+        }
+    }
+
+    /// W72: the bar card is absent until used; an open card shows the first pin, counts as shown (kept past the cap, the
+    /// idle clock waits), and its place, reports and counters go as documented.
+    #[test]
+    fn the_bar_card_shows_the_first_pin_and_counts_as_shown() {
+        let mut d = dock(&[("max_loaded", json!(1))]);
+        assert!(d.doc().get("card").is_none(), "no card key before use");
+        d.set_host(HostState::Ready);
+        // (the edge shows chat, so mail is past a cap of one but on screen in the card)
+        d.open("chat", Some("DP-1")).unwrap();
+        assert!(
+            d.card_place(Some(card_place())),
+            "an open card on a site starts the host"
+        );
+        let doc = d.doc();
+        assert_eq!(doc["card"]["pin"], "mail", "the first pin");
+        assert_eq!(doc["card"]["place"]["x"], 1480);
+        assert_eq!(doc["card"]["place"]["output"], "DP-1");
+        assert!(doc["card"].get("hover").is_none() && doc["card"].get("close").is_none());
+        let mut keep = d.keep();
+        keep.sort();
+        assert_eq!(
+            keep,
+            vec!["chat", "mail"],
+            "the card's site is kept past the cap"
+        );
+        assert!(!d.is_idle(), "a site in the card is shown");
+
+        d.card_page(true, true);
+        d.card_close();
+        d.card_focus();
+        let doc = d.doc();
+        assert_eq!(doc["card"]["hover"], true);
+        assert_eq!(doc["card"]["engaged"], true);
+        assert_eq!(doc["card"]["close"], 1);
+        assert_eq!(doc["card"]["focus"], 1);
+
+        // Closed: the place, the pointer and the keyboard go; the pin and the counters stay; late reports are dropped.
+        assert!(!d.card_place(None));
+        d.card_page(true, false);
+        d.card_close();
+        d.card_focus();
+        let doc = d.doc();
+        assert!(doc["card"].get("place").is_none() && doc["card"].get("hover").is_none());
+        assert!(doc["card"].get("engaged").is_none());
+        assert_eq!(doc["card"]["pin"], "mail");
+        assert_eq!(doc["card"]["close"], 1);
+        assert_eq!(doc["card"]["focus"], 1);
+
+        // A view pin in the card starts nothing; a closed card keeps a pick for its next opening.
+        assert!(!d.card_select("weather").unwrap());
+        assert!(d.card_select("nope").is_err());
+        assert!(
+            !d.card_place(Some(card_place())),
+            "a view pin needs no host"
+        );
+        assert!(d.card_select("mail").unwrap());
+    }
+
+    /// W72: a host that fails takes the card window's pointer and keyboard with it.
+    #[test]
+    fn a_failed_host_forgets_the_bar_cards_pointer() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.card_place(Some(card_place()));
+        d.card_page(true, true);
+        d.set_host(HostState::Missing);
+        let doc = d.doc();
+        assert!(doc["card"].get("hover").is_none() && doc["card"].get("engaged").is_none());
     }
 
     #[test]

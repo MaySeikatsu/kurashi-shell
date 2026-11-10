@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use dock::{
-    Dock, DockError, Part, Place, Side, View, add_row, move_row, remove_row, retarget_row, rows_of,
-    view_rows,
+    CardPlace, Dock, DockError, Part, Place, Side, View, add_row, move_row, remove_row,
+    retarget_row, rows_of, view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -370,6 +370,62 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.card {on, output?, x?, y?, width?, height?}` (W72): the bar card's page area at rest on its output
+    /// (`on: true`, every field; logical px from the output's top-left corner), or gone (`on: false`). An open card on a
+    /// site starts the host.
+    fn card(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let on = args["on"]
+            .as_bool()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let place = if on {
+            let num = |key: &str| {
+                args[key]
+                    .as_u64()
+                    .and_then(|n| u32::try_from(n).ok())
+                    .ok_or_else(|| dock_error(DockError::Argument))
+            };
+            let width = num("width")?;
+            let height = num("height")?;
+            if width == 0 || height == 0 {
+                return Err(dock_error(DockError::Argument));
+            }
+            Some(CardPlace {
+                output: str_arg(args, "output")
+                    .ok_or_else(|| dock_error(DockError::Argument))?
+                    .to_string(),
+                x: num("x")?,
+                y: num("y")?,
+                width,
+                height,
+            })
+        } else {
+            None
+        };
+        if self.with_dock(|d| Ok(d.card_place(place)))? {
+            self.host.start();
+        }
+        Ok(None)
+    }
+
+    /// `webdock.card_select {pin}` (W72): the bar card shows `pin`; an open card on a site starts the host.
+    fn card_select(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        if self.with_dock(|d| d.card_select(pin).map_err(dock_error))? {
+            self.host.start();
+        }
+        Ok(None)
+    }
+
+    /// `webdock.card_page {hover, engaged}` (W72, the host): the pointer and the keyboard in its window over the card.
+    fn card_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let hover = opt_bool(args, "hover")?.unwrap_or(false);
+        let engaged = opt_bool(args, "engaged")?.unwrap_or(false);
+        self.with_dock(|d| {
+            d.card_page(hover, engaged);
+            Ok(None)
+        })
+    }
+
     /// `webdock.back {}`: Escape on the dock's chrome (K40).
     fn back(&self) -> Result<Option<Value>, ActionError> {
         self.with_dock(|d| {
@@ -615,6 +671,21 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.sidebar", |s, a| s.sidebar(&a))?;
     sync_action(ctx, s, "webdock.sidebar_select", |s, a| {
         s.sidebar_select(&a)
+    })?;
+    sync_action(ctx, s, "webdock.card", |s, a| s.card(&a))?;
+    sync_action(ctx, s, "webdock.card_select", |s, a| s.card_select(&a))?;
+    sync_action(ctx, s, "webdock.card_page", |s, a| s.card_page(&a))?;
+    sync_action(ctx, s, "webdock.card_close", |s, _| {
+        s.with_dock(|d| {
+            d.card_close();
+            Ok(None)
+        })
+    })?;
+    sync_action(ctx, s, "webdock.card_focus", |s, _| {
+        s.with_dock(|d| {
+            d.card_focus();
+            Ok(None)
+        })
     })?;
     sync_action(ctx, s, "webdock.open_external", |s, a| {
         s.open_external_action(&a)
