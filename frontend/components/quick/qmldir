@@ -32,3 +32,4 @@ singleton QuickNav 1.0 QuickNav.qml
 ModuleOptions 1.0 ModuleOptions.qml
 ControlPage 1.0 ControlPage.qml
 CaffeinePage 1.0 CaffeinePage.qml
+WideTile 1.0 WideTile.qml

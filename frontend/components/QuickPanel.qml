@@ -119,6 +119,11 @@ Item {
     // Every control that has a tile, in the order the add row offers them (the schema's choices).
     readonly property var tileChoices: ["wifi", "bluetooth", "focus", "volume", "mic", "power", "brightness", "caffeine",
         "nightlight", "recorder", "darkmode", "airplane"]
+    // W71 (d, I475 8): the wide tiles — a whole row each: the sound level, the brightness, the session row. They stand
+    // after the switch tiles (a row is no cell of the grid), in their own order; the edit moves them among themselves.
+    readonly property var wideChoices: ["volume_level", "brightness_level", "session"]
+    function isWide(id) { return wideChoices.indexOf(id) >= 0 }
+    function known(id) { return controls[id] !== undefined || isWide(id) }
     readonly property var cfgTiles: {
         var v = ((Store.docs["config"] || {}).values || {})["quick.tiles"]
         return v && Array.isArray(v.value) ? v.value : null
@@ -126,32 +131,50 @@ Item {
     // (until the config document is there: the schema's default; an old name read as the control's, each control once)
     readonly property var savedTiles: {
         var src = cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine",
-            "nightlight", "recorder", "darkmode"]
+            "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]
         var out = []
         for (var i = 0; i < src.length; i++) {
             var id = tileAliases[src[i]] || src[i]
-            if (quick.controls[id] !== undefined && out.indexOf(id) < 0) out.push(id)
+            if (quick.known(id) && out.indexOf(id) < 0) out.push(id)
         }
+        // (the switch tiles, then the wide rows: as they are drawn)
+        return out.filter(function (x) { return !quick.isWide(x) }).concat(out.filter(function (x) { return quick.isWide(x) }))
+    }
+    // B73: an id this frontend has no tile for (a newer daemon's, a typo) is not dropped silently: the edit mode names it.
+    readonly property var unknownTiles: {
+        var src = cfgTiles || [], out = []
+        for (var i = 0; i < src.length; i++)
+            if (!quick.known(tileAliases[src[i]] || src[i]) && out.indexOf(src[i]) < 0) out.push(String(src[i]))
         return out
     }
-    ListModel { id: tileModel }
-    property int tileRev: 0             // bumped on every change of tileModel (what is left to add follows it)
+    ListModel { id: tileModel }         // the switch tiles, in order
+    ListModel { id: wideModel }         // the wide rows, in order
+    property int tileRev: 0             // bumped on every change of either (what is left to add follows it)
     function tileIds() {
         var out = []
         for (var i = 0; i < tileModel.count; i++) out.push(tileModel.get(i).mid)
         return out
     }
+    function wideIds() {
+        var out = []
+        for (var i = 0; i < wideModel.count; i++) out.push(wideModel.get(i).mid)
+        return out
+    }
+    // The whole list as `quick.tiles` has it: the switch tiles, then the wide rows.
+    function allIds() { return tileIds().concat(wideIds()) }
     function setTiles(list) {
-        if (JSON.stringify(tileIds()) === JSON.stringify(list)) return
+        if (JSON.stringify(allIds()) === JSON.stringify(list)) return
         tileModel.clear()
-        for (var i = 0; i < list.length; i++) tileModel.append({ mid: list[i] })
+        wideModel.clear()
+        for (var i = 0; i < list.length; i++) (isWide(list[i]) ? wideModel : tileModel).append({ mid: list[i] })
         tileRev++
     }
     onSavedTilesChanged: if (!editing) setTiles(savedTiles)
     readonly property var addable: {
-        var rev = tileRev, ids = tileIds()
-        return tileChoices.filter(function (id) { return ids.indexOf(id) < 0 })
+        var rev = tileRev, ids = allIds()
+        return tileChoices.concat(wideChoices).filter(function (id) { return ids.indexOf(id) < 0 })
     }
+    function nameOf(id) { return controls[id] ? controls[id].label : I18n.tr("layout.module." + id) }
 
     property bool editing: false
     property string editError: ""
@@ -193,9 +216,38 @@ Item {
         focusTile(i)
     }
     function addTile(id) {
-        if (!editing || controls[id] === undefined || tileIds().indexOf(id) >= 0) return
-        tileModel.append({ mid: id })
+        if (!editing || !known(id) || allIds().indexOf(id) >= 0) return
+        (isWide(id) ? wideModel : tileModel).append({ mid: id })
         tileRev++
+    }
+    // The wide rows: moved among themselves (Alt with Up or Down, a drag), taken out by their remove key or Delete.
+    function focusWide(i) {
+        Qt.callLater(function () {
+            var n = wideRows.count
+            if (n === 0) { focusTile(tileModel.count - 1); return }
+            var t = wideRows.itemAt(Math.max(0, Math.min(n - 1, i)))
+            if (t) t.forceActiveFocus()
+        })
+    }
+    function moveWide(from, to) {
+        if (!editing || from === to || to < 0 || to >= wideModel.count) return
+        wideModel.move(from, to, 1)
+        tileRev++
+        focusWide(to)
+    }
+    function removeWide(i) {
+        if (!editing || i < 0 || i >= wideModel.count) return
+        wideModel.remove(i, 1)
+        tileRev++
+        focusWide(i)
+    }
+    function dragWide(from, ay) {
+        var to = from
+        for (var i = 0; i < wideRows.count; i++) {
+            var r = wideRows.itemAt(i)
+            if (r && ay >= r.y && ay < r.y + r.height) to = i
+        }
+        moveWide(from, to)
     }
     // A drag: the tile under the pointer's cell takes the dragged tile's place as the pointer reaches it.
     function dragTile(from, ax, ay, cellH) {
@@ -205,7 +257,7 @@ Item {
     }
     function saveEdit() {
         if (!editing) return
-        var now = tileIds()
+        var now = allIds()
         if (JSON.stringify(now) === JSON.stringify(savedTiles)) { cancelEdit(); return }
         editError = ""
         if (Quickshell.env("KURASHI_QUICK_LOG") === "1") console.log("quick-save " + JSON.stringify(now))
@@ -219,7 +271,7 @@ Item {
     // Test only (KURASHI_QUICK_LOG=1, frontend/test-quick-modules.sh): the tiles shown, in order, and where the edit's keys
     // stand on the output (`quick-at <name> x y w h`), a moment after each change (the card's own motion first).
     readonly property bool testLog: Quickshell.env("KURASHI_QUICK_LOG") === "1"
-    onTileRevChanged: if (testLog) { console.log("quick-tiles " + tileIds().join(",")); logTimer.restart() }
+    onTileRevChanged: if (testLog) { console.log("quick-tiles " + allIds().join(",")); logTimer.restart() }
     readonly property var qsWin: Window.window ? QsWindow.window : null
     function logAt(name, item) {
         if (!item || !item.visible || qsWin === null) return
@@ -234,6 +286,8 @@ Item {
             quick.logAt("done", doneKey)
             for (var i = 0; i < addKeys.count; i++) { var b = addKeys.itemAt(i); if (b) quick.logAt("add:" + b.modelData, b) }
             for (var j = 0; j < coreTiles.count; j++) { var t = coreTiles.itemAt(j); if (t) quick.logAt("tile:" + t.mid, t) }
+            for (var w = 0; w < wideRows.count; w++) { var r = wideRows.itemAt(w); if (r) quick.logAt("tile:" + r.mid, r) }
+            quick.logAt("media", mediaRow)
             // W71: what clips the rows (the viewport) and what has the keyboard, so a suite can read a focus ring whole.
             quick.logAt("viewport", viewport)
             if (quick.Window.activeFocusItem) quick.logAt("focus", quick.Window.activeFocusItem)
@@ -719,6 +773,57 @@ Item {
                         onClicked: quick.startEdit()
                     }
                 }
+                // W71 (d, I475 8): the wide rows of `quick.tiles` — the levels and the session row, there by default — after
+                // the edit key (the Tab order of before: the tiles, the edit key, the levels). In the edit mode Alt with Up or
+                // Down moves the focused row, Delete or Backspace takes it out. The flyout's own footer band holds the session
+                // keys, so the session row is not drawn there (Shōjiki: once).
+                Column {
+                    id: wideCol
+                    width: quick.innerW
+                    spacing: Theme.gap
+                    visible: wideRows.count > 0
+                    Keys.onPressed: event => {
+                        if (!quick.editing) return
+                        var i = -1
+                        for (var k = 0; k < wideRows.count; k++) { var r = wideRows.itemAt(k); if (r && r.activeFocus) i = k }
+                        if (i < 0) return
+                        var alt = (event.modifiers & Qt.AltModifier) !== 0
+                        if (alt && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) {
+                            quick.moveWide(i, i + (event.key === Qt.Key_Up ? -1 : 1))
+                            event.accepted = true
+                        } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                            quick.removeWide(i)
+                            event.accepted = true
+                        } else if (!alt && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) {
+                            var to = i + (event.key === Qt.Key_Up ? -1 : 1)
+                            if (to < 0) quick.focusTile(tileModel.count - 1)
+                            else if (to < wideRows.count) wideRows.itemAt(to).forceActiveFocus()
+                            event.accepted = true
+                        }
+                    }
+                    Repeater {
+                        id: wideRows
+                        model: wideModel
+                        delegate: WideTile {
+                            id: wrow
+                            required property string mid
+                            required property int index
+                            kind: mid
+                            width: quick.innerW
+                            visible: shown && !(quick.flyout && mid === "session" && !quick.editing)
+                            height: visible ? implicitHeight : 0
+                            audio: cAudio
+                            bright: cBright
+                            sessionOk: quick.sessionOk
+                            editing: quick.editing
+                            dragArea: wideCol
+                            intentOrigin: quick.intentOrigin
+                            onPageRequested: (p, from) => quick.openPage(p, from)
+                            onRemoveRequested: quick.removeWide(index)
+                            onDragTo: (ax, ay) => quick.dragWide(index, ay)
+                        }
+                    }
+                }
                 Column {
                     id: editRows
                     width: quick.innerW
@@ -735,6 +840,19 @@ Item {
                         font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr(quick.addable.length > 0 ? "quick.edit.hint" : "quick.edit.hint_full")
                     }
+                    // B73: what `quick.tiles` names that this shell has no tile for, said once (it is kept in the list).
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        visible: quick.unknownTiles.length > 0
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr("quick.edit.unknown").replace("{ids}", quick.unknownTiles.join(", "))
+                    }
                     // The controls not in the centre: one key each, a press adds it at the end.
                     Flow {
                         id: addRow
@@ -747,7 +865,7 @@ Item {
                             model: quick.editing ? quick.addable : []
                             delegate: Button {
                                 required property string modelData
-                                label: "+ " + (quick.controls[modelData] ? quick.controls[modelData].label : modelData)
+                                label: "+ " + quick.nameOf(modelData)
                                 onClicked: quick.addTile(modelData)
                             }
                         }
@@ -781,83 +899,8 @@ Item {
                     }
                 }
 
-                LevelRow {
-                    width: quick.innerW
-                    glyph: "♪"
-                    icon: cAudio.icon
-                    value: cAudio.level
-                    readout: cAudio.ok ? cAudio.value : ""
-                    unavailable: !cAudio.ok
-                    a11y: I18n.tr("island.quick.level.volume")
-                    onMoved: v => Store.intent("audio.volume", v, quick.intentOrigin)
-                }
-                // The output device under its level: a link to the Audio page (a Tab stop, Enter opens it).
-                Item {
-                    id: chip
-                    width: quick.innerW
-                    height: visible ? 24 : 0
-                    visible: cAudio.ok && cAudio.sinkName !== ""
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: quick.openPage("audio", chip)
-                    Keys.onEnterPressed: quick.openPage("audio", chip)
-                    Keys.onSpacePressed: quick.openPage("audio", chip)
-                    Accessible.role: Accessible.Button
-                    Accessible.name: cAudio.sinkName
-
-                    Rectangle {
-                        id: pill
-                        x: 20 + Theme.gap
-                        anchors.verticalCenter: parent.verticalCenter
-                        height: 22
-                        width: Math.min(pillText.implicitWidth + 2 * Theme.gap, chip.width - x)
-                        radius: height / 2
-                        color: "transparent"
-                        border.width: 1
-                        border.color: Theme.outline
-                        Text {
-                            id: pillText
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            x: Theme.gap
-                            width: pill.width - 2 * Theme.gap
-                            anchors.verticalCenter: parent.verticalCenter
-                            elide: Text.ElideRight
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                            text: cAudio.sinkName
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: quick.openPage("audio", chip)
-                    }
-                    FocusRing {
-                        anchors.fill: pill
-                        shown: chip.activeFocus
-                        corner: pill.radius
-                    }
-                }
-                // The rows that are not always there are made only while they show (W37, I199): a card with no backlight
-                // and nothing playing builds neither. A Loader that is not visible takes no space and no spacing.
                 Loader {
-                    width: quick.innerW
-                    visible: cBright.ok
-                    active: cBright.ok
-                    sourceComponent: Component {
-                        LevelRow {
-                            width: quick.innerW
-                            glyph: "☼"
-                            icon: "light_mode"
-                            value: cBright.level
-                            readout: cBright.value
-                            a11y: I18n.tr("island.brightness.heading")
-                            onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
-                        }
-                    }
-                }
-                Loader {
+                    id: mediaRow
                     width: quick.innerW
                     visible: quick.mediaPlaying
                     active: quick.mediaPlaying
@@ -869,11 +912,6 @@ Item {
                             onOpenRequested: Store.act("island.expand")
                         }
                     }
-                }
-                QuickFooter {
-                    visible: !quick.flyout
-                    width: quick.innerW
-                    sessionOk: quick.sessionOk
                 }
             }
 

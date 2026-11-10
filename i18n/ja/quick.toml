@@ -13,6 +13,10 @@
 "layout.module.nightlight" = "夜間モード"
 "layout.module.darkmode" = "ダークモード"
 "layout.module.airplane" = "機内モード"
+# W71（d）：センターの各行を、それぞれ独立したタイルとモジュールに。
+"layout.module.volume_level" = "音量レベル"
+"layout.module.brightness_level" = "明るさレベル"
+"layout.module.session" = "ロックと電源"
 # コントロールセンターの編集モード（W70 段階 c）。
 "quick.edit.open" = "タイルを編集"
 "quick.edit.hint" = "タイルをドラッグするか、Alt と矢印キーで移動します。− か Delete で外します。追加するコントロール："
@@ -27,3 +31,5 @@
 "quick.page.settings" = "設定でさらに表示"
 "quick.options.refused" = "設定を変更できませんでした。"
 "quick.caffeine.others" = "ほかにスリープを止めているもの"
+"quick.edit.wide_hint" = "Alt と上下キーで行の中を移動、Delete で外す"
+"quick.edit.unknown" = "表示していません：{ids}（このシェルにはそのタイルがありません。リストには残ります）"

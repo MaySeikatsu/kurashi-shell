@@ -18,12 +18,14 @@
 #   4. unavailable (mock.doc): keep awake with the idle service's reason (a click sends nothing and opens its card, which
 #      says why; shot), Bluetooth without an adapter (a click changes nothing and opens its card, which says why; shot); a right
 #      click opens a module's menu (runtime.ui.tray = module:<id>);
-#   6. the centre as a container (stage c): it shows `quick.tiles` (the default: the ten tiles of before, in order);
+#   6. W71 (d): the levels and the session row are tiles of `quick.tiles` (wide rows after the switch tiles): Alt+Down moves
+#      one, a remove key takes one out (edit-wide); the centre as a container (stage c): it shows `quick.tiles` (the default: the ten tiles of before, in order);
 #      its edit key starts the edit mode (shot); Alt+Right and Alt+Down move a tile, Delete takes one out, the add key
 #      adds the microphone at the end, a tile's remove key (−) takes one out; Done writes the edit's list as one apply
 #      (the relay's log); the mock refuses it, so the edit stays and says so (shot), Escape puts the setting back; the
 #      centre follows the setting when it changes elsewhere (mock.doc, as Settings' list would write it; shot);
-#   7. W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
+#   7. W71 (d): the levels and the session row as bar modules (volume_level is the sound module, brightness_level has its
+#      slider, session three keys; the power key opens the menu; bar-rows); W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
 #      `quick.tiles` naming both shows the sound tile once;
 #   5. idle: with the pointer away and nothing open, the shell commits no frame for 3 s (Ma; WAYLAND_DEBUG commits);
 #      the frontend logs no QML error.
@@ -408,18 +410,42 @@ echo "ok: a right click opens the module's menu (wifi, focus, caffeine, power)"
 
 # ---- 6. the centre as a container: `quick.tiles` and its edit mode (W70 stage c) ----
 # The keys stand where the card logs them (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px).
-DEFAULT=wifi,bluetooth,focus,volume,power,brightness,caffeine,nightlight,recorder,darkmode
+DEFAULT=wifi,bluetooth,focus,volume,power,brightness,caffeine,nightlight,recorder,darkmode,volume_level,brightness_level,session
 K act quick.toggle >/dev/null || fail "quick.toggle refused"
 wait_until 5 ui_is '.panel == "quick"' || fail "quick.toggle opened no card"
 wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
   || fail "the centre does not show the default tiles in order: $(tiles_now)"
-echo "ok: the centre shows quick.tiles' default, the ten tiles of before, in order"
+echo "ok: the centre shows quick.tiles' default, the ten tiles of before and the three rows (W71 d), in order"
 wait_until 3 sh -c "grep -q 'quick-at edit ' '$R/qs.log'" || fail "the card logged no edit key"
 read -r ex ey < <(at_of edit)
 ptr "$ex" "$ey"
 wait_until 3 sh -c "grep -q 'quick-edit on' '$R/qs.log'" || fail "the edit key did not start the edit mode"
 wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edit-mode.png" || fail "grim failed on the edit mode"
+# W71 (d, I475 8): the wide rows are tiles too — a press on the sound level's row (the edit's drag area) gives it the
+# keyboard, Alt+Down moves it under the brightness row, the session row's remove key takes it out; Escape drops it all.
+sleep 0.8
+read -r lx ly < <(at_of tile:volume_level)
+[ -n "${lx:-}" ] || fail "the edit mode shows no sound level row"
+ptr "$lx" "$ly"
+press alt+down
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q 'brightness_level,volume_level,session\$'" \
+  || fail "Alt+Down did not move the sound level under the brightness: $(tiles_now)"
+sleep 0.8
+read -r sx sy sw sh < <(grep -o "quick-at tile:session .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+ptr "$(( sx + sw - 5 ))" "$(( sy + 5 ))"
+wait_until 3 sh -c "! grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q 'session'" \
+  || fail "the session row's remove key did not take it out: $(tiles_now)"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/edit-wide.png" || fail "grim failed on the wide rows"
+press escape
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q off" || fail "Escape did not leave the edit mode"
+wait_until 3 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
+  || fail "Escape did not put the rows back: $(tiles_now)"
+echo "ok: the wide rows move (Alt+Down) and leave (their remove key) in the edit mode; Escape drops it (edit-wide)"
+read -r ex ey < <(at_of edit)
+ptr "$ex" "$ey"
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q on" || fail "the edit key did not start the edit mode again"
 # The focus is on the first tile: Alt+Right moves it one place on, Delete takes it out, Alt+Down moves the next a row down.
 press alt+right
 wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,wifi,focus'" \
@@ -435,7 +461,7 @@ sleep 0.8
 read -r axx axy < <(at_of add:mic)
 [ -n "${axx:-}" ] || fail "the edit mode offers no key to add the microphone"
 ptr "$axx" "$axy"
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ',mic\$'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ',mic,volume_level'" \
   || fail "the add key did not add the microphone at the end: $(tiles_now)"
 read -r rx ry rw rh < <(grep -o "quick-at tile:power .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
 # the tile's remove key (−): on its top-right corner
@@ -454,11 +480,11 @@ got=$(sed -n '/^mark save$/,$p' "$R/subs.log" | grep '^apply' | tail -1 | sed 's
 [ "$got" = "$WANT" ] || fail "Done wrote $got, not the edit's $WANT"
 # The mock answers no apply: the edit stays, with the refusal; Escape drops it and the tiles are the setting's again.
 sleep 0.8
-grep -q 'quick-edit off' "$R/qs.log" && fail "a refused save left the edit mode"
+grep -o 'quick-edit .*' "$R/qs.log" | tail -1 | grep -q off && fail "a refused save left the edit mode"
 wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edit-refused.png" || fail "grim failed"
 press escape
-wait_until 3 sh -c "grep -q 'quick-edit off' '$R/qs.log'" || fail "Escape did not leave the edit mode"
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q off" || fail "Escape did not leave the edit mode"
 wait_until 3 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
   || fail "after the refused save and Escape the centre does not show the setting's tiles: $(tiles_now)"
 echo "ok: Done writes the edit's list ($got) as one apply; refused, the edit stays and says so; Escape puts the setting back"
@@ -474,8 +500,25 @@ echo "ok: the centre follows quick.tiles as the daemon has it ($WANT)"
 
 # ---- 7. W71 (c): the new id `volume` places the sound module as `audio` did, and an old `quick.tiles` with `audio`
 #      shows the sound tile once ----
-K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","volume","clock"]}}}}' >/dev/null \
+K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","volume","volume_level","brightness_level","session","clock"]}}}}' >/dev/null \
   || fail "the mock refused the bar's modules"
+# W71 (d): the rows pinned as modules — the sound level is the sound module, the brightness its level with a slider, the
+# session row its keys (lock, suspend, the power menu: three squares while the session service answers).
+for id in volume_level brightness_level session; do
+  wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
+done
+[ "$(mod_w volume_level)" -gt $(( THICK + 110 )) ] || fail "volume_level is not the sound module with its slider"
+[ "$(mod_w brightness_level)" -gt $(( THICK + 110 )) ] || fail "brightness_level has no slider (width $(mod_w brightness_level))"
+[ "$(mod_w session)" -ge $(( 3 * THICK - 2 )) ] || fail "the session module does not show its three keys (width $(mod_w session))"
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+wait_settled 1 0.3
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-rows.png" || fail "grim failed on the bar"
+mark session
+read -r kx ky < <(where session)
+ptr "$(( kx + 2 * THICK ))" "$ky"
+wait_until 3 sh -c "sed -n '/^mark session\$/,\$p' '$R/subs.log' | grep -q '^act session.menu'" || fail "the session module's power key sent no session.menu"
+close_all
+echo "ok: the rows as modules: volume_level, brightness_level (slider), session (three keys; its power key opens the menu; bar-rows)"
 wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end volume ' '$R/qs.log'" || fail "the bar does not show module volume"
 wait_until 3 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end volume .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( THICK + 110 )) ]" \
   || fail "volume is not the sound module with its slider"

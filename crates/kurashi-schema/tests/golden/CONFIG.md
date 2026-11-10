@@ -428,9 +428,9 @@ A card as the shell's other cards: joined to its bar, in the look's material and
 
 #### `quick.tiles` — Control centre tiles
 
-The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. `audio` is the old name of `volume` (sound) and still places it.
+The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume` (sound) and still places it.
 
-- type: `string_list` · default: `["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]`
+- type: `string_list` · default: `["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]`
 - choices: from `quick.tiles` (resolved at runtime)
 - since schema v7
 

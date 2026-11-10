@@ -1089,7 +1089,10 @@
                 "caffeine",
                 "nightlight",
                 "recorder",
-                "darkmode"
+                "darkmode",
+                "volume_level",
+                "brightness_level",
+                "session"
               ],
               "help": "config.quick.tiles.help",
               "key": "quick.tiles",

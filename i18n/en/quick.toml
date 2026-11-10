@@ -14,6 +14,10 @@
 "layout.module.nightlight" = "Night light"
 "layout.module.darkmode" = "Dark mode"
 "layout.module.airplane" = "Airplane mode"
+# W71 (d): the centre's rows as tiles and modules of their own.
+"layout.module.volume_level" = "Sound level"
+"layout.module.brightness_level" = "Brightness level"
+"layout.module.session" = "Lock and power"
 # The centre's edit mode (W70 stage c).
 "quick.edit.open" = "Edit tiles"
 "quick.edit.hint" = "Drag a tile, or Alt and an arrow, to move it; − or Delete takes it out. Add a control:"
@@ -28,3 +32,5 @@
 "quick.page.settings" = "More in Settings"
 "quick.options.refused" = "The setting could not be changed."
 "quick.caffeine.others" = "Also kept awake by"
+"quick.edit.wide_hint" = "Alt with Up or Down moves it among the rows; Delete takes it out"
+"quick.edit.unknown" = "Not shown: {ids} (this shell has no such tile; the list keeps it)"

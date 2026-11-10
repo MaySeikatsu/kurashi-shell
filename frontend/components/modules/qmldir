@@ -25,3 +25,5 @@ Caffeine 1.0 Caffeine.qml
 NightLight 1.0 NightLight.qml
 DarkMode 1.0 DarkMode.qml
 Airplane 1.0 Airplane.qml
+BrightnessLevel 1.0 BrightnessLevel.qml
+Session 1.0 Session.qml

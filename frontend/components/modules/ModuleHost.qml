@@ -154,7 +154,9 @@ Item {
         // W70: the control centre's controls, each a module of its own. W71 (c): `audio` (W70's sound output) is the one
         // sound module `volume` now, so a config that names either places it.
         wifi: wifiM, bluetooth: bluetoothM, audio: volume, mic: micM, power: powerM, brightness: brightnessM, focus: focusM,
-        caffeine: caffeineM, nightlight: nightlightM, darkmode: darkmodeM, airplane: airplaneM
+        caffeine: caffeineM, nightlight: nightlightM, darkmode: darkmodeM, airplane: airplaneM,
+        // W71 (d): the centre's levels and session row as modules; the sound level is the sound module itself.
+        volume_level: volume, brightness_level: brightnessLevelM, session: sessionM
     })
     Loader {
         id: loader
@@ -183,5 +185,7 @@ Item {
     Component { id: nightlightM; NightLight { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: darkmodeM; DarkMode { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: airplaneM; Airplane { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: brightnessLevelM; BrightnessLevel { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
+    Component { id: sessionM; Session { vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
     Component { id: modWidget; ModWidget { mod: host.entry.mod || ""; provide: host.entry.provide || ""; vertical: host.vertical; thickness: host.thickness; edge: host.edge; output: host.output; screen: host.screen; live: host.live; anchored: host.anchored; link: host.link; fitSlots: host.fitSlots; hostFocused: host.activeFocus; compact: host.compact; room: host.room } }
 }

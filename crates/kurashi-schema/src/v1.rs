@@ -2340,8 +2340,9 @@ pub struct Sidebar {
 
 // --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
 
-/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
-pub const QUICK_TILES: [&str; 10] = [
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47); then (W71 d) the rows it
+/// always showed under them as wide tiles: the sound level, the brightness, the session row.
+pub const QUICK_TILES: [&str; 13] = [
     "wifi",
     "bluetooth",
     "focus",
@@ -2352,6 +2353,9 @@ pub const QUICK_TILES: [&str; 10] = [
     "nightlight",
     "recorder",
     "darkmode",
+    "volume_level",
+    "brightness_level",
+    "session",
 ];
 
 /// How the control centre looks (W70 stage d).
@@ -2374,8 +2378,9 @@ pub struct Quick {
     pub style: QuickStyle,
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
-    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. `audio`
-    /// is the old name of `volume` (sound) and still places it.
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels
+    /// and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume`
+    /// (sound) and still places it.
     #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
     pub tiles: Vec<String>,
     #[kurashi(nested)]

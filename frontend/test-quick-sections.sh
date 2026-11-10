@@ -241,7 +241,7 @@ BACK=(54 82)          # the page header's round back key
 MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
 # and 92 px above the phone screen's bottom edge (W21-island-morph: the phone is its own chrome, the Stage draws no card and
 # no Close row under it any more): the rows above it differ by locale (the status line wraps), the footer does not
-MEDIA_FROM_BOTTOM=92
+MEDIA_FROM_BOTTOM=92    # (before W71 d; the media row's place is logged now)
 
 : > "$R/qs.log"
 : > "$R/server.log"
@@ -466,7 +466,10 @@ card_shot quick-recovered 0.5
 echo "ok: connecting, then the timeout's failure; the queued request applies after SIGCONT ($wifi_before -> $wifi_after)"
 
 # 10. The media row opens the island's media view (the card gives way to the island's panel).
-at "$MEDIA_TITLE_X" "$(( cy1 - cy0 - MEDIA_FROM_BOTTOM ))"
+# (W71 d: the session row is a tile above it now: the media row stands where the card logs it, `quick-at media`)
+read -r mx my mw mh < <(grep -o 'quick-at media .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+[ -n "${mx:-}" ] || fail "the card logged no media row"
+click "$(( mx + MEDIA_TITLE_X - 16 ))" "$(( my + mh / 2 ))"
 settle 1.5
 [ "$(panel)" = island ] || fail "the media row did not open the island's media view (panel \"$(panel)\")"
 echo "ok: the media row opens the island's media view"

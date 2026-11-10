@@ -131,6 +131,19 @@ once; the schema's help says so). A bar listing both shows it twice, as any modu
 area and the focus ring cover the mark and its level; the slider takes its own presses. In a column the mark stands over
 the upright slider; compact is the mark alone (a click mutes, the wheel steps).
 
+**(d) The levels and the session row are tiles** (I475 8). `quick.tiles` takes three wide tiles, there by default after
+the ten switch tiles: `volume_level` (the sound level, with the output under it as a link to the sound page),
+`brightness_level` (the display's level; without a backlight it shows only while editing, where it says why) and
+`session` (lock, suspend with its second press, the power menu). A wide tile is a whole row: the rows stand after the
+switch tiles, in their own order (a row is no cell of the two- or three-column grid), so the edit moves them among
+themselves — a drag, or Alt with Up or Down on the focused row — and their remove key or Delete takes one out; the add
+row offers them back. In the edit mode a row is one Tab stop; otherwise its controls are (the Tab order of before: the
+tiles, the edit key, the levels, the session keys). On a look's flyout the session row is not drawn: its footer band holds
+those keys (once). As bar modules: `volume_level` is the sound module itself, `brightness_level` the brightness mark with
+its level and slider, `session` three keys as thick as the bar (compact: the power menu's key; in a column they stack).
+B73: an id `quick.tiles` names that this shell has no tile for is named in the edit mode ("Not shown: …"), not dropped
+silently; the list keeps it.
+
 ## Decisions for the user
 1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
 2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).
