@@ -11,7 +11,7 @@ layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
     vec4 uSize;   // xy the item (px), z the edge's depth (px), w the seed
-    vec4 uMode;   // x: 0 torn paper, 1 paint; y: the paint's unevenness 0..1
+    vec4 uMode;   // x: 0 torn paper, 1 paint; y: the paint's unevenness 0..1; z: 1 a small thing torn as a sheet
     vec4 uSides;  // left, top, right, bottom: 1 where the layer's own border is an edge of the shape (a face that fills
                   // its layer), 0 where the shape runs on past it (a side joined to a bar or lying on the screen's edge)
 };
@@ -68,7 +68,7 @@ void torn(vec4 c) {
     float bay = fbm(p / 46.0);
     float jag = vnoise(p / 3.2) * 0.65 + vnoise(p / 1.3 + 9.0) * 0.35;
     // A small thing (a tile, a key) keeps its shape: a fine jag only; the bays come in with size.
-    float big = smoothstep(56.0, 170.0, min(size.x, size.y));
+    float big = max(smoothstep(56.0, 170.0, min(size.x, size.y)), uMode.z * 0.42);
     float r = depth * (0.35 + 2.4 * bay * bay) * big + min(depth, 1.6) * (0.3 + 0.9 * jag);
     float thr = c.a * 0.5;
     if (reach(qt_TexCoord0, r) < thr) { fragColor = vec4(0.0); return; }
