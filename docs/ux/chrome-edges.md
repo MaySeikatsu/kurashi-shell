@@ -43,3 +43,51 @@ than an edge. One shared edge function (the shader's, also as JS for paths) so e
 ## Definition of done (when built)
 Every renderer above under each edge; no seam at joins; shadows from the real shape; states and keyboard unchanged;
 idle 0 frames; legibility unit-tested on the thinnest paint; a suite reading pixels at an edge; seen on niri.
+
+## Built (session 27): Painted and Ripped paper
+Status: built, judged by the user live over about twenty rounds (painted approved; ripped approved in light and dark).
+Functional and UX; open points below. Decision K124.
+
+### What the user decided (their words in BACKLOG I477 and the session)
+- A chrome sets everything, the edge included; `theme.edge` sets the edge apart (Automatic follows the chrome).
+- **Painted** (their mock-ups): grounds are strokes of a brush, not boxes. A bar's group, a tile, a key: one stroke
+  past its ends. A card, a desktop widget, the sidebar, the dock: bands, each a stroke of the hand (its own length,
+  lean, bend), lapping. Solid: as opaque as the shell's surfaces; only the outermost edge soft. Two wet colours run
+  into each other in window space (the gradient's far stop, else the palette's second colour). Tongue-shaped ends, not
+  a line. Small ground tiles (clock digits, days) get no stroke of their own. No frame outline by default; when on, a
+  hand line along the paint's inner edge, wet on wet. The shell's picked material lies on the strokes; without one a
+  stroke carries its own bristle lines (the "Brush strokes" material gives them as a material).
+- **Ripped paper** (their pictures 19, 20): sheets torn by hand in bays with a fine jag and the paper's core along the
+  tear; no outlines; nearly square corners; a small scrap has a corner or two torn off; a bar's group is a scrap in a
+  tone of its own, its two ends torn across; scraps a shade off their sheet; the frame's and the bar's edge torn into
+  the desktop; the dock and the sidebar torn except on joined sides; the frame's outline off by default and, when on,
+  the tear's core in the outline's ink; the focus ring follows the square corners.
+
+### How it is made (so every renderer agrees)
+- `Theme.edgeStyle` (token `edge.style`) decides; renderers never read the chrome's name.
+- Paint: `PaintStroke` (one pass, `shaders/paint_stroke.frag`; its seed drawn once, so a morphing surface keeps its
+  strokes), `PaintBands` (bands; the picked material through a `Relief` clipped to the strokes, redrawn only on
+  change), used by `Block`, `RoundBox`, `MorphShape` (card bodies) and `ColumnShape` (sidebar, dock). A stroke fits
+  the room it has (the nearest clipping ancestor or the window), so it is never cut straight. No elevation, soft
+  shadow or blur box under paint.
+- Tear: `EdgeWarp` as a layer effect of a face (`shaders/edge_warp.frag`): the shape is only bitten into; the core and
+  the age lie on the fill alone (`fillHint`), never on text; per-side flags for sides joined to an edge.
+- The frame and docked bars: `shaders/sheet_edge.frag`, drawn by `SheetShadow` in every window of the sheet, in output
+  coordinates.
+
+### States, keyboard, a11y, motion, budget
+Input regions, focus order and names are unchanged (the edge bites at most a few px; a stroke's overshoot takes no
+input). Focus rings follow the shape. Motion: surfaces move as before; strokes and tears are static (idle 0 frames,
+suite). Budget: not measured yet on machine B (one static ShaderEffect per stroke; a layer per torn face).
+
+### Definition of done
+- [x] Chromes Painted and Ripped paper, `theme.edge`, tokens; i18n en/ja; goldens.
+- [x] Judged live by the user, light; ripped also dark (a bug whitened whole sheets in dark: fixed, suite step).
+- [x] Suite `frontend/test-edges.sh` (merge set): paint on the bar, the edge apart from the chrome, the torn frame
+  edge, dark, idle 0 frames.
+- [ ] Toasts, menus, tooltips, the launcher's rows, the lock screen and Settings' own window under both.
+- [ ] Painted in dark judged by the user; contrast of secondary text on paint measured.
+- [ ] Budget on machine B; the cost of many strokes while a list scrolls.
+- [ ] Blur regions off under every painted or torn surface (done for desktop widgets only).
+- [ ] Previews of the chromes in Settings (as the frame outline has); Sticker and overshoot variants (brief above).
+

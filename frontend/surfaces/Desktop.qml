@@ -907,12 +907,13 @@ PanelWindow {
 
                     // I338: the card stands on the desk at level 2, its shadow from the shell's light; I322: its blur.
                     Elevation {
-                        visible: slot.showReal && !slot.dragging
+                        visible: slot.showReal && !slot.dragging && !Theme.painted
                         anchors.fill: real
                         radius: Theme.rWidget
                         level: 2
                     }
-                    readonly property bool blurs: slot.showReal && real.item !== null
+                    // (I471b: no blur behind a painted card: the blurred box would show round the strokes)
+                    readonly property bool blurs: slot.showReal && real.item !== null && !Theme.painted
                     onBlursChanged: blurs ? desk.addBlur(real) : desk.dropBlur(real)
                     Component.onDestruction: desk.dropBlur(real)
 

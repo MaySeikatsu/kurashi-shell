@@ -9,7 +9,8 @@ import ".."
 // `Theme.shadowDy`) this is where the face always stood.
 Block {
     required property Item around
-    readonly property real padX: Theme.gap + 2
+    // (I471d: a scrap of paper is a little longer than what lies on it, so its torn ends have room)
+    readonly property real padX: Theme.gap + 2 + (Theme.edgeStyle === "ripped" ? 6 : 0)
     // (`[decor] bar.group = none`: one strip, no block round each group — 98's taskbar; contract row 596.)
     visible: Theme.groups && around.visible && around.width > 0 && Theme.decor("bar.group", "block") !== "none"
     x: around.x - padX
@@ -18,7 +19,12 @@ Block {
     height: Theme.barH - 8 + Theme.shadowDy
     radius: Theme.rFull
     ringScale: 0.5
-    softScale: 0.3
     glowRoom: 3
-    fill: Theme.lifted ? Theme.surfaceAlpha : "transparent"
+    paintAlways: true
+    // (I471d: under the torn edge a group is a scrap of paper lying on the bar: a tone of its own, so it reads as one
+    // sheet; its tear and its short shadow do the rest)
+    fill: Theme.edgeStyle === "ripped" ? Theme.containerHigh
+        : (Theme.lifted ? Theme.surfaceAlpha : "transparent")
+    // (a scrap casts a fuller shadow than a group of the soft chrome: it is what sets it off the bar)
+    softScale: Theme.edgeStyle === "ripped" ? 0.55 : 0.3
 }

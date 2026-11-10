@@ -205,6 +205,7 @@ Item {
         ringScale: 0.5
         // A short soft shadow: the bar's window ends a few px under the pill.
         softScale: 0.3
+        paintAlways: true
         // The panel's opacity (glass sees through); an outlined chrome with no shadow (line) draws a box on the strip,
         // no fill behind the face (Bar.qml).
         fill: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 ? "transparent"

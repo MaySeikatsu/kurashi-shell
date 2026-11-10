@@ -313,6 +313,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         },
         type_scale: f(store, "theme.typography.scale", 1.0),
         chrome: kurashi_theme::Chrome::parse(&s(store, "theme.chrome")),
+        edge: kurashi_theme::Edge::parse(&s(store, "theme.edge")),
         frame_outline: match s(store, "theme.frame_outline").as_str() {
             "on" => kurashi_theme::FrameOutline::On,
             "off" => kurashi_theme::FrameOutline::Off,

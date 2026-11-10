@@ -14,13 +14,15 @@ Rectangle {
     id: fr
     property bool shown: false
     property real corner: 0
+    // (I471d: under the torn edge shapes are scraps with nearly square corners; the ring follows the shape it marks)
+    readonly property real cr: Theme.edgeStyle === "ripped" ? Math.min(corner, 4) : corner
     property color stroke: Theme.focusRing
     readonly property bool plain: Theme.focusStyle === "ring" && Theme.focusOffset === 0
 
     color: "transparent"
     border.width: plain ? Theme.focusW : 0
     border.color: stroke
-    radius: corner
+    radius: cr
     visible: shown
 
     Loader {
@@ -39,7 +41,7 @@ Rectangle {
             color: "transparent"
             border.width: Theme.focusW
             border.color: fr.stroke
-            radius: Math.max(0, fr.corner + Theme.focusOffset)
+            radius: Math.max(0, fr.cr + Theme.focusOffset)
         }
     }
     Component {
@@ -48,7 +50,7 @@ Rectangle {
             id: ds
             // The geometry renderer, unsmoothed: it draws dashes (the curve renderer strokes them solid) on whole px.
             antialiasing: false
-            readonly property real r: Math.max(0, Math.min(fr.corner + Theme.focusOffset, Math.min(width, height) / 2))
+            readonly property real r: Math.max(0, Math.min(fr.cr + Theme.focusOffset, Math.min(width, height) / 2))
             readonly property real h: Theme.focusW / 2
             ShapePath {
                 strokeColor: fr.stroke
@@ -76,7 +78,7 @@ Rectangle {
             color: "transparent"
             border.width: 2 * Theme.focusW
             border.color: fr.stroke
-            radius: Math.max(0, fr.corner + Theme.focusOffset)
+            radius: Math.max(0, fr.cr + Theme.focusOffset)
             // The inner ring contrasts with the outer one: white over a dark outer ring, black over a light one, at 70 %
             // (WinUI's FocusStrokeColorInner, #b3ffffff / #b3000000) — so a ring inked for a dark ground keeps its pair.
             Rectangle {
@@ -95,7 +97,7 @@ Rectangle {
             color: "transparent"
             border.width: 3
             border.color: Qt.alpha(fr.stroke, 0.5)
-            radius: Math.max(0, fr.corner + Theme.focusOffset + 3)
+            radius: Math.max(0, fr.cr + Theme.focusOffset + 3)
         }
     }
     Component {
@@ -109,7 +111,7 @@ Rectangle {
                 color: "transparent"
                 border.width: Theme.crisp(1, Screen.devicePixelRatio)
                 border.color: Qt.alpha(fr.stroke, 0.28)
-                radius: Math.max(0, fr.corner + Theme.focusOffset)
+                radius: Math.max(0, fr.cr + Theme.focusOffset)
             }
             // One closed path under the control: the upper edge bows up a little, the lower edge down more, meeting in
             // fine points; it starts a little in from the left and stops short of the right (a hand, not a ruler). Static.

@@ -92,6 +92,29 @@ Singleton {
     // K45: soft and line chrome. Read the widths and colours, never `chromeStyle` to pick a look (rule 4); the
     // style name is for logs and tests.
     readonly property string chromeStyle: tok("chrome.style", "flat")
+    // I471d (K121): the edge of every surface: "clean", or "ripped", a sheet torn by hand (components/EdgeWarp.qml). The
+    // environment can force it while a look is tried out (`KURASHI_EDGE=ripped`).
+    readonly property string edgeStyle: String(Quickshell.env("KURASHI_EDGE") || tok("edge.style", "clean"))
+    // (an edge effect is on: a layer on a surface's face; "ripped" tears it, "painted" lays it as a brush's stroke)
+    readonly property bool edgeTorn: edgeStyle === "ripped" || edgeStyle === "painted"
+    readonly property real edgeUneven: tok("edge.uneven", 1)
+    // I471b: the painted look's grounds: strokes of a brush in place of boxes. The paint of a ground (a surface, a
+    // card, a bar's group): the accent thinned into the surface, lying thin, so text keeps its contrast and what is
+    // behind shows through as through a wash; of a control standing on one: a little thicker.
+    readonly property bool painted: edgeStyle === "painted"
+    // (as opaque as the shell's surfaces are — `theme.material`: the paint adds no transparency of its own)
+    readonly property color paintGround: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.26)), surfaceAlpha.a)
+    // (the sheet's own paint: the frame's and the bar's colour, for what is part of them — the sidebar, the dock)
+    readonly property color paintSheet: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.05)), surfaceAlpha.a)
+    readonly property color paintControl: Qt.alpha(Qt.tint(surface, Qt.alpha(accent, 0.44)), surfaceAlpha.a)
+    // What the paint runs into along a stroke, as two wet colours meet (the user: "like the watercolor blend in the
+    // Gradient mode"): the gradient's far stop while the chrome's gradient is on, else the palette's second colour;
+    // thinned into the surface as the paint is.
+    readonly property color paintInto: washOn && washStops.length > 1
+        ? Qt.tint(surface, Qt.alpha(washStops[washStops.length - 1], 0.6))
+        : Qt.tint(surface, Qt.alpha(secondary, 0.36))
+    readonly property real paintBlend: tok("paint.blend", 0.7)
+    readonly property real edgeDepth: tok("edge.depth", 4)
     // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
     // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its
     // own outline on a translucent canvas (Sketch) and sets the alpha itself.
@@ -224,7 +247,14 @@ Singleton {
     // `theme.frame_outline` (I303): a line along the frame's inner edge and the sides of what joins it (bars' edges, the
     // dock, sidebars, edge groups), in the chrome's own outline — its ink, or a hairline where the chrome draws none. The
     // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
-    readonly property bool frameOutline: tok("frame.outline", boxed) === true
+    // (no straight rule under a painted or a torn edge: the daemon resolves Automatic to off under those chromes)
+    readonly property bool frameOutline: tok("frame.outline", boxed) === true && !edgeTorn
+    // (under a painted or a torn edge the frame's outline, when on, is a hand-drawn line along that edge:
+    // shaders/sheet_edge.frag; the straight rule between the sheet and its paint is not drawn)
+    // Its colour there: the outline's ink as chosen (the accent, the text's), else the chrome's ink line: a chrome with
+    // no outline of its own (paint, torn paper) has no outline colour to give.
+    readonly property color frameLineInk: outlineInk === "accent" ? accent : (outlineInk === "text" ? fg : line)
+    readonly property bool frameLineOnPaint: edgeTorn && tok("frame.outline", false) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
     // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's
     // colour (with its strength as alpha) and reach. Apart from the chrome: a glowing frame under any chrome, a plain

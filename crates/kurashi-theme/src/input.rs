@@ -124,6 +124,31 @@ pub enum Chrome {
     Bevel,
     /// I471 (K116): an outline in the accent and a glow of it round every block, straight out, no offset.
     Glow,
+    /// I471b (K124): no boxes: every ground is strokes of a brush (the edge `painted`).
+    Painted,
+    /// I471d (K124): sheets of paper torn by hand (the edge `ripped`), lifted a little off the desk.
+    Ripped,
+}
+
+/// `theme.edge` (I477): the edge a surface is made with; `Auto` follows the chrome.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Edge {
+    #[default]
+    Auto,
+    Clean,
+    Painted,
+    Ripped,
+}
+
+impl Edge {
+    pub fn parse(s: &str) -> Edge {
+        match s {
+            "clean" => Edge::Clean,
+            "painted" => Edge::Painted,
+            "ripped" => Edge::Ripped,
+            _ => Edge::Auto,
+        }
+    }
 }
 
 impl Chrome {
@@ -135,6 +160,8 @@ impl Chrome {
             "line" => Chrome::Line,
             "bevel" => Chrome::Bevel,
             "glow" => Chrome::Glow,
+            "painted" => Chrome::Painted,
+            "ripped" => Chrome::Ripped,
             _ => Chrome::Flat,
         }
     }
@@ -185,6 +212,7 @@ pub struct Axes {
     pub motion_speed: f64,
     pub density: Density,
     pub chrome: Chrome,
+    pub edge: Edge,
     pub frame_outline: FrameOutline,
     /// `theme.outline_ink` (session 17): passed through as the token `outline.ink` ("outline" | "text" | "accent"): the
     /// colour of every outline; looks set it in their recipe.
@@ -218,6 +246,7 @@ impl Default for Axes {
             motion_speed: 1.0,
             density: Density::Regular,
             chrome: Chrome::Flat,
+            edge: Edge::Auto,
             frame_outline: FrameOutline::Auto,
             outline_ink: "outline".into(),
             elevation: "auto".into(),
