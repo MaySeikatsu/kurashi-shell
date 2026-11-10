@@ -296,12 +296,18 @@ Singleton {
     readonly property string textScope: String(tok("text.scope", "titles"))
     readonly property real textSpawnSpeed: Math.max(0.25, Math.min(3, Number(tok("text.spawn_speed", 1)) || 1))
     // Session 28 (`theme.join`, `theme.join_corner`): how a card meets its bar — "auto" as the look draws it, "float"
-    // a card of its own — and the corner where joined surfaces meet (corner.js
+    // a card of its own, "dynamic" and "connected" one shape with the bar — and the corner where joined surfaces meet (corner.js
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
     readonly property string joinKind: String(tok("join.kind", "auto"))
     readonly property string joinCorner: String(tok("join.corner", "round"))
     // Whether cards join their bar at all (`[decor] surface.join`, W53.5, unless the user says: `theme.join`).
-    readonly property bool surfaceJoin: joinKind !== "float" && decor("surface.join", true) !== false
+    readonly property bool surfaceJoin: joinKind === "float" ? false
+        : (joinKind === "dynamic" || joinKind === "connected" ? true : decor("surface.join", true) !== false)
+    // I489 (the user: the cards' connection as a draw mode of its own, not baked into the chrome): Dynamic and
+    // Connected grow the card out of the bar as one shape — by fillets, or straight — whatever the chrome's own form
+    // is (keycap and soft chrome hang a card from its module's block by a neck: that is Automatic there).
+    readonly property bool joinForced: joinKind === "dynamic" || joinKind === "connected"
+    readonly property real cardNeck: joinKind === "connected" ? 0 : rJoin
     // (for a Block's `flatBorder`: the hairline a surface gets under a chrome with no outline)
     readonly property color surfaceHair: frameOutline ? frameOutlineColor : "transparent"
     // B79: the frame's line lit (`theme.frame_outline = glow`, or Automatic under a chrome that glows): its light's

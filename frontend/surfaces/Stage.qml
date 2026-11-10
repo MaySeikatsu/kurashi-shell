@@ -897,7 +897,7 @@ PanelWindow {
             rTop: Theme.rSm
             rBot: Math.min(Theme.rLg, Math.max(Theme.rSm, w / 4))
             edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
-            neck: stage.joined ? 0 : Theme.rJoin
+            neck: stage.joined ? 0 : Theme.cardNeck
             // (I277: the peek is the bar's sheet, as the card it grows out of; a look's tooltip fill, W53)
             fill: stage.peekBalloon ? peekTip.fill(Theme.surfaceAlpha) : Theme.surfaceAlpha
             edgeL: stage.peekMergesL ? stage.holeL - stage.peekBoxL : -1e6
@@ -1120,10 +1120,11 @@ PanelWindow {
     // The bar's groups float as blocks (a chrome with groups and a shadow of either kind: no strip under them, Bar.qml):
     // the card joins the island's own block (I115), or a widget's block. Else the neck joins the card to the bar's strip.
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
-    readonly property bool joined: Theme.groups && lifted
+    // (I489: Dynamic and Connected take the strip's form under every chrome; Automatic keeps the chrome's)
+    readonly property bool joined: Theme.groups && lifted && !Theme.joinForced
     // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
-    readonly property real neckR: joined ? 0 : Theme.rJoin
+    readonly property real neckR: joined ? 0 : Theme.cardNeck
 
     // The origin (out x, width; `e`: the line the shape hangs from, local). A widget's drawn square is 3 px in from its
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
@@ -1229,10 +1230,10 @@ PanelWindow {
         readonly property real top: stage.flip ? stage.outH - stage.cardFoot : stage.barEdgeY
         readonly property real foot: stage.flip ? stage.outH - stage.barEdgeY : stage.cardFoot
         spans: {
-            var l = [{ edge: stage.morphEdge, from: stage.cardOutX - (stage.mergesL ? 0 : Theme.rJoin),
-                       to: stage.cardOutX + card.width + (stage.mergesR ? 0 : Theme.rJoin) }]
-            if (stage.mergesL) l.push({ edge: "left", from: top, to: foot + Theme.rJoin })
-            if (stage.mergesR) l.push({ edge: "right", from: top, to: foot + Theme.rJoin })
+            var l = [{ edge: stage.morphEdge, from: stage.cardOutX - (stage.mergesL ? 0 : Theme.cardNeck),
+                       to: stage.cardOutX + card.width + (stage.mergesR ? 0 : Theme.cardNeck) }]
+            if (stage.mergesL) l.push({ edge: "left", from: top, to: foot + Theme.cardNeck })
+            if (stage.mergesR) l.push({ edge: "right", from: top, to: foot + Theme.cardNeck })
             return l
         }
         box: Qt.rect(stage.cardOutX, top, card.width, foot - top)

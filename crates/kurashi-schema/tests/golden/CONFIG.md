@@ -1056,6 +1056,22 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 - only while `theme.shape.corners == "squircle"`
 - since schema v7
 
+#### `theme.join_corner` — Corner shape
+
+The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; cards that float, toasts and the blocks inside a card keep their rounding.
+
+- type: `choice` · default: `"round"`
+- choices: `"round"` | `"chamfer"` | `"steps"` | `"bulge"` | `"square"`
+- since schema v7
+
+#### `theme.join` — Cards join their bar
+
+How a card meets the bar it opens from — its draw mode, apart from the chrome, as the bars, the dock and the sidebars have theirs. Automatic: as the look and its chrome draw it. Floating: a card of its own under its module, a gap off the bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the bar, joined with straight corners.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"float"` | `"dynamic"` | `"connected"`
+- since schema v7
+
 #### `theme.chrome` — Chrome
 
 How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or bevels, light and dark edges that press in (K42, K45, K80); a glowing outline; grounds painted with a brush; or sheets of torn paper.
@@ -1176,24 +1192,6 @@ While the light follows the pointer or the spotlight aims at it, the surfaces' s
 - type: `bool` · default: `false`
 - only while `theme.material.elevation == "follow"`
 - forced to `false` while `a11y.reduce_motion` is on
-- since schema v7
-
-### Connection
-
-#### `theme.join` — Connection
-
-How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it (most grow the card out of the bar as one shape). Floating: a card of its own under its module, a gap off the bar.
-
-- type: `choice` · default: `"auto"`
-- choices: `"auto"` | `"float"`
-- since schema v7
-
-#### `theme.join_corner` — Connection corner
-
-The corner where two joined surfaces meet — a card and its bar, the dock, a sidebar and the frame: rounded into each other, cut straight across, stepped as pixels, bulging outward as a drop, or square. Its size is the joins' radius.
-
-- type: `choice` · default: `"round"`
-- choices: `"round"` | `"chamfer"` | `"steps"` | `"bulge"` | `"square"`
 - since schema v7
 
 ### Controls

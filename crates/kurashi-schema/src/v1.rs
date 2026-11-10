@@ -438,6 +438,20 @@ pub struct Theme {
     pub colors: Colors,
     #[kurashi(nested, section = "shape")]
     pub shape: Shape,
+    /// Corner shape
+    /// The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a
+    /// sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the
+    /// sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as
+    /// set above; cards that float, toasts and the blocks inside a card keep their rounding.
+    #[kurashi(default = JoinCorner::Round, section = "shape", since = 7)]
+    pub join_corner: JoinCorner,
+    /// Cards join their bar
+    /// How a card meets the bar it opens from — its draw mode, apart from the chrome, as the bars, the dock and the
+    /// sidebars have theirs. Automatic: as the look and its chrome draw it. Floating: a card of its own under its
+    /// module, a gap off the bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the
+    /// bar, joined with straight corners.
+    #[kurashi(default = Join::Auto, section = "shape", since = 7)]
+    pub join: Join,
     #[kurashi(nested, section = "material")]
     pub material: Material,
     /// Chrome
@@ -471,18 +485,6 @@ pub struct Theme {
     /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
     #[kurashi(default = OutlineInk::Outline, section = "shape", since = 7)]
     pub outline_ink: OutlineInk,
-    /// Connection
-    /// How a card meets the bar it opens from, apart from the chrome. Automatic: as the look and its chrome draw it
-    /// (most grow the card out of the bar as one shape). Floating: a card of its own under its module, a gap off the
-    /// bar.
-    #[kurashi(default = Join::Auto, section = "connection", since = 7)]
-    pub join: Join,
-    /// Connection corner
-    /// The corner where two joined surfaces meet — a card and its bar, the dock, a sidebar and the frame: rounded into
-    /// each other, cut straight across, stepped as pixels, bulging outward as a drop, or square. Its size is the
-    /// joins' radius.
-    #[kurashi(default = JoinCorner::Round, section = "connection", since = 7)]
-    pub join_corner: JoinCorner,
     /// Sliders
     /// How every slider is drawn, in the shell and in Settings. Automatic: the look's own. Line: a thin track and a
     /// knob. Expressive: a thick pill with a handle bar and a stop mark. Capsule: the fill is the level, no knob. Wave:
@@ -711,6 +713,10 @@ pub enum Join {
     Auto,
     /// Floating
     Float,
+    /// Dynamic
+    Dynamic,
+    /// Connected
+    Connected,
 }
 
 /// Session 28 (I270): the corner where two joined surfaces meet.

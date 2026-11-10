@@ -5,8 +5,8 @@ import "../core/corner.js" as Corner
 // A choice as pictures (session 28; SettingRow.picker, as FrameOutlineCards): each offer of the row as a small card
 // that shows what it gives, so the difference is seen before it is picked. `kind` says what the cards draw:
 //   chrome       a block and a button as that chrome draws them (flat, keycap, soft, line, bevel, glow, painted, ripped)
-//   join         a card and the bar it opens from (as the look draws it, floating)
-//   join_corner  the corner where a joined card meets its bar, large (round, chamfer, steps, bulge, square)
+//   join         a card and the bar it opens from (as the look draws it, floating, dynamic, connected)
+//   join_corner  a card on its bar with the corner's shape on its free corner and its join (round, chamfer, steps, bulge, square)
 //   slider       the slider's own face at a level (the part that the shell draws: decor/slider/…)
 //   toggle       the switch's own face, on and off
 // Pictures in the theme's own colours; the control faces are the real parts, drawn once (nothing moves at rest).
@@ -208,20 +208,23 @@ Item {
         ctx.fillStyle = rgba(ink, 0.55); ctx.fillRect(15, 17, w * 0.36, 2.5)
         ctx.fillStyle = rgba(ink, 0.3); ctx.fillRect(15, 24, w * 0.24, 2.5)
     }
-    // A connection: the bar along the bottom, a module on it, and the card above.
+    // A connection: the bar along the bottom, a module on it, and the card above — floating (a gap), dynamic (one shape,
+    // fillets), connected (one shape, straight); Automatic as the look in effect joins or not.
     function paintJoin(ctx, w, h, v) {
         var fill = Theme.containerHigh, bh = 12, cw = w * 0.5, cx = w - cw - 12, top = 8
-        var how = v === "auto" ? (Theme.surfaceJoin ? "fused" : "float") : v
+        var how = v === "auto" ? (Theme.decor("surface.join", true) !== false ? "dynamic" : "float") : v
         ctx.fillStyle = fill
         ctx.fillRect(0, h - bh, w, bh)
         if (how === "float") { rr(ctx, cx, top, cw, h - bh - top - 5, 6); ctx.fill() }
         else {
-            var f = 6
+            var f = how === "connected" ? 0 : 6
             ctx.beginPath()
-            ctx.moveTo(cx - f, h - bh); ctx.arcTo(cx, h - bh, cx, h - bh - f, f)
+            ctx.moveTo(cx - f, h - bh)
+            if (f > 0) ctx.arcTo(cx, h - bh, cx, h - bh - f, f); else ctx.lineTo(cx, h - bh)
             ctx.lineTo(cx, top + 6); ctx.arcTo(cx, top, cx + 6, top, 6)
             ctx.lineTo(cx + cw - 6, top); ctx.arcTo(cx + cw, top, cx + cw, top + 6, 6)
-            ctx.lineTo(cx + cw, h - bh - f); ctx.arcTo(cx + cw, h - bh, cx + cw + f, h - bh, f)
+            ctx.lineTo(cx + cw, h - bh - f)
+            if (f > 0) ctx.arcTo(cx + cw, h - bh, cx + cw + f, h - bh, f); else ctx.lineTo(cx + cw, h - bh)
             ctx.closePath(); ctx.fill()
         }
         ctx.fillStyle = Theme.accent
@@ -230,26 +233,31 @@ Item {
         ctx.fillStyle = rgba(Theme.fg, 0.28); ctx.fillRect(cx + 7, top + 15, cw * 0.35, 2.5)
         if (v === "auto") { ctx.fillStyle = rgba(Theme.fg, 0.45); ctx.font = "9px sans-serif"; ctx.fillText("A", 6, 14) }
     }
-    // A corner: the card's side coming down on the left, the bar's top edge running right, large.
+    // The corner's shape on a whole piece of the sheet (I489): a card on its bar — its free corner above, the corner
+    // where it joins the bar below — drawn by the shell's own post-processor (corner.js), the same code as the card's.
     function paintCorner(ctx, w, h, v) {
-        var fill = Theme.containerHigh, bx = w * 0.42, by = h * 0.62, r = Math.min(22, h * 0.36)
-        // The shell's own post-processor draws it (corner.js): the same code as the card's.
-        var d = "M 0 0 L " + bx + " 0 L " + bx + " " + (by - r) + " A " + r + " " + r + " 0 0 0 " + (bx + r) + " " + by
-              + " L " + w + " " + by + " L " + w + " " + h + " L 0 " + h + " Z"
-        var t = Corner.squircled(d, false, v).trim().split(/\s+/), i = 0, cmd = ""
+        var fill = Theme.containerHigh, r = Math.min(14, h * 0.24), x0 = w * 0.16, x1 = w * 0.62, t = 7, by = h - 13
+        var d = "M " + x0 + " " + (t + r) + " A " + r + " " + r + " 0 0 1 " + (x0 + r) + " " + t
+              + " L " + (x1 - r) + " " + t + " A " + r + " " + r + " 0 0 1 " + x1 + " " + (t + r)
+              + " L " + x1 + " " + (by - r) + " A " + r + " " + r + " 0 0 0 " + (x1 + r) + " " + by
+              + " L " + w + " " + by + " L " + w + " " + h + " L 0 " + h + " L 0 " + by
+              + " L " + (x0 - r) + " " + by + " A " + r + " " + r + " 0 0 0 " + x0 + " " + (by - r) + " Z"
+        var tk = Corner.squircled(d, false, v).trim().split(/\s+/), i = 0, cmd = "", px = 0, py = 0
         ctx.beginPath()
-        while (i < t.length) {
-            if (/^[MLACZ]$/.test(t[i])) { cmd = t[i]; i++; if (cmd === "Z") { ctx.closePath(); continue } }
-            if (cmd === "M") { ctx.moveTo(+t[i], +t[i + 1]); i += 2; cmd = "L" }
-            else if (cmd === "L") { ctx.lineTo(+t[i], +t[i + 1]); i += 2 }
+        while (i < tk.length) {
+            if (/^[MLACZ]$/.test(tk[i])) { cmd = tk[i]; i++; if (cmd === "Z") { ctx.closePath(); continue } }
+            if (cmd === "M") { px = +tk[i]; py = +tk[i + 1]; ctx.moveTo(px, py); i += 2; cmd = "L" }
+            else if (cmd === "L") { px = +tk[i]; py = +tk[i + 1]; ctx.lineTo(px, py); i += 2 }
             else if (cmd === "A") {
-                // A quarter turn round the bare corner (the fillet) or round the far point (the drop).
-                var sweep = +t[i + 4], ex = +t[i + 5], ey = +t[i + 6]
-                if (sweep === 0) ctx.arc(bx + r, by - r, r, Math.PI, Math.PI / 2, true)
-                else ctx.arc(bx, by, r, -Math.PI / 2, 0, false)
-                ctx.lineTo(ex, ey); i += 7
-            } else if (cmd === "C") { ctx.bezierCurveTo(+t[i], +t[i + 1], +t[i + 2], +t[i + 3], +t[i + 4], +t[i + 5]); i += 6 }
-            else break
+                // A quarter turn: its centre is the one of (px, y) and (x, py) that is not the bare corner.
+                var rad = +tk[i], sweep = +tk[i + 4], ex = +tk[i + 5], ey = +tk[i + 6]
+                var k = Corner.cornerOf(px, py, ex, ey, sweep), cxx = px + ex - k.x, cyy = py + ey - k.y
+                ctx.arc(cxx, cyy, rad, Math.atan2(py - cyy, px - cxx), Math.atan2(ey - cyy, ex - cxx), sweep === 0)
+                px = ex; py = ey; i += 7
+            } else if (cmd === "C") {
+                ctx.bezierCurveTo(+tk[i], +tk[i + 1], +tk[i + 2], +tk[i + 3], +tk[i + 4], +tk[i + 5])
+                px = +tk[i + 4]; py = +tk[i + 5]; i += 6
+            } else break
         }
         ctx.fillStyle = fill; ctx.fill()
     }
