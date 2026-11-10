@@ -158,6 +158,10 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   properties. Mods talk to the daemon only through their own documents/actions. A panel may declare
   `property real fillHeight: 0`: a host that offers a fixed height (the left sidebar, K54/row 238) sets it, and the
   panel can fill it (the AI chat puts its composer at the bottom); the Stage card sets nothing. A panel may also declare
+  `property var cardPlacement` (row 721, W72): in a Stage card the panel is handed `{output, rest: true, x, y, width,
+  height}` — where it rests on the output, logical px from the output's top-left corner — and `{output, rest: false}`
+  while the card opens, moves, resizes or closes; a window of the mod's own process laid over the panel (the web dock's
+  page) reports the pointer with `Peeks.hoverOverlay(key, on)` so a card a hover opened stays. A panel may also declare
   `property var placement: null` (row 251): a sidebar sets it to `{output, side, inset, top, width, height}` — the
   panel's rect at rest in the sidebar's layer window, from the anchored side edge and the window's top — and to null
   while the panel moves (slide, scroll, a tile page), is clipped or hidden (`frontend/components/sidebar/Placement.qml`).
