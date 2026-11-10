@@ -891,6 +891,8 @@
 "config.quick.click.darkmode.help" = "Opens its card, or switches between light and dark."
 "config.quick.click.airplane.label" = "A click on airplane mode"
 "config.quick.click.airplane.help" = "Opens its card (with Wi-Fi), or switches every radio off or on."
+"config.quick.click.recorder.label" = "A click on the recorder"
+"config.quick.click.recorder.help" = "Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a recording runs, a click stops it either way."
 "settings.inert.requires" = "Only applies while {key} is {value}."
 "settings.inert.capability" = "Your compositor does not support {name}."
 "settings.inert.overridden_by" = "Controlled by {key}."

@@ -537,6 +537,11 @@ Item {
         id: darkC
         ControlPage { ctl: cDark; onBackRequested: quick.closePage() }
     }
+    // W71 (f, I475 6): the recorder's card.
+    Component {
+        id: recorderC
+        RecorderPage { ctl: cRecord; onBackRequested: quick.closePage() }
+    }
 
     // ---- the phone ----
     Loader {
@@ -939,7 +944,8 @@ Item {
                 : quick.shownPage === "display" ? displayC
                 : quick.shownPage === "night" ? nightC
                 : quick.shownPage === "caffeine" ? caffeineC
-                : quick.shownPage === "dark" ? darkC : null
+                : quick.shownPage === "dark" ? darkC
+                : quick.shownPage === "recorder" ? recorderC : null
             // The page's first control takes the focus once it exists (after the Loader has made it).
             onStatusChanged: if (status === Loader.Ready && item !== null)
                 Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })

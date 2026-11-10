@@ -32,6 +32,8 @@ Item {
     property string pendingText: I18n.tr("island.quick.changing")
     property string page: ""
     property string settingsPage: ""
+    // W71 (f): while on, a click on the control's module switches it off whatever its setting says (a recording stops).
+    property bool clickStops: false
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
     readonly property bool busy: req !== null && req.pending

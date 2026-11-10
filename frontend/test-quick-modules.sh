@@ -24,6 +24,9 @@
 #      adds the microphone at the end, a tile's remove key (−) takes one out; Done writes the edit's list as one apply
 #      (the relay's log); the mock refuses it, so the edit stays and says so (shot), Escape puts the setting back; the
 #      centre follows the setting when it changes elsewhere (mock.doc, as Settings' list would write it; shot);
+#   8. W71 (f, I475 6): the recorder is on the bar while nothing records; its card (the recorder page) starts a recording
+#      by keys, the bar shows the running time, a click stops it; without a recorder program its card says why (shots
+#      card-recorder-*, bar-recording);
 #   7. W71 (d): the levels and the session row as bar modules (volume_level is the sound module, brightness_level has its
 #      slider, session three keys; the power key opens the menu; bar-rows); W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
 #      `quick.tiles` naming both shows the sound tile once;
@@ -138,7 +141,7 @@ wait_until 10 test -S "$MOCK_SOCK" || fail "the mock did not come up (see $R/ser
 python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/relay.log" 2>&1 &
 pids+=($!)
 wait_until 10 K ping || fail "the relay did not come up (see $R/relay.log)"
-MODS='["wifi","bluetooth","audio","mic","power","brightness","focus","caffeine","nightlight","darkmode","airplane","clock"]'
+MODS='["wifi","bluetooth","audio","mic","power","brightness","focus","caffeine","nightlight","darkmode","airplane","recorder","clock"]'
 # (the mock answers no `apply`: its config document is patched, and it lays the bars out again from it; motion off is the
 # theme document's tokens)
 K act mock.doc "{\"doc\":\"config\",\"patch\":{\"values\":{\"edges.top.end\":{\"value\":$MODS}}}}" >/dev/null \
@@ -172,7 +175,7 @@ mv_to "$AWAY_X" "$AWAY_Y"
 where() {
   grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $6 + ($9 - $7) / 2, ($7 + $9) / 2 }'
 }
-for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane; do   # (audio: W70's id)
+for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane recorder; do   # (audio: W70's id)
   wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
 done
 echo "ok: the bar shows the eleven control modules"
@@ -217,13 +220,14 @@ since() { sed -n "/^mark $1\$/,\$p" "$R/subs.log"; }
 # the control's page (keep awake and dark mode have pages of their own now); a press beside the page's header gives the
 # card the keyboard, and Esc closes the whole card (a page the tiles opened goes back to them, test-quick-sections).
 card_on() { # card_on <module> <page> <what the click must not send: a relay log line's start, a regex> [shot]
-  mark "card-$1"
+  local mk="card-$1-$(date +%s%N)"   # (a mark of its own: a module may open its card twice)
+  mark "$mk"
   click_mod "$1"
   wait_until 5 ui_is '.panel == "quick"' || fail "a click on $1 opened no card: $(ui)"
   wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$2' ]" \
     || fail "a click on $1 did not open its card on the $2 page (page $(page_now))"
   sleep 0.4
-  since "card-$1" | grep -qE "^$3" && fail "a click on $1 switched it ($3)"
+  since "$mk" | grep -qE "^$3" && fail "a click on $1 switched it ($3)"
   [ -n "${4:-}" ] && { wait_settled 1.5 0.4; timeout 20 grim "$OUT/$4.png" || fail "grim failed on $4"; }
   local hx hy hw hh
   sleep 0.8
@@ -497,6 +501,42 @@ wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edited.png" || fail "grim failed"
 close_all
 echo "ok: the centre follows quick.tiles as the daemon has it ($WANT)"
+
+# ---- 8. W71 (f, I475 6): the recorder — a button on the bar while nothing records; a click opens its card (the recorder
+#      page); the card's record key starts a recording (the bar shows the running time); a click on the bar then stops it
+#      and opens nothing; without a recorder program the card says why ----
+K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","recorder","clock"]}}}}' >/dev/null \
+  || fail "the mock refused the bar's modules"
+wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end recorder ' '$R/qs.log'" || fail "the recorder is not on the bar while nothing records"
+REC0=$(mod_w recorder)
+card_on recorder recorder "act recorder" card-recorder-idle
+mark rec-start
+click_mod recorder
+wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = recorder ]" || fail "the recorder's card did not open again"
+sleep 0.8
+read -r hx hy hw hh < <(grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+ptr "$(( hx + hw + 40 ))" "$(( hy + hh / 2 ))"
+press tab return
+wait_until 5 sh -c "\"$W/kurashi\" sub svc.recorder --count 0 --json | jq -e 'select(.t == \"snap\") | .data.recording == true' >/dev/null" \
+  || fail "the record key (Tab, Return) did not start a recording"
+since rec-start | grep -q '^act recorder.start' || fail "the record key sent no recorder.start"
+wait_settled 2 0.4
+timeout 20 grim "$OUT/card-recorder-recording.png" || fail "grim failed"
+wait_until 4 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end recorder .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( REC0 + 20 )) ]" \
+  || fail "the recorder on the bar shows no running time while recording (width $(mod_w recorder))"
+close_all
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-recording.png" || fail "grim failed on the bar"
+click_mod recorder
+wait_until 5 sh -c "\"$W/kurashi\" sub svc.recorder --count 0 --json | jq -e 'select(.t == \"snap\") | .data.recording == false' >/dev/null" \
+  || fail "a click on the recording recorder did not stop it"
+sleep 0.6
+closed || fail "the click that stopped the recording opened something: $(ui)"
+echo "ok: the recorder: always on the bar; its card starts a recording (Tab, Return); the bar shows the time; a click stops it (bar-recording)"
+K act mock.doc '{"doc":"svc.recorder","patch":{"available":false,"reason":"power.recorder.reason.missing"}}' >/dev/null || fail "mock.doc refused svc.recorder"
+card_on recorder recorder "act recorder" card-recorder-unavailable
+K act mock.doc '{"doc":"svc.recorder","patch":{"available":true,"reason":null}}' >/dev/null || true
+echo "ok: without a recorder program its card says why (card-recorder-unavailable)"
 
 # ---- 7. W71 (c): the new id `volume` places the sound module as `audio` did, and an old `quick.tiles` with `audio`
 #      shows the sound tile once ----

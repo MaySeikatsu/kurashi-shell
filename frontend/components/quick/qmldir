@@ -33,3 +33,4 @@ ModuleOptions 1.0 ModuleOptions.qml
 ControlPage 1.0 ControlPage.qml
 CaffeinePage 1.0 CaffeinePage.qml
 WideTile 1.0 WideTile.qml
+RecorderPage 1.0 RecorderPage.qml

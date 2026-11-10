@@ -515,6 +515,14 @@ Opens its card (with Wi-Fi), or switches every radio off or on.
 - choices: `"card"` | `"switch"`
 - since schema v7
 
+#### `quick.click.recorder` — A click on the recorder
+
+Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a recording runs, a click stops it either way.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
 ## Appearance
 
 ### Colors

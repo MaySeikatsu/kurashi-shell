@@ -1,4 +1,5 @@
 # The control centre as modules — brief for I469 (session 27). Status: stages (a)–(d) built (W70); (e) mods' tiles open (row 711).
+Round two (I475, W71): built, see "Round two"; open: rows 713–718.
 User, 2026-11-10: each of the control centre's sub-modules becomes a module of its own that can be pinned to a bar, a
 sidebar etc. alone; the control centre restyled to match the bars, cleaner and more modern; the phone look kept as an
 option (perhaps an easter egg); custom module shortcuts can be pinned to it and re-sorted.
@@ -152,13 +153,97 @@ what should happen to that dead decor value is CONTRACT-CHANGE 716 (drop it; no 
 phone's frame is made only while it is the style (a Loader; the rows' viewport moves between the card, the flyout and the
 phone's screen).
 
+**(f) The recorder** (I475 6) — brief, then what was built.
+**The user**: "a button on the bar always; hover opens the recorder's surface; it has none, so design one (a pretty UI)".
+
+**Others** (looked up 2026-11-10):
+- **GNOME** (42+, the Shell's screenshot UI): Print Screen dims the desktop and shows one toolbar — Region / Screen /
+  Window, a toggle between screenshot and screencast, the round capture key. A screencast records a region or a screen
+  (no window). While recording, the top bar shows a red indicator with the running time, which is also the stop key;
+  files go to Videos/Screencasts. ([Rocky docs](https://docs.rockylinux.org/desktop/gnome/screenshot/),
+  [RHEL 10 docs](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_the_gnome_desktop_environment/recording-your-screen-with-gnome),
+  [It's FOSS](https://itsfoss.com/gnome-screen-recorder/))
+- **KDE Spectacle**: a Recording tab with Window, Rectangular Region and Full Screen; while recording a tray icon whose
+  click stops it (and a "Finish Recording" key in the window); without a tray it was hard to stop (bug 506617; Plasma 6.5
+  puts the way to stop it in the start notification). Videos/Screencasts. ([KDE bug 480023](https://bugs.kde.org/show_bug.cgi?id=480023),
+  [bug 505081](https://bugs.kde.org/show_bug.cgi?id=505081), [bug 506617](https://bugs.kde.org/show_bug.cgi?id=506617))
+- **COSMIC**: cosmic-screenshot takes stills through the portal (screen, window, region); no screen recorder found
+  in it. ([Arch package](https://archlinux.org/packages/extra/x86_64/cosmic-screenshot))
+- **macOS** (Shift-Command-5): one floating toolbar — capture entire screen / window / selection, record entire screen /
+  selection; an Options menu: Save to, Timer, Microphone (None or a device), show mouse clicks, remember last selection,
+  floating thumbnail; Record; a Stop key in the menu bar while recording; the last file floats as a thumbnail to open or
+  trim. ([Apple](https://support.apple.com/guide/mac-help/take-a-screenshot-mh26782/mac))
+- **Windows 11 Snipping Tool**: Record › New (Win+Shift+R), drag an area (or the full screen), Start after a 3 s
+  countdown; a dock with Pause, Stop, the microphone and the system sound as two toggles; the clip opens for preview;
+  saved to Videos/Screen Recordings. ([Windows Central](https://windowscentral.com/how-get-started-snipping-tool-app-windows-11),
+  [PCWorld](https://www.pcworld.com/article/2532666/windows-11-has-an-easy-tool-for-recording-screencasts.html))
+- **Caelestia**: `caelestia record` through its CLI (gpu-screen-recorder, slurp for a region); the shell shows it
+  running. **DankMaterialShell**: no recorder of its own found; a third-party plugin ("DMS ScreenCapture Toolbar")
+  adds a toolbar with region selection (slurp) and gpu-screen-recorder. ([caelestia-cli README](https://github.com/elioTrqt/caelestia-cli),
+  [DMS ScreenCapture Toolbar](https://monitoring-git.chickenkiller.com/LemonAdorable/DMS-ScreenCapture_Toolbar))
+
+**What the daemon offers** (svc.recorder, K47, PROTOCOL §3): `{available, backend, recording, since_ms?, file?, reason?}`,
+actions `recorder.start {output?}`, `recorder.stop`, `recorder.toggle`; the settings `recorder.directory` (empty = Videos),
+`recorder.audio` (the desktop's sound), `recorder.backend` (advanced). No region, no window, no microphone, no pause, no
+countdown: CONTRACT-CHANGE 717 asks for them; the surface does not draw what it cannot do (Shōjiki).
+
+**Design** — the module `recorder` is always on the bar where it is listed (a button): idle, the record mark; recording,
+a red dot and the running time ("● 01:23"), a click stops it (the obvious thing while it runs, as GNOME's indicator and
+macOS's Stop key); idle, a click (or a hover, as `bar.hover` says) opens its card. **The card** is the recorder's page in
+the control centre (it comes out under the module like every control's card):
+- a big round **Record** key (the accent; Enter starts), and while recording a **Stop** key in the error colour with the
+  running time beside it, ticking once a second only while the card is shown and a recording runs (Ma);
+- **What**: the screen — one choice per output when there are several (`recorder.start {output}`), else "This screen";
+  region and window shown as not offered yet, dim with the reason (one line, not three dead keys);
+- **Sound**: the desktop's sound on or off (`recorder.audio`, the schema row tagged for the module); the microphone: not
+  offered by the daemon (one dim line);
+- **Where**: the folder (`recorder.directory`, "Videos" when empty) and "Change in Settings";
+- **Last recording**: the file's name, and "Open folder" (when the daemon says where; `file`);
+- its options from the schema (ModuleOptions) and "More in Settings".
+States: no recorder program (`available: false`, its reason; the Record key inert, the line says why and which programs
+work), starting ("Starting…", the Record key busy), recording, failed (the daemon's reason, Retry), no daemon document (the
+card says the recorder service is not there). Keys: the back key, Record/Stop, the output choices, the options, Settings —
+Tab order; Esc closes the card the module opened. A11y: Record/Stop are buttons named "Start recording" / "Stop recording
+(01:23)", the running time is in the module's accessible name.
+
+**Built (f)**: as designed above, with these limits: the record key is the error red with a white dot (a white rounded square while recording); the running time ticks once a second only while a recording runs and the card or the bar module shows it; one radio row per output when there are several (`recorder.start {output}`), else "This screen"; the desktop's sound is the schema's `recorder.audio` row (with `quick.click.recorder`); the folder is `recorder.directory` ("your Videos folder" when empty); the last recording is its file name (no "show in folder" until row 717 d). The bar module is always present; `quick.click.recorder = switch` starts at once; while a recording runs, a click stops it whatever the setting (`Control.clickStops`).
+
+**(g) The sidebar** (I474, I475 9). The right sidebar's `toggles` section reads the controls (`quick/*Control.qml`) and
+the tile (`ControlTile`) the centre reads, in `quick.tiles`' order — the switch tiles only: the centre's wide rows are
+the sidebar's own `sliders` and `header` sections — then the mods' tiles; it follows the setting while open, and each
+control watches its document only while its tile shows. Every control's page opens over the sections (keep awake, dark
+mode and the recorder included). `TogglesSection { only: "<id>" }` draws one control's tile alone, full width: the
+section a single control module makes. Offering it in `sidebar.sections` and mapping `module:<id>` in the columns is
+CONTRACT-CHANGE 718 (not this card's files).
+
 ## Decisions for the user
-1. The default set and order of tiles; whether the volume slider and the power menu stay fixed rows or become tiles.
-2. A bar glance's default: icon only, or icon and value (Wi-Fi's name is long; bar fit will elide or collapse it).
-   W70 took: icon only, the battery's percent the one value.
-3. Should a module pinned to the bar also stay in the centre, or move out of it automatically? W70: it stays.
-4. The phone look: a plain setting, or hidden (an easter egg: how is it found)?
-5. Sidebar: tiles there at full width (rows) or as a grid?
+Answered 2026-11-10 (I475): the centre is a normal surface (the phone an advanced setting); every control a module of its
+own, pinned in the centre and on a bar at once; a click opens the card; glances with values; one sound module; the
+levels and the session row tiles of their own; the recorder a button with a surface; the sidebar follows `quick.tiles`.
+Open from W71 (choices made where the answers left room):
+1. Sound's click still mutes (the user's list of controls that open their card left sound out); its card opens on hover,
+   by Enter, or by its click set to card. Should sound open its card on a click too?
+2. The microphone's card is the sound page, airplane mode's the Wi-Fi page (both have their switches there); pages of
+   their own instead?
+3. The wide rows stand after the switch tiles and move only among themselves (a row is no grid cell). Should a row be
+   placeable between switch tiles?
+4. A glance's value is on by default for Wi-Fi and sound (and the battery); should each module have a "show the value"
+   switch in its menu?
+5. The recorder: a click while recording stops it whatever `quick.click.recorder` says; idle it opens the card. Right?
+
+## Definition of done — round two (W71)
+- [x] the review's four points: the focus ring whole (card, compact flyout; a suite reads its four sides), compact tiles
+  fit, no-device Wi-Fi says so once; the page/card width mismatch and the right column cut not reproduced (guarded).
+- [x] (a) a click opens the card for every control; the override per module; new pages (keep awake, dark mode); options
+  from the schema; Esc closes a module's card; B72.
+- [x] (b) glances with values (Wi-Fi's name, sound's level), elided; hover as `bar.hover` says.
+- [x] (c) one sound module; `audio` keeps working; B71.
+- [x] (d) the levels and the session row as wide tiles and as modules; B73 (an unknown tile id named).
+- [x] (e) the phone an advanced setting; the decor value's fate is row 716; B73 (the phone a Loader).
+- [x] (f) the recorder: a brief from the other shells, the module always there, its card (start, stop, time, screen,
+  sound, folder, last file); what the daemon lacks is row 717.
+- [x] (g) the sidebar follows `quick.tiles`; a single-control section needs row 718.
+- [ ] Options in a card can be read by a suite only once the mock serves the schema (row 715); seen on nested niri.
 
 ## Definition of done (when built)
 Each module: glance, card, menu, keyboard, states (off, unavailable with its reason, busy, error), i18n, a suite step;

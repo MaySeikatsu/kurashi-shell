@@ -26,6 +26,8 @@ ModuleBase {
     // least width the mark and a few letters, its most `valueMaxW` px of text.
     property string valueText: ""
     property bool valueDim: false
+    // W71 (f): the mark and its value in the error colour (a recording runs).
+    property bool alert: false
     property real valueMaxW: 140
     // W71 (c, d): what follows the value — the sound's and the brightness' slider (`tail`, made only while shown): `tailW`
     // px in a row (its gap included), `tailH` px under the mark in a column. Dropped in the compact form.
@@ -90,7 +92,7 @@ ModuleBase {
     }
     function click() {
         if (!ctl) return
-        if (clickToggles && !inert && !ctl.busy) { ctl.toggle(); return }
+        if ((clickToggles || (ctl.clickStops && ctl.on)) && !inert && !ctl.busy) { ctl.toggle(); return }
         if (cardPage !== "") openCard()
         else if (!inert) ctl.toggle()
     }
@@ -142,7 +144,7 @@ ModuleBase {
             name: m.glanceIcon
             glyph: m.glanceGlyph
             filled: m.lit || m.cardShown
-            color: m.cardShown ? Theme.fgOnAccent : m.ctl && m.ctl.failed ? Theme.error : m.inert ? Theme.dim : Theme.fg
+            color: m.cardShown ? Theme.fgOnAccent : (m.ctl && m.ctl.failed) || m.alert ? Theme.error : m.inert ? Theme.dim : Theme.fg
             opacity: m.ctl && m.ctl.busy ? 0.45 : 1
             // Busy: three dots under the dimmed mark until the daemon answers (a tile's "connecting"; text, not a second
             // icon name: swapping the name while it settles its font loops).
@@ -164,7 +166,7 @@ ModuleBase {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: m.cardShown ? Theme.fgOnAccent : m.inert || m.valueDim ? Theme.dim : Theme.fg
+            color: m.cardShown ? Theme.fgOnAccent : m.alert ? Theme.error : m.inert || m.valueDim ? Theme.dim : Theme.fg
             width: Math.max(0, m.valueShownW - Theme.gap)
             elide: Text.ElideRight
             font.pixelSize: Theme.fsCaption

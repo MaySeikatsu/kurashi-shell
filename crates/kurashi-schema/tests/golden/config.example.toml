@@ -1783,3 +1783,8 @@
 # on.
 #   choices: "card" | "switch" · since schema v7
 # airplane = "card"
+#
+# A click on the recorder — Opens its card (start, which screen, the sound, where the file
+# goes), or starts recording at once. While a recording runs, a click stops it either way.
+#   choices: "card" | "switch" · since schema v7
+# recorder = "card"

@@ -927,3 +927,5 @@
 "config.quick.click.darkmode.help" = "カードを開くか、ライトとダークを切り替えます。"
 "config.quick.click.airplane.label" = "機内モードのクリック"
 "config.quick.click.airplane.help" = "カード（Wi-Fi と一緒）を開くか、すべての無線をオフ・オンします。"
+"config.quick.click.recorder.label" = "画面録画のクリック"
+"config.quick.click.recorder.help" = "カード（開始、どの画面か、音声、保存先）を開くか、すぐに録画を始めます。録画中のクリックはどちらでも録画を止めます。"

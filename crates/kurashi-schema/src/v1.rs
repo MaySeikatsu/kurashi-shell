@@ -2442,6 +2442,11 @@ pub struct QuickClicks {
     /// Opens its card (with Wi-Fi), or switches every radio off or on.
     #[kurashi(default = QuickClick::Card, module = "airplane", since = 7)]
     pub airplane: QuickClick,
+    /// A click on the recorder
+    /// Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a
+    /// recording runs, a click stops it either way.
+    #[kurashi(default = QuickClick::Card, module = "recorder", since = 7)]
+    pub recorder: QuickClick,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

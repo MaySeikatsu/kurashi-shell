@@ -1362,6 +1362,32 @@
               "restart": false,
               "since": 7,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.quick_click.card",
+                  "value": "card"
+                },
+                {
+                  "label": "config.choice.quick_click.switch",
+                  "value": "switch"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "card",
+              "help": "config.quick.click.recorder.help",
+              "key": "quick.click.recorder",
+              "label": "config.quick.click.recorder.label",
+              "modules": [
+                "recorder"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         }
