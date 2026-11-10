@@ -3,10 +3,12 @@ import "../../core"
 
 // Dark mode (the theme document's `appearance`, K53, K55): light or dark is the user's mode (every palette has both). The
 // document says which scheme is in effect (a mode may follow the system or the wallpaper); a press writes the setting
-// `theme.colors.scheme`, dark or light outright. No page: Settings › Appearance has the rest. W70: the logic QuickPanel held.
+// `theme.colors.scheme`, dark or light outright. W71: its page has the switch and the scheme's choices; Settings ›
+// Appearance has the rest. W70: the logic QuickPanel held.
 Control {
     id: c
     mid: "darkmode"
+    page: "dark"
     settingsPage: "appearance"
     Watch { doc: "theme"; active: c.live }
     readonly property var ap: (Store.docs["theme"] || {}).appearance || ({})

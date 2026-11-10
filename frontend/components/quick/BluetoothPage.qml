@@ -8,6 +8,8 @@ import ".."
 // here. Without an adapter, or with BlueZ gone, one dim line says why.
 Column {
     id: bt
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     signal backRequested()
@@ -42,7 +44,8 @@ Column {
         }
         ToggleSwitch {
             id: sw
-            checked: bt.d.powered === true
+            // (B73: an adapter that is not there is not on — the switch draws off while it is inert, Shōjiki)
+            checked: bt.avail && bt.d.powered === true
             enabled: bt.avail
             label: I18n.tr("frontend.bt.title")
             onToggled: on => bt.act("bluetooth.power", {on: on})
@@ -70,5 +73,12 @@ Column {
         font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.bluetooth.unavailable")
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: bt.width
+        mids: bt.optionIds
+        skip: []
     }
 }

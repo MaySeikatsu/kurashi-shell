@@ -10,6 +10,7 @@ import "../components/island"
 import "../components/sidebar"
 import "../components/decor"
 import "../components/motion"
+import "../components/quick" as Q
 import "../core/motion"
 import "../components/bar/framegeom.js" as FG
 
@@ -123,6 +124,8 @@ PanelWindow {
         openedFrom = lp.output === outName && Date.now() - lp.t < 1500 ? lp.mid : ""
         // W59.9a (row 658): and where it was pressed (iris opens from there).
         openedPress = openedFrom !== "" ? lp : null
+        // B72: the quick card comes out under a module only when that module asked for its page (QuickNav), latched here
+        quickFromModule = wantedKind === "quick" && openedFrom !== "" && Q.QuickNav.by === openedFrom
         if (shown && open && morphLayout && !gate && contentKind !== wantedKind && contentP > 0.01 && Theme.quickMs > 0) {
             pendingKind = wantedKind
             if (!swap.running) swap.start()
@@ -139,6 +142,7 @@ PanelWindow {
     // a panel too then comes out under the island, not under its widget). The island's own pill is always its own origin.
     property string openedFrom: ""
     property var openedPress: null
+    property bool quickFromModule: false
     function placeOf(mid) {
         var g = String(bars.valueOf("bar.popups", "module")) === "centre" ? "centre" : "module"
         var other = bars.valueOf("bar.popups_other", []) || []
@@ -1084,8 +1088,10 @@ PanelWindow {
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
     readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
-    // (W70: the quick card a control's module opened comes out under that module, I340's `module:<id>`, not the button)
-    readonly property string ownKey: contentKind === "quick" ? (openedFrom !== "" && openedFrom !== "quick" ? "" : "quick")
+    // (W70: the quick card a control's module opened comes out under that module, I340's `module:<id>`, not the button;
+    // B72: only the module that asked for the page — a press on any other module in the last 1.5 s is not the origin)
+    readonly property string ownKey: contentKind === "quick"
+        ? (quickFromModule && openedFrom !== "quick" ? "" : "quick")
         : (contentKind === "tray" ? (moduleMenuShown ? shownTray : "tray:" + shownTray)
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none

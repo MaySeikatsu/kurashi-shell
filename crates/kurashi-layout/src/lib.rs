@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// The core modules (K72), in the order Settings offers them and `unplaced` lists them.
-pub const CORE_MODULES: [&str; 23] = [
+pub const CORE_MODULES: [&str; 26] = [
     "workspaces",
     "windows",
     "island",
@@ -39,11 +39,15 @@ pub const CORE_MODULES: [&str; 23] = [
     "nightlight",
     "darkmode",
     "airplane",
+    // W71 (d): the control centre's levels and session row, pinnable as modules of their own.
+    "volume_level",
+    "brightness_level",
+    "session",
 ];
 /// Core modules no default bar has, offered in Settings but never listed as `unplaced`: a start button (W53.0b, K80) is
 /// something a user or a style's layout preset adds, not something that went missing; so is each control of the control
 /// centre as a module of its own (W70: the centre holds them; a bar takes one when the user pins it).
-pub const OPTIONAL_MODULES: [&str; 12] = [
+pub const OPTIONAL_MODULES: [&str; 15] = [
     "launcher",
     "wifi",
     "bluetooth",
@@ -56,6 +60,9 @@ pub const OPTIONAL_MODULES: [&str; 12] = [
     "nightlight",
     "darkmode",
     "airplane",
+    "volume_level",
+    "brightness_level",
+    "session",
 ];
 /// The pseudo module: every enabled mod widget no zone of the output names (where mod widgets went before K71).
 pub const MODS: &str = "mods";

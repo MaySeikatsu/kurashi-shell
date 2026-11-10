@@ -33,7 +33,12 @@ Item {
     // `bleed` px into the Stage's padding on each side (it clips the sliding pages), so a tile's remove key, a focus ring
     // or a shadow past a row's edge is not cut; the rows stay at the card's padding.
     readonly property real bleed: 10
-    readonly property real rowX: plainCard ? bleed : Theme.pad
+    // W71 (the user's review, a compact flyout): the phone's screen and the flyout clip their viewport too, and their first
+    // row stood at its top edge, so a focus ring drawn round a first-row tile or the back key lost its top. Their viewport
+    // now reaches `edge` px out of the rows on every side as well (into their own padding, never past the panel's body).
+    readonly property real edge: plainCard ? 0 : Math.min(bleed, Theme.pad)
+    readonly property real rowX: plainCard ? bleed : edge + Theme.pad
+    readonly property real rowY: plainCard ? bleed : edge
     // W53.3 (`[decor] quick.frame`, `quick.tiles`; data, rule 4): the card's chrome — the phone (today's) or a plain flyout
     // (the panel's material, 8 px of the look's radius, its hairline and the surfaces' elevation: 11's, the Macs') — and the
     // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
@@ -50,10 +55,11 @@ Item {
     readonly property int tileCols: rowTiles ? 1 : (compactTiles ? 3 : 2)
     readonly property real tileW: (quick.innerW - (tileCols - 1) * Theme.gap) / tileCols
     width: parent.width
-    height: flyout ? fly.implicitHeight : phoneStyle ? phone.implicitHeight : plainArea.height - 2 * bleed
+    height: flyout ? fly.implicitHeight : phoneStyle ? (phoneLoader.item ? phoneLoader.item.implicitHeight : 0)
+        : plainArea.height - 2 * bleed
     // The width the rows take on the phone's screen (the flyout's inside its padding; the card's whole inner width).
     readonly property real innerW: flyout ? fly.width - 2 * fly.side - 2 * Theme.pad
-        : phoneStyle ? phone.screen.width - 2 * Theme.pad : width
+        : phoneStyle ? (phoneLoader.item ? phoneLoader.item.screen.width : width) - 2 * Theme.pad : width
 
     // W70 (docs/ux/control-centre-modules.md): each control's state, labels, request and refusal text is its own type
     // (quick/*Control.qml), the one source a tile here, the control's bar module and its page read. The card makes one of
@@ -106,37 +112,70 @@ Item {
     // mode, K48). Nothing is written while editing. An id this frontend has no control for is left out (a newer daemon's).
     Watch { doc: "config" }
     readonly property var controls: ({
-        wifi: cWifi, bluetooth: cBt, focus: cFocus, audio: cAudio, mic: cMic, power: cPower, brightness: cBright,
+        wifi: cWifi, bluetooth: cBt, focus: cFocus, volume: cAudio, mic: cMic, power: cPower, brightness: cBright,
         caffeine: cCaffeine, nightlight: cNight, recorder: cRecord, darkmode: cDark, airplane: cAir
     })
+    // W71 (c): an old name is the same control — `audio` (W70's sound output) is the one sound module `volume` now.
+    readonly property var tileAliases: ({ audio: "volume" })
     // Every control that has a tile, in the order the add row offers them (the schema's choices).
-    readonly property var tileChoices: ["wifi", "bluetooth", "focus", "audio", "mic", "power", "brightness", "caffeine",
+    readonly property var tileChoices: ["wifi", "bluetooth", "focus", "volume", "mic", "power", "brightness", "caffeine",
         "nightlight", "recorder", "darkmode", "airplane"]
+    // W71 (d, I475 8): the wide tiles — a whole row each: the sound level, the brightness, the session row. They stand
+    // after the switch tiles (a row is no cell of the grid), in their own order; the edit moves them among themselves.
+    readonly property var wideChoices: ["volume_level", "brightness_level", "session"]
+    function isWide(id) { return wideChoices.indexOf(id) >= 0 }
+    function known(id) { return controls[id] !== undefined || isWide(id) }
     readonly property var cfgTiles: {
         var v = ((Store.docs["config"] || {}).values || {})["quick.tiles"]
         return v && Array.isArray(v.value) ? v.value : null
     }
-    // (until the config document is there: the schema's default, the ten tiles of before)
-    readonly property var savedTiles: (cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "audio", "power",
-        "brightness", "caffeine", "nightlight", "recorder", "darkmode"]).filter(function (id) { return quick.controls[id] !== undefined })
-    ListModel { id: tileModel }
-    property int tileRev: 0             // bumped on every change of tileModel (what is left to add follows it)
+    // (until the config document is there: the schema's default; an old name read as the control's, each control once)
+    readonly property var savedTiles: {
+        var src = cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine",
+            "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]
+        var out = []
+        for (var i = 0; i < src.length; i++) {
+            var id = tileAliases[src[i]] || src[i]
+            if (quick.known(id) && out.indexOf(id) < 0) out.push(id)
+        }
+        // (the switch tiles, then the wide rows: as they are drawn)
+        return out.filter(function (x) { return !quick.isWide(x) }).concat(out.filter(function (x) { return quick.isWide(x) }))
+    }
+    // B73: an id this frontend has no tile for (a newer daemon's, a typo) is not dropped silently: the edit mode names it.
+    readonly property var unknownTiles: {
+        var src = cfgTiles || [], out = []
+        for (var i = 0; i < src.length; i++)
+            if (!quick.known(tileAliases[src[i]] || src[i]) && out.indexOf(src[i]) < 0) out.push(String(src[i]))
+        return out
+    }
+    ListModel { id: tileModel }         // the switch tiles, in order
+    ListModel { id: wideModel }         // the wide rows, in order
+    property int tileRev: 0             // bumped on every change of either (what is left to add follows it)
     function tileIds() {
         var out = []
         for (var i = 0; i < tileModel.count; i++) out.push(tileModel.get(i).mid)
         return out
     }
+    function wideIds() {
+        var out = []
+        for (var i = 0; i < wideModel.count; i++) out.push(wideModel.get(i).mid)
+        return out
+    }
+    // The whole list as `quick.tiles` has it: the switch tiles, then the wide rows.
+    function allIds() { return tileIds().concat(wideIds()) }
     function setTiles(list) {
-        if (JSON.stringify(tileIds()) === JSON.stringify(list)) return
+        if (JSON.stringify(allIds()) === JSON.stringify(list)) return
         tileModel.clear()
-        for (var i = 0; i < list.length; i++) tileModel.append({ mid: list[i] })
+        wideModel.clear()
+        for (var i = 0; i < list.length; i++) (isWide(list[i]) ? wideModel : tileModel).append({ mid: list[i] })
         tileRev++
     }
     onSavedTilesChanged: if (!editing) setTiles(savedTiles)
     readonly property var addable: {
-        var rev = tileRev, ids = tileIds()
-        return tileChoices.filter(function (id) { return ids.indexOf(id) < 0 })
+        var rev = tileRev, ids = allIds()
+        return tileChoices.concat(wideChoices).filter(function (id) { return ids.indexOf(id) < 0 })
     }
+    function nameOf(id) { return controls[id] ? controls[id].label : I18n.tr("layout.module." + id) }
 
     property bool editing: false
     property string editError: ""
@@ -178,9 +217,38 @@ Item {
         focusTile(i)
     }
     function addTile(id) {
-        if (!editing || controls[id] === undefined || tileIds().indexOf(id) >= 0) return
-        tileModel.append({ mid: id })
+        if (!editing || !known(id) || allIds().indexOf(id) >= 0) return
+        (isWide(id) ? wideModel : tileModel).append({ mid: id })
         tileRev++
+    }
+    // The wide rows: moved among themselves (Alt with Up or Down, a drag), taken out by their remove key or Delete.
+    function focusWide(i) {
+        Qt.callLater(function () {
+            var n = wideRows.count
+            if (n === 0) { focusTile(tileModel.count - 1); return }
+            var t = wideRows.itemAt(Math.max(0, Math.min(n - 1, i)))
+            if (t) t.forceActiveFocus()
+        })
+    }
+    function moveWide(from, to) {
+        if (!editing || from === to || to < 0 || to >= wideModel.count) return
+        wideModel.move(from, to, 1)
+        tileRev++
+        focusWide(to)
+    }
+    function removeWide(i) {
+        if (!editing || i < 0 || i >= wideModel.count) return
+        wideModel.remove(i, 1)
+        tileRev++
+        focusWide(i)
+    }
+    function dragWide(from, ay) {
+        var to = from
+        for (var i = 0; i < wideRows.count; i++) {
+            var r = wideRows.itemAt(i)
+            if (r && ay >= r.y && ay < r.y + r.height) to = i
+        }
+        moveWide(from, to)
     }
     // A drag: the tile under the pointer's cell takes the dragged tile's place as the pointer reaches it.
     function dragTile(from, ax, ay, cellH) {
@@ -190,7 +258,7 @@ Item {
     }
     function saveEdit() {
         if (!editing) return
-        var now = tileIds()
+        var now = allIds()
         if (JSON.stringify(now) === JSON.stringify(savedTiles)) { cancelEdit(); return }
         editError = ""
         if (Quickshell.env("KURASHI_QUICK_LOG") === "1") console.log("quick-save " + JSON.stringify(now))
@@ -204,7 +272,7 @@ Item {
     // Test only (KURASHI_QUICK_LOG=1, frontend/test-quick-modules.sh): the tiles shown, in order, and where the edit's keys
     // stand on the output (`quick-at <name> x y w h`), a moment after each change (the card's own motion first).
     readonly property bool testLog: Quickshell.env("KURASHI_QUICK_LOG") === "1"
-    onTileRevChanged: if (testLog) { console.log("quick-tiles " + tileIds().join(",")); logTimer.restart() }
+    onTileRevChanged: if (testLog) { console.log("quick-tiles " + allIds().join(",")); logTimer.restart() }
     readonly property var qsWin: Window.window ? QsWindow.window : null
     function logAt(name, item) {
         if (!item || !item.visible || qsWin === null) return
@@ -219,8 +287,24 @@ Item {
             quick.logAt("done", doneKey)
             for (var i = 0; i < addKeys.count; i++) { var b = addKeys.itemAt(i); if (b) quick.logAt("add:" + b.modelData, b) }
             for (var j = 0; j < coreTiles.count; j++) { var t = coreTiles.itemAt(j); if (t) quick.logAt("tile:" + t.mid, t) }
+            for (var w = 0; w < wideRows.count; w++) { var r = wideRows.itemAt(w); if (r) quick.logAt("tile:" + r.mid, r) }
+            quick.logAt("media", mediaRow)
+            // W71: what clips the rows (the viewport) and what has the keyboard, so a suite can read a focus ring whole.
+            quick.logAt("viewport", viewport)
+            if (quick.Window.activeFocusItem) quick.logAt("focus", quick.Window.activeFocusItem)
         }
     }
+    // (and after a page turn or a focus move)
+    onShownPageChanged: if (testLog) { console.log("quick-page " + (shownPage !== "" ? shownPage : "tiles")); logTimer.restart() }
+    Connections {
+        target: quick.testLog ? quick.Window.window : null
+        function onActiveFocusItemChanged() { logTimer.restart() }
+    }
+    // Test only (KURASHI_QUICK_FOCUS=first|last): the first or the last tile takes the keyboard focus when the card opens,
+    // so a screenshot on nested niri (whose virtual keyboard does not reach a layer surface) shows the focus ring.
+    readonly property string testFocus: Quickshell.env("KURASHI_QUICK_FOCUS") || ""
+    // Test only (KURASHI_QUICK_PAGE=<page>): the card opens on that page, as a tile's arrow would (shots of each card).
+    readonly property string testPage: navOwned ? (Quickshell.env("KURASHI_QUICK_PAGE") || "") : ""
 
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
@@ -247,6 +331,12 @@ Item {
     function openSettings(page) {
         Store.act("settings.open", {page: page}, function () {})
     }
+    // W71: the module whose click or hover opened the page shown ("" when the card got there itself: a tile, the status
+    // line, Back). Its page lists that module's options (its click among them), and Esc closes the card (I475 7: the user
+    // came for that control, not for the tiles); a page the tiles opened goes back to them.
+    readonly property string pageBy: page !== "" && navOwned ? QuickNav.by : ""
+    // (a shared page lists the options of the module that opened it: the microphone's on the sound page)
+    readonly property var pageOptions: pageBy !== "" ? [pageBy] : []
     onPageChanged: {
         if (page !== "") shownPage = page
         if (navOwned) QuickNav.showing(page, navTurn)
@@ -297,9 +387,17 @@ Item {
             shownPage = startPage
             slideAnim.stop()    // it opens on the page: no slide in from the tiles
             slide = 1
+        } else if (testPage !== "") {
+            page = testPage
+            shownPage = testPage
+            slideAnim.stop()
+            slide = 1
+        } else if (testFocus === "first" || testFocus === "last") {
+            Qt.callLater(function () { quick.focusTile(quick.testFocus === "first" ? 0 : coreTiles.count - 1) })
         }
     }
-    // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
+    // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card; on a
+    // page a module opened (W71, I475 7) Esc passes on too: the card closes, Left still goes back to the tiles.
     Keys.onPressed: event => {
         if (quick.editing && event.key === Qt.Key_Escape) {
             quick.cancelEdit()
@@ -307,6 +405,7 @@ Item {
             return
         }
         if (quick.page === "") return
+        if (event.key === Qt.Key_Escape && quick.pageBy !== "") return
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Left) {
             quick.closePage()
             event.accepted = true
@@ -382,17 +481,19 @@ Item {
             wifiReq: cWifi.req
             airReq: cAir.req
             joinReq: cWifi.joinReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: btC
-        BluetoothPage { onBackRequested: quick.closePage() }
+        BluetoothPage { optionIds: quick.pageOptions; onBackRequested: quick.closePage() }
     }
     Component {
         id: focusC
         FocusPage {
             dndReq: cFocus.req
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
@@ -403,6 +504,7 @@ Item {
             sinkReq: cAudio.sinkReq
             micReq: cMic.req
             srcReq: cMic.sourceReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
@@ -410,430 +512,443 @@ Item {
         id: powerC
         PowerPage {
             profReq: cPower.profileReq
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
     Component {
         id: displayC
-        DisplayPage { onBackRequested: quick.closePage() }
+        DisplayPage { optionIds: quick.pageOptions; onBackRequested: quick.closePage() }
     }
     Component {
         id: nightC
         NightPage {
             nightReq: cNight.req
+            optionIds: quick.pageOptions
             onBackRequested: quick.closePage()
         }
     }
+    // W71 (I475 3): keep awake and dark mode have pages of their own now (a click on their module opens them).
+    Component {
+        id: caffeineC
+        CaffeinePage { ctl: cCaffeine; onBackRequested: quick.closePage() }
+    }
+    Component {
+        id: darkC
+        ControlPage { ctl: cDark; onBackRequested: quick.closePage() }
+    }
+    // W71 (f, I475 6): the recorder's card.
+    Component {
+        id: recorderC
+        RecorderPage { ctl: cRecord; onBackRequested: quick.closePage() }
+    }
 
     // ---- the phone ----
-    PhoneFrame {
-        id: phone
-        visible: quick.phoneStyle
-        theme: Theme
+    Loader {
+        id: phoneLoader
+        // B73: made only while the centre is a phone (it was always made, invisible, in the card style; Ma)
+        active: quick.phoneStyle
         width: quick.width
-        contentHeight: (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad
-        // The status row: the time on the left; on the right the network, Do not disturb while it is on, and the battery
-        // — only from the documents the card watches (nothing is polled), and nothing for a service that is not there.
-        statusLeft: Text {
-            height: phone.statusH
-            verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
-            font.pixelSize: Theme.fsLabel
-            font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
-            text: quick.clockDoc.hh !== undefined ? quick.clockDoc.hh + ":" + quick.clockDoc.mm : ""
-        }
-        statusRight: [
-            Icon {
-                visible: cFocus.dnd
-                height: phone.statusH
-                name: "do_not_disturb_on"
-                glyph: "☾"
-                filled: true
-                size: 15
-            },
-            Icon {
-                visible: cWifi.ok
-                height: phone.statusH
-                name: cWifi.glanceIcon
-                glyph: cWifi.glanceGlyph
-                filled: true
-                size: 15
-            },
-            Icon {
-                visible: cPower.battery
-                height: phone.statusH
-                name: cPower.batteryIcon
-                glyph: "▮"
-                filled: true
-                size: 15
-            },
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                visible: cPower.battery
-                height: phone.statusH
-                verticalAlignment: Text.AlignVCenter
-                color: Theme.fg
-                font.pixelSize: Theme.fsCaption
-                font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
-                text: cPower.battery ? cPower.percent + "%" : ""
+        sourceComponent: Component {
+            PhoneFrame {
+                id: phone
+                theme: Theme
+                width: quick.width
+                contentHeight: (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad
+                // The status row: the time on the left; on the right the network, Do not disturb while it is on, and the battery
+                // — only from the documents the card watches (nothing is polled), and nothing for a service that is not there.
+                statusLeft: Text {
+                    height: phone.statusH
+                    verticalAlignment: Text.AlignVCenter
+                    color: Theme.fg
+                    font.pixelSize: Theme.fsLabel
+                    font.weight: Theme.wBold
+                    font.family: Theme.fam(text, Theme.families)
+                    text: quick.clockDoc.hh !== undefined ? quick.clockDoc.hh + ":" + quick.clockDoc.mm : ""
+                }
+                statusRight: [
+                    Icon {
+                        visible: cFocus.dnd
+                        height: phone.statusH
+                        name: "do_not_disturb_on"
+                        glyph: "☾"
+                        filled: true
+                        size: 15
+                    },
+                    Icon {
+                        visible: cWifi.ok
+                        height: phone.statusH
+                        name: cWifi.glanceIcon
+                        glyph: cWifi.glanceGlyph
+                        filled: true
+                        size: 15
+                    },
+                    Icon {
+                        visible: cPower.battery
+                        height: phone.statusH
+                        name: cPower.batteryIcon
+                        glyph: "▮"
+                        filled: true
+                        size: 15
+                    },
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        visible: cPower.battery
+                        height: phone.statusH
+                        verticalAlignment: Text.AlignVCenter
+                        color: Theme.fg
+                        font.pixelSize: Theme.fsCaption
+                        font.weight: Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        text: cPower.battery ? cPower.percent + "%" : ""
+                    }
+                ]
+
             }
-        ]
+        }
+    }
 
-        // The screen's content: the tiles and the page side by side, sliding inside the screen.
-        Item {
-            id: viewport
-            // (the flyout's area under `quick.frame = flyout`, the phone's screen under `quick.style = phone`, else the card's)
-            parent: quick.flyout ? flyArea : quick.phoneStyle ? phone.area : plainArea
-            width: parent.width
-            height: parent.height
-            clip: true
+    // The screen's content: the tiles and the page side by side, sliding inside the screen.
+    Item {
+        id: viewport
+        // (the flyout's area under `quick.frame = flyout`, the phone's screen under `quick.style = phone`, else the card's)
+        parent: quick.flyout ? flyArea : quick.phoneStyle && phoneLoader.item ? phoneLoader.item.area : plainArea
+        x: -quick.edge
+        y: -quick.edge
+        width: parent.width + 2 * quick.edge
+        height: parent.height + 2 * quick.edge
+        clip: true
 
-            Column {
-                id: tilesPane
+        Column {
+            id: tilesPane
+            width: quick.innerW
+            spacing: Theme.gap
+            x: quick.rowX - quick.slide * viewport.width
+            y: quick.rowY
+            visible: quick.tilesShown
+
+            // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
+            Item {
+                id: hello
+                // (the phone's own: a flyout has no greeting row, as 11's has none, and the card has its title)
+                visible: quick.phoneStyle
                 width: quick.innerW
-                spacing: Theme.gap
-                x: quick.rowX - quick.slide * viewport.width
-                y: quick.plainCard ? quick.bleed : 0
-                visible: quick.tilesShown
-
-                // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
-                Item {
-                    id: hello
-                    // (the phone's own: a flyout has no greeting row, as 11's has none, and the card has its title)
-                    visible: quick.phoneStyle
-                    width: quick.innerW
-                    height: avatar.height
-                    Accessible.role: Accessible.Heading
-                    Accessible.name: I18n.tr("island.quick.heading")
-                    Block {
-                        id: avatar
-                        width: 44
-                        height: 44 + Theme.shadowDy
-                        radius: Theme.rFull
-                        fill: Theme.selected
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            visible: quick.userLetter !== ""
-                            anchors.centerIn: parent
-                            color: Theme.color("color.on_selected", Theme.fg)
-                            font.pixelSize: Theme.fsTitle + 4
-                            font.weight: Theme.wBold
-                            font.family: Theme.fam(text, Theme.families)
-                            text: quick.userLetter
-                        }
-                        Icon {
-                            visible: quick.userLetter === ""
-                            anchors.centerIn: parent
-                            name: "person"
-                            glyph: "◡"
-                            filled: true
-                            size: 24
-                            color: Theme.color("color.on_selected", Theme.fg)
-                        }
+                height: avatar.height
+                Accessible.role: Accessible.Heading
+                Accessible.name: I18n.tr("island.quick.heading")
+                Block {
+                    id: avatar
+                    width: 44
+                    height: 44 + Theme.shadowDy
+                    radius: Theme.rFull
+                    fill: Theme.selected
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        visible: quick.userLetter !== ""
+                        anchors.centerIn: parent
+                        color: Theme.color("color.on_selected", Theme.fg)
+                        font.pixelSize: Theme.fsTitle + 4
+                        font.weight: Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        text: quick.userLetter
                     }
-                    Column {
-                        x: avatar.width + Theme.gap + 2
-                        width: hello.width - x
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            width: parent.width
-                            elide: Text.ElideRight
-                            color: Theme.fg
-                            font.pixelSize: Theme.fsTitle
-                            font.weight: Theme.wBold
-                            font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr("frontend.quick.greeting." + quick.daypart)
-                        }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            width: parent.width
-                            elide: Text.ElideRight
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr("island.quick.heading")
-                        }
-                    }
-                }
-                QuickStatus {
-                    id: statusLine
-                    visible: !quick.flyout
-                    width: quick.innerW
-                    segments: quick.statusSegments
-                    onOpened: (target, from) => quick.openPage(target, from)
-                }
-                Grid {
-                    id: grid
-                    width: quick.innerW
-                    columns: quick.tileCols
-                    spacing: quick.rowTiles ? 0 : Theme.gap
-                    // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
-                    // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
-                    // W70: in the edit mode Alt with an arrow moves the focused tile (a row up or down, a place left or right) and
-                    // Delete or Backspace takes it out; the plain arrows still move the focus.
-                    Keys.onPressed: event => {
-                        var cells = quick.tileCells()
-                        var i = -1
-                        for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
-                        if (i < 0) return
-                        if (quick.editing && i < quick.coreCount) {
-                            var alt = (event.modifiers & Qt.AltModifier) !== 0
-                            var by = event.key === Qt.Key_Up ? -grid.columns : event.key === Qt.Key_Down ? grid.columns
-                                : event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0
-                            if (alt && by !== 0) {
-                                quick.moveTile(i, Math.max(0, Math.min(quick.coreCount - 1, i + by)))
-                                event.accepted = true
-                                return
-                            }
-                            if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
-                                quick.removeTile(i)
-                                event.accepted = true
-                                return
-                            }
-                        }
-                        var to = -1
-                        switch (event.key) {
-                        case Qt.Key_Up: to = i >= grid.columns ? i - grid.columns : -1; break
-                        case Qt.Key_Down: to = i + grid.columns < cells.length ? i + grid.columns : -1; break
-                        case Qt.Key_Left: to = i % grid.columns > 0 ? i - 1 : -1; break
-                        case Qt.Key_Right: to = i % grid.columns < grid.columns - 1 ? i + 1 : -1; break
-                        default: return
-                        }
-                        if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
-                        event.accepted = true
-                    }
-
-                    // W70: each tile is drawn from its control (quick/*Control.qml), in the order of `quick.tiles` (the edit's
-                    // order while editing); the page it opens is the control's, a tile without one opens its Settings page.
-                    // K47 (docs/ux/power.md): a missing program, protocol or compositor is the tile's reason, never a dead tile.
-                    Repeater {
-                        id: coreTiles
-                        model: tileModel
-                        delegate: ControlTile {
-                            id: ctile
-                            required property string mid
-                            required property int index
-                            width: quick.tileW
-                            ctl: quick.controls[mid] || null
-                            editing: quick.editing
-                            dragArea: grid
-                            onPageRequested: quick.openPage(ctl.page, ctile)
-                            onSecondaryRequested: quick.openSettings(ctl.settingsPage)
-                            onRemoveRequested: quick.removeTile(index)
-                            onDragTo: (ax, ay) => quick.dragTile(index, ax, ay, height)
-                        }
-                    }
-                    // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
-                    // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
-                    Repeater {
-                        id: modCells
-                        model: quick.tileList
-                        delegate: tileSlot.cell
-                    }
-                }
-
-                // W70 (c): the edit key under the tiles (a Tab stop after them), and while editing the edit's own rows: what it
-                // does, the controls to add, Done and Cancel, and a refusal.
-                Item {
-                    width: quick.innerW
-                    height: editKey.height
-                    visible: !quick.editing
-                    IconButton {
-                        id: editKey
-                        anchors.right: parent.right
-                        icon: "edit"
-                        glyph: "✎"
-                        a11y: I18n.tr("quick.edit.open")
-                        onClicked: quick.startEdit()
+                    Icon {
+                        visible: quick.userLetter === ""
+                        anchors.centerIn: parent
+                        name: "person"
+                        glyph: "◡"
+                        filled: true
+                        size: 24
+                        color: Theme.color("color.on_selected", Theme.fg)
                     }
                 }
                 Column {
-                    id: editRows
-                    width: quick.innerW
-                    visible: quick.editing
-                    spacing: Theme.gap
+                    x: avatar.width + Theme.gap + 2
+                    width: hello.width - x
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenterOffset: -Theme.shadowDy / 2
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
                         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
-                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
+                        color: Theme.fg
+                        font.pixelSize: Theme.fsTitle
+                        font.weight: Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr("frontend.quick.greeting." + quick.daypart)
+                    }
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        width: parent.width
+                        elide: Text.ElideRight
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.family: Theme.fam(text, Theme.families)
-                        text: I18n.tr(quick.addable.length > 0 ? "quick.edit.hint" : "quick.edit.hint_full")
+                        text: I18n.tr("island.quick.heading")
                     }
-                    // The controls not in the centre: one key each, a press adds it at the end.
-                    Flow {
-                        id: addRow
-                        width: parent.width
-                        spacing: Theme.gap
-                        visible: quick.addable.length > 0
-                        function focusFirst() { var b = addKeys.itemAt(0); if (b) b.forceActiveFocus() }
-                        Repeater {
-                            id: addKeys
-                            model: quick.editing ? quick.addable : []
-                            delegate: Button {
-                                required property string modelData
-                                label: "+ " + (quick.controls[modelData] ? quick.controls[modelData].label : modelData)
-                                onClicked: quick.addTile(modelData)
-                            }
+                }
+            }
+            QuickStatus {
+                id: statusLine
+                visible: !quick.flyout
+                width: quick.innerW
+                segments: quick.statusSegments
+                onOpened: (target, from) => quick.openPage(target, from)
+            }
+            Grid {
+                id: grid
+                width: quick.innerW
+                columns: quick.tileCols
+                spacing: quick.rowTiles ? 0 : Theme.gap
+                // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
+                // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
+                // W70: in the edit mode Alt with an arrow moves the focused tile (a row up or down, a place left or right) and
+                // Delete or Backspace takes it out; the plain arrows still move the focus.
+                Keys.onPressed: event => {
+                    var cells = quick.tileCells()
+                    var i = -1
+                    for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
+                    if (i < 0) return
+                    if (quick.editing && i < quick.coreCount) {
+                        var alt = (event.modifiers & Qt.AltModifier) !== 0
+                        var by = event.key === Qt.Key_Up ? -grid.columns : event.key === Qt.Key_Down ? grid.columns
+                            : event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0
+                        if (alt && by !== 0) {
+                            quick.moveTile(i, Math.max(0, Math.min(quick.coreCount - 1, i + by)))
+                            event.accepted = true
+                            return
+                        }
+                        if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                            quick.removeTile(i)
+                            event.accepted = true
+                            return
                         }
                     }
-                    Row {
-                        spacing: Theme.gap
-                        layoutDirection: Qt.RightToLeft
-                        width: parent.width
-                        Button {
-                            id: doneKey
-                            primary: true
-                            label: I18n.tr("quick.edit.done")
-                            onClicked: quick.saveEdit()
-                        }
-                        Button {
-                            label: I18n.tr("quick.edit.cancel")
-                            onClicked: quick.cancelEdit()
-                        }
+                    var to = -1
+                    switch (event.key) {
+                    case Qt.Key_Up: to = i >= grid.columns ? i - grid.columns : -1; break
+                    case Qt.Key_Down: to = i + grid.columns < cells.length ? i + grid.columns : -1; break
+                    case Qt.Key_Left: to = i % grid.columns > 0 ? i - 1 : -1; break
+                    case Qt.Key_Right: to = i % grid.columns < grid.columns - 1 ? i + 1 : -1; break
+                    default: return
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                        visible: quick.editError !== ""
-                        width: parent.width
-                        wrapMode: Text.WordWrap
-                        color: Theme.error
-                        font.pixelSize: Theme.fsCaption
-                        font.family: Theme.fam(text, Theme.families)
-                        text: quick.editError
-                    }
+                    if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
+                    event.accepted = true
                 }
 
-                LevelRow {
-                    width: quick.innerW
-                    glyph: "♪"
-                    icon: cAudio.icon
-                    value: cAudio.level
-                    readout: cAudio.ok ? cAudio.value : ""
-                    unavailable: !cAudio.ok
-                    a11y: I18n.tr("island.quick.level.volume")
-                    onMoved: v => Store.intent("audio.volume", v, quick.intentOrigin)
+                // W70: each tile is drawn from its control (quick/*Control.qml), in the order of `quick.tiles` (the edit's
+                // order while editing); the page it opens is the control's, a tile without one opens its Settings page.
+                // K47 (docs/ux/power.md): a missing program, protocol or compositor is the tile's reason, never a dead tile.
+                Repeater {
+                    id: coreTiles
+                    model: tileModel
+                    delegate: ControlTile {
+                        id: ctile
+                        required property string mid
+                        required property int index
+                        width: quick.tileW
+                        ctl: quick.controls[mid] || null
+                        editing: quick.editing
+                        dragArea: grid
+                        onPageRequested: quick.openPage(ctl.page, ctile)
+                        onSecondaryRequested: quick.openSettings(ctl.settingsPage)
+                        onRemoveRequested: quick.removeTile(index)
+                        onDragTo: (ax, ay) => quick.dragTile(index, ax, ay, height)
+                    }
                 }
-                // The output device under its level: a link to the Audio page (a Tab stop, Enter opens it).
-                Item {
-                    id: chip
-                    width: quick.innerW
-                    height: visible ? 24 : 0
-                    visible: cAudio.ok && cAudio.sinkName !== ""
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: quick.openPage("audio", chip)
-                    Keys.onEnterPressed: quick.openPage("audio", chip)
-                    Keys.onSpacePressed: quick.openPage("audio", chip)
-                    Accessible.role: Accessible.Button
-                    Accessible.name: cAudio.sinkName
+                // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
+                // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
+                Repeater {
+                    id: modCells
+                    model: quick.tileList
+                    delegate: tileSlot.cell
+                }
+            }
 
-                    Rectangle {
-                        id: pill
-                        x: 20 + Theme.gap
-                        anchors.verticalCenter: parent.verticalCenter
-                        height: 22
-                        width: Math.min(pillText.implicitWidth + 2 * Theme.gap, chip.width - x)
-                        radius: height / 2
-                        color: "transparent"
-                        border.width: 1
-                        border.color: Theme.outline
-                        Text {
-                            id: pillText
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            x: Theme.gap
-                            width: pill.width - 2 * Theme.gap
-                            anchors.verticalCenter: parent.verticalCenter
-                            elide: Text.ElideRight
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                            text: cAudio.sinkName
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: quick.openPage("audio", chip)
-                    }
-                    FocusRing {
-                        anchors.fill: pill
-                        shown: chip.activeFocus
-                        corner: pill.radius
+            // W70 (c): the edit key under the tiles (a Tab stop after them), and while editing the edit's own rows: what it
+            // does, the controls to add, Done and Cancel, and a refusal.
+            Item {
+                width: quick.innerW
+                height: editKey.height
+                visible: !quick.editing
+                IconButton {
+                    id: editKey
+                    anchors.right: parent.right
+                    icon: "edit"
+                    glyph: "✎"
+                    a11y: I18n.tr("quick.edit.open")
+                    onClicked: quick.startEdit()
+                }
+            }
+            // W71 (d, I475 8): the wide rows of `quick.tiles` — the levels and the session row, there by default — after
+            // the edit key (the Tab order of before: the tiles, the edit key, the levels). In the edit mode Alt with Up or
+            // Down moves the focused row, Delete or Backspace takes it out. The flyout's own footer band holds the session
+            // keys, so the session row is not drawn there (Shōjiki: once).
+            Column {
+                id: wideCol
+                width: quick.innerW
+                spacing: Theme.gap
+                visible: wideRows.count > 0
+                Keys.onPressed: event => {
+                    if (!quick.editing) return
+                    var i = -1
+                    for (var k = 0; k < wideRows.count; k++) { var r = wideRows.itemAt(k); if (r && r.activeFocus) i = k }
+                    if (i < 0) return
+                    var alt = (event.modifiers & Qt.AltModifier) !== 0
+                    if (alt && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) {
+                        quick.moveWide(i, i + (event.key === Qt.Key_Up ? -1 : 1))
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                        quick.removeWide(i)
+                        event.accepted = true
+                    } else if (!alt && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) {
+                        var to = i + (event.key === Qt.Key_Up ? -1 : 1)
+                        if (to < 0) quick.focusTile(tileModel.count - 1)
+                        else if (to < wideRows.count) wideRows.itemAt(to).forceActiveFocus()
+                        event.accepted = true
                     }
                 }
-                // The rows that are not always there are made only while they show (W37, I199): a card with no backlight
-                // and nothing playing builds neither. A Loader that is not visible takes no space and no spacing.
-                Loader {
-                    width: quick.innerW
-                    visible: cBright.ok
-                    active: cBright.ok
-                    sourceComponent: Component {
-                        LevelRow {
-                            width: quick.innerW
-                            glyph: "☼"
-                            icon: "light_mode"
-                            value: cBright.level
-                            readout: cBright.value
-                            a11y: I18n.tr("island.brightness.heading")
-                            onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
+                Repeater {
+                    id: wideRows
+                    model: wideModel
+                    delegate: WideTile {
+                        id: wrow
+                        required property string mid
+                        required property int index
+                        kind: mid
+                        width: quick.innerW
+                        visible: shown && !(quick.flyout && mid === "session" && !quick.editing)
+                        height: visible ? implicitHeight : 0
+                        audio: cAudio
+                        bright: cBright
+                        sessionOk: quick.sessionOk
+                        editing: quick.editing
+                        dragArea: wideCol
+                        intentOrigin: quick.intentOrigin
+                        onPageRequested: (p, from) => quick.openPage(p, from)
+                        onRemoveRequested: quick.removeWide(index)
+                        onDragTo: (ax, ay) => quick.dragWide(index, ay)
+                    }
+                }
+            }
+            Column {
+                id: editRows
+                width: quick.innerW
+                visible: quick.editing
+                spacing: Theme.gap
+                Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr(quick.addable.length > 0 ? "quick.edit.hint" : "quick.edit.hint_full")
+                }
+                // B73: what `quick.tiles` names that this shell has no tile for, said once (it is kept in the list).
+                Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    visible: quick.unknownTiles.length > 0
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("quick.edit.unknown").replace("{ids}", quick.unknownTiles.join(", "))
+                }
+                // The controls not in the centre: one key each, a press adds it at the end.
+                Flow {
+                    id: addRow
+                    width: parent.width
+                    spacing: Theme.gap
+                    visible: quick.addable.length > 0
+                    function focusFirst() { var b = addKeys.itemAt(0); if (b) b.forceActiveFocus() }
+                    Repeater {
+                        id: addKeys
+                        model: quick.editing ? quick.addable : []
+                        delegate: Button {
+                            required property string modelData
+                            label: "+ " + quick.nameOf(modelData)
+                            onClicked: quick.addTile(modelData)
                         }
                     }
                 }
-                Loader {
-                    width: quick.innerW
-                    visible: quick.mediaPlaying
-                    active: quick.mediaPlaying
-                    sourceComponent: Component {
-                        QuickMedia {
-                            width: quick.innerW
-                            d: quick.mediaDoc
-                            // The island's media view: its expanded card, with the transport in it.
-                            onOpenRequested: Store.act("island.expand")
-                        }
+                Row {
+                    spacing: Theme.gap
+                    layoutDirection: Qt.RightToLeft
+                    width: parent.width
+                    Button {
+                        id: doneKey
+                        primary: true
+                        label: I18n.tr("quick.edit.done")
+                        onClicked: quick.saveEdit()
+                    }
+                    Button {
+                        label: I18n.tr("quick.edit.cancel")
+                        onClicked: quick.cancelEdit()
                     }
                 }
-                QuickFooter {
-                    visible: !quick.flyout
-                    width: quick.innerW
-                    sessionOk: quick.sessionOk
+                Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    visible: quick.editError !== ""
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.error
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: quick.editError
                 }
             }
 
             Loader {
-                id: pageLoader
+                id: mediaRow
                 width: quick.innerW
-                x: quick.rowX + (1 - quick.slide) * viewport.width
-                y: quick.plainCard ? quick.bleed : 0
-                active: quick.shownPage !== ""
-                sourceComponent: quick.shownPage === "wifi" ? wifiC
-                    : quick.shownPage === "bluetooth" ? btC
-                    : quick.shownPage === "focus" ? focusC
-                    : quick.shownPage === "audio" ? audioC
-                    : quick.shownPage === "power" ? powerC
-                    : quick.shownPage === "display" ? displayC
-                    : quick.shownPage === "night" ? nightC : null
-                // The page's first control takes the focus once it exists (after the Loader has made it).
-                onStatusChanged: if (status === Loader.Ready && item !== null)
-                    Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
+                visible: quick.mediaPlaying
+                active: quick.mediaPlaying
+                sourceComponent: Component {
+                    QuickMedia {
+                        width: quick.innerW
+                        d: quick.mediaDoc
+                        // The island's media view: its expanded card, with the transport in it.
+                        onOpenRequested: Store.act("island.expand")
+                    }
+                }
             }
+        }
+
+        Loader {
+            id: pageLoader
+            width: quick.innerW
+            x: quick.rowX + (1 - quick.slide) * viewport.width
+            y: quick.rowY
+            active: quick.shownPage !== ""
+            sourceComponent: quick.shownPage === "wifi" ? wifiC
+                : quick.shownPage === "bluetooth" ? btC
+                : quick.shownPage === "focus" ? focusC
+                : quick.shownPage === "audio" ? audioC
+                : quick.shownPage === "power" ? powerC
+                : quick.shownPage === "display" ? displayC
+                : quick.shownPage === "night" ? nightC
+                : quick.shownPage === "caffeine" ? caffeineC
+                : quick.shownPage === "dark" ? darkC
+                : quick.shownPage === "recorder" ? recorderC : null
+            // The page's first control takes the focus once it exists (after the Loader has made it).
+            onStatusChanged: if (status === Loader.Ready && item !== null)
+                Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
         }
     }
 

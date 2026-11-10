@@ -424,14 +424,103 @@ A card as the shell's other cards: joined to its bar, in the look's material and
 
 - type: `choice` · default: `"card"`
 - choices: `"card"` | `"phone"`
+- advanced
 - since schema v7
 
 #### `quick.tiles` — Control centre tiles
 
-The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume` (sound) and still places it.
 
-- type: `string_list` · default: `["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]`
+- type: `string_list` · default: `["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]`
 - choices: from `quick.tiles` (resolved at runtime)
+- since schema v7
+
+#### `quick.click.wifi` — A click on Wi-Fi
+
+Opens its card (the networks), or switches the radio on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.bluetooth` — A click on Bluetooth
+
+Opens its card (the devices), or switches the adapter on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.focus` — A click on Focus
+
+Opens its card (how long), or switches do not disturb on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.volume` — A click on sound
+
+Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
+
+- type: `choice` · default: `"switch"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.mic` — A click on the microphone
+
+Opens its card (the inputs), or mutes and unmutes the microphone.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.power` — A click on power
+
+Opens its card (the battery and the profiles), or switches the power saver on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.caffeine` — A click on keep awake
+
+Opens its card, or keeps the screen awake and lets it sleep again.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.nightlight` — A click on night light
+
+Opens its card (the warmth and the schedule), or switches the night light on or off.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.darkmode` — A click on dark mode
+
+Opens its card, or switches between light and dark.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.airplane` — A click on airplane mode
+
+Opens its card (with Wi-Fi), or switches every radio off or on.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
+- since schema v7
+
+#### `quick.click.recorder` — A click on the recorder
+
+Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a recording runs, a click stops it either way.
+
+- type: `choice` · default: `"card"`
+- choices: `"card"` | `"switch"`
 - since schema v7
 
 ## Appearance

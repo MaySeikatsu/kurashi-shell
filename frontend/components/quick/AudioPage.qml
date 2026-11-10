@@ -9,6 +9,8 @@ import ".."
 // the user chose. The requests come from QuickPanel, shared with the card's tiles and sliders.
 Column {
     id: aud
+    // W71: the module ids whose options the page lists (the module that opened it; none from the tiles).
+    property var optionIds: []
     width: parent.width
     spacing: Theme.gap
     property var soundReq: null
@@ -335,5 +337,12 @@ Column {
         font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: aud.errText
+    }
+    // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
+    // what the page draws itself is left out.
+    ModuleOptions {
+        width: aud.width
+        mids: aud.optionIds
+        skip: []
     }
 }

@@ -1,23 +1,36 @@
 #!/usr/bin/env bash
 # The control centre's controls as modules of their own (W70, I469, docs/ux/control-centre-modules.md) against kurashi-mock,
 # invisibly (headless sway sandbox), by one persistent virtual pointer:
-#   1. a top bar listing the eleven control modules shows each of them (the bar's own log, KURASHI_BAR_GEOMETRY);
-#   2. a click does the control's obvious thing, read back from the service document: Focus turns do not disturb on and
-#      off, sound output mutes, the microphone mutes, airplane mode, keep awake and night light switch; dark mode writes
+#   1. a top bar listing the eleven control modules shows each of them (the bar's own log, KURASHI_BAR_GEOMETRY); W71 (b):
+#      Wi-Fi shows the network's name and sound its level after the mark, and a long name elides (bar-glances-long);
+#   2a. W71 (I475 3, 7): a click on Focus, the microphone, airplane mode, keep awake, night light and dark mode switches
+#      nothing and opens the control centre on the control's page (keep awake and dark mode have their own; shots
+#      card-*); Esc closes a card a module opened;
+#   2. with `quick.click.<id> = switch` (the module's menu, its card or Settings) a click does the control's switch, read
+#      back from the service document: Focus turns do not disturb on and off, sound output mutes (its default: as the media
+#      key), the microphone mutes, airplane mode, keep awake and night light switch; dark mode writes
 #      theme.colors.scheme (the relay logs the `apply`; the mock refuses it, so the bar shows the module's error state);
 #      the wheel steps sound output (two notches: 10 %) and brightness; busy: with the mock held still (SIGSTOP) Focus
 #      waits dimmed (shot), and its request goes through after SIGCONT;
 #   3. a click on Wi-Fi opens the control centre on its page (the scan is subscribed: the relay's log), a second click
 #      closes it; Bluetooth's click while the Wi-Fi page is up turns the open card to its page (it stays open); with
 #      `bar.hover_card` a rest on Wi-Fi opens its card, Bluetooth turns it, leaving both closes it (K113);
-#   4. unavailable (mock.doc): keep awake with the idle service's reason (no page: a click sends nothing and opens
-#      nothing), Bluetooth without an adapter (a click changes nothing and opens its card, which says why; shot); a right
+#   4. unavailable (mock.doc): keep awake with the idle service's reason (a click sends nothing and opens its card, which
+#      says why; shot), Bluetooth without an adapter (a click changes nothing and opens its card, which says why; shot); a right
 #      click opens a module's menu (runtime.ui.tray = module:<id>);
-#   6. the centre as a container (stage c): it shows `quick.tiles` (the default: the ten tiles of before, in order);
+#   6. W71 (d): the levels and the session row are tiles of `quick.tiles` (wide rows after the switch tiles): Alt+Down moves
+#      one, a remove key takes one out (edit-wide); the centre as a container (stage c): it shows `quick.tiles` (the default: the ten tiles of before, in order);
 #      its edit key starts the edit mode (shot); Alt+Right and Alt+Down move a tile, Delete takes one out, the add key
 #      adds the microphone at the end, a tile's remove key (−) takes one out; Done writes the edit's list as one apply
 #      (the relay's log); the mock refuses it, so the edit stays and says so (shot), Escape puts the setting back; the
 #      centre follows the setting when it changes elsewhere (mock.doc, as Settings' list would write it; shot);
+#   8. W71 (f, I475 6): the recorder is on the bar while nothing records; its card (the recorder page) starts a recording
+#      by keys, the bar shows the running time, a click stops it; without a recorder program its card says why (shots
+#      card-recorder-*, bar-recording);
+#   7. W71 (d): the levels and the session row as bar modules (volume_level is the sound module, brightness_level has its
+#      slider, session three keys; the power key opens the menu; bar-rows); W71 (c, I475 5): one sound module — `audio` (W70's id) and `volume` both place it (mark, level, slider), and a
+#      `quick.tiles` naming both shows the sound tile once;
+#   9. W71 (g, I474): the right sidebar's toggles follow quick.tiles and its changes (sidebar-tiles);
 #   5. idle: with the pointer away and nothing open, the shell commits no frame for 3 s (Ma; WAYLAND_DEBUG commits);
 #      the frontend logs no QML error.
 # Shots (evidence to read) in frontend/shots/quick-modules/.
@@ -129,7 +142,7 @@ wait_until 10 test -S "$MOCK_SOCK" || fail "the mock did not come up (see $R/ser
 python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/relay.log" 2>&1 &
 pids+=($!)
 wait_until 10 K ping || fail "the relay did not come up (see $R/relay.log)"
-MODS='["wifi","bluetooth","audio","mic","power","brightness","focus","caffeine","nightlight","darkmode","airplane","clock"]'
+MODS='["wifi","bluetooth","audio","mic","power","brightness","focus","caffeine","nightlight","darkmode","airplane","recorder","clock"]'
 # (the mock answers no `apply`: its config document is patched, and it lays the bars out again from it; motion off is the
 # theme document's tokens)
 K act mock.doc "{\"doc\":\"config\",\"patch\":{\"values\":{\"edges.top.end\":{\"value\":$MODS}}}}" >/dev/null \
@@ -159,18 +172,85 @@ mv_to "$AWAY_X" "$AWAY_Y"
 
 # ---- 1. each module on the bar ----
 # where <id> → "cx cy": the middle of the module's last logged box on the top bar.
+# (W71: the mark's middle, the module's first square: the sound module's slider and a glance's value follow it)
 where() {
-  grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", ($6 + $8) / 2, ($7 + $9) / 2 }'
+  grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $6 + ($9 - $7) / 2, ($7 + $9) / 2 }'
 }
-for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane; do
+for id in wifi bluetooth audio mic power brightness focus caffeine nightlight darkmode airplane recorder; do   # (audio: W70's id)
   wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
 done
 echo "ok: the bar shows the eleven control modules"
+# W71 (b, I475 4): the glances carry values — Wi-Fi the network's name, sound its level — beside the mark, and a long
+# name elides to the bar's room (at most 140 px of text). Widths from the bar's own log (x0 y0 x1 y1).
+mod_w() { grep -o "BARZONE HEADLESS-1 top end $1 .*" "$R/qs.log" | tail -1 | awk '{ print $8 - $6 }'; }
+THICK=$(grep -o "BARZONE HEADLESS-1 top end focus .*" "$R/qs.log" | tail -1 | awk '{ print $8 - $6 }')
+[ "$(mod_w wifi)" -gt $(( THICK + 20 )) ] || fail "the Wi-Fi glance shows no network name (width $(mod_w wifi), a mark $THICK)"
+[ "$(mod_w audio)" -gt $(( THICK + 15 )) ] || fail "the sound glance shows no level (width $(mod_w audio), a mark $THICK)"
+K act mock.doc '{"doc":"svc.network","patch":{"primary":{"name":"a-very-long-network-name-that-a-cafe-gave-its-guest-wifi-2026"}}}' >/dev/null \
+  || fail "mock.doc refused svc.network"
+wait_until 5 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end wifi .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( THICK + 100 )) ]" \
+  || fail "the Wi-Fi glance did not follow the long name (width $(mod_w wifi))"
+[ "$(mod_w wifi)" -le $(( THICK + 140 + 12 )) ] || fail "a long network name is not elided (width $(mod_w wifi))"
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+wait_settled 1 0.3
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-glances-long.png" || fail "grim failed on the bar"
+K act mock.doc '{"doc":"svc.network","patch":{"primary":{"name":"home-wifi"}}}' >/dev/null || true
+echo "ok: the glances show the network's name and the sound level; a long name elides (width $(mod_w wifi), bar-glances-long)"
+# W71 (c, I475 5): one sound module — `audio` in the bar's list (W70's id) places it: the mark, the level and the slider.
+[ "$(mod_w audio)" -gt $(( THICK + 110 )) ] || fail "the bar's audio entry is not the sound module with its slider (width $(mod_w audio))"
+echo "ok: the old id audio places the one sound module, its slider after its level (width $(mod_w audio))"
 read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
 timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar.png" || fail "grim failed on the bar"
 click_mod() { local x y; read -r x y < <(where "$1"); [ -n "$x" ] || fail "no place for $1"; ptr "$x" "$y" "${2:-left}"; }
 
-# ---- 2. a click does the obvious thing ----
+# The card logs where things stand (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px) and which page it shows.
+at_of() { grep -o "quick-at $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $3 + $5 / 2, $4 + $6 / 2 }'; }
+tiles_now() { grep -o 'quick-tiles .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
+page_now() { grep -o 'quick-page .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
+press() { local k; for k in "$@"; do printf '%s\n' "$k" >&3 || fail "the keyboard helper stopped"; sleep 0.35; done; }
+sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
+rm -f "$W/keys.fifo"; mkfifo "$W/keys.fifo"
+python3 -I "$W/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
+pids+=($!)
+exec 3> "$W/keys.fifo"
+mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
+since() { sed -n "/^mark $1\$/,\$p" "$R/subs.log"; }
+
+# ---- 2a. W71 (I475 3, 7): a click opens the control's card; Esc closes a card a module opened ----
+# Focus, microphone, airplane mode, keep awake, night light and dark mode: the click switches nothing and opens the card on
+# the control's page (keep awake and dark mode have pages of their own now); a press beside the page's header gives the
+# card the keyboard, and Esc closes the whole card (a page the tiles opened goes back to them, test-quick-sections).
+card_on() { # card_on <module> <page> <what the click must not send: a relay log line's start, a regex> [shot]
+  local mk="card-$1-$(date +%s%N)"   # (a mark of its own: a module may open its card twice)
+  mark "$mk"
+  click_mod "$1"
+  wait_until 5 ui_is '.panel == "quick"' || fail "a click on $1 opened no card: $(ui)"
+  wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$2' ]" \
+    || fail "a click on $1 did not open its card on the $2 page (page $(page_now))"
+  sleep 0.4
+  since "$mk" | grep -qE "^$3" && fail "a click on $1 switched it ($3)"
+  [ -n "${4:-}" ] && { wait_settled 1.5 0.4; timeout 20 grim "$OUT/$4.png" || fail "grim failed on $4"; }
+  local hx hy hw hh
+  sleep 0.8
+  read -r hx hy hw hh < <(grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+  [ -n "${hx:-}" ] || fail "$1's card logged no focused header"
+  ptr "$(( hx + hw + 40 ))" "$(( hy + hh / 2 ))"
+  press escape
+  wait_until 3 closed || fail "Esc on the card $1 opened did not close it: $(ui)"
+  echo "ok: a click on $1 opens its card on the $2 page; Esc closes it"
+}
+card_on focus focus "act notify.dnd" card-focus
+card_on mic audio "act audio.mic"
+card_on airplane wifi "act network.airplane"
+card_on caffeine caffeine "act idle.caffeine" card-caffeine
+card_on nightlight night "act nightlight" card-nightlight
+card_on darkmode dark "apply .*theme.colors.scheme" card-darkmode
+
+# ---- 2. the override (quick.click.<id> = switch): a click does the control's switch ----
+# (sound's click mutes by default, as the media key; the others are set to switch here, as their menu or card would)
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.click.focus":{"value":"switch"},"quick.click.mic":{"value":"switch"},"quick.click.airplane":{"value":"switch"},"quick.click.caffeine":{"value":"switch"},"quick.click.nightlight":{"value":"switch"},"quick.click.darkmode":{"value":"switch"}}}}' >/dev/null \
+  || fail "the mock refused quick.click"
+sleep 0.5
 flip() { # flip <module> <doc> <jq of the value> <what>: a click changes the value, a second one changes it back
   local before after
   before=$(doc "$2" | jq -c "$3")
@@ -239,8 +319,6 @@ timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-dark
 echo "ok: a click on dark mode writes theme.colors.scheme ($(grep '^apply' "$R/subs.log" | tail -1 | grep -oE '"value": "[a-z]+"'); the mock's refusal shows: bar-darkmode-refused)"
 
 # ---- 3. a card on its page ----
-mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
-since() { sed -n "/^mark $1\$/,\$p" "$R/subs.log"; }
 mark wifi-card
 click_mod wifi
 wait_until 5 ui_is '.panel == "quick"' || fail "a click on Wi-Fi opened no card: $(ui)"
@@ -289,6 +367,34 @@ mv_to "$AWAY_X" "$AWAY_Y"
 wait_until 3 closed || fail "hover: the card stayed after the pointer left: $(ui)"
 K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":[]}}}}' >/dev/null || true
 echo "ok: bar.hover_card: resting on Wi-Fi opens its card, Bluetooth turns it, leaving closes it"
+# W71 (b, I475 4): the bar's shared default `bar.hover = card` — resting on the sound glance opens its card (the sound
+# page), leaving closes it.
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover":{"value":"card"}}}}' >/dev/null || fail "the mock refused bar.hover"
+sleep 0.5
+read -r hx hy < <(where audio)
+mv_to "$hx" "$hy"
+wait_until 3 ui_is '.panel == "quick"' || fail "bar.hover = card: resting on sound opened no card: $(ui)"
+wait_until 3 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = audio ]" \
+  || fail "bar.hover = card: the sound card is not on its page (page $(page_now))"
+mv_to "$AWAY_X" "$AWAY_Y"
+wait_until 3 closed || fail "bar.hover = card: the card stayed after the pointer left: $(ui)"
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover":{"value":"preview"}}}}' >/dev/null || true
+echo "ok: bar.hover = card: resting on the sound glance opens its card, leaving closes it"
+# W71: a module listed by another id (`audio`, the sound module's old one) is the card's origin by its zone's id: the card
+# a rest on it opens comes out under it (I340's `module:<id>`), not at the bar's centre.
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":["audio"]}}}}' >/dev/null || fail "the mock refused bar.hover_card"
+sleep 0.5
+read -r hx hy < <(where audio)
+mv_to "$hx" "$hy"
+wait_until 3 ui_is '.panel == "quick"' || fail "hover on audio opened no card: $(ui)"
+sleep 1.2
+read -r vx vy vw vh < <(grep -o 'quick-at viewport .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+[ "$hx" -ge $(( vx - 40 )) ] && [ "$hx" -le $(( vx + vw + 40 )) ] \
+  || fail "the card audio opened does not come out under it (module x $hx, card $vx..$(( vx + vw )))"
+mv_to "$AWAY_X" "$AWAY_Y"
+wait_until 3 closed || close_all
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.hover_card":{"value":[]}}}}' >/dev/null || true
+echo "ok: the card a module listed as audio opens comes out under it (x $hx in $vx..$(( vx + vw )))"
 
 # ---- 4. unavailable: inert, and it says why ----
 K act mock.doc '{"doc":"svc.idle","patch":{"reason":"power.idle.reason.no_protocol"}}' >/dev/null || fail "mock.doc refused svc.idle"
@@ -296,8 +402,13 @@ mark inert
 click_mod caffeine
 sleep 0.8
 since inert | grep -q '^act idle.caffeine' && fail "a click on keep awake that cannot work sent idle.caffeine"
-closed || fail "a click on keep awake that cannot work opened something: $(ui)"
-echo "ok: keep awake that cannot work (the compositor reports no idle time) is inert"
+# (set to switch above: a control that cannot work opens its card instead, which says why — W71)
+wait_until 3 ui_is '.panel == "quick"' || fail "a click on keep awake that cannot work opened no card to say why: $(ui)"
+[ "$(page_now)" = caffeine ] || fail "keep awake's card is not on its page (page $(page_now))"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/card-caffeine-unavailable.png" || fail "grim failed"
+close_all
+echo "ok: keep awake that cannot work (the compositor reports no idle time) is inert; its card says why (card-caffeine-unavailable)"
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":false}}' >/dev/null || fail "mock.doc refused svc.bluetooth"
 bt0=$(doc svc.bluetooth | jq -c '.powered')
 mark bt-inert
@@ -319,42 +430,58 @@ echo "ok: a right click opens the module's menu (wifi, focus, caffeine, power)"
 
 # ---- 6. the centre as a container: `quick.tiles` and its edit mode (W70 stage c) ----
 # The keys stand where the card logs them (KURASHI_QUICK_LOG: `quick-at <name> x y w h`, output px).
-at_of() { grep -o "quick-at $1 .*" "$R/qs.log" | tail -1 | awk '{ printf "%d %d\n", $3 + $5 / 2, $4 + $6 / 2 }'; }
-tiles_now() { grep -o 'quick-tiles .*' "$R/qs.log" | tail -1 | cut -d' ' -f2; }
-press() { local k; for k in "$@"; do printf '%s\n' "$k" >&3 || fail "the keyboard helper stopped"; sleep 0.35; done; }
-sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
-rm -f "$W/keys.fifo"; mkfifo "$W/keys.fifo"
-python3 -I "$W/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
-pids+=($!)
-exec 3> "$W/keys.fifo"
-DEFAULT=wifi,bluetooth,focus,audio,power,brightness,caffeine,nightlight,recorder,darkmode
+DEFAULT=wifi,bluetooth,focus,volume,power,brightness,caffeine,nightlight,recorder,darkmode,volume_level,brightness_level,session
 K act quick.toggle >/dev/null || fail "quick.toggle refused"
 wait_until 5 ui_is '.panel == "quick"' || fail "quick.toggle opened no card"
 wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
   || fail "the centre does not show the default tiles in order: $(tiles_now)"
-echo "ok: the centre shows quick.tiles' default, the ten tiles of before, in order"
+echo "ok: the centre shows quick.tiles' default, the ten tiles of before and the three rows (W71 d), in order"
 wait_until 3 sh -c "grep -q 'quick-at edit ' '$R/qs.log'" || fail "the card logged no edit key"
 read -r ex ey < <(at_of edit)
 ptr "$ex" "$ey"
 wait_until 3 sh -c "grep -q 'quick-edit on' '$R/qs.log'" || fail "the edit key did not start the edit mode"
 wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edit-mode.png" || fail "grim failed on the edit mode"
+# W71 (d, I475 8): the wide rows are tiles too — a press on the sound level's row (the edit's drag area) gives it the
+# keyboard, Alt+Down moves it under the brightness row, the session row's remove key takes it out; Escape drops it all.
+sleep 0.8
+read -r lx ly < <(at_of tile:volume_level)
+[ -n "${lx:-}" ] || fail "the edit mode shows no sound level row"
+ptr "$lx" "$ly"
+press alt+down
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q 'brightness_level,volume_level,session\$'" \
+  || fail "Alt+Down did not move the sound level under the brightness: $(tiles_now)"
+sleep 0.8
+read -r sx sy sw sh < <(grep -o "quick-at tile:session .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+ptr "$(( sx + sw - 5 ))" "$(( sy + 5 ))"
+wait_until 3 sh -c "! grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q 'session'" \
+  || fail "the session row's remove key did not take it out: $(tiles_now)"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/edit-wide.png" || fail "grim failed on the wide rows"
+press escape
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q off" || fail "Escape did not leave the edit mode"
+wait_until 3 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
+  || fail "Escape did not put the rows back: $(tiles_now)"
+echo "ok: the wide rows move (Alt+Down) and leave (their remove key) in the edit mode; Escape drops it (edit-wide)"
+read -r ex ey < <(at_of edit)
+ptr "$ex" "$ey"
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q on" || fail "the edit key did not start the edit mode again"
 # The focus is on the first tile: Alt+Right moves it one place on, Delete takes it out, Alt+Down moves the next a row down.
 press alt+right
 wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,wifi,focus'" \
   || fail "Alt+Right did not move Wi-Fi one place on: $(tiles_now)"
 press delete
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,focus,audio'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,focus,volume'" \
   || fail "Delete did not take Wi-Fi out: $(tiles_now)"
 press alt+down
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,audio,power,focus'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ' bluetooth,volume,power,focus'" \
   || fail "Alt+Down did not move Focus a row down: $(tiles_now)"
 echo "ok: edit mode by keys: Alt+Right and Alt+Down move a tile, Delete takes it out ($(tiles_now))"
 sleep 0.8
 read -r axx axy < <(at_of add:mic)
 [ -n "${axx:-}" ] || fail "the edit mode offers no key to add the microphone"
 ptr "$axx" "$axy"
-wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ',mic\$'" \
+wait_until 3 sh -c "grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | grep -q ',mic,volume_level'" \
   || fail "the add key did not add the microphone at the end: $(tiles_now)"
 read -r rx ry rw rh < <(grep -o "quick-at tile:power .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
 # the tile's remove key (−): on its top-right corner
@@ -373,11 +500,11 @@ got=$(sed -n '/^mark save$/,$p' "$R/subs.log" | grep '^apply' | tail -1 | sed 's
 [ "$got" = "$WANT" ] || fail "Done wrote $got, not the edit's $WANT"
 # The mock answers no apply: the edit stays, with the refusal; Escape drops it and the tiles are the setting's again.
 sleep 0.8
-grep -q 'quick-edit off' "$R/qs.log" && fail "a refused save left the edit mode"
+grep -o 'quick-edit .*' "$R/qs.log" | tail -1 | grep -q off && fail "a refused save left the edit mode"
 wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edit-refused.png" || fail "grim failed"
 press escape
-wait_until 3 sh -c "grep -q 'quick-edit off' '$R/qs.log'" || fail "Escape did not leave the edit mode"
+wait_until 3 sh -c "grep -o 'quick-edit .*' '$R/qs.log' | tail -1 | grep -q off" || fail "Escape did not leave the edit mode"
 wait_until 3 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = '$DEFAULT' ]" \
   || fail "after the refused save and Escape the centre does not show the setting's tiles: $(tiles_now)"
 echo "ok: Done writes the edit's list ($got) as one apply; refused, the edit stays and says so; Escape puts the setting back"
@@ -390,6 +517,89 @@ wait_settled 1.5 0.4
 timeout 20 grim "$OUT/edited.png" || fail "grim failed"
 close_all
 echo "ok: the centre follows quick.tiles as the daemon has it ($WANT)"
+
+# ---- 8. W71 (f, I475 6): the recorder — a button on the bar while nothing records; a click opens its card (the recorder
+#      page); the card's record key starts a recording (the bar shows the running time); a click on the bar then stops it
+#      and opens nothing; without a recorder program the card says why ----
+K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","recorder","clock"]}}}}' >/dev/null \
+  || fail "the mock refused the bar's modules"
+wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end recorder ' '$R/qs.log'" || fail "the recorder is not on the bar while nothing records"
+REC0=$(mod_w recorder)
+card_on recorder recorder "act recorder" card-recorder-idle
+mark rec-start
+click_mod recorder
+wait_until 5 sh -c "[ \"\$(grep -o 'quick-page .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = recorder ]" || fail "the recorder's card did not open again"
+sleep 0.8
+read -r hx hy hw hh < <(grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+ptr "$(( hx + hw + 40 ))" "$(( hy + hh / 2 ))"
+press tab return
+wait_until 5 sh -c "\"$W/kurashi\" sub svc.recorder --count 0 --json | jq -e 'select(.t == \"snap\") | .data.recording == true' >/dev/null" \
+  || fail "the record key (Tab, Return) did not start a recording"
+since rec-start | grep -q '^act recorder.start' || fail "the record key sent no recorder.start"
+wait_settled 2 0.4
+timeout 20 grim "$OUT/card-recorder-recording.png" || fail "grim failed"
+wait_until 4 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end recorder .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( REC0 + 20 )) ]" \
+  || fail "the recorder on the bar shows no running time while recording (width $(mod_w recorder))"
+close_all
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-recording.png" || fail "grim failed on the bar"
+click_mod recorder
+wait_until 5 sh -c "\"$W/kurashi\" sub svc.recorder --count 0 --json | jq -e 'select(.t == \"snap\") | .data.recording == false' >/dev/null" \
+  || fail "a click on the recording recorder did not stop it"
+sleep 0.6
+closed || fail "the click that stopped the recording opened something: $(ui)"
+echo "ok: the recorder: always on the bar; its card starts a recording (Tab, Return); the bar shows the time; a click stops it (bar-recording)"
+K act mock.doc '{"doc":"svc.recorder","patch":{"available":false,"reason":"power.recorder.reason.missing"}}' >/dev/null || fail "mock.doc refused svc.recorder"
+card_on recorder recorder "act recorder" card-recorder-unavailable
+K act mock.doc '{"doc":"svc.recorder","patch":{"available":true,"reason":null}}' >/dev/null || true
+echo "ok: without a recorder program its card says why (card-recorder-unavailable)"
+
+# ---- 7. W71 (c): the new id `volume` places the sound module as `audio` did, and an old `quick.tiles` with `audio`
+#      shows the sound tile once ----
+K act mock.doc '{"doc":"config","patch":{"values":{"edges.top.end":{"value":["wifi","volume","volume_level","brightness_level","session","clock"]}}}}' >/dev/null \
+  || fail "the mock refused the bar's modules"
+# W71 (d): the rows pinned as modules — the sound level is the sound module, the brightness its level with a slider, the
+# session row its keys (lock, suspend, the power menu: three squares while the session service answers).
+for id in volume_level brightness_level session; do
+  wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end $id ' '$R/qs.log'" || fail "the bar does not show module $id"
+done
+[ "$(mod_w volume_level)" -gt $(( THICK + 110 )) ] || fail "volume_level is not the sound module with its slider"
+[ "$(mod_w brightness_level)" -gt $(( THICK + 110 )) ] || fail "brightness_level has no slider (width $(mod_w brightness_level))"
+[ "$(mod_w session)" -ge $(( 3 * THICK - 2 )) ] || fail "the session module does not show its three keys (width $(mod_w session))"
+read -r BX0 BY0 < <(grep -o "BARZONE HEADLESS-1 top end wifi .*" "$R/qs.log" | tail -1 | awk '{ print $6, $7 }')
+wait_settled 1 0.3
+timeout 20 grim -g "$(( BX0 - 16 )),0 $(( W_OUT - BX0 + 16 ))x48" "$OUT/bar-rows.png" || fail "grim failed on the bar"
+mark session
+read -r kx ky < <(where session)
+ptr "$(( kx + 2 * THICK ))" "$ky"
+wait_until 3 sh -c "sed -n '/^mark session\$/,\$p' '$R/subs.log' | grep -q '^act session.menu'" || fail "the session module's power key sent no session.menu"
+close_all
+echo "ok: the rows as modules: volume_level, brightness_level (slider), session (three keys; its power key opens the menu; bar-rows)"
+wait_until 5 sh -c "grep -q 'BARZONE HEADLESS-1 top end volume ' '$R/qs.log'" || fail "the bar does not show module volume"
+wait_until 3 sh -c "[ \"\$(grep -o 'BARZONE HEADLESS-1 top end volume .*' '$R/qs.log' | tail -1 | awk '{ print \$8 - \$6 }')\" -gt $(( THICK + 110 )) ]" \
+  || fail "volume is not the sound module with its slider"
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["audio","wifi","volume"]}}}}' >/dev/null || fail "mock.doc refused quick.tiles"
+K act quick.toggle >/dev/null || fail "quick.toggle refused"
+wait_until 5 sh -c "[ \"\$(grep -o 'quick-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'volume,wifi' ]" \
+  || fail "quick.tiles [audio, wifi, volume] does not show the sound tile once: $(tiles_now)"
+close_all
+echo "ok: volume places the sound module; quick.tiles naming audio and volume shows one sound tile (volume,wifi)"
+
+# ---- 9. W71 (g, I474, I475 9): the right sidebar's toggles follow quick.tiles — its switch tiles in that order (the wide
+#      rows are the sidebar's own sections), the same controls; a change of the setting is followed while it is open ----
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["darkmode","wifi","volume_level","recorder","focus"]}}}}' >/dev/null \
+  || fail "mock.doc refused quick.tiles"
+K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || fail "sidebar.toggle refused"
+wait_until 5 sh -c "[ \"\$(grep -o 'sidebar-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'darkmode,wifi,recorder,focus' ]" \
+  || fail "the sidebar's toggles do not follow quick.tiles: $(grep -o 'sidebar-tiles .*' "$R/qs.log" | tail -1)"
+K act mock.doc '{"doc":"config","patch":{"values":{"quick.tiles":{"value":["wifi","audio","mic"]}}}}' >/dev/null || fail "mock.doc refused quick.tiles"
+wait_until 5 sh -c "[ \"\$(grep -o 'sidebar-tiles .*' '$R/qs.log' | tail -1 | cut -d' ' -f2)\" = 'wifi,volume,mic' ]" \
+  || fail "the sidebar's toggles did not follow the setting's change: $(grep -o 'sidebar-tiles .*' "$R/qs.log" | tail -1)"
+wait_settled 1.5 0.4
+timeout 20 grim "$OUT/sidebar-tiles.png" || fail "grim failed on the sidebar"
+K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || true
+wait_until 3 closed || close_all
+echo "ok: the sidebar's toggles follow quick.tiles (darkmode,wifi,recorder,focus → wifi,volume,mic; sidebar-tiles)"
 
 # ---- 5. idle ----
 mv_to "$AWAY_X" "$AWAY_Y"

@@ -1,51 +1,21 @@
 import QtQuick
 import "../../core"
+import "../quick"
 
-// Module `recorder` (K47, W23-system, docs/ux/power.md): a recording runs (svc.recorder) — a red dot and its label; a click
-// stops it (`recorder.stop`). Absent while nothing records; the dot does not blink (no animation, Ma). In a column the dot
-// stands over the label, both centred in the column's width (W36, I131).
-ModuleBase {
+// Module `recorder` (K47; W71 f, I475 6, docs/ux/control-centre-modules.md "The recorder"): a button on the bar, always
+// (it was there only while a recording ran). Idle: the record mark; a click (or a hover, as `bar.hover` says) opens the
+// recorder's card, the recorder page of the control centre (start, which screen, the sound, where the file goes, the last
+// recording). Recording: a red mark and the running time; a click stops it (the obvious thing then, as GNOME's top-bar
+// indicator and macOS's Stop key). `quick.click.recorder = switch`: an idle click starts recording at once. Without a
+// recorder program it is the dim mark, inert, and says why (its accessible name, its card). Bar fit: the time is its
+// value (compact: the mark alone); in a column the mark.
+ControlModule {
     id: m
-    Watch { doc: "svc.recorder"; active: m.live }
-    present: (Store.docs["svc.recorder"] || ({})).recording === true
-    // B48: compact, the dot alone (the label stays the accessible name).
-    // (measured on metrics: a hidden Text is not laid out)
-    TextMetrics { id: recM; text: I18n.tr("power.bar.rec"); font.pixelSize: Theme.fsCaption; font.weight: Theme.wBold; font.family: Theme.fam(text, Theme.families) }
-    fullW: vertical ? width : 10 + Theme.xs + Math.ceil(recM.advanceWidth) + 2 * Theme.xs
-    compactW: vertical ? width : 10 + 2 * Theme.xs
-    width: vertical ? thickness : dotRow.implicitWidth + 2 * Theme.xs
-    height: vertical ? thickness - 6 : thickness - 12
-    slotHeights: present ? [height] : []
-    Accessible.role: Accessible.Button
-    Accessible.name: I18n.tr("power.bar.recording")
-    a11yName: Accessible.name
-    function activate() { Store.act("recorder.stop") }
-    function geo() { return [["rec", m]] }
-    Grid {
-        id: dotRow
-        anchors.centerIn: parent
-        columns: m.vertical ? 1 : 2
-        spacing: m.vertical ? 2 : Theme.xs
-        horizontalItemAlignment: Grid.AlignHCenter
-        verticalItemAlignment: Grid.AlignVCenter
-        Rectangle {
-            width: 10
-            height: 10
-            radius: 5
-            color: Theme.error
-        }
-        Text {
-            id: recT
-            visible: m.vertical || !m.compact
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: Theme.error
-            font.pixelSize: Theme.fsCaption
-            font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr("power.bar.rec")
-        }
-    }
-    TapHandler { onTapped: Store.act("recorder.stop") }
+    RecordControl { id: c; live: m.live }
+    ctl: c
+    // (one name either way: swapping it while the icon settles its font loops, B70; the error colour says it records)
+    glanceIcon: "screen_record"
+    glanceGlyph: "●"
+    alert: c.recording
+    valueText: c.recording ? c.elapsed : ""
 }

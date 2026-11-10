@@ -22,7 +22,11 @@ Item {
     implicitWidth: 160
     // W53.6 (lead review): the wide tile grows with its type — the label's line and two subtitle lines must fit inside it
     // (a 16 px pixel face, large text); today's fonts keep 56 px.
-    implicitHeight: rows ? rowH : (compact ? btnH + 30 : Math.max(56, Math.ceil(labelMetrics.height + 2 * 0.85 * subMetrics.height) + 14))
+    // W71 (the user's review): the compact tile's label under its button is measured too, so a larger face never pushes the
+    // last row's label past the card's bottom (it was a fixed 30 px).
+    implicitHeight: rows ? rowH : (compact ? btnH + compactLabelGap + Math.ceil(subMetrics.height) + 4
+        : Math.max(56, Math.ceil(labelMetrics.height + 2 * 0.85 * subMetrics.height) + 14))
+    readonly property int compactLabelGap: 6
     FontMetrics { id: labelMetrics; font.pixelSize: Theme.fs; font.weight: Theme.wBold; font.family: Theme.fam(tile.label, Theme.families) }
     FontMetrics { id: subMetrics; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(tile.label, Theme.families) }
     width: implicitWidth
@@ -271,7 +275,7 @@ Item {
                 }
             }
             Text {
-                anchors { left: parent.left; right: parent.right; top: cbtn.bottom; topMargin: 6 }
+                anchors { left: parent.left; right: parent.right; top: cbtn.bottom; topMargin: tile.compactLabelGap }
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 color: tile.failed ? Theme.error : Theme.fg

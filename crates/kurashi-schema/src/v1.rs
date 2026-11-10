@@ -2376,18 +2376,22 @@ pub struct Sidebar {
 
 // --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
 
-/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
-pub const QUICK_TILES: [&str; 10] = [
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47); then (W71 d) the rows it
+/// always showed under them as wide tiles: the sound level, the brightness, the session row.
+pub const QUICK_TILES: [&str; 13] = [
     "wifi",
     "bluetooth",
     "focus",
-    "audio",
+    "volume",
     "power",
     "brightness",
     "caffeine",
     "nightlight",
     "recorder",
     "darkmode",
+    "volume_level",
+    "brightness_level",
+    "session",
 ];
 
 /// How the control centre looks (W70 stage d).
@@ -2406,13 +2410,79 @@ pub struct Quick {
     /// Control centre look
     /// A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own
     /// flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
-    #[kurashi(default = QuickStyle::Card, module = "quick", since = 7)]
+    #[kurashi(default = QuickStyle::Card, module = "quick", advanced, since = 7)]
     pub style: QuickStyle,
     /// Control centre tiles
     /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
-    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these. The levels
+    /// and the session row are wide tiles, drawn after the others in their own order. `audio` is the old name of `volume`
+    /// (sound) and still places it.
     #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
     pub tiles: Vec<String>,
+    #[kurashi(nested)]
+    pub click: QuickClicks,
+}
+
+/// What a click on a control's module does (W71, I475 3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "quick_click")]
+pub enum QuickClick {
+    /// Opens its card
+    Card,
+    /// Switches it
+    Switch,
+}
+
+/// A click on a control's module (W71, I475 3, docs/ux/control-centre-modules.md): its card, where its switch, its
+/// options and why it cannot be used stand — or, set here or in the module's menu, the switch itself. One key per module
+/// with a switch, each tagged for that module's menu; brightness has no switch and keeps its card.
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct QuickClicks {
+    /// A click on Wi-Fi
+    /// Opens its card (the networks), or switches the radio on or off.
+    #[kurashi(default = QuickClick::Card, module = "wifi", since = 7)]
+    pub wifi: QuickClick,
+    /// A click on Bluetooth
+    /// Opens its card (the devices), or switches the adapter on or off.
+    #[kurashi(default = QuickClick::Card, module = "bluetooth", since = 7)]
+    pub bluetooth: QuickClick,
+    /// A click on Focus
+    /// Opens its card (how long), or switches do not disturb on or off.
+    #[kurashi(default = QuickClick::Card, module = "focus", since = 7)]
+    pub focus: QuickClick,
+    /// A click on sound
+    /// Mutes and unmutes the output, as the media key does, or opens its card (outputs, inputs, what plays).
+    #[kurashi(default = QuickClick::Switch, module = "volume", module = "audio", module = "volume_level", since = 7)]
+    pub volume: QuickClick,
+    /// A click on the microphone
+    /// Opens its card (the inputs), or mutes and unmutes the microphone.
+    #[kurashi(default = QuickClick::Card, module = "mic", since = 7)]
+    pub mic: QuickClick,
+    /// A click on power
+    /// Opens its card (the battery and the profiles), or switches the power saver on or off.
+    #[kurashi(default = QuickClick::Card, module = "power", since = 7)]
+    pub power: QuickClick,
+    /// A click on keep awake
+    /// Opens its card, or keeps the screen awake and lets it sleep again.
+    #[kurashi(default = QuickClick::Card, module = "caffeine", since = 7)]
+    pub caffeine: QuickClick,
+    /// A click on night light
+    /// Opens its card (the warmth and the schedule), or switches the night light on or off.
+    #[kurashi(default = QuickClick::Card, module = "nightlight", since = 7)]
+    pub nightlight: QuickClick,
+    /// A click on dark mode
+    /// Opens its card, or switches between light and dark.
+    #[kurashi(default = QuickClick::Card, module = "darkmode", since = 7)]
+    pub darkmode: QuickClick,
+    /// A click on airplane mode
+    /// Opens its card (with Wi-Fi), or switches every radio off or on.
+    #[kurashi(default = QuickClick::Card, module = "airplane", since = 7)]
+    pub airplane: QuickClick,
+    /// A click on the recorder
+    /// Opens its card (start, which screen, the sound, where the file goes), or starts recording at once. While a
+    /// recording runs, a click stops it either way.
+    #[kurashi(default = QuickClick::Card, module = "recorder", since = 7)]
+    pub recorder: QuickClick,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

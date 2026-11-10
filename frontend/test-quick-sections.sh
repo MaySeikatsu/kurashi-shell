@@ -21,13 +21,16 @@
 #     (tiles-wallpaper-down), brightness.set moves the Display level; no contribution is the six core tiles (tiles-no-mods);
 #     the wallpaper tile's document is subscribed while the card shows it and unsubscribed after it closes (Ma).
 #   - W37 (K66, I86): a right click on a tile's main zone is its secondary action, never a toggle: the Wi-Fi tile opens its
-#     page; the Menu key on keep awake and on dark mode (tiles with no page of their own) asks Settings for their pages (the
-#     relay logs `act settings.open`); the focus stays on the wallpaper tile while another contribution leaves and returns,
+#     page; the Menu key on keep awake, record and dark mode opens their own pages (W71: every control has one now);
+#     the focus stays on the wallpaper tile while another contribution leaves and returns,
 #     and when the focused tile leaves the focus moves to the tile before it; every tile a service document can force draws
 #     "Set by" and is inert (tiles-forced); the footer without a session service (footer-no-session);
 #   - W70 (d): every step above runs on the phone (`quick.style = phone`); then the card (`quick.style = card`, the
 #     default): the Stage's card round the rows, 400 px wide (card-open); a click on the Wi-Fi tile switches the radio and
 #     back, its arrow opens the Wi-Fi page (card-wifi-page), Escape returns, and the card's documents go when it closes.
+#   - W71 (the user's review): on the card and on a flyout with compact tiles and fluent's "double" ring, the focus ring's
+#     four sides are read in the pixels round the first tile, the last tile and the Wi-Fi page's back key (*-ring-*), and
+#     every tile stands inside the viewport that clips the rows.
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
 # The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
 # actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd, and (W18)
@@ -238,7 +241,7 @@ BACK=(54 82)          # the page header's round back key
 MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
 # and 92 px above the phone screen's bottom edge (W21-island-morph: the phone is its own chrome, the Stage draws no card and
 # no Close row under it any more): the rows above it differ by locale (the status line wraps), the footer does not
-MEDIA_FROM_BOTTOM=92
+MEDIA_FROM_BOTTOM=92    # (before W71 d; the media row's place is logged now)
 
 : > "$R/qs.log"
 : > "$R/server.log"
@@ -361,7 +364,8 @@ settle 1.5
 echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control returns (unsubscribed)"
 
 # 3b. W37 (I86): a right click on a tile's main zone is its secondary action, never a toggle. The Wi-Fi tile opens its page;
-#     the Menu key on keep awake and on dark mode (no page of their own) asks Settings for the page that holds their setting.
+#     the Menu key on keep awake, record and dark mode opens their pages (W71: a tile with no page asked Settings for
+#     the page holding its setting; every control has a page now).
 right_click() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" right || fail "right click at $1,$2 failed"; }
 wifi0=$(doc svc.network | jq -r '.wifi_enabled')
 right_click "$((cx0 + WIFI_TILE[0]))" "$((cy0 + WIFI_TILE[1]))"
@@ -371,15 +375,24 @@ settle 1.5
 press escape
 settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not return from the Wi-Fi page"
-press down down down menu       # wifi, focus, power, keep awake: no page of its own, so Settings' power page
+press down down down menu       # wifi, focus, power, keep awake: its own page since W71 (I475 3)
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page caffeine'" \
+  || fail "the Menu key on keep awake did not open its page"
+press escape                    # (a page the tiles opened: Escape goes back to its tile)
 settle 1
-grep -q 'act settings.open {"page": "power"}' "$R/subs.log" || fail "the Menu key on keep awake did not ask Settings for the power page"
-press down right menu           # record, dark mode: Settings' appearance page
+press down menu                 # record: its own page since W71 (f, the recorder's card)
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page recorder'" \
+  || fail "the Menu key on record did not open the recorder's page"
+press escape
 settle 1
-grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" || fail "the Menu key on dark mode did not ask Settings for the appearance page"
+press tab menu                  # dark mode: its own page since W71 (Tab: Right on record opens its page now)
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page dark'" \
+  || fail "the Menu key on dark mode did not open its page"
+press escape
+settle 1
 press up up up up left         # back to the Wi-Fi tile, where the keyboard steps below start
 settle 1
-echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key on keep awake and dark mode asks Settings"
+echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key opens keep awake's, record's and dark mode's pages"
 
 # 4. Audio: Tab to the Audio tile, Right opens the page; Tab walks to the other output, Return makes it the default, and the
 #    focus stays on the row chosen (the rows update in place).
@@ -455,7 +468,10 @@ card_shot quick-recovered 0.5
 echo "ok: connecting, then the timeout's failure; the queued request applies after SIGCONT ($wifi_before -> $wifi_after)"
 
 # 10. The media row opens the island's media view (the card gives way to the island's panel).
-at "$MEDIA_TITLE_X" "$(( cy1 - cy0 - MEDIA_FROM_BOTTOM ))"
+# (W71 d: the session row is a tile above it now: the media row stands where the card logs it, `quick-at media`)
+read -r mx my mw mh < <(grep -o 'quick-at media .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+[ -n "${mx:-}" ] || fail "the card logged no media row"
+click "$(( mx + MEDIA_TITLE_X - 16 ))" "$(( my + mh / 2 ))"
 settle 1.5
 [ "$(panel)" = island ] || fail "the media row did not open the island's media view (panel \"$(panel)\")"
 echo "ok: the media row opens the island's media view"
@@ -543,9 +559,10 @@ p2=$(pic_now); press return; wait_until 1.5 eval '[ "$(pic_now)" != "$p2" ]' || 
 press up                        # the test mod's tile (cell 10) has the focus now
 set_tiles "$(without hello)"    # ... and leaves: the focus moves to the tile before it, dark mode (cell 9)
 press menu
-settle 1.5
-grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" \
-  || fail "the focus did not move to the tile before the removed one (dark mode's Menu key sent no appearance page)"
+wait_until 3 sh -c "grep -o 'quick-page .*' '$R/qs.log' | tail -1 | grep -qx 'quick-page dark'" \
+  || fail "the focus did not move to the tile before the removed one (dark mode's Menu key opened no dark mode page)"
+press escape
+settle 1
 set_tiles "$full"
 press left down down return     # dark mode, left (8), down (10), down (12): the wallpaper tile again
 settle 1.5
@@ -645,6 +662,15 @@ settle 1
 [ "$(last_event mod.wallpaper)" = "unsub mod.wallpaper" ] || fail "the wallpaper tile's document stayed subscribed after the card closed"
 echo "ok: the wallpaper tile subscribes its document while the card shows it, and unsubscribes it when the card is gone (Ma)"
 
+# 16b. W71 (e, I475 1): the phone is an advanced setting — `quick.style` carries the schema's advanced flag, so Settings
+#      offers it only with advanced settings on and a module's menu (which draws no advanced row, I408) never lists it.
+#      (The mock serves no schema document, CONTRACT-CHANGE 715: the schema's own golden is read.) The phone is made only
+#      while it is the style (B73): the steps above ran on it, the step below runs without it.
+jq -e '[.. | objects | select(.key? == "quick.style")][0].advanced == true' \
+  "$ROOT/crates/kurashi-schema/tests/golden/settings_meta.json" >/dev/null \
+  || fail "quick.style is not an advanced setting (the phone would be offered without advanced settings)"
+echo "ok: the phone is offered only with advanced settings on (quick.style is advanced)"
+
 # 17. W70 (d, docs/ux/control-centre-modules.md): the card — `quick.style = card`, the default (every step above ran on the
 #     phone, `quick.style = phone`): the Stage's card round the rows (its surface, 400 px wide), no phone; a tile switches,
 #     its arrow opens its page and Escape comes back; the card's documents are unsubscribed when it closes.
@@ -671,6 +697,20 @@ click "$(( tx + tw - 8 ))" "$(( ty + th / 2 ))"
 settle 1.5
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "card style: the tile's arrow did not open the Wi-Fi page"
 card_shot card-wifi-page 0.5 8
+# W71 (the user's review, point 4): NetworkManager says the radio is on, the scan says there is no Wi-Fi device — the
+# switch draws off and inert, and the reason stands once (shot card-wifi-no-device).
+scan0=$(doc svc.network.scan)
+K act mock.doc '{"doc":"svc.network.scan","patch":{"available":false,"reason":"error.network.no_wifi_device","networks":null}}' >/dev/null \
+  || fail "mock.doc refused svc.network.scan"
+radio0=$(doc svc.network | jq -c '.wifi_enabled')
+K act mock.doc '{"doc":"svc.network","patch":{"wifi_enabled":true}}' >/dev/null || fail "mock.doc refused svc.network"
+wait_until 3 sh -c "[ \"\$(\"$W/kurashi\" sub svc.network --count 0 --json | jq -r 'select(.t == \"snap\") | .data.wifi_enabled')\" = true ]" || fail "the radio is not on for the no-device check"
+wait_until 3 sh -c "grep -o 'quick-wifi nodevice .*' '$R/qs.log' | tail -1 | grep -q 'nodevice true checked false enabled false'" \
+  || fail "no Wi-Fi device: the page's switch does not draw off and inert ($(grep -o 'quick-wifi nodevice .*' "$R/qs.log" | tail -1))"
+card_shot card-wifi-no-device 0.5 8
+K act mock.doc "{\"doc\":\"svc.network.scan\",\"patch\":$(jq -c '{available: .available, reason: .reason, networks: .networks}' <<<"$scan0")}" >/dev/null || true
+K act mock.doc "{\"doc\":\"svc.network\",\"patch\":{\"wifi_enabled\":$radio0}}" >/dev/null || true
+echo "ok: no Wi-Fi device: the switch draws off and inert, the reason once (card-wifi-no-device)"
 press escape
 settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "card style: Escape did not leave the Wi-Fi page"
@@ -679,6 +719,141 @@ K act ui.close >/dev/null
 settle 1
 [ "$(last_event svc.network)" = "unsub svc.network" ] || fail "card style: svc.network stayed subscribed after the card closed"
 echo "ok: the card style (quick.style = card): the Stage's card, 400 px; a tile switches, its arrow opens its page, Escape returns; Ma"
+
+# 18. W71 (the user's review of a compact flyout): a focus ring is drawn whole — its four sides are read in the pixels — round
+#     the first tile (the first row, the first column), the last core tile, and the Wi-Fi page's back key; every tile stands
+#     inside the viewport that clips the rows (never half a tile or half a label). Once on the card (the default look's ring),
+#     once as a look's flyout with compact tiles and the "double" ring 6 px outside (fluent's decor, patched in the theme).
+cat > "$W/ring.py" <<'PY'
+import json, sys
+
+# ring.py <focused.ppm> <reference.ppm> <x y w h> <ring rrggbb>: the ring is what moved towards the ring's colour from the
+# reference (the same view with the keyboard elsewhere), so text and icons of the ring's colour never count.
+# For each side of the box, over the middle half of that side: the share of its points with a ring pixel in a band reaching
+# 12 px out of the box and a third into it (a pill's round end is found as well as a straight edge). Whole: every side 70 %.
+fpath, rpath, x, y, w, h, hexc = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:7]), sys.argv[7]
+RING = tuple(int(hexc[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def read(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    fields, i = [], 0
+    while len(fields) < 4:
+        while data[i:i + 1].isspace():
+            i += 1
+        j = i
+        while not data[j:j + 1].isspace():
+            j += 1
+        fields.append(data[i:j])
+        i = j
+    return int(fields[1]), int(fields[2]), data[i + 1:]
+
+
+W, H, A = read(fpath)
+_, _, B = read(rpath)
+
+
+def ring(px, py):
+    if not (0 <= px < W and 0 <= py < H):
+        return False
+    o = (py * W + px) * 3
+    # (towards the ring's colour by a clear step: a 1 px ring's antialiased round ends are blends, never the colour itself)
+    da = sum(abs(A[o + k] - RING[k]) for k in range(3))
+    db = sum(abs(B[o + k] - RING[k]) for k in range(3))
+    return db - da > 40
+
+
+out = {}
+xs = range(x + w // 4, x + 3 * w // 4)
+ys = range(y + h // 4, y + 3 * h // 4)
+for side, lines, span, pt in (
+        ("top", range(y - 12, y + h // 3), xs, lambda l, s: (s, l)),
+        ("bottom", range(y + 2 * h // 3, y + h + 12), xs, lambda l, s: (s, l)),
+        ("left", range(x - 12, x + w // 3), ys, lambda l, s: (l, s)),
+        ("right", range(x + 2 * w // 3, x + w + 12), ys, lambda l, s: (l, s))):
+    hits = sum(1 for s in span if any(ring(*pt(l, s)) for l in lines))
+    out[side] = round(hits / max(1, len(span)), 2)
+print(json.dumps(out))
+sys.exit(0 if all(v >= 0.7 for v in out.values()) else 1)
+PY
+focus_at() { grep -o 'quick-at focus .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }'; }
+tile_at() { grep -o "quick-at tile:$1 .*" "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }'; }
+# ring_box <kind>: the focused item's box; a compact tile's ring is round its button only (its label stands under it).
+ring_box() {
+  local fx fy fw fh
+  read -r fx fy fw fh < <(focus_at)
+  [ -n "${fx:-}" ] || fail "the card logged no focused item"
+  [ "${COMPACT:-0}" = 1 ] && [ "$1" = tile ] && fh=48
+  echo "$fx $fy $fw $fh"
+}
+# ring_whole <shot> <reference shot> "<x y w h>" <what>: the ring round the box has its four sides (evidence: <shot>.png).
+ring_whole() {
+  local res bx by bw bh
+  read -r bx by bw bh <<<"$3"
+  res=$(python3 -I "$W/ring.py" "$W/$1.ppm" "$W/$2.ppm" "$bx" "$by" "$bw" "$bh" "$(token focus.ring c9404b)") \
+    || fail "$1: the focus ring round $4 is not whole: $res (box $3)"
+  timeout 20 grim -g "$(( bx - 30 )),$(( by - 30 )) $(( bw + 60 ))x$(( bh + 60 ))" "$OUT/$1.png" || fail "grim failed on $1"
+  echo "ok: $1: the focus ring round $4 is whole ($res)"
+}
+# tiles_inside: every logged tile lies inside the logged viewport (the rows' clip).
+tiles_inside() {
+  local vx vy vw vh id tx ty tw th
+  read -r vx vy vw vh < <(grep -o 'quick-at viewport .*' "$R/qs.log" | tail -1 | awk '{ print $3, $4, $5, $6 }')
+  [ -n "${vx:-}" ] || fail "$1: the card logged no viewport"
+  for id in wifi bluetooth focus volume power brightness caffeine nightlight recorder darkmode; do
+    read -r tx ty tw th < <(tile_at "$id")
+    [ -n "${tx:-}" ] || continue
+    [ "$tx" -ge "$vx" ] && [ "$ty" -ge "$vy" ] && [ $(( tx + tw )) -le $(( vx + vw )) ] && [ $(( ty + th )) -le $(( vy + vh )) ] \
+      || fail "$1: tile $id ($tx $ty $tw $th) is cut by the viewport ($vx $vy $vw $vh)"
+  done
+  echo "ok: $1: every tile stands inside the card's viewport"
+}
+# ring_pass <prefix>: the card opened, the keyboard on its first tile, then its last core tile, then the Wi-Fi page.
+ring_pass() {
+  K act quick.toggle >/dev/null
+  for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+  [ "$(panel)" = quick ] || fail "$1: quick.toggle did not open the card"
+  settle 1.5
+  local tx ty tw th n
+  read -r tx ty tw th < <(tile_at wifi)
+  # (a press on the card's edge beside the first tile gives the card the keyboard without pressing a control)
+  click "$(( tx - 3 ))" "$(( ty + th + 2 ))"
+  for n in $(seq 12); do
+    [ "$(focus_at)" = "$(tile_at wifi)" ] && break
+    press tab
+    sleep 0.5
+  done
+  [ "$(focus_at)" = "$(tile_at wifi)" ] || fail "$1: Tab did not reach the Wi-Fi tile (focus $(focus_at))"
+  tiles_inside "$1"
+  # (the first and the last tile are each the other's reference shot: far apart; the back key's is the page's switch)
+  local first last back
+  first=$(ring_box tile)
+  ppm_shot "$1-ring-first" 1
+  for n in $(seq 9); do press tab; done
+  sleep 0.6
+  [ "$(focus_at)" = "$(tile_at darkmode)" ] || fail "$1: Tab did not reach the last tile (focus $(focus_at))"
+  last=$(ring_box tile)
+  ppm_shot "$1-ring-last" 1
+  ring_whole "$1-ring-first" "$1-ring-last" "$first" "the first tile"
+  ring_whole "$1-ring-last" "$1-ring-first" "$last" "the last tile"
+  for n in $(seq 9); do press shift+tab; done
+  press right
+  settle 1.5
+  sleep 0.8
+  back=$(ring_box back)
+  ppm_shot "$1-ring-back" 1
+  press tab
+  ppm_shot "$1-ring-back-ref" 1
+  ring_whole "$1-ring-back" "$1-ring-back-ref" "$back" "the Wi-Fi page's back key"
+  K act ui.close >/dev/null
+  settle 1
+}
+COMPACT=0 ring_pass card
+K act mock.doc '{"doc":"theme","patch":{"tokens":{"decor.quick.frame":"flyout","decor.quick.tiles":"compact","decor.focus.style":"double","decor.focus.offset":6}}}' >/dev/null \
+  || fail "mock.doc refused the flyout's decor"
+COMPACT=1 ring_pass flyout
+K act mock.doc '{"doc":"theme","patch":{"tokens":{"decor.quick.frame":"phone","decor.quick.tiles":"wide","decor.focus.style":"ring","decor.focus.offset":0}}}' >/dev/null || true
 
 exec 3>&-
 stop_phase
