@@ -22,11 +22,25 @@ Item {
             || Qt.colorEqual(rb.color, Theme.tok("color.surface_container_low", "#000")))
     readonly property real lineW: rb.penned ? 0 : rb.bw
 
+    // PROTOTYPE (session 27, I471 b/d): `KURASHI_PROTO_EDGE=ripped|paint` draws the fill with a torn or a painted edge.
+    readonly property string protoEdge: Theme.protoEdge
+    readonly property bool edged: protoEdge !== "" && rb.color.a > 0.05 && rb.width > 12 && rb.height > 12
+    Loader {
+        anchors.fill: parent
+        anchors.margins: -8
+        active: rb.edged
+        source: active ? "EdgeFill.qml" : ""
+        onLoaded: {
+            item.radius = Qt.binding(function () { return rb.radius })
+            item.fill = Qt.binding(function () { return rb.color })
+            item.mode = Qt.binding(function () { return rb.protoEdge })
+        }
+    }
     Rectangle {
         anchors.fill: parent
         visible: !rb.sq
         radius: rb.radius
-        color: rb.color
+        color: rb.edged ? "transparent" : rb.color
         border.width: rb.lineW
         border.color: rb.border.color
     }

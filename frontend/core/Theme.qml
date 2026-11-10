@@ -92,6 +92,8 @@ Singleton {
     // K45: soft and line chrome. Read the widths and colours, never `chromeStyle` to pick a look (rule 4); the
     // style name is for logs and tests.
     readonly property string chromeStyle: tok("chrome.style", "flat")
+    // PROTOTYPE (session 27, I471 b/d): an edge style for boxes, from the environment until it is a setting.
+    readonly property string protoEdge: String(Quickshell.env("KURASHI_PROTO_EDGE") || "")
     // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
     // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its
     // own outline on a translucent canvas (Sketch) and sets the alpha itself.
