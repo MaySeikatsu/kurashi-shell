@@ -52,3 +52,18 @@ push (rubber-band) to leave it. The user named both; alone is built because it n
 ## Definition of done
 Step 1: [x] list, mark, alone, keyboard, a11y names; [ ] a `settings/test.sh` part; [ ] mods' pages; [ ] ja check of
 long section names in the sidebar (they elide).
+
+## Step 2, built (session 27, I479): the user's decisions
+- **The sidebar scrolls** (wheel, touchpad; the keyboard brings the focused entry into view; a thin bar while there is
+  more than fits). User: "it's not possible to scroll it and that makes it impossible to reach some options".
+- **Sections are listed by the page's arrow**, not by opening the page: a click on the arrow, or Right on the entry,
+  lists them; a click again, or Left, folds them away (and shows the whole page). They also stay listed while one of
+  them is shown alone. Nothing is remembered: every page starts closed.
+- **Scroll resistance**: with one section shown alone, scrolling on past its end (or back past its start) shows a pill
+  at that end ("Keep scrolling for the whole page") that fills with the push; about three notches (420 px on a touchpad)
+  open the whole page at that section, on the side the scrolling came from. The push relaxes after 1.8 s, so a stray
+  notch does nothing.
+- Suite: `settings/test.sh` S1 to S3.
+- Open: the Modules group (Island, Launcher, Dock, Sidebar as Modules), plugin-defined top-level pages and sections
+  (the path's syntax is the lead's choice), icons from a mod's manifest.
+
