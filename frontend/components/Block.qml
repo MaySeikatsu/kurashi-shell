@@ -52,6 +52,9 @@ Item {
     property real softScale: 1
     // (B79: the room a ring of light has round this block, SoftShadow's `room`)
     property real glowRoom: -1
+    // (I471b: a block that stands by itself on the desk or the bar — a bar's group, the island's pill — is painted
+    // however narrow it is; a narrow one inside a painted surface is not)
+    property bool paintAlways: false
     // K62: the pen's salt for this block's outline (≥ 0); -1 = the block's place in its parent (pen.js `salt`).
     property int penSeed: -1
     // W53.5: false keeps the look's frame off this block (a text field drawn as an underline: `[decor] field.form`).
@@ -110,7 +113,7 @@ Item {
         height: blk.faceH
         // (a small thing with a ground's fill — a digit's tile, a day, a small key — stands on the surface's paint: no
         // stroke of its own; one that says something keeps its colour)
-        active: blk.painted && (!blk.paintGround || blk.width >= 96)
+        active: blk.painted && (!blk.paintGround || blk.width >= 96 || blk.paintAlways)
         // (a block as tall as a card is covered in bands; a key, a tile or a bar's group is one stroke)
         sourceComponent: PaintBands {
             color: blk.paintGround ? (blk.faceH > 96 ? Theme.paintGround : Theme.paintControl)

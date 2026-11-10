@@ -20,5 +20,6 @@ Block {
     ringScale: 0.5
     softScale: 0.3
     glowRoom: 3
+    paintAlways: true
     fill: Theme.lifted ? Theme.surfaceAlpha : "transparent"
 }

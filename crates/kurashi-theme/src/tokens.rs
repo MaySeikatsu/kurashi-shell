@@ -8,7 +8,7 @@ use crate::ThemeError;
 use crate::appearance::{DECOR_KEYS, DecorKind, SLOTS};
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
-use crate::input::{Axes, Chrome, Decor, Density, FrameOutline, Material, Shape};
+use crate::input::{Axes, Chrome, Decor, Density, Edge, FrameOutline, Material, Shape};
 use crate::palette::{Palette, ROLES};
 
 /// The squircle's control-point ratio at `theme.shape.squircle` 0 (a circle's quarter, `K_CIRCLE` in corner.js) and 1.
@@ -315,7 +315,7 @@ pub fn build(
     // (`[decor] icon.fill`, `icon.weight`; -1 = the chrome's).
     let (icon_fill, icon_weight) = match axes.chrome {
         Chrome::Keycap => (1, 600),
-        Chrome::Soft | Chrome::Flat | Chrome::Bevel => (0, 400),
+        Chrome::Soft | Chrome::Flat | Chrome::Bevel | Chrome::Painted | Chrome::Ripped => (0, 400),
         Chrome::Line | Chrome::Glow => (0, 300),
     };
     let own_or = |key: &str, d: i64| match dnum(key) as i64 {
@@ -350,6 +350,9 @@ pub fn build(
         Chrome::Bevel => "bevel",
         // (the motion's automatic profile knows the five; a glowing outline moves as the lines do)
         Chrome::Glow => "line",
+        // (paint and torn paper move as the flat and the soft chrome do)
+        Chrome::Painted => "flat",
+        Chrome::Ripped => "soft",
     };
     let motion = kurashi_motion::resolve::resolve(&axes.motion, axes.motion_speed, chrome);
     t.extend(motion.tokens);
@@ -450,6 +453,32 @@ pub fn build(
             // (B79: the frame's line is a tube too: FramePieces lights it as the blocks' outlines are lit)
             frame_outline: true,
         },
+        // I471b (K124): paint. No outline, ring or shadow: a ground is strokes of a brush (the edge). Blocks stand as
+        // groups (a bar's group is one stroke); a press shrinks a little.
+        Chrome::Painted => Ch {
+            style: "painted",
+            outline: 0.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 0.0,
+            soft_dy: 0.0,
+            press_scale: 0.97,
+            groups: true,
+            frame_outline: false,
+        },
+        // I471d (K124): torn paper. No outline (the tear's white core is the edge); a short soft shadow, as a sheet lying
+        // a little off the desk.
+        Chrome::Ripped => Ch {
+            style: "ripped",
+            outline: 0.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 9.0,
+            soft_dy: 2.0,
+            press_scale: 0.97,
+            groups: true,
+            frame_outline: false,
+        },
         Chrome::Bevel => Ch {
             style: "bevel",
             outline: 0.0,
@@ -480,6 +509,23 @@ pub fn build(
         FrameOutline::Off => false,
     };
     t.insert("frame.outline".into(), json!(frame_outline));
+    // I471, I477 (K124): the edge. `theme.edge` picks it; Automatic follows the chrome. `edge.depth`: how far a tear
+    // bites and paint wanders (px); `edge.uneven`: the paint's unevenness; `paint.blend`: how far it runs into its
+    // second colour.
+    let edge = match axes.edge {
+        Edge::Auto => match axes.chrome {
+            Chrome::Painted => "painted",
+            Chrome::Ripped => "ripped",
+            _ => "clean",
+        },
+        Edge::Clean => "clean",
+        Edge::Painted => "painted",
+        Edge::Ripped => "ripped",
+    };
+    t.insert("edge.style".into(), json!(edge));
+    px(&mut t, "edge.depth", 4.0);
+    t.insert("edge.uneven".into(), json!(1.0));
+    t.insert("paint.blend".into(), json!(0.7));
     // B79: the frame's line lit, apart from the chrome: asked for (`glow`, under any chrome), or automatic under the
     // Glow chrome; `on` there keeps the line without its light. `frame.outline_auto` is what Automatic gives under this
     // chrome, for Settings' preview of that choice.
@@ -547,7 +593,9 @@ pub fn build(
             if p.dark { WHITE } else { g("on_surface") },
             if p.dark { 0.16 } else { 0.10 },
         ),
-        Chrome::Flat | Chrome::Bevel => (g("outline_variant"), 0.0),
+        Chrome::Flat | Chrome::Bevel | Chrome::Painted | Chrome::Ripped => {
+            (g("outline_variant"), 0.0)
+        }
     };
     col(&mut t, "chrome.outline_color", oc);
     // W53.0a (K80): the bevel — 0 wide unless the chrome is one — and its four lines: outer light/dark, inner light/dark,
