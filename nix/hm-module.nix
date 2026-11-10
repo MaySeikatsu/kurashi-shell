@@ -163,6 +163,27 @@ in
       '';
     };
 
+    palettes = lib.mkOption {
+      type = lib.types.attrsOf toml.type;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          ume = {
+            label = "Ume";
+            dark = { surface = "#231a1e"; on_surface = "#f2e4e8"; accent = "#e88aa6";
+                     secondary = "#8fb3d9"; tertiary = "#b6d38f"; warning = "#e8b36a"; };
+          };
+        }
+      '';
+      description = ''
+        Your own palettes (I453), each written to {file}`~/.config/kurashi/palettes/<name>.toml` in the
+        bundled palettes' format (`label`, `[dark]` and/or `[light]` roles, optional `[dark.terminal]`).
+        They are listed under "Your own" in Settings › Appearance › Colours beside the palettes made there;
+        Settings shows these as read-only (the files are links into the store). Pick one with
+        `settings.theme.colors.palette = "<name>"`. Names are file names: a–z, 0–9 and -.
+      '';
+    };
+
     enforce = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -310,6 +331,15 @@ in
   };
 
   config = lib.mkMerge [
+    # I453: the user's palettes, one file each; the daemon lists them under "Your own" (read-only: links).
+    (lib.mkIf (cfg.enable && cfg.palettes != { }) {
+      xdg.configFile = lib.mapAttrs' (
+        name: palette:
+        lib.nameValuePair "kurashi/palettes/${name}.toml" {
+          source = toml.generate "kurashi-palette-${name}.toml" ({ category = "custom"; } // palette // { inherit name; });
+        }
+      ) cfg.palettes;
+    })
     (lib.mkIf cfg.enable {
       # wl-copy: the launcher copies a calculation (K42 session).
       # The gsettings theme target runs `gsettings` from the daemon's PATH (glib's bin output holds it, K49).
@@ -333,6 +363,11 @@ in
         {
           assertion = lib.all (key: builtins.match "[A-Za-z0-9_+-]+" key != null) (lib.attrNames cfg.niri.binds.keys);
           message = "programs.kurashi.niri.binds.keys: niri key names may use letters, digits, _, + and - only.";
+        }
+        {
+          # The daemon's own rule for a user palette's name (kurashi_theme::palette::check_name).
+          assertion = lib.all (name: builtins.match "[a-z0-9][a-z0-9-]{0,47}" name != null) (lib.attrNames cfg.palettes);
+          message = "programs.kurashi.palettes: names are file names of a–z, 0–9 and - (at most 48), starting with a letter or digit.";
         }
       ];
 

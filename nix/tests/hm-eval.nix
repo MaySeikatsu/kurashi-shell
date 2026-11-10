@@ -32,6 +32,18 @@ let
     settings.theme.palette = "wa-iro";
     enforce = true;
     extraEnvironment.RUST_LOG = "kurashid=debug";
+    # I453: a palette of the user's, written as a file the daemon lists under "Your own".
+    palettes.ume = {
+      label = "Ume";
+      dark = {
+        surface = "#231a1e";
+        on_surface = "#f2e4e8";
+        accent = "#e88aa6";
+        secondary = "#8fb3d9";
+        tertiary = "#b6d38f";
+        warning = "#e8b36a";
+      };
+    };
   };
 
   evalHm = kurashi: evalHmWith kurashi { };
@@ -105,6 +117,7 @@ let
     [ "frontend ordered after kurashid" (lib.elem "kurashid.service" front.Unit.After) ]
     [ "extraEnvironment reaches both" (daemon.Service.Environment == [ "RUST_LOG=kurashid=debug" ] && lib.elem "RUST_LOG=kurashid=debug" front.Service.Environment) ]
     [ "managed.toml generated" (cfg.xdg.configFile ? "kurashi/managed.toml") ]
+    [ "palettes: one file per palette" (cfg.xdg.configFile ? "kurashi/palettes/ume.toml") ]
     [ "niri binds file written when enabled" (cfg.xdg.configFile ? "niri/kurashi-binds.kdl") ]
     [ "niri binds: Mod+Space runs the launcher through the package CLI" (lib.hasInfix "{ spawn \"${kurashiBin}\" \"act\" \"launcher.toggle\"; }" (lineFor "Mod+Space")) ]
     [ "niri binds: the right sidebar passes its JSON argument" (lib.hasInfix "Mod+Shift+N repeat=false { spawn \"${kurashiBin}\" \"act\" \"sidebar.toggle\" \"{\\\"side\\\":\\\"right\\\"}\"; }" (lineFor "Mod+Shift+N")) ]
@@ -148,6 +161,7 @@ pkgs.runCommand "kurashi-hm-eval"
     activation = cfg.home.activationPackage;
     managed = cfg.xdg.configFile."kurashi/managed.toml".source;
     niriValidated = niriValidate;
+    palette = cfg.xdg.configFile."kurashi/palettes/ume.toml".source;
   }
   ''
     unit=$activation/home-files/.config/systemd/user
@@ -160,5 +174,9 @@ pkgs.runCommand "kurashi-hm-eval"
     grep -q 'palette = "wa-iro"' $managed
     grep -q 'enforce = true' $managed
     test -f $activation/home-files/.config/niri/kurashi-binds.kdl
+    grep -q 'category = "custom"' $palette
+    grep -q 'name = "ume"' $palette
+    grep -q 'accent = "#e88aa6"' $palette
+    test -f $activation/home-files/.config/kurashi/palettes/ume.toml
     touch $out
   ''
