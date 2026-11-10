@@ -19,6 +19,8 @@ i.addEventListener('input', () => {
   document.getElementById('o').textContent = 'typed: ' + i.value;
   console.log('INPUT ' + i.value);
 });
+// I482: Esc reaches the page first (the host hands it on); the card suite reads this line.
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') console.log('ESCAPE seen'); });
 // The visits of this profile's localStorage: pins on one profile count together, pins on two profiles do not.
 const n = Number(localStorage.getItem('visits') || 0) + 1;
 localStorage.setItem('visits', n);
