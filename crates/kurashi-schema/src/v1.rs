@@ -1869,6 +1869,18 @@ pub struct Clock {
 
 // --- desktop widgets (K43) --------------------------------------------------------------------
 
+/// How a desktop card is held (I471c, K118).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "desktop_post")]
+pub enum DesktopPost {
+    /// Flat
+    None,
+    /// Pinned
+    Pin,
+    /// Taped
+    Tape,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum Side {
     Left,
@@ -1887,6 +1899,11 @@ pub struct Desktop {
     /// the right below (or in the desk's edit mode, Alt+Left/Right).
     #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
     pub side: Side,
+    /// Posted
+    /// How the cards are held on the desktop: lying flat, held by a pin, or stuck with tape. A pinned or taped card
+    /// hangs a little crooked, each its own way.
+    #[kurashi(default = DesktopPost::None, requires = "desktop.enabled == true", since = 7)]
+    pub post: DesktopPost,
     /// Clock
     /// The time in big keys, with the date.
     #[kurashi(default = true, requires = "desktop.enabled == true")]

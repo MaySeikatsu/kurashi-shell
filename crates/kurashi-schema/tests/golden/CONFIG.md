@@ -2075,6 +2075,15 @@ The column a card neither list below names stands in. Both columns show at once:
 - only while `desktop.enabled == true`
 - per-output
 
+#### `desktop.post` — Posted
+
+How the cards are held on the desktop: lying flat, held by a pin, or stuck with tape. A pinned or taped card hangs a little crooked, each its own way.
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"pin"` | `"tape"`
+- only while `desktop.enabled == true`
+- since schema v7
+
 #### `desktop.clock` — Clock
 
 The time in big keys, with the date.

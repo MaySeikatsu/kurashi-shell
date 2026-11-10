@@ -364,3 +364,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S27.6 | Tray icons inside their outline on a thin bar (B61, partly) | ✅ · ✅ UX (seen live) | fix/s27-tray-size |
 | S27.7 | Every colour change fades (I472 step 1, K117) | ✅ functional · 🟡 UX (a burst on nested niri; no suite) | feat/s27-colour-blend |
 | S27.8 | Settings: a page's sections in the sidebar (I464 step 1) | ✅ functional · 🟡 UX (seen on nested niri; no suite step) | feat/s27-settings-sections |
+| S27.9 | Posted desktop cards: pin or tape (I471c, K118) | ✅ functional · 🟡 UX (seen on nested niri; the user judges) | feat/s27-desktop-posted |
