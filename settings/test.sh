@@ -1223,8 +1223,11 @@ kp return
 echo "sections S1: Right lists the open page's sections, Tab reaches them, Return shows one alone (${first_sub#sub:})"
 # S2: scroll resistance: one notch against the section's end shows the hint and keeps the section; going on opens the
 # whole page.
-timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1; sleep 0.4
-if [ "$(Q sectionPush)" -eq 0 ]; then timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -6 0.08; sleep 0.4; timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1; sleep 0.3; fi
+# (a section longer than the view scrolls to its end first: single notches until one pushes)
+for _ in $(seq 40); do
+  timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -1 0.1; sleep 0.35
+  [ "$(Q sectionPush)" -gt 0 ] && break
+done
 [ "$(Q sectionPush)" -gt 0 ] && [ -n "$(Q soloSection)" ] || fail "sections S2: a notch against the section's end did not push (push $(Q sectionPush), section '$(Q soloSection)')"
 shot sections-push
 timeout 30 python3 -I tools/bench/wl_pointer.py wheel 960 500 -4 0.08; sleep 0.6
