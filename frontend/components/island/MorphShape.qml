@@ -29,6 +29,9 @@ import "../../core/corner.js" as Corner
 // Its springs live in MorphSprings (same folder), which a surface can reuse with it.
 Shape {
     id: sh
+    // I471d (K121): a torn edge: the whole shape through one layer, redrawn only while it morphs.
+    layer.enabled: Theme.edgeTorn
+    layer.effect: EdgeWarp {}
     property real x0: 0
     property real y0: 0
     property real w: 0
