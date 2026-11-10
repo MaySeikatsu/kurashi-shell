@@ -127,14 +127,17 @@ PanelWindow {
     // most a second (WebCard's pulse), then on demand again.
     property bool winActive: false
     property bool pulseSpent: true
-    // The user is using the page: a press in it, or the keyboard asked for it. Only then is the window's keyboard focus
-    // reported as `engaged` (the shell makes the card the user's): a compositor may hand a freshly mapped on-demand layer
-    // the keyboard without anyone using it.
+    // The user is using the page: a press in it, or the keyboard asked for it — reported as `engaged` (the shell makes the
+    // card the user's, as a press in the card does). Not the window's keyboard focus alone: a compositor may hand a freshly
+    // mapped on-demand layer the keyboard without anyone using it, and one with no keyboard device sends no focus at all.
     property bool wantKeys: false
     function pressed() {
         if (!cardRole) return
+        if (debugLog) console.log("webdock-debug card press")
         wantKeys = true
-        reportPage(hoverSent, winActive)
+        // (a compositor that does not hand an on-demand layer the keyboard on a click gets the pulse)
+        if (!winActive) pulseSpent = false
+        reportPage(hoverSent, true)
     }
     readonly property bool asksKeys: cardRole && visible && !winActive && !pulseSpent
     onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
@@ -145,7 +148,7 @@ PanelWindow {
             wantKeys = true
             pulseSpent = false
             if (winActive && page) page.engine.forceActiveFocus()
-            reportPage(hoverSent, winActive)
+            reportPage(hoverSent, true)
         }
         focusSeen = focusAsks
     }
@@ -171,7 +174,7 @@ PanelWindow {
             z: 100
             HoverHandler {
                 enabled: side.cardRole
-                onHoveredChanged: side.reportPage(hovered, side.winActive && side.wantKeys)
+                onHoveredChanged: side.reportPage(hovered, side.wantKeys)
             }
             PointHandler {
                 enabled: side.cardRole
@@ -180,9 +183,10 @@ PanelWindow {
             }
         }
         Window.onActiveChanged: {
+            if (side.debugLog) console.log("webdock-debug " + side.tag + " keyboard " + (Window.active ? "in" : "out"))
             side.winActive = Window.active
             if (Window.active) side.pulseSpent = true
-            side.reportPage(side.hoverSent, Window.active && side.wantKeys)
+            side.reportPage(side.hoverSent, side.wantKeys)
             if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
         }
         // W72: Esc closes the bar card, wherever the keyboard is in its window (a popover's Esc, as the Stage's own keys).

@@ -35,6 +35,7 @@ cp "$BIN/kurashid" "$BIN/kurashi" "$W/"
 pids=()
 cleanup() {
   exec 9>&- 2>/dev/null || true
+  exec 8>&- 2>/dev/null || true
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
@@ -130,6 +131,12 @@ rm -f "$R/ptr.fifo"; mkfifo "$R/ptr.fifo"
 python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$R/ptr.fifo" >> "$W/ptr.log" 2>&1 &
 pids+=($!)
 exec 9> "$R/ptr.fifo"
+# One keyboard for the whole run too: without a keyboard on the seat the compositor sends no keyboard focus at all.
+rm -f "$R/keys.fifo"; mkfifo "$R/keys.fifo"
+python3 -I "$ROOT/tools/bench/wl_keys.py" --serve < "$R/keys.fifo" >> "$W/keys.log" 2>&1 &
+pids+=($!)
+exec 8> "$R/keys.fifo"
+keys() { echo "$*" >&8; sleep 0.3; }
 mv_to() { echo "move $1 $2" >&9; sleep 0.15; }
 ptr() { echo "click $1 $2 ${3:-left}" >&9; sleep 0.25; }
 
@@ -235,7 +242,17 @@ ok "the same pin at the edge: the card keeps the page, the edge takes it once th
 qml_errors
 
 # ---- 5. hover: the pointer from the module into the page keeps the card ----
-MX=$(( W_OUT - 18 )); MY=14
+# Where the module stands: the x whose right click opens its menu (`module:mod:webdock:webdock`), scanning the end zone.
+tray_is() { doc_is "d.get('tray', '') == '$1'" runtime.ui; }
+MX=""; MY=14
+for x in $(seq $(( W_OUT - 8 )) -8 $(( W_OUT - 200 ))); do
+  ptr "$x" "$MY" right
+  if wait_until 1 tray_is module:mod:webdock:webdock; then MX=$x; K act ui.close >/dev/null; wait_until 3 panel_closed; break; fi
+  tray_is "" || { K act ui.close >/dev/null; wait_until 3 tray_is ""; }
+done
+[ -n "$MX" ] || fail "the dock's module was not found on the bar"
+wait_until 3 tray_is "" || fail "the module's menu did not close"
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
 K set bar.hover '"card"' >/dev/null || fail "bar.hover = card was refused"
 wait_until 5 eval 'K get bar.hover | grep -q card'
 mv_to "$MX" "$MY"
@@ -262,13 +279,16 @@ K set bar.hover '"preview"' >/dev/null
 K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
 wait_until 5 panel_open || fail "the card did not open"
 wait_px "$CX" "$CY" '#2b3a55' 15
-read -r _ _ _ _ _ GY _ <<< "$(card_line site)"
-# the page's text field: the page's first line under the heading (site.html: 16 px margin, an h1, then the input)
-ptr $(( X + 60 )) $(( Y + GY + 90 ))
-wait_until 5 doc_is "d['card'].get('engaged') == True" || fail "a click in the page did not give it the keyboard"
-python3 -I "$ROOT/tools/bench/wl_keys.py" h i >/dev/null
+read -r _ _ _ _ _ _ GY _ <<< "$(card_line site)"
+# the page's text field: under the heading (site.html: an h1, then the input)
+mv_to $(( X + 60 )) $(( Y + GY + 100 ))
+sleep 0.3
+ptr $(( X + 60 )) $(( Y + GY + 100 ))
+wait_until 5 doc_is "d['card'].get('engaged') == True" || fail "a click in the page was not reported (engaged)"
+wait_until 5 grep -qF 'webdock-debug card keyboard in' "$HOSTLOG" || fail "a click in the page did not give it the keyboard"
+keys h i
 wait_until 5 grep -qF 'INPUT hi' "$HOSTLOG" || fail "typing did not reach the page ($HOSTLOG)"
-python3 -I "$ROOT/tools/bench/wl_keys.py" escape >/dev/null
+keys escape
 wait_until 5 panel_closed || fail "Esc in the page did not close the card"
 ok "a click in the page gives it the keyboard (typed text arrives); Esc closes the card"
 qml_errors

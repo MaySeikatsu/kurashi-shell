@@ -71,10 +71,12 @@ Item {
         visible: page.active
         focus: page.active
         // Hidden pages are Frozen (no timers, no painting) unless they play audio (brief "Fit and constraints").
-        // (W72: read from the view's own `visible`, so the freeze follows the hide — "page is visible" refused it when the
-        // freeze came first)
-        lifecycleState: (web.visible || web.recentlyAudible) ? WebEngineView.LifecycleState.Active
-            : WebEngineView.LifecycleState.Frozen
+        // (W72: the engine's own recommendation — Active while it is visible or audible — so the freeze comes once the
+        // engine has seen the hide; set at the hide itself it was refused, "page is visible", and the page stayed Active.
+        // Never Discarded here: the dock's own rules unload a page.)
+        lifecycleState: web.recommendedState === WebEngineView.LifecycleState.Active || web.recentlyAudible
+            || (page.active && web.visible)
+            ? WebEngineView.LifecycleState.Active : WebEngineView.LifecycleState.Frozen
 
         onLoadingChanged: request => {
             if (request.status === WebEngineView.LoadStartedStatus) {
@@ -109,8 +111,9 @@ Item {
         PrivateView {
             anchors.fill: parent
             z: 1
-            lifecycleState: (page.active || recentlyAudible) ? WebEngineView.LifecycleState.Active
-                : WebEngineView.LifecycleState.Frozen
+            lifecycleState: recommendedState === WebEngineView.LifecycleState.Active || recentlyAudible
+                || (page.active && visible)
+                ? WebEngineView.LifecycleState.Active : WebEngineView.LifecycleState.Frozen
         }
     }
 
