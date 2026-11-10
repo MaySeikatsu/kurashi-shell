@@ -8,11 +8,9 @@ the whole bar, and a module may take its own. Whatever a hover shows grows out o
 ## How others do it
 - **Caelestia** (`modules/bar/popouts`): hovering a status icon opens its popout, joined to the bar; it follows the
   pointer along the bar and closes when the pointer leaves bar and popout. The model for this feature (user).
-- **Noctalia**, **DankMaterialShell**, **end-4**, **HyprPanel**: click opens; hover gives a tooltip. HyprPanel has no
-  hover-open; Noctalia has "open on hover" for its bar widgets' panels as a setting.
-- **KDE Plasma**: hover gives a tooltip or live window thumbnails; panels' applets open on click. **Windows 11**: hover
-  thumbnails on the taskbar, widgets board opens on hover (a setting, much disliked when it cannot be turned off).
-- **GNOME**, **macOS**, **COSMIC**: click only.
+- **Noctalia**, **DankMaterialShell**, **end-4**, **HyprPanel**, **KDE Plasma**, **Windows 11**, **GNOME**, **macOS**,
+  **COSMIC**: not checked for this brief (from memory: a click opens, a hover gives a tooltip or a thumbnail; Windows'
+  widgets board opens on hover and that is widely disliked where it cannot be turned off).
 Taken: Caelestia's behaviour as an option, never the only way (Windows' lesson): off by default, a click always works.
 
 ## The setting
