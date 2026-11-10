@@ -433,6 +433,30 @@
       ],
       "tier": "mesh"
     },
+    "brush": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "pace": 1.9,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog",
+        "window"
+      ],
+      "tier": "layer"
+    },
     "crt": {
       "available": true,
       "family": "sheet",
@@ -945,6 +969,54 @@
         "window"
       ],
       "tier": "transform"
+    },
+    "snake": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "pace": 1.9,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog",
+        "window"
+      ],
+      "tier": "layer"
+    },
+    "splat": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "pace": 1.6,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog",
+        "window"
+      ],
+      "tier": "layer"
     },
     "stamp": {
       "available": true,
