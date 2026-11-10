@@ -14,3 +14,15 @@ SidebarToggle 1.0 SidebarToggle.qml
 ModWidget 1.0 ModWidget.qml
 ClockPeek 1.0 ClockPeek.qml
 Launcher 1.0 Launcher.qml
+ControlModule 1.0 ControlModule.qml
+Wifi 1.0 Wifi.qml
+Bluetooth 1.0 Bluetooth.qml
+AudioOut 1.0 AudioOut.qml
+Mic 1.0 Mic.qml
+Power 1.0 Power.qml
+Brightness 1.0 Brightness.qml
+Focus 1.0 Focus.qml
+Caffeine 1.0 Caffeine.qml
+NightLight 1.0 NightLight.qml
+DarkMode 1.0 DarkMode.qml
+Airplane 1.0 Airplane.qml

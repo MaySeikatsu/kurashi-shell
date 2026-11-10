@@ -6,6 +6,7 @@
 use crate::generate::{Field, rows};
 use crate::noise::{Rng, value_xy};
 use crate::raster::{bowl_at, groove};
+use std::f32::consts::FRAC_1_SQRT_2;
 
 /// Scratches per tile: a few, not a field. Most run with the brushing, the rest at a slant.
 const SCRATCHES: usize = 9;
@@ -52,4 +53,37 @@ pub fn brushed(f: &mut Field, seed: u64) {
         let sign = if rng.unit() < 0.5 { 1.0 } else { -1.0 };
         bowl_at(f, x, y, rng.range(1.2, 2.2), sign * rng.range(0.35, 0.7));
     }
+}
+
+/// The tread's pitch, logical px: one lozenge a cell (every tile holds an even count of cells, so the pattern wraps).
+const TREAD_PITCH: f32 = 24.0;
+/// A lozenge: its half length and half width (logical px) and how far it stands off the plate.
+const TREAD: (f32, f32, f32) = (9.4, 2.7, 1.5);
+
+/// Tread plate (`tread_plate`; I470, the user's picture of steel diamond plate): rolled steel with raised lozenges, one a
+/// cell, lying at 45° one way and the other in a checkerboard. A lozenge is a leaf: pointed at its ends, round across,
+/// highest along its spine. The plate between them is the brushed sheet, much quieter, so the tread leads. No ink: the
+/// material is its gloss, and under `shadows = auto` the lozenges cast.
+pub fn tread_plate(f: &mut Field, seed: u64) {
+    brushed(f, seed);
+    let (n, g) = (f.n, f.grid());
+    let (hl, hw, height) = TREAD;
+    rows(n, f.threads, &mut f.h, |iy, h| {
+        let y = g.at(iy);
+        let j = (y / TREAD_PITCH).floor();
+        let dy = y - (j + 0.5) * TREAD_PITCH;
+        for (ix, out) in h.iter_mut().enumerate() {
+            let x = g.at(ix);
+            let i = (x / TREAD_PITCH).floor();
+            let dx = x - (i + 0.5) * TREAD_PITCH;
+            // Along and across the lozenge: it lies on one diagonal in even cells, on the other in odd ones.
+            let (a, b) = if (i as i64 + j as i64).rem_euclid(2) == 0 {
+                ((dx + dy) * FRAC_1_SQRT_2, (dx - dy) * FRAC_1_SQRT_2)
+            } else {
+                ((dx - dy) * FRAC_1_SQRT_2, (dx + dy) * FRAC_1_SQRT_2)
+            };
+            let t = 1.0 - (a.abs() / hl).powf(1.6) - (b / hw).powi(2);
+            *out = 0.3 * *out + height * t.max(0.0).powf(0.6);
+        }
+    });
 }

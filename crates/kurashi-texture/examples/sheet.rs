@@ -54,6 +54,8 @@ fn ink_colour(role: InkRole, dark: bool) -> [f32; 3] {
         (InkRole::OnSurface, true) => hex("#e9e4d8"),
         (InkRole::None, _) => [0.0; 3],
         (InkRole::Shade, _) => [0.0; 3],
+        (InkRole::Stain, false) => hex("#7a4e24"),
+        (InkRole::Stain, true) => hex("#9a6b3c"),
     }
 }
 

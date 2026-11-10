@@ -62,6 +62,8 @@ pub struct Config {
     pub title_bar: TitleBar,
     #[kurashi(nested)]
     pub cursor: Cursor,
+    #[kurashi(nested)]
+    pub quick: Quick,
 }
 
 // --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
@@ -258,6 +260,36 @@ pub struct Bar {
     /// cards open at the centre.
     #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
     pub popups_other: Vec<String>,
+    /// On hover
+    /// What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its
+    /// preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module
+    /// and what it opened; what a click opened stays.
+    #[kurashi(default = BarHover::Preview, since = 7)]
+    pub hover: BarHover,
+    /// Modules that show their preview on hover
+    /// These modules show their preview whatever the bar does on hover. A module's menu sets it too (On hover).
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_preview: Vec<String>,
+    /// Modules that open their card on hover
+    /// These modules open their card whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_card: Vec<String>,
+    /// Modules that open their menu on hover
+    /// These modules open their menu whatever the bar does on hover.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub hover_menu: Vec<String>,
+}
+
+/// What a hover on a bar module opens (I458; Caelestia's popouts open on hover).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "bar_hover")]
+pub enum BarHover {
+    /// Its preview
+    Preview,
+    /// Its card
+    Card,
+    /// Its menu
+    Menu,
 }
 
 /// Where a bar module's card comes out (I340; Noctalia's "panel position": at the widget or centred).
@@ -552,6 +584,8 @@ pub enum Chrome {
     Line,
     /// Bevel
     Bevel,
+    /// Glow
+    Glow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -721,7 +755,7 @@ pub struct Colors {
     /// Light or dark
     /// Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
-    #[kurashi(default = Scheme::Auto)]
+    #[kurashi(default = Scheme::Auto, module = "darkmode")]
     pub scheme: Scheme,
     /// Wallpaper colours
     /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
@@ -738,8 +772,9 @@ pub struct Colors {
     #[kurashi(default = ControlColours::Auto)]
     pub controls: ControlColours,
     /// App icons
-    /// The icons of apps in the dock, the bar's window list and the tray: as they are, in the text's colour, in the
-    /// palette's tones (each icon's drawing kept, dark to light in the palette's colours) or in its colours as sectors.
+    /// The icons of apps in the dock, the bar's window list, the tray, the launcher and notifications: as they are, in
+    /// the text's colour (a picture keeps its drawing as lighter and denser ink), in the palette's tones (dark to light
+    /// in the palette's colours) or in its colours (each part takes the palette colour nearest its own hue).
     #[kurashi(default = AppIconTint::Original)]
     pub app_icons: AppIconTint,
     /// Chrome fill
@@ -959,6 +994,12 @@ pub enum TextureKind {
     Brush,
     /// Display (pixel grid)
     Display,
+    /// Tread plate (steel)
+    TreadPlate,
+    /// Old paper (stained)
+    OldPaper,
+    /// Canvas (a little dirty)
+    Canvas,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -1443,6 +1484,16 @@ pub struct Motion {
     #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
+    /// Blend colour changes
+    /// A change of colours — a palette, light or dark, a look, the wallpaper's colours — fades over a third of a second
+    /// instead of cutting. Off with reduced motion and with the motion profile None.
+    #[kurashi(
+        default = true,
+        section = "profiles",
+        requires = "theme.motion.profile != none",
+        since = 7
+    )]
+    pub blend_colors: bool,
     // S21 (K86): the three tiers in page order: profiles, animation style (+ timing preset), advanced curves.
     #[kurashi(nested, section = "animation_style")]
     pub form: MotionForms,
@@ -1787,7 +1838,7 @@ pub struct Notifications {
     pub server: bool,
     /// Do not disturb
     /// Store notifications silently; critical ones still show.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "focus")]
     pub dnd: bool,
     /// History size
     /// How many notifications are kept.
@@ -1820,6 +1871,18 @@ pub struct Clock {
 
 // --- desktop widgets (K43) --------------------------------------------------------------------
 
+/// How a desktop card is held (I471c, K118).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "desktop_post")]
+pub enum DesktopPost {
+    /// Flat
+    None,
+    /// Pinned
+    Pin,
+    /// Taped
+    Tape,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum Side {
     Left,
@@ -1838,6 +1901,11 @@ pub struct Desktop {
     /// the right below (or in the desk's edit mode, Alt+Left/Right).
     #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
     pub side: Side,
+    /// Posted
+    /// How the cards are held on the desktop: lying flat, held by a pin, or stuck with tape. A pinned or taped card
+    /// hangs a little crooked, each its own way.
+    #[kurashi(default = DesktopPost::None, requires = "desktop.enabled == true", since = 7)]
+    pub post: DesktopPost,
     /// Clock
     /// The time in big keys, with the date.
     #[kurashi(default = true, requires = "desktop.enabled == true")]
@@ -2037,7 +2105,7 @@ pub struct Idle {
     /// Idle actions
     /// Dim, lock, turn the screens off and suspend after a time without input. Apps that play video
     /// or calls that are on keep the screen awake (they inhibit idle).
-    #[kurashi(default = true)]
+    #[kurashi(default = true, module = "caffeine")]
     pub enabled: bool,
     /// Dim after
     /// Lowers the brightness a little before locking. 0 = never.
@@ -2057,7 +2125,7 @@ pub struct Idle {
     pub suspend_after: u32,
     /// Stay awake while media plays
     /// Music or video that plays keeps the screen on.
-    #[kurashi(default = true, requires = "idle.enabled == true")]
+    #[kurashi(default = true, requires = "idle.enabled == true", module = "caffeine")]
     pub inhibit_while_media: bool,
 }
 
@@ -2078,15 +2146,15 @@ pub enum NightSchedule {
 pub struct NightLight {
     /// Night light
     /// Warmer colours in the evening (wlsunset). Off by default.
-    #[kurashi(default = false)]
+    #[kurashi(default = false, module = "nightlight")]
     pub enabled: bool,
     /// Warmth
     /// Colour temperature at night; lower is warmer.
-    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true")]
+    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true", module = "nightlight")]
     pub temperature: u32,
     /// Schedule
     /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
-    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true")]
+    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true", module = "nightlight")]
     pub schedule: NightSchedule,
     /// From
     /// Start of the night colours, as HH:MM.
@@ -2268,6 +2336,47 @@ pub struct Sidebar {
     /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
+}
+
+// --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
+
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
+pub const QUICK_TILES: [&str; 10] = [
+    "wifi",
+    "bluetooth",
+    "focus",
+    "audio",
+    "power",
+    "brightness",
+    "caffeine",
+    "nightlight",
+    "recorder",
+    "darkmode",
+];
+
+/// How the control centre looks (W70 stage d).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "quick_style")]
+pub enum QuickStyle {
+    /// A card, as the others
+    Card,
+    /// A phone
+    Phone,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout", section = "control_centre")]
+pub struct Quick {
+    /// Control centre look
+    /// A card as the shell's other cards: joined to its bar, in the look's material and outline (a look may draw its own
+    /// flyout instead). Or a phone: a status row with the time, a greeting and keycap tiles inside a phone's frame.
+    #[kurashi(default = QuickStyle::Card, module = "quick", since = 7)]
+    pub style: QuickStyle,
+    /// Control centre tiles
+    /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", since = 7)]
+    pub tiles: Vec<String>,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

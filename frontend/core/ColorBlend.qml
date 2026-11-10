@@ -3,7 +3,8 @@ import Quickshell
 
 // K87 (docs/ux/dynamic-media-color.md): the change of colour under Dynamic Media Color. The daemon owns the colours and
 // sends the new tokens at once; this only draws the way there, through Theme.liveColors, when `media.tint` changes (a new
-// cover, the switch, the track gone). Any other theme change stays a cut, as it always was. At rest the overlay is null and
+// cover, the switch, the track gone). I472 (K117): any other change of colour fades too, quickly (`motion.blend_colors`);
+// with that off it stays a cut, as it always was. At rest the overlay is null and
 // the timer stopped (rule 5); motion off or `media.blend = direct` cuts. Colours in Oklab, so a fade does not go muddy.
 Scope {
     id: cb
@@ -76,6 +77,11 @@ Scope {
         var C = Math.hypot(p.a, p.b) * (1 - t) + Math.hypot(q.a, q.b) * t + 0.07 * Math.sin(Math.PI * t)
         return rgb({ L: L, a: C * Math.cos(h), b: C * Math.sin(h), A: A })
     }
+    // Whether any colour both have is another one now (a new or a gone key alone is no reason to fade).
+    function differ(a, b) {
+        for (var k in b) if (a[k] !== undefined && a[k] !== b[k]) return true
+        return false
+    }
     function paint(t) {
         var out = ({})
         for (var k in to) out[k] = "" + step(k, t)
@@ -95,7 +101,18 @@ Scope {
         cb.tint = nowTint
         if (!was) return                                    // the first theme: nothing to come from
         if (!changed) {
-            if (ticker.running) cb.to = now                 // a theme change mid-blend: the same way, to the new colours
+            if (ticker.running) { cb.to = now; return }     // a theme change mid-blend: the same way, to the new colours
+            // I472 (K117): any other change of colour — a palette, the scheme, a look, the wallpaper's colours — fades
+            // too, quickly, where `theme.motion.blend_colors` is on and motion is; a change of nothing but numbers cuts.
+            if (tokens["motion.blend_colors"] !== true || !Theme.springOn || !differ(was, now)) return
+            cb.from = was
+            cb.to = now
+            cb.kind = "fade"
+            cb.turn = 0
+            cb.runMs = Math.max(120, Number(tokens["motion.blend_colors_ms"] || 320))
+            cb.startedAt = Date.now()
+            paint(0)
+            ticker.restart()
             return
         }
         var k = "" + (tokens["media.blend"] || "fade")

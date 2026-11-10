@@ -556,6 +556,16 @@ fn ink_colour(role: InkRole, t: &Map<String, Value>) -> kurashi_theme::color::Rg
         InkRole::Secondary => rgb(t, "color.secondary"),
         InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
         InkRole::Shade => kurashi_theme::color::Rgb(0, 0, 0),
+        // I470: the brown of age. A sepia in every palette; a little lighter on a dark ground, where a stain shows as a
+        // warm patch rather than a dark one.
+        InkRole::Stain => {
+            let s = lin(rgb(t, "color.surface"));
+            if 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2] < 0.18 {
+                kurashi_theme::color::Rgb(0x9a, 0x6b, 0x3c)
+            } else {
+                kurashi_theme::color::Rgb(0x7a, 0x4e, 0x24)
+            }
+        }
     }
 }
 
@@ -573,11 +583,13 @@ fn text_grounds(t: &Map<String, Value>) -> [[f32; 3]; 3] {
 /// which `on_surface` keeps [`TEXT_CONTRAST`] on every ground it darkens. Light text on a dark ground gains from the darker
 /// gaps, so the cap bites only on a light ground. Other inks keep their alpha.
 fn ink_cap(m: &kurashi_texture::Material, t: &Map<String, Value>, grounds: &[[f32; 3]]) -> f32 {
-    if m.ink_role != InkRole::Shade {
+    if !matches!(m.ink_role, InkRole::Shade | InkRole::Stain) {
         return m.ink_alpha;
     }
     let fgs = [lin(rgb(t, "color.on_surface"))];
     // Rounded down to a thousandth, so the capped value itself stays legible.
+    // (I470: a stain is capped as if it were black. A sepia darkens a light ground less than black does, so the cap
+    // errs toward legible; on a dark ground a stain lightens, and the same bound keeps light text clear of it.)
     let cap = legible_shade(f64::from(m.ink_alpha), &fgs, grounds);
     (((cap * 1000.0) + 1e-6).floor() / 1000.0) as f32
 }

@@ -10,6 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
+mod aged;
 mod brush;
 mod cracks;
 mod display;
@@ -54,6 +55,12 @@ pub enum Kind {
     Brush,
     /// W62: a screen's pixel grid, square cells and black gaps (after the YoRHa wallpaper).
     Display,
+    /// I470: steel tread plate, raised lozenges on a brushed sheet.
+    TreadPlate,
+    /// I470: paper browned and stained with age.
+    OldPaper,
+    /// I470: a painter's canvas, a coarse weave, a little dirty.
+    Canvas,
 }
 
 /// K61: the pattern of `theme.texture.cracks`.
@@ -84,7 +91,7 @@ impl CrackStyle {
 }
 
 impl Kind {
-    pub const ALL: [Kind; 14] = [
+    pub const ALL: [Kind; 17] = [
         Kind::Paper,
         Kind::PaperDots,
         Kind::PaperLines,
@@ -99,6 +106,9 @@ impl Kind {
         Kind::Paint,
         Kind::Brush,
         Kind::Display,
+        Kind::TreadPlate,
+        Kind::OldPaper,
+        Kind::Canvas,
     ];
 
     /// The config value (`paper_dots`); `None` for an unknown name and for `none`.
@@ -122,6 +132,9 @@ impl Kind {
             Kind::Paint => "paint",
             Kind::Brush => "brush",
             Kind::Display => "display",
+            Kind::TreadPlate => "tread_plate",
+            Kind::OldPaper => "old_paper",
+            Kind::Canvas => "canvas",
         }
     }
 }
@@ -137,6 +150,8 @@ pub enum InkRole {
     OnSurface,
     /// W62: a screen's black matrix: black (the same in every scheme), a darkening rather than a colour.
     Shade,
+    /// I470: the brown of age (old paper, a dirty canvas): a sepia, the same hue in every palette.
+    Stain,
 }
 
 /// How a kind reflects light, and what its ink is.
@@ -678,6 +693,14 @@ pub fn material(kind: Kind) -> Material {
         // W62: the black matrix darkens 44 % of the sheet, so its alpha stays modest (text sits on it); the cells' face is
         // a little glossy, as a glass panel's, which shows only at the cells' edges.
         Kind::Display => m(0.1, 20.0, InkRole::Shade, 0.25),
+        // I470: rolled steel, glossier than the scratched sheet; the lozenges stand off it and cast.
+        Kind::TreadPlate => Material {
+            shadow: 1.0,
+            ..m(0.7, 36.0, InkRole::None, 0.0)
+        },
+        // I470: the stains are the material, so their alpha is the highest of the inks; the daemon caps it for text.
+        Kind::OldPaper => m(0.0, 8.0, InkRole::Stain, 0.5),
+        Kind::Canvas => m(0.03, 6.0, InkRole::Stain, 0.3),
     }
 }
 

@@ -599,6 +599,9 @@ PanelWindow {
         Item {
             id: card
             width: lp.skin ? lp.skinW + lp.skinBand : 600
+            // I458: a launcher a hover opened stays while the pointer is on it, and is the user's once they press in it.
+            HoverHandler { onHoveredChanged: hovered ? Peeks.hoverHold() : Peeks.hoverLeave() }
+            PointHandler { acceptedButtons: Qt.AllButtons; onActiveChanged: if (active) Peeks.hoverKeep() }
             readonly property real inset: Theme.outlineW + Theme.ringW
             readonly property int footH: lp.footer ? Theme.gap + 18 : 0
             // Where the content stands: the start-menu skin keeps a band on the left and a header on top (0 otherwise).
@@ -752,7 +755,7 @@ PanelWindow {
                     verticalAlignment: TextInput.AlignVCenter
                     selectByMouse: true
                     clip: true
-                    onTextChanged: if (lp.want) lp.run(text)
+                    onTextChanged: { if (text !== "") Peeks.hoverKeep(); if (lp.want) lp.run(text) }
                     Keys.onEscapePressed: {
                         if (lp.confirmClear) lp.confirmClear = false
                         else if (lp.armed >= 0) lp.armed = -1
@@ -977,6 +980,9 @@ PanelWindow {
                                 sourceSize: Qt.size(60, 60)
                                 asynchronous: true
                                 visible: ico.src !== "" && status === Image.Ready
+                                // The app icons' tint (`theme.colors.app_icons`, K110).
+                                layer.enabled: Theme.iconTint !== "original" && visible
+                                layer.effect: IconTint { mode: Theme.iconTint }
                             }
                             // The app's picture: its relief on its own pixels, masked by its alpha (row 285), so a transparent row's
                             // ground does not halo. A fallback tile carries its own relief (below).
@@ -1202,6 +1208,9 @@ PanelWindow {
                             sourceSize: Qt.size(64, 64)
                             asynchronous: true
                             visible: status === Image.Ready
+                            // The app icons' tint (`theme.colors.app_icons`, K110).
+                            layer.enabled: Theme.iconTint !== "original" && visible
+                            layer.effect: IconTint { mode: Theme.iconTint }
                         }
                         Rectangle {
                             anchors.fill: parent

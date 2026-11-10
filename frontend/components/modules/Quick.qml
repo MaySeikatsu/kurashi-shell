@@ -18,6 +18,8 @@ ModuleBase {
     // QuickButton is its own tab stop.
     ownsFocus: true
     function geo() { return [["quick", m]] }
+    // I458: whether a click opens the card (a hover may then too); with the sidebar set to open from the bar it does not.
+    readonly property bool opensCard: !cfg.sidebarFromBar
     QuickButton {
         id: q
         open: m.open

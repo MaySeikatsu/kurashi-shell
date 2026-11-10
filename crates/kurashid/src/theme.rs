@@ -749,6 +749,11 @@ pub fn document_with(
                 "media.blend_ms".into(),
                 json!(f(store, "theme.colors.media.blend_ms", 1200.0)),
             );
+            // I472 (K117): every other change of colour fades too (ColorBlend.qml), unless motion is reduced.
+            tokens.insert(
+                "motion.blend_colors".into(),
+                json!(b(store, "theme.motion.blend_colors") && !b(store, "a11y.reduce_motion")),
+            );
             // Config-owned sizes the frontend binds as tokens (PROTOCOL §8).
             if let Some(h) = store.get("bar.height", None) {
                 tokens.insert("bar.height".into(), h.value);

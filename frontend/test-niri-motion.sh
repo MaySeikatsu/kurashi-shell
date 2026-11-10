@@ -96,7 +96,7 @@ echo "export: follow has curves alone, reduce motion has none"
 
 # --- compile: every form, both ways ---
 : > "$LOG"
-FORMS="grow slide rubber zoom fade flip bleed stepped expand iris stamp outline fold book roll crumple genie crt drop liquid fan noren pixelate glitch dissolve"
+FORMS="grow slide rubber zoom fade flip bleed stepped expand iris stamp outline fold book roll crumple genie crt drop liquid fan noren pixelate glitch dissolve splat brush snake"
 for f in $FORMS; do
   set_conf forms origami "$f" "$f"
   until_kdl "ks_form" "$f's shader"

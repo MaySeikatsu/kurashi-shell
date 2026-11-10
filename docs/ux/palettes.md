@@ -25,7 +25,7 @@ cannot be read.
 | Palette | by category: Kurashi · Common · Inspired (+ Wallpaper, mod palettes in front) | Common = the coding/ricing palettes with their variants |
 | Wallpaper colours | Tone-matched (default) · Vibrant · Prominent · Mixed | only with palette Wallpaper |
 | Colours on the controls | Automatic · One accent · Spread | Automatic spreads under Mixed |
-| App icons | Original · Text colour · Palette tones · Palette colours | dock, window list, tray |
+| App icons | Original · Text colour · Palette tones · Palette colours | dock, window list, tray, launcher rows and grid, notifications (an app's icon, never the notification's own picture); every choice keeps the icon's drawing |
 | Chrome fill | Neutral · Strong colour | apps that follow take it too |
 | Gradient | on/off; colours, pattern (linear, radial, watercolour, the wallpaper under it), angle from the wallpaper, angle, range of tones, softness, pool size, across all screens | over either fill |
 | Launcher › Logo colour | As the look draws it · Original · Text colour · Palette colours · Palette tones | OS logo or own image |

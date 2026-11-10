@@ -54,6 +54,24 @@ Canvas {
         case "zoom": faint(function () { rect(0.05, 0.05, 0.9, 0.9) }); rect(0.28, 0.28, 0.44, 0.44); break
         case "outline": rect(0.05, 0.05, 0.9, 0.9); faint(function () { rect(0.22, 0.22, 0.56, 0.56) }); rect(0.4, 0.4, 0.2, 0.2); break
         case "fade": faint(function () { rect(0.1, 0.1, 0.8, 0.8) }); break
+        case "splat":                                                   // a blob with lobes and two droplets
+            ctx.beginPath(); ctx.arc(X(0.45), Y(0.5), 0.24 * s, 0, 2 * Math.PI); ctx.fill()
+            ctx.beginPath(); ctx.arc(X(0.66), Y(0.36), 0.13 * s, 0, 2 * Math.PI); ctx.fill()
+            ctx.beginPath(); ctx.arc(X(0.3), Y(0.72), 0.1 * s, 0, 2 * Math.PI); ctx.fill()
+            ctx.beginPath(); ctx.arc(X(0.84), Y(0.72), 0.05 * s, 0, 2 * Math.PI); ctx.fill()
+            ctx.beginPath(); ctx.arc(X(0.16), Y(0.24), 0.04 * s, 0, 2 * Math.PI); ctx.fill(); break
+        case "brush":                                                   // three strokes, forth and back, rising a little
+            for (var bi = 0; bi < 3; bi++) {
+                ctx.save(); ctx.globalAlpha = bi === 2 ? 0.45 : 1
+                ctx.beginPath(); ctx.moveTo(X(0.08), Y(0.3 + bi * 0.25)); ctx.lineTo(X(bi === 2 ? 0.6 : 0.92), Y(0.2 + bi * 0.25))
+                ctx.lineWidth = 0.17 * s; ctx.lineCap = "round"; ctx.stroke(); ctx.restore()
+            }
+            break
+        case "snake":                                                   // cells along a row, down, and back; the head whole
+            for (var si = 0; si < 4; si++) ctx.fillRect(X(0.08 + si * 0.22), Y(0.14), 0.17 * s, 0.17 * s)
+            ctx.fillRect(X(0.74), Y(0.42), 0.17 * s, 0.17 * s)
+            ctx.save(); ctx.globalAlpha = 0.5; ctx.fillRect(X(0.52), Y(0.42), 0.17 * s, 0.17 * s); ctx.restore()
+            faint(function () { rect(0.05, 0.7, 0.9, 0.2) }); break
         case "dissolve":
             for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) if ((i + j) % 2 === 0)
                 ctx.fillRect(X(0.1 + i * 0.22), Y(0.1 + j * 0.22), 0.12 * s, 0.12 * s)

@@ -29,7 +29,7 @@ const FOLDS: [(f32, f32, f32, f32); 4] = [
 /// The relief of the crumple at full strength, logical px, per material (crumpled foil is thinner than creased leather).
 pub fn depth(kind: Kind) -> f32 {
     match kind {
-        Kind::Metal => 1.2,
+        Kind::Metal | Kind::TreadPlate => 1.2,
         Kind::Leather => 1.8,
         Kind::Stone => 2.0,
         _ => 1.4,

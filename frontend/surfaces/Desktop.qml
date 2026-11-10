@@ -34,6 +34,10 @@ PanelWindow {
     BarConfig { id: bars; screen: desk.screen }
     readonly property bool on: bars.valueOf("desktop.enabled", false) === true
     readonly property string mainSide: bars.valueOf("desktop.side", "right") === "left" ? "left" : "right"
+    // I471c (K118): how the cards are held: "none" lying flat, "pin" or "tape" posted, each hanging a little crooked.
+    readonly property string post: String(bars.valueOf("desktop.post", "none"))
+    // A card's own number from its id: its tilt and its tape's lie.
+    function seedOf(id) { var h = 7; for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff; return h }
     function want(key) { return bars.valueOf("desktop." + key, true) === true }
 
     // Edit mode. While on, the columns sit on the top layer and hold the keyboard (exclusive: a bottom-layer surface
@@ -850,6 +854,13 @@ PanelWindow {
                             origin.x: slot.width / 2
                             origin.y: slot.height / 2
                             angle: 0
+                        },
+                        // I471c: a posted card hangs from its pin or its tape, up to 1.8° either way, its own every time.
+                        // Straight while it is edited (a card being moved is in the hand).
+                        Rotation {
+                            origin.x: slot.width / 2
+                            origin.y: 8
+                            angle: desk.post !== "none" && !desk.editing ? ((desk.seedOf(slot.cid) % 37) / 36 - 0.5) * 3.6 : 0
                         }
                     ]
                     SequentialAnimation {
@@ -920,6 +931,13 @@ PanelWindow {
                             : slot.cid === "media" ? cMedia
                             : slot.cid === "weather" ? cWeather : null
                         onLoaded: if (slot.isMod) item.cardUrl = Qt.binding(function () { return slot.url })
+                    }
+                    // I471c: the pin or the tape, over the card.
+                    Loader {
+                        active: desk.post !== "none" && slot.showReal && !desk.editing
+                        width: slot.width
+                        z: 5
+                        sourceComponent: PostMark { kind: desk.post; seed: desk.seedOf(slot.cid) }
                     }
                     Loader {
                         id: stand

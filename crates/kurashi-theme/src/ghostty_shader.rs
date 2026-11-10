@@ -22,7 +22,7 @@ pub const PLACEHOLDER: &str = "ghostty.shader";
 
 /// The kinds with a procedural recipe here: every `theme.texture.kind` but `none` (kurashid's tests hold it to
 /// `kurashi_texture::Kind::ALL`).
-pub const KINDS: [&str; 14] = [
+pub const KINDS: [&str; 17] = [
     "paper",
     "paper_dots",
     "paper_lines",
@@ -37,6 +37,9 @@ pub const KINDS: [&str; 14] = [
     "paint",
     "brush",
     "display",
+    "tread_plate",
+    "old_paper",
+    "canvas",
 ];
 
 /// Written in place of the shader while the material is off, when a shader file is there: a config that still names
@@ -319,6 +322,39 @@ fn recipe(kind: &str) -> Option<Recipe> {
              + pow(ridge(vnoise(rot(-1.1) * p * vec2(0.012, 0.7) + 21.0)), 60.0);\n    \
              return 0.8 * brushed - 0.6 * scratch - 0.4;\n}\n\
              float kindInk(vec2 p) { return 0.0; }\n",
+        ),
+        // I470. The lozenges of a tread plate, one a 24 px cell, on either diagonal in a checkerboard.
+        "tread_plate" => r(
+            1.2,
+            "float kindHeight(vec2 p) {\n    vec2 c = floor(p / 24.0);\n    vec2 d = p - (c + 0.5) * 24.0;\n    \
+             float even = mod(c.x + c.y, 2.0);\n    \
+             vec2 ab = even < 0.5 ? vec2(d.x + d.y, d.x - d.y) : vec2(d.x - d.y, d.x + d.y);\n    ab *= 0.7071;\n    \
+             float t = 1.0 - pow(abs(ab.x) / 9.4, 1.6) - (ab.y / 2.7) * (ab.y / 2.7);\n    \
+             float brushed = 0.6 * vnoise(p * vec2(0.02, 1.1)) + 0.4 * vnoise(p * vec2(0.05, 2.7) + 3.0);\n    \
+             return 0.25 * brushed + 1.1 * pow(max(t, 0.0), 0.6) - 0.35;\n}\n\
+             float kindInk(vec2 p) { return 0.0; }\n",
+        ),
+        // I470. The stains of age: broad browned areas with a tide line, an uneven tone, foxing.
+        "old_paper" => r(
+            0.45,
+            "float ageStain(vec2 p) {\n    vec2 w = vec2(fbm(p / 240.0, 3), fbm(p / 240.0 + 7.0, 3)) - 0.5;\n    \
+             float broad = fbm(p / 240.0 + 0.6 * w, 4);\n    float blot = smoothstep(0.40, 0.70, broad);\n    \
+             float rim = (1.0 - smoothstep(0.0, 0.03, abs(broad - 0.56))) * max(blot, 0.25);\n    \
+             float mottle = max(fbm(p / 70.0 + 13.0, 3) - 0.32, 0.0);\n    \
+             float fox = smoothstep(0.86, 0.95, vnoise(p / 6.0 + 31.0));\n    \
+             return clamp(0.5 * blot + 0.2 * rim + 0.3 * mottle + 0.4 * fox, 0.0, 1.0);\n}\n\
+             float kindHeight(vec2 p) { return paperStock(p, 1.0); }\n\
+             float kindInk(vec2 p) { return ageStain(p); }\n",
+        ),
+        "canvas" => r(
+            1.0,
+            "float kindHeight(vec2 p) {\n    vec2 g = p / 6.0;\n    vec2 c = floor(g);\n    vec2 f = fract(g) - 0.5;\n    \
+             float over = mod(c.x + c.y, 2.0) < 0.5 ? 1.0 : -1.0;\n    \
+             float warp = pow(max(cos(PI * f.x), 0.0), 0.7) * (0.55 + 0.45 * over * cos(PI * f.y));\n    \
+             float weft = pow(max(cos(PI * f.y), 0.0), 0.7) * (0.55 - 0.45 * over * cos(PI * f.x));\n    \
+             return 1.1 * max(warp, weft) + 0.3 * (vnoise(p / 96.0) - 0.5) - 0.5;\n}\n\
+             float kindInk(vec2 p) {\n    float broad = fbm(p / 240.0, 4);\n    \
+             return clamp(0.75 * (0.5 * smoothstep(0.40, 0.70, broad) + 0.3 * max(fbm(p / 70.0 + 13.0, 3) - 0.32, 0.0)), 0.0, 1.0);\n}\n",
         ),
         "leather" => r(
             1.3,
