@@ -804,6 +804,22 @@ palettes_part() {
   "$BIN/kurashi" set theme.colors.palette w68-test | grep -q '^applied' || fail "palettes C6: the CLI could not pick it"
   echo "palettes C6: Save wrote $dir/w68-test.toml, picked it, Undo went back"
 
+  # C6b: a name another palette has: the editor names the file it would write instead (w68-test-2.toml), and why.
+  Q focusList >/dev/null
+  mtab_to palette-new 300
+  mkp return
+  pwait palette-role:accent "C6b: the editor did not open"
+  for _ in $(seq 25); do [ "$(Q focused)" = Name ] && break; sleep 0.2; done
+  mkp ctrl+a
+  ptype "w68 test"
+  pwait palette-file:w68-test-2 "C6b: a taken name does not move to w68-test-2"
+  pwait palette-name-note "C6b: the editor does not say why"
+  Q scrollTo palette-editor
+  pshot name-clash
+  mkp escape
+  pwait palette-editor "C6b: Escape did not leave the editor" no
+  echo "palettes C6b: a taken name is saved as w68-test-2.toml, and the editor says so"
+
   # C7: Settings killed with the editor open: the draft ends with it; reopened, the palette is there.
   Q focusList >/dev/null
   mtab_to palette-edit:w68-test 300

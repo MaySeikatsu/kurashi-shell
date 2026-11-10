@@ -76,7 +76,7 @@ wallpaper pattern loads one small picture per output (24–160 px). Icon tint: a
   palettes (I454).
 
 ## Custom palettes (I453, card W68)
-Status: brief (session 27), before the build.
+Status: built (functional; UX per the definition of done below), session 27. Brief written before the build.
 
 ### Job
 The user's own palette, made in Settings without writing TOML: pick the colours of the roles the shell paints with, see the
@@ -184,13 +184,15 @@ wakes only on file changes there). A draft change is one theme resolve per edit 
 most one while dragging per 50 ms. Custom palettes' preview cards are resolved per publish, uncached (a handful).
 
 ### Definition of done
-- [ ] Custom files load beside the bundled ones (a bundled name wins; a broken one is listed with its reason), are offered
+- [x] Custom files load beside the bundled ones (a bundled name wins; a broken one is listed with its reason), are offered
   under `palettes` with group `custom`, watched, and the active one re-themes on change.
-- [ ] Actions list / get / duplicate / save / delete / draft; names validated (slug, no path parts, no bundled or reserved
+- [x] Actions list / get / duplicate / save / delete / draft; names validated (slug, no path parts, no bundled or reserved
   name).
-- [ ] The editor: every role row above with its provenance, Dark | Light, the picker (square, hue, hex, quick swatches,
+- [x] The editor: every role row above with its provenance, Dark | Light, the picker (square, hue, hex, quick swatches,
   keyboard), the sample card, "shown as" with its reason, a live draft that ends with the editor (a crash too).
-- [ ] States: empty, broken, clash, deleted while active, read-only — drawn and screenshotted.
-- [ ] i18n en + ja (`i18n/{en,ja}/palettes.toml`).
-- [ ] `settings/test.sh` part `palettes`; cargo tests; seen on nested niri (`settings/shots/palettes/`).
-- [ ] Stretch: base16/base24 import; a Home-Manager option that writes palette files.
+- [x] States: empty, broken, name clash (the note under the name: the file it saves as instead), deleted while active,
+  read-only — drawn and screenshotted (`settings/shots/palettes/`).
+- [x] i18n en + ja (`i18n/{en,ja}/palettes.toml`).
+- [x] `settings/test.sh` part `palettes`; cargo tests; seen on nested niri (`settings/shots/palettes/niri-*.png`).
+- [x] A Home-Manager option that writes palette files (`programs.kurashi.palettes`; read-only in Settings).
+- [ ] Stretch: base16/base24 import.
