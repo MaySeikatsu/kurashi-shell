@@ -12,6 +12,8 @@ layout(std140, binding = 0) uniform buf {
     float qt_Opacity;
     vec4 uSize;   // xy the item (px), z the edge's depth (px), w the seed
     vec4 uMode;   // x: 0 torn paper, 1 paint; y: the paint's unevenness 0..1
+    vec4 uSides;  // left, top, right, bottom: 1 where the layer's own border is an edge of the shape (a face that fills
+                  // its layer), 0 where the shape runs on past it (a side joined to a bar or lying on the screen's edge)
 };
 layout(binding = 1) uniform sampler2D source;
 
@@ -22,29 +24,37 @@ float vnoise(vec2 x) {
 }
 float fbm(vec2 x) { return 0.55 * vnoise(x) + 0.30 * vnoise(x * 2.1 + 7.3) + 0.15 * vnoise(x * 4.3 + 19.1); }
 
+// The face's alpha at `uv`; past the layer's border there is nothing where that side is an edge (a face that fills its
+// layer has its straight sides there), and the shape runs on where it is not.
+float al(vec2 uv) {
+    if ((uv.x < 0.0 && uSides.x > 0.5) || (uv.y < 0.0 && uSides.y > 0.5)
+        || (uv.x > 1.0 && uSides.z > 0.5) || (uv.y > 1.0 && uSides.w > 0.5)) return 0.0;
+    return texture(source, clamp(uv, 0.0, 1.0)).a;
+}
+
 // The least alpha within `r` px of here (eight ways): below the face's own alpha, the edge is within reach.
 float reach(vec2 uv, float r) {
     vec2 s = r / uSize.xy;
     float a = 1.0;
-    a = min(a, texture(source, uv + vec2(s.x, 0.0)).a);
-    a = min(a, texture(source, uv - vec2(s.x, 0.0)).a);
-    a = min(a, texture(source, uv + vec2(0.0, s.y)).a);
-    a = min(a, texture(source, uv - vec2(0.0, s.y)).a);
+    a = min(a, al(uv + vec2(s.x, 0.0)));
+    a = min(a, al(uv - vec2(s.x, 0.0)));
+    a = min(a, al(uv + vec2(0.0, s.y)));
+    a = min(a, al(uv - vec2(0.0, s.y)));
     vec2 d = s * 0.7071;
-    a = min(a, texture(source, uv + d).a);
-    a = min(a, texture(source, uv - d).a);
-    a = min(a, texture(source, uv + vec2(d.x, -d.y)).a);
-    a = min(a, texture(source, uv + vec2(-d.x, d.y)).a);
+    a = min(a, al(uv + d));
+    a = min(a, al(uv - d));
+    a = min(a, al(uv + vec2(d.x, -d.y)));
+    a = min(a, al(uv + vec2(-d.x, d.y)));
     // (eight more between them: with eight alone a round end comes out as an octagon)
     vec2 e = s * vec2(0.9239, 0.3827), f = s * vec2(0.3827, 0.9239);
-    a = min(a, texture(source, uv + e).a);
-    a = min(a, texture(source, uv - e).a);
-    a = min(a, texture(source, uv + vec2(e.x, -e.y)).a);
-    a = min(a, texture(source, uv + vec2(-e.x, e.y)).a);
-    a = min(a, texture(source, uv + f).a);
-    a = min(a, texture(source, uv - f).a);
-    a = min(a, texture(source, uv + vec2(f.x, -f.y)).a);
-    a = min(a, texture(source, uv + vec2(-f.x, f.y)).a);
+    a = min(a, al(uv + e));
+    a = min(a, al(uv - e));
+    a = min(a, al(uv + vec2(e.x, -e.y)));
+    a = min(a, al(uv + vec2(-e.x, e.y)));
+    a = min(a, al(uv + f));
+    a = min(a, al(uv - f));
+    a = min(a, al(uv + vec2(f.x, -f.y)));
+    a = min(a, al(uv + vec2(-f.x, f.y)));
     return a;
 }
 
@@ -94,9 +104,11 @@ void paint(vec4 c) {
     float band = clamp(floor(fb), 0.0, n - 1.0);
     float h1 = hash21(vec2(band + 1.0, seed)), h2 = hash21(vec2(band + 7.0, seed + 3.0));
     // Where this band starts and stops (it is set in from the shape's ends, each band differently), and its dry tail.
-    float inset = min(len * 0.06, amp * 2.2);
+    float inset = min(len * 0.03, amp * 1.2) * smoothstep(48.0, 150.0, small);
     float start = h1 * inset, stop = len - h2 * inset;
-    float tail = min(len * 0.16, 54.0) * (0.5 + 0.5 * h1);
+    // (the tail bites into the shape, and what is drawn on it stays where it is: no longer than a card's padding; a
+    // small thing has next to none)
+    float tail = min(len * 0.12, 20.0) * (0.5 + 0.5 * h1) * (0.2 + 0.8 * smoothstep(48.0, 150.0, small));
     float thr = c.a * 0.5;
     // The wet outline.
     // (a small thing keeps its shape: its outline only softens; the wander comes in with size)
