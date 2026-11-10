@@ -6,5 +6,6 @@ import "../core"
 ShaderEffect {
     property real depth: Theme.edgeDepth
     readonly property vector4d uSize: Qt.vector4d(width, height, depth, (Math.round(width) * 7 + Math.round(height) * 13) % 97)
+    readonly property vector4d uMode: Qt.vector4d(Theme.edgeStyle === "painted" ? 1 : 0, Theme.edgeUneven, 0, 0)
     fragmentShader: Qt.resolvedUrl("../shaders/edge_warp.frag.qsb")
 }

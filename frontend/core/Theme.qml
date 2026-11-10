@@ -95,7 +95,9 @@ Singleton {
     // I471d (K121): the edge of every surface: "clean", or "ripped", a sheet torn by hand (components/EdgeWarp.qml). The
     // environment can force it while a look is tried out (`KURASHI_EDGE=ripped`).
     readonly property string edgeStyle: String(Quickshell.env("KURASHI_EDGE") || tok("edge.style", "clean"))
-    readonly property bool edgeTorn: edgeStyle === "ripped"
+    // (an edge effect is on: a layer on a surface's face; "ripped" tears it, "painted" lays it as a brush's stroke)
+    readonly property bool edgeTorn: edgeStyle === "ripped" || edgeStyle === "painted"
+    readonly property real edgeUneven: tok("edge.uneven", 1)
     readonly property real edgeDepth: tok("edge.depth", 4)
     // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
     // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its
