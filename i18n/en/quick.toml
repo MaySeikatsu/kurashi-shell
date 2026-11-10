@@ -14,3 +14,13 @@
 "layout.module.nightlight" = "Night light"
 "layout.module.darkmode" = "Dark mode"
 "layout.module.airplane" = "Airplane mode"
+# The centre's edit mode (W70 stage c).
+"quick.edit.open" = "Edit tiles"
+"quick.edit.hint" = "Drag a tile, or Alt and an arrow, to move it; − or Delete takes it out. Add a control:"
+"quick.edit.hint_full" = "Drag a tile, or Alt and an arrow, to move it; − or Delete takes it out. Every control is in the centre."
+"quick.edit.done" = "Done"
+"quick.edit.cancel" = "Cancel"
+"quick.edit.refused" = "The tiles could not be saved."
+"quick.edit.disconnected" = "The tiles could not be saved: the shell's daemon does not answer."
+"quick.edit.remove" = "Take {name} out of the control centre"
+"quick.edit.tile_hint" = "Alt and an arrow move it; Delete takes it out"

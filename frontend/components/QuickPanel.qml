@@ -85,6 +85,128 @@ Item {
     }
     readonly property var statusSegments: statusList()
 
+    // ---- W70 (c): the centre is a container — `quick.tiles`, the controls it shows as tiles, in order ----
+    // The setting is the daemon's (the config document); the tiles show the list in effect, and while the edit mode is on
+    // the edit's own list, which Done writes as one `apply` (one undo step) and Escape or Cancel drops (the desk's edit
+    // mode, K48). Nothing is written while editing. An id this frontend has no control for is left out (a newer daemon's).
+    Watch { doc: "config" }
+    readonly property var controls: ({
+        wifi: cWifi, bluetooth: cBt, focus: cFocus, audio: cAudio, mic: cMic, power: cPower, brightness: cBright,
+        caffeine: cCaffeine, nightlight: cNight, recorder: cRecord, darkmode: cDark, airplane: cAir
+    })
+    // Every control that has a tile, in the order the add row offers them (the schema's choices).
+    readonly property var tileChoices: ["wifi", "bluetooth", "focus", "audio", "mic", "power", "brightness", "caffeine",
+        "nightlight", "recorder", "darkmode", "airplane"]
+    readonly property var cfgTiles: {
+        var v = ((Store.docs["config"] || {}).values || {})["quick.tiles"]
+        return v && Array.isArray(v.value) ? v.value : null
+    }
+    // (until the config document is there: the schema's default, the ten tiles of before)
+    readonly property var savedTiles: (cfgTiles !== null ? cfgTiles : ["wifi", "bluetooth", "focus", "audio", "power",
+        "brightness", "caffeine", "nightlight", "recorder", "darkmode"]).filter(function (id) { return quick.controls[id] !== undefined })
+    ListModel { id: tileModel }
+    property int tileRev: 0             // bumped on every change of tileModel (what is left to add follows it)
+    function tileIds() {
+        var out = []
+        for (var i = 0; i < tileModel.count; i++) out.push(tileModel.get(i).mid)
+        return out
+    }
+    function setTiles(list) {
+        if (JSON.stringify(tileIds()) === JSON.stringify(list)) return
+        tileModel.clear()
+        for (var i = 0; i < list.length; i++) tileModel.append({ mid: list[i] })
+        tileRev++
+    }
+    onSavedTilesChanged: if (!editing) setTiles(savedTiles)
+    readonly property var addable: {
+        var rev = tileRev, ids = tileIds()
+        return tileChoices.filter(function (id) { return ids.indexOf(id) < 0 })
+    }
+
+    property bool editing: false
+    property string editError: ""
+    onEditingChanged: {
+        if (!editing) setTiles(savedTiles)
+        if (testLog) { console.log("quick-edit " + (editing ? "on" : "off")); logTimer.restart() }
+    }
+    function focusTile(i) {
+        Qt.callLater(function () {
+            var n = coreTiles.count
+            if (n === 0) { if (addRow.visible) addRow.focusFirst(); return }
+            var t = coreTiles.itemAt(Math.max(0, Math.min(n - 1, i)))
+            if (t) t.forceActiveFocus()
+        })
+    }
+    function startEdit() {
+        if (editing) return
+        if (page !== "") closePage()
+        editError = ""
+        editing = true
+        focusTile(0)
+    }
+    function cancelEdit() {
+        if (!editing) return
+        editError = ""
+        editing = false
+        Qt.callLater(function () { editKey.forceActiveFocus() })
+    }
+    function moveTile(from, to) {
+        if (!editing || from === to || to < 0 || to >= tileModel.count) return
+        tileModel.move(from, to, 1)
+        tileRev++
+        focusTile(to)
+    }
+    function removeTile(i) {
+        if (!editing || i < 0 || i >= tileModel.count) return
+        tileModel.remove(i, 1)
+        tileRev++
+        focusTile(i)
+    }
+    function addTile(id) {
+        if (!editing || controls[id] === undefined || tileIds().indexOf(id) >= 0) return
+        tileModel.append({ mid: id })
+        tileRev++
+    }
+    // A drag: the tile under the pointer's cell takes the dragged tile's place as the pointer reaches it.
+    function dragTile(from, ax, ay, cellH) {
+        var col = Math.max(0, Math.min(grid.columns - 1, Math.floor(ax / (tileW + grid.spacing))))
+        var row = Math.max(0, Math.floor(ay / (cellH + grid.spacing)))
+        moveTile(from, Math.min(tileModel.count - 1, row * grid.columns + col))
+    }
+    function saveEdit() {
+        if (!editing) return
+        var now = tileIds()
+        if (JSON.stringify(now) === JSON.stringify(savedTiles)) { cancelEdit(); return }
+        editError = ""
+        if (Quickshell.env("KURASHI_QUICK_LOG") === "1") console.log("quick-save " + JSON.stringify(now))
+        Store.apply([{ set: "quick.tiles", value: now }], function (errors) {
+            if (!errors || errors.length === 0) { editing = false; Qt.callLater(function () { editKey.forceActiveFocus() }); return }
+            var c = String(errors[0].code || "")
+            editError = c === "disconnected" ? I18n.tr("quick.edit.disconnected")
+                : I18n.tr("quick.edit.refused") + (c !== "" && I18n.tr(c) !== c ? " (" + I18n.tr(c) + ")" : "")
+        })
+    }
+    // Test only (KURASHI_QUICK_LOG=1, frontend/test-quick-modules.sh): the tiles shown, in order, and where the edit's keys
+    // stand on the output (`quick-at <name> x y w h`), a moment after each change (the card's own motion first).
+    readonly property bool testLog: Quickshell.env("KURASHI_QUICK_LOG") === "1"
+    onTileRevChanged: if (testLog) { console.log("quick-tiles " + tileIds().join(",")); logTimer.restart() }
+    readonly property var qsWin: Window.window ? QsWindow.window : null
+    function logAt(name, item) {
+        if (!item || !item.visible || qsWin === null) return
+        var o = Light.originOf(qsWin), p = item.mapToItem(null, 0, 0)
+        console.log("quick-at " + name + " " + [o.x + p.x, o.y + p.y, item.width, item.height].map(Math.round).join(" "))
+    }
+    Timer {
+        id: logTimer
+        interval: 700
+        onTriggered: {
+            quick.logAt("edit", editKey)
+            quick.logAt("done", doneKey)
+            for (var i = 0; i < addKeys.count; i++) { var b = addKeys.itemAt(i); if (b) quick.logAt("add:" + b.modelData, b) }
+            for (var j = 0; j < coreTiles.count; j++) { var t = coreTiles.itemAt(j); if (t) quick.logAt("tile:" + t.mid, t) }
+        }
+    }
+
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
     property string startPage: ""
@@ -95,6 +217,7 @@ Item {
     readonly property bool tilesShown: page === "" || slide < 1
 
     function openPage(name, from) {
+        if (editing) cancelEdit()   // (a module's ask while editing: the page wins, the unsaved edit is dropped)
         returnTo = from
         page = name
     }
@@ -146,6 +269,7 @@ Item {
     }
     Component.onDestruction: if (navOwned && QuickNav.shown === page) QuickNav.showing("", false)
     Component.onCompleted: {
+        setTiles(savedTiles)
         syncTiles()
         navOwned = startPage === ""
         if (navOwned) {
@@ -162,6 +286,11 @@ Item {
     }
     // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
     Keys.onPressed: event => {
+        if (quick.editing && event.key === Qt.Key_Escape) {
+            quick.cancelEdit()
+            event.accepted = true
+            return
+        }
         if (quick.page === "") return
         if (event.key === Qt.Key_Escape || event.key === Qt.Key_Left) {
             quick.closePage()
@@ -179,7 +308,7 @@ Item {
         cellHeight: quick.rowTiles ? quick.rowTileH : (quick.compactTiles ? 78 : 56)
     }
     // The core tiles are the first `coreCount` cells; the contributions follow.
-    readonly property int coreCount: 10
+    readonly property int coreCount: coreTiles.count
     // The contributions the cells show. runtime.slots changes for every slot, so the host's `entries` is a new array each
     // time: a Repeater over it would rebuild every mod cell, and the focused one with it. The list changes only when a
     // contribution appears, leaves or changes (its file or reason); then the focus stays on its tile, or moves to the tile
@@ -220,7 +349,8 @@ Item {
     // The grid's cells in visual order: the core tiles, then one per contribution. A cell that is not a tile (a plain
     // contribution) is null, so the arrows keep their places and never land on it.
     function tileCells() {
-        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay, tCaffeine, tNight, tRecord, tDark]
+        var out = []
+        for (var c = 0; c < coreTiles.count; c++) out.push(coreTiles.itemAt(c))
         for (var i = 0; i < modCells.count; i++) {
             var cell = modCells.itemAt(i)
             var t = cell !== null ? cell.tile : null
@@ -435,11 +565,28 @@ Item {
                     spacing: quick.rowTiles ? 0 : Theme.gap
                     // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
                     // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
+                    // W70: in the edit mode Alt with an arrow moves the focused tile (a row up or down, a place left or right) and
+                    // Delete or Backspace takes it out; the plain arrows still move the focus.
                     Keys.onPressed: event => {
                         var cells = quick.tileCells()
                         var i = -1
                         for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
                         if (i < 0) return
+                        if (quick.editing && i < quick.coreCount) {
+                            var alt = (event.modifiers & Qt.AltModifier) !== 0
+                            var by = event.key === Qt.Key_Up ? -grid.columns : event.key === Qt.Key_Down ? grid.columns
+                                : event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0
+                            if (alt && by !== 0) {
+                                quick.moveTile(i, Math.max(0, Math.min(quick.coreCount - 1, i + by)))
+                                event.accepted = true
+                                return
+                            }
+                            if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                                quick.removeTile(i)
+                                event.accepted = true
+                                return
+                            }
+                        }
                         var to = -1
                         switch (event.key) {
                         case Qt.Key_Up: to = i >= grid.columns ? i - grid.columns : -1; break
@@ -452,25 +599,109 @@ Item {
                         event.accepted = true
                     }
 
-                    // W70: each tile is drawn from its control (quick/*Control.qml); the page it opens is the control's.
-                    ControlTile { id: tWifi; width: quick.tileW; ctl: cWifi; onPageRequested: quick.openPage(ctl.page, tWifi) }
-                    ControlTile { id: tBt; width: quick.tileW; ctl: cBt; onPageRequested: quick.openPage(ctl.page, tBt) }
-                    ControlTile { id: tFocus; width: quick.tileW; ctl: cFocus; onPageRequested: quick.openPage(ctl.page, tFocus) }
-                    ControlTile { id: tAudio; width: quick.tileW; ctl: cAudio; onPageRequested: quick.openPage(ctl.page, tAudio) }
-                    ControlTile { id: tPower; width: quick.tileW; ctl: cPower; onPageRequested: quick.openPage(ctl.page, tPower) }
-                    ControlTile { id: tDisplay; width: quick.tileW; ctl: cBright; onPageRequested: quick.openPage(ctl.page, tDisplay) }
-                    // K47 (W23-system, docs/ux/power.md): keep awake, night light, record. A missing program, protocol or
-                    // compositor is the tile's reason, never a dead tile. A tile without a page opens its Settings page.
-                    ControlTile { id: tCaffeine; width: quick.tileW; ctl: cCaffeine; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
-                    ControlTile { id: tNight; width: quick.tileW; ctl: cNight; onPageRequested: quick.openPage(ctl.page, tNight) }
-                    ControlTile { id: tRecord; width: quick.tileW; ctl: cRecord; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
-                    ControlTile { id: tDark; width: quick.tileW; ctl: cDark; onSecondaryRequested: quick.openSettings(ctl.settingsPage) }
+                    // W70: each tile is drawn from its control (quick/*Control.qml), in the order of `quick.tiles` (the edit's
+                    // order while editing); the page it opens is the control's, a tile without one opens its Settings page.
+                    // K47 (docs/ux/power.md): a missing program, protocol or compositor is the tile's reason, never a dead tile.
+                    Repeater {
+                        id: coreTiles
+                        model: tileModel
+                        delegate: ControlTile {
+                            id: ctile
+                            required property string mid
+                            required property int index
+                            width: quick.tileW
+                            ctl: quick.controls[mid] || null
+                            editing: quick.editing
+                            dragArea: grid
+                            onPageRequested: quick.openPage(ctl.page, ctile)
+                            onSecondaryRequested: quick.openSettings(ctl.settingsPage)
+                            onRemoveRequested: quick.removeTile(index)
+                            onDragTo: (ax, ay) => quick.dragTile(index, ax, ay, height)
+                        }
+                    }
                     // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
                     // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
                     Repeater {
                         id: modCells
                         model: quick.tileList
                         delegate: tileSlot.cell
+                    }
+                }
+
+                // W70 (c): the edit key under the tiles (a Tab stop after them), and while editing the edit's own rows: what it
+                // does, the controls to add, Done and Cancel, and a refusal.
+                Item {
+                    width: quick.innerW
+                    height: editKey.height
+                    visible: !quick.editing
+                    IconButton {
+                        id: editKey
+                        anchors.right: parent.right
+                        icon: "edit"
+                        glyph: "✎"
+                        a11y: I18n.tr("quick.edit.open")
+                        onClicked: quick.startEdit()
+                    }
+                }
+                Column {
+                    id: editRows
+                    width: quick.innerW
+                    visible: quick.editing
+                    spacing: Theme.gap
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr(quick.addable.length > 0 ? "quick.edit.hint" : "quick.edit.hint_full")
+                    }
+                    // The controls not in the centre: one key each, a press adds it at the end.
+                    Flow {
+                        id: addRow
+                        width: parent.width
+                        spacing: Theme.gap
+                        visible: quick.addable.length > 0
+                        function focusFirst() { var b = addKeys.itemAt(0); if (b) b.forceActiveFocus() }
+                        Repeater {
+                            id: addKeys
+                            model: quick.editing ? quick.addable : []
+                            delegate: Button {
+                                required property string modelData
+                                label: "+ " + (quick.controls[modelData] ? quick.controls[modelData].label : modelData)
+                                onClicked: quick.addTile(modelData)
+                            }
+                        }
+                    }
+                    Row {
+                        spacing: Theme.gap
+                        layoutDirection: Qt.RightToLeft
+                        width: parent.width
+                        Button {
+                            id: doneKey
+                            primary: true
+                            label: I18n.tr("quick.edit.done")
+                            onClicked: quick.saveEdit()
+                        }
+                        Button {
+                            label: I18n.tr("quick.edit.cancel")
+                            onClicked: quick.cancelEdit()
+                        }
+                    }
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        visible: quick.editError !== ""
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.error
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: quick.editError
                     }
                 }
 

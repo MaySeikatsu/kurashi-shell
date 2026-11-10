@@ -25,9 +25,10 @@ ModuleBase {
     property string valueText: ""
     // A click flips the switch (a harmless one: Focus, keep awake); else it opens the card (a radio, a profile).
     property bool clickToggles: false
-    // The wheel steps a level (sound, brightness); `step(dy)` is the module's.
+    // The wheel steps a level (sound, brightness): the module answers `wheeled(dy)` (a signal: a base function the module
+    // redefined would be called as the base's own from here).
     property bool wheels: false
-    function step(dy) {}
+    signal wheeled(real dy)
 
     readonly property string cardPage: ctl ? ctl.page : ""
     // The control's card is up: its page, opened by this module (the card's state is runtime.ui's; the page QuickNav's).
@@ -138,7 +139,9 @@ ModuleBase {
     }
     WheelHandler {
         enabled: m.wheels && !m.inert
-        onWheel: event => m.step(event.angleDelta.y)
+        // (a wheel and a touchpad, as the workspaces' wheel takes them)
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        onWheel: event => m.wheeled(event.angleDelta.y)
     }
     FocusRing {
         x: 3

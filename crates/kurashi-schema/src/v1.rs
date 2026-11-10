@@ -62,6 +62,8 @@ pub struct Config {
     pub title_bar: TitleBar,
     #[kurashi(nested)]
     pub cursor: Cursor,
+    #[kurashi(nested)]
+    pub quick: Quick,
 }
 
 // --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
@@ -2334,6 +2336,32 @@ pub struct Sidebar {
     /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
+}
+
+// --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------
+
+/// The control centre's tiles by default: the ten it always showed, in their order (W13, K47).
+pub const QUICK_TILES: [&str; 10] = [
+    "wifi",
+    "bluetooth",
+    "focus",
+    "audio",
+    "power",
+    "brightness",
+    "caffeine",
+    "nightlight",
+    "recorder",
+    "darkmode",
+];
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout", section = "control_centre")]
+pub struct Quick {
+    /// Control centre tiles
+    /// The controls the control centre shows as tiles, in order. Each is also a module of its own that a bar, a side
+    /// bar or an edge group can show. The centre's edit key changes this list too. Mods' tiles follow these.
+    #[kurashi(default = strings(&QUICK_TILES), choices_from = "quick.tiles", module = "quick", since = 7)]
+    pub tiles: Vec<String>,
 }
 
 // --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------

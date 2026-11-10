@@ -1719,3 +1719,11 @@
 # say where the pointer is, none is drawn.
 #   choices: "off" | "style" | "trail" | "sparkles" | "ring" · since schema v7
 # decoration = "off"
+
+# [quick]
+#
+# Control centre tiles — The controls the control centre shows as tiles, in order. Each is
+# also a module of its own that a bar, a side bar or an edge group can show. The centre's
+# edit key changes this list too. Mods' tiles follow these.
+#   choices: from `quick.tiles` (resolved at runtime) · since schema v7
+# tiles = ["wifi", "bluetooth", "focus", "audio", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode"]

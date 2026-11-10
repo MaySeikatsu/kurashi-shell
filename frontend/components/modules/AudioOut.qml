@@ -17,7 +17,7 @@ ControlModule {
     readonly property real daemonLevel: c.level
     onDaemonLevelChanged: target = -1
     readonly property string origin: "qs:" + m.output + ":audio:" + Math.floor(Math.random() * 1e6)
-    function step(dy) {
+    onWheeled: dy => {
         if (dy === 0 || !c.ok) return
         var base = target >= 0 ? target : c.level
         target = Math.max(0, Math.min(1, base + (dy > 0 ? 0.05 : -0.05)))

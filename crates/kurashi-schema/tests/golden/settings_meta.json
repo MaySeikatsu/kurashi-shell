@@ -1042,6 +1042,41 @@
               "type": "bool"
             }
           ]
+        },
+        {
+          "id": "control_centre",
+          "label": "settings.section.control_centre",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "quick.tiles",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [
+                "wifi",
+                "bluetooth",
+                "focus",
+                "audio",
+                "power",
+                "brightness",
+                "caffeine",
+                "nightlight",
+                "recorder",
+                "darkmode"
+              ],
+              "help": "config.quick.tiles.help",
+              "key": "quick.tiles",
+              "label": "config.quick.tiles.label",
+              "modules": [
+                "quick"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
+            }
+          ]
         }
       ]
     },

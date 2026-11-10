@@ -38,6 +38,9 @@ Item {
     property string pendingText: ""
     property bool hasPage: true
     property bool acts: false        // the main zone runs a one-step action (`activated`) when the tile has no switch
+    // W70: the centre's edit mode — the tile is a thing to move or remove, not a switch: a press neither toggles nor opens
+    // its page, and the keys are the edit's (QuickPanel's grid: Alt+arrows move it, Delete removes it).
+    property bool editing: false
     signal pageRequested()
     signal secondaryRequested()      // a tile with no page: its secondary action goes to the host (Settings, see above)
     signal activated()
@@ -89,7 +92,7 @@ Item {
     readonly property bool ownRelief: Theme.texControls && !Theme.texText && badge.fill.a >= 1 && !!(qsw && qsw.tileSheet)
 
     function activate() {
-        if (connecting) return
+        if (editing || connecting) return
         if (inert) { if (hasPage) pageRequested(); return }
         if (failed) req.retry()
         else if (toggles && req !== null) req.begin(!on)
@@ -99,12 +102,14 @@ Item {
 
     // The secondary action: the page, or the host's fallback for a tile without one. Never nothing (W37, I86).
     function secondary() {
+        if (editing) return
         if (hasPage) pageRequested()
         else secondaryRequested()
     }
 
     activeFocusOnTab: true
     Keys.onPressed: event => {
+        if (editing) return
         if (event.key === Qt.Key_Right && hasPage) {
             tile.pageRequested()
             event.accepted = true
@@ -358,6 +363,7 @@ Item {
         // The whole tile: a tile with no page toggles on its right `arrowW` px too (no dead strip where no chevron
         // shows; row 478, lead).
         anchors.fill: parent
+        enabled: !tile.editing
         hoverEnabled: tile.rows
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: mouse => { fromArrow = tile.inArrow(mouse.x) }
