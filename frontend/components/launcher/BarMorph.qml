@@ -71,7 +71,7 @@ Item {
     property real contentP: 0
     // At rest open: the springs have arrived and the content is in (the owner turns its blur on only then: the shape
     // changes size every frame).
-    readonly property bool settled: !morph ? (shown && p >= 1)
+    readonly property bool settled: !morph ? (shown && p >= 1 && !run.busy)
         : (shown && open && !gate && springs.settled && contentWanted && !run.busy)
     // How far the card's body is from its rest place, in output axes (K61: the owner publishes it as its window's carry
     // while the card slides; the shape's own relief carries `shapeCarry`).
@@ -132,7 +132,12 @@ Item {
     SurfaceForm {
         id: run
         surface: m.surface
-        want: m.open && m.shown && !m.gate && m.morph
+        // (session 29: sliding in, a sheet form is the card-level host's too — `entranceSheet`: its picture is then
+        // taken from a layer the size and place of the window, as the morph's, so the material in it lies where it lies
+        // at rest. The inner Entrance took the card's own box: the wash and the relief in that picture were another
+        // part of the sheet, and the card changed its face the moment the form landed — the user: "a short flicker
+        // afterwards".)
+        want: m.open && m.shown && !m.gate && (m.morph || m.runSheet)
         // (B90: a sheet form and its picture are made before the travel starts, `cardHost.run`)
         warm: true
         // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
@@ -150,12 +155,24 @@ Item {
         toFoot: m.cardFoot
         toR: Theme.rLg
         edgeY: m.barHt
-        onLanded: at => { if (at <= 0 && !m.open && m.shown) { m.release(); handBack.start() } }
+        onLanded: at => {
+            if (!(at <= 0 && !m.open && m.shown)) return
+            if (m.morph) { m.release(); handBack.start() }
+            else if (m.runSheet) { pDrv.snap(0); m.shown = false; m.hidden() }
+        }
     }
     readonly property bool useForm: run.mode === "shape" && run.busy && run.shape !== null
     readonly property QtObject sf: useForm ? run.shape : null
     readonly property real lift: sf ? sf.lift : 0
-    onShownChanged: if (!shown) run.reset()
+    onShownChanged: if (!shown) { run.reset(); runSheet = false }
+    // Sliding in, this opening's form is a sheet form and `run` draws it (set on the first presented frame, with the form
+    // the opening takes; until the card is gone). A close in a sheet form is then `run`'s too; a close in another form
+    // is the slide's, as before.
+    property bool runSheet: false
+    function sheetFor(dir) {
+        var f = Theme.motionForm(surface, dir), mt = f ? Theme.formMeta(f) : null
+        return !!mt && mt.family === "sheet" && mt.available !== false
+    }
     // This shape holds the island (see the header).
     property bool holds: false
     function take() {
@@ -211,13 +228,14 @@ Item {
                 if (!shown) { gate = true; shown = true; springs.place(pillCx, pillW, closedFoot) }
             } else {
                 if (!shown) { pDrv.snap(0); gate = true; shown = true }
-                else runP(1)
+                else if (!runSheet) runP(1)
             }
         } else if (shown) {
             gate = false
             reached = false
             if (morph) Qt.callLater(checkFolded)
-            else runP(0)
+            // (a sheet form folds the card: `run`, which hides it when it has landed)
+            else if (!(runSheet && sheetFor("close"))) runP(0)
         }
     }
     // The bar moved while the card is out: no morph across edges, the card goes and comes back in the new manner.
@@ -261,6 +279,8 @@ Item {
             m.gate = false
             if (m.debugLog) console.log("bar-morph gate " + m.outName + " +" + (Date.now() - m.openedAt) + " ms")
             if (m.morph) m.take()
+            // (a sheet form opens the card standing at its rest: `run` starts with the gate's fall)
+            else if (m.sheetFor("open")) { m.runSheet = true; pDrv.snap(1) }
             else m.runP(1)
         }
     }
@@ -302,9 +322,12 @@ Item {
     // stands at its rest geometry both ways (solid) and keeps the island; the sheet captures the body's box below the hinge
     // (`sheetBody`, square where it meets the bar), SheetRest draws the rest (the bar's side as at rest, beside the body ×
     // the landing), the join's fillets grow back from 0 over the landing, so p = 1 is the rest frame.
-    readonly property bool sheetOn: morph && cardHost.sheetSolid
+    readonly property bool sheetOn: (morph || runSheet) && cardHost.sheetSolid
     readonly property real hingeY: joined ? cardTop : barHt
     readonly property rect sheetBody: {
+        // (sliding in: the card's own box in the window; what lies round it — its fillets on a bar, its shadow — comes
+        // in with the landing, SheetRest's `k`)
+        if (!morph) return Qt.rect(shade, shade, cardW, cardH)
         var x0 = Math.round((morphW - cardW) / 2), y0 = Math.round(hingeY), y1 = Math.ceil(cardFoot)
         return flip ? Qt.rect(x0, morphH - y1, cardW, y1 - y0) : Qt.rect(x0, y0, cardW, y1 - y0)
     }
@@ -368,11 +391,12 @@ Item {
         width: m.width
         height: m.height
         edge: m.flip ? "bottom" : "top"
-        origin: Qt.rect(m.pillCx - m.pillW / 2, m.flip ? m.morphH - m.closedFoot : m.pillTop, m.pillW, m.pillH)
+        origin: m.morph ? Qt.rect(m.pillCx - m.pillW / 2, m.flip ? m.morphH - m.closedFoot : m.pillTop, m.pillW, m.pillH)
+            : m.formOrigin
         direction: run.dir
         progress: run.sheet ? run.p : 1
-        // (W59.9a: on a morph the sheet captures the body's box of the card at rest — `bodySrc`; SheetRest draws the rest)
-        source: m.morph && run.sheet ? bodySrc : card
+        // (W59.9a: the sheet captures the body's box of the card at rest — `bodySrc`; SheetRest draws the rest)
+        source: run.sheet ? bodySrc : card
         visible: !run.sheet || run.p > 0 || run.pending
         run: run
     Item {
@@ -574,7 +598,8 @@ Item {
         on: m.sheetOn
         draw: fullDraw
         body: m.sheetBody
-        hingeY: m.flip ? m.morphH - m.hingeY : m.hingeY
+        // (sliding in there is no bar's side to keep: everything round the body comes in with the landing)
+        hingeY: !m.morph ? (m.flip ? m.height : 0) : (m.flip ? m.morphH - m.hingeY : m.hingeY)
         barAbove: !m.flip
         k: cardHost.sheetFillets
     }

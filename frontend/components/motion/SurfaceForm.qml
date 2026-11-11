@@ -115,7 +115,10 @@ QtObject {
     // surface): at rest and through the last part of a form, not while a form has barely begun — the rule was cut over
     // the surface's whole span the moment a form started, a gap in the line before anything stood there (the user,
     // session 29: "the frame outline disappears, before the surface is already spawning there").
-    readonly property bool covers: !formed || (want && !pending && p > 0.9)
+    // (A sheet form only: there the surface stands at rest inside the form's picture. A shape form draws the live
+    // shape, which hangs from its neighbour's rule in every frame — `test-island-join`: with the rule back at the start
+    // of a close it ran on under the folding card.)
+    readonly property bool covers: !sheet || (want && !pending && p > 0.9)
     property Timer primeWait: Timer { interval: 1200; onTriggered: if (r.pending) r.start() }
     function start() {
         primeWait.stop()
