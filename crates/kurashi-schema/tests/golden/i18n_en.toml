@@ -321,7 +321,7 @@
 "config.theme.shape.squircle.label" = "Squircle curve"
 "config.theme.shape.squircle.help" = "How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly square."
 "config.theme.join_corner.label" = "Corner shape"
-"config.theme.join_corner.help" = "The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; cards that float, toasts and the blocks inside a card keep their rounding."
+"config.theme.join_corner.help" = "The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars; cards that float, toasts, and the keys, tiles and fields inside a card follow too. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; a pill stays a pill."
 "config.choice.join_corner.round" = "Rounded"
 "config.choice.join_corner.chamfer" = "Cut"
 "config.choice.join_corner.steps" = "Steps"

@@ -1058,7 +1058,7 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 
 #### `theme.join_corner` — Corner shape
 
-The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; cards that float, toasts and the blocks inside a card keep their rounding.
+The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars; cards that float, toasts, and the keys, tiles and fields inside a card follow too. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; a pill stays a pill.
 
 - type: `choice` · default: `"round"`
 - choices: `"round"` | `"chamfer"` | `"steps"` | `"bulge"` | `"square"`

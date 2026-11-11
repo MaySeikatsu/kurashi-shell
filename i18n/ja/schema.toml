@@ -989,7 +989,7 @@
 "config.choice.join.connected" = "コネクテッド"
 "config.choice.join.bridge" = "ブリッジ"
 "config.theme.join_corner.label" = "角の形"
-"config.theme.join_corner.help" = "シートの角の形（半径とは別）：つながった面が出会うところ（カードとバー、ドック、サイドバーとフレーム）、フレームの内側の角、つながったカード・ドック・サイドバーの自由な角。丸み、まっすぐなカット、ピクセルの階段、しずく、または角のまま。画面そのものの角は上の設定のまま、浮いているカード・トースト・カードの中のブロックは丸みを保ちます。"
+"config.theme.join_corner.help" = "シートの角の形（半径とは別）：つながった面が出会うところ（カードとバー、ドック、サイドバーとフレーム）、フレームの内側の角、つながったカード・ドック・サイドバーの自由な角。丸み、まっすぐなカット、ピクセルの階段、しずく、または角のまま。浮いているカード、トースト、カードの中のキー・タイル・入力欄もこの形になります。画面そのものの角は上の設定のまま、ピル形はピル形のままです。"
 "config.choice.join_corner.round" = "丸み"
 "config.choice.join_corner.chamfer" = "カット"
 "config.choice.join_corner.steps" = "階段"
