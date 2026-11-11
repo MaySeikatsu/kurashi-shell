@@ -1132,6 +1132,10 @@ impl Dock {
         if self.config.card_size != CardSize::Dock {
             doc["card_size"] = json!(self.config.card_size.name());
         }
+        // B117: named only while off (the shell keeps the edge's hover zone reachable over an open card while it is on).
+        if !self.config.hover_takes_page {
+            doc["hover_takes_page"] = json!(false);
+        }
         if let Some(at) = self.elsewhere(Spot::Edge) {
             doc["elsewhere"] = json!(at.name());
         }
@@ -2803,6 +2807,13 @@ mod tests {
         forced.insert("hover_takes_page".to_string(), "nix".to_string());
         let d = dock(&[("hover_takes_page", json!(false))]).with_forced(forced);
         assert_eq!(d.doc()["forced"]["hover_takes_page"], "nix");
+    }
+
+    /// B117: the document names `hover_takes_page` only while it is off.
+    #[test]
+    fn hover_takes_page_is_published_only_while_off() {
+        assert!(dock(&[]).doc().get("hover_takes_page").is_none());
+        assert_eq!(dock(&[("hover_takes_page", json!(false))]).doc()["hover_takes_page"], false);
     }
 
     /// W73, W74: the bar card's size is published unless it is the default (`dock`, the edge card's size).

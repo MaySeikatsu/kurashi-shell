@@ -6,4 +6,6 @@ Item {
     property string title: ""
     property string tailSide: "bottom"
     property real tailAt: width / 2
+    // The part draws a sheet of its own (a toast), not a small tip: it may take the sheets' radius and corner shape.
+    property bool sheet: false
 }

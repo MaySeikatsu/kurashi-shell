@@ -59,6 +59,7 @@ RoundBox {
             item.title = Qt.binding(function () { return c.item.summary || "" })
             item.tailSide = Qt.binding(function () { return c.tailSide })
             item.tailAt = Qt.binding(function () { return c.tailAt })
+            if (item.sheet !== undefined) item.sheet = true
         }
     }
     border.color: urgent ? Theme.accent : Theme.surfaceLineColor
