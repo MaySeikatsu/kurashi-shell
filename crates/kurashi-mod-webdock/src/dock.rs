@@ -2813,7 +2813,10 @@ mod tests {
     #[test]
     fn hover_takes_page_is_published_only_while_off() {
         assert!(dock(&[]).doc().get("hover_takes_page").is_none());
-        assert_eq!(dock(&[("hover_takes_page", json!(false))]).doc()["hover_takes_page"], false);
+        assert_eq!(
+            dock(&[("hover_takes_page", json!(false))]).doc()["hover_takes_page"],
+            false
+        );
     }
 
     /// W73, W74: the bar card's size is published unless it is the default (`dock`, the edge card's size).

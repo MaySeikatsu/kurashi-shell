@@ -651,11 +651,18 @@ Scope {
                             return out
                         }
                         readonly property string segsKey: JSON.stringify(ruleSegs)
+                        // (the island's opening: a live shape draws the rule in its box from its first frame, so the bar
+                        // cuts there at once — only a shape inside a sheet form's picture fades, IslandGeom `openSoft`)
+                        property string lastIsland: ""
                         onSegsKeyChanged: {
                             var cur = ruleSegs, prev = lastSegs
+                            // (read here, not through a binding of its own: that one might not have followed yet)
+                            var island = opened ? IslandGeom.openL + "," + IslandGeom.openR : ""
+                            var hard = island !== lastIsland && !IslandGeom.openSoft
                             lastSegs = cur
+                            lastIsland = island
                             fadeAnim.stop()
-                            if (prev === null || !Theme.springOn || !visible) { fadeOut = []; fadeIn = []; fadeT = 1; return }
+                            if (prev === null || hard || !Theme.springOn || !visible) { fadeOut = []; fadeIn = []; fadeT = 1; return }
                             var go = minus(prev, cur), come = rulePen.active ? [] : minus(cur, prev)
                             fadeOut = go; fadeIn = come
                             if (go.length > 0 || come.length > 0) { fadeT = 0; fadeAnim.start() }

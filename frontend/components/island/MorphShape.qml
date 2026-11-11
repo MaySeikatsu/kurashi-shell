@@ -333,8 +333,10 @@ Shape {
     property bool opens: true
     readonly property real openL: ruledStrip && visible && opens && width > 8 ? -Math.floor(barCx) + 2 : 0
     readonly property real openR: ruledStrip && visible && opens && width > 8 ? Math.floor(width - barCx) - 2 : 0
-    onOpenLChanged: IslandGeom.setOpening(openL, openR)
-    onOpenRChanged: IslandGeom.setOpening(openL, openR)
+    // (the owner's word that a sheet form draws the shape just now: IslandGeom `openSoft`)
+    property bool opensSoft: false
+    onOpenLChanged: IslandGeom.setOpening(openL, openR, opensSoft)
+    onOpenRChanged: IslandGeom.setOpening(openL, openR, opensSoft)
     Component.onDestruction: IslandGeom.setOpening(0, 0)
 
     // The fill's own path (inside the outline and the ring): the Stage clips the island's relief to it (I168), so the
