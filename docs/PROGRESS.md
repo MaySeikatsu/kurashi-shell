@@ -386,4 +386,5 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S29.4 | Bridge, `theme.join = bridge` (K137) | ✅ functional · 🟡 UX (line, flat, keycap, soft seen on niri; I491) | feat/s29-polish |
 | S29.5 | Sheets of their own take the corner shape (K136 (4), I489 (3)) | ✅ functional · 🟡 UX (floating card and sidebar section seen at four shapes; I492) | feat/s29-polish |
 | S29.6 | Web dock: pages that keep playing, the card's size, last opened wins (card W73, K138; I488, B110) | ✅ functional (`test-background`, `test-card`, `test-sidebar`) · 🟡 UX (three sizes shot on niri; B107) | feat/s29-webdock-w73 |
+| S29.7 | The sliding launcher's sheet form through the card-level host: warm start, the same face through the form (B111) | ✅ functional · 🟡 UX (centre placement sampled on niri; the user's report, not yet their eyes) | feat/s29-polish |
 
