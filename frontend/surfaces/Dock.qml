@@ -319,6 +319,8 @@ Scope {
                 surface: "dock"
                 shapes: ["expand", "iris", "stamp", "outline"]
                 want: dock.growing
+                // (B90: a sheet form and its picture are made before the travel starts, `dkHost.run`)
+                warm: true
                 // (a slide still in flight keeps its way: a reversal continues it, as the sidebar's; a scrub's held slide
                 // is not in flight)
                 hold: !formed && (Theme.timed ? dock.glide.running : true) && dock.slideAmt > 0.001 && dock.slideAmt < 0.999
@@ -446,13 +448,16 @@ Scope {
                     readonly property string openingKey: {
                         // (Joined to the frame's band: the band's rule opens the same way, Frame.qml.)
                         if (!dock.joined || !joinedShape.ruled || (dock.ld.joins !== "bar:" + dock.edge && dock.ld.joins !== "frame")
-                                || dock.shownAmt <= 0 || !visible)
+                                || dock.shownAmt <= 0 || !visible || !dock.dRun.covers)
                             return ""
-                        var o = dock.winOrigin()
+                        // (under a motion form: only once the form has brought the dock there, `covers`; and the
+                        // fillets at their rest size, not as the form still grows them — the bar redrew its rule on
+                        // every frame of that, B90)
+                        var o = dock.winOrigin(), n = dock.aR
                         if (dock.horiz)
-                            return [Math.round(o.x + body.x - joinedShape.fTi), Math.round(o.x + body.x + body.width + joinedShape.fTo)].join(",")
-                        return [Math.round(o.y + body.y - joinedShape.fOt),
-                                Math.round(o.y + body.y + body.height - Theme.shadowDy + joinedShape.fOb)].join(",")
+                            return [Math.round(o.x + body.x - joinedShape.restTi(n)), Math.round(o.x + body.x + body.width + joinedShape.restTo(n))].join(",")
+                        return [Math.round(o.y + body.y - joinedShape.restOt(n)),
+                                Math.round(o.y + body.y + body.height - Theme.shadowDy + joinedShape.restOb(n))].join(",")
                     }
                     onOpeningKeyChanged: {
                         SidebarGeom.clear(dock.outName, "dock")
@@ -592,7 +597,8 @@ Scope {
                             edge: dock.edge
                             direction: dock.dRun.dir
                             progress: dock.dRun.sheet ? dock.dRun.p : 1
-                            visible: !dock.dRun.sheet || dock.dRun.p > 0
+                            visible: !dock.dRun.sheet || dock.dRun.p > 0 || dock.dRun.pending
+                            run: dock.dRun
                             source: bodySrc
                             origin: dkHost.lamp
                             // The lamp: a third of the body at its middle, on the screen's side of the hinge (between the

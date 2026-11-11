@@ -1279,6 +1279,8 @@ PanelWindow {
         id: run
         surface: stage.formSurface
         want: stage.formWant
+        // (B90: a sheet form and its picture are made before the travel starts, `cardHost.run`)
+        warm: true
         // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
         hold: !springs.settled && Math.abs(springs.h - stage.closedFoot) > 1 && Math.abs(springs.h - stage.cardFoot) > 1
         fromCx: stage.morphMode ? stage.originCx - stage.boxL : stage.formFrameW / 2
@@ -1501,8 +1503,10 @@ PanelWindow {
         pressAt: isNaN(stage.pressAt.x) ? stage.pressAt : Qt.point(stage.pressAt.x, stage.flip ? stage.morphH - stage.pressAt.y : stage.pressAt.y)
         // (W59.9a: on a morph the sheet captures the body's box only — `bodySrc`; SheetRest draws the rest)
         source: stage.morphMode && run.sheet ? bodySrc : card
-        // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1)
-        visible: !run.sheet || run.p > 0
+        // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1, and while it is made ahead of an
+        // opening, unseen)
+        visible: !run.sheet || run.p > 0 || run.pending
+        run: run
     Item {
         id: formLayer
         anchors.fill: parent
@@ -1586,6 +1590,7 @@ PanelWindow {
             anchors.fill: parent
             joined: stage.joined
             headless: !stage.headMode
+            opens: run.covers
             hx0: stage.pillCx - stage.pillW / 2
             hy0: stage.pillTop
             hw: stage.pillW

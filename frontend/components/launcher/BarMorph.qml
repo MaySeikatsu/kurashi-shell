@@ -133,6 +133,8 @@ Item {
         id: run
         surface: m.surface
         want: m.open && m.shown && !m.gate && m.morph
+        // (B90: a sheet form and its picture are made before the travel starts, `cardHost.run`)
+        warm: true
         // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
         hold: !springs.settled && Math.abs(springs.h - m.closedFoot) > 1 && Math.abs(springs.h - m.cardFoot) > 1
         fromCx: m.pillCx
@@ -371,7 +373,8 @@ Item {
         progress: run.sheet ? run.p : 1
         // (W59.9a: on a morph the sheet captures the body's box of the card at rest — `bodySrc`; SheetRest draws the rest)
         source: m.morph && run.sheet ? bodySrc : card
-        visible: !run.sheet || run.p > 0
+        visible: !run.sheet || run.p > 0 || run.pending
+        run: run
     Item {
         id: formLayer
         width: m.width
@@ -419,6 +422,7 @@ Item {
             visible: shapeBox.visible
             anchors.fill: parent
             joined: m.joined
+            opens: run.covers
             hx0: m.pillCx - m.pillW / 2
             hy0: m.pillTop
             hw: m.pillW

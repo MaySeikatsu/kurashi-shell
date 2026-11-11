@@ -50,7 +50,9 @@ QtObject {
     readonly property bool sheet: mode === "sheet"
     readonly property real p: drv.value
     // Between its ends (held by a scrub counts: the shot is mid-way).
-    readonly property bool busy: formed && (drv.running || (p > 0.0001 && p < 0.9999))
+    // (and while a warm start makes the form ahead of its travel, `pending`: the transition has begun for everything
+    // that asks — the surface keeps its content, counts as not at rest, holds its other motion)
+    readonly property bool busy: formed && (pending || drv.running || (p > 0.0001 && p < 0.9999))
     readonly property string direction: drv.direction
     property QtObject shape: null
     readonly property bool masked: shape !== null && busy && shape.masked
@@ -97,24 +99,67 @@ QtObject {
     // The way the transition goes, set before it starts — a card-level FormHost's `direction` (bound to the surface's own
     // state it could still read the old way when the form's progress leaves its rest and FormHost latches).
     property string dir: "close"
-    onWantChanged: {
-        dir = want ? "open" : "close"
-        if (quiet) return
-        latch(dir)
+    // The warm start (B90, session 29; docs/ux/motion-engine.md "Warm start"): a sheet form's first frames were its
+    // slowest — the form is made, the surface is drawn into its layer for the first time (every glyph, picture and
+    // shader of a window that did not exist a moment ago) — and they fell inside the motion: an opening began with two
+    // or three long frames (measured: 70 to 230 ms) and read as a stutter. A surface that says `warm` has its FormHost
+    // (`run: <this>`) make the form and take its picture while the progress still stands at its rest — nothing to see
+    // when opening, the card itself when closing — and the travel starts on the frame after that picture was shown
+    // (FormHost calls `start()`; it gives up after 300 ms, and this after 1.2 s without a host).
+    property bool warm: false
+    property bool pending: false
+    // In motion, or about to be: the shell's colour clock rests meanwhile (core/ColorFlow.qml).
+    readonly property bool moving: busy
+    onMovingChanged: ColorFlow.rest(moving ? 1 : -1)
+    // Whether what the surface joins should already count it as there (a bar leaves its rule out under a joined
+    // surface): at rest and through the last part of a form, not while a form has barely begun — the rule was cut over
+    // the surface's whole span the moment a form started, a gap in the line before anything stood there (the user,
+    // session 29: "the frame outline disappears, before the surface is already spawning there").
+    readonly property bool covers: !formed || (want && !pending && p > 0.9)
+    property Timer primeWait: Timer { interval: 1200; onTriggered: if (r.pending) r.start() }
+    function start() {
+        primeWait.stop()
         var t = want ? 1 : 0
         if (drv.to !== t) drv.to = t
         else if (drv.value !== t && !drv.running) drv.go()
+        // (after the travel has begun: `busy` holds the form the wait made, FormHost)
+        pending = false
+    }
+    onWantChanged: {
+        dir = want ? "open" : "close"
+        if (quiet) return
+        var waited = pending
+        latch(dir)
+        var t = want ? 1 : 0
+        // (asked back before the travel began: the surface stands where it is wanted, and is told so)
+        if (waited && !drv.running && Math.abs(drv.value - t) < 1e-4) {
+            pending = false
+            primeWait.stop()
+            if (drv.to !== t) drv.to = t
+            landed(t)
+            return
+        }
+        if (warm && sheet && !drv.running && Math.abs(drv.value - t) > 0.999) {
+            pending = true
+            primeWait.restart()
+            return
+        }
+        start()
     }
     // A surface that is already in place when it is made (a toast that budded today's way): wanted, at rest, no form yet.
     function standOpen() {
+        pending = false
+        primeWait.stop()
         quiet = true; want = true; quiet = false
         drv.snap(1)
         drv.to = 1
     }
     // Snap to the wanted end (a retarget hands the shape to the surface's springs; the surface hid).
-    function finish() { drv.snap(want ? 1 : 0) }
+    function finish() { pending = false; primeWait.stop(); drv.snap(want ? 1 : 0) }
     // Back to today's path at rest (the surface hid): the next transition latches afresh.
     function reset() {
+        pending = false
+        primeWait.stop()
         drv.snap(want ? 1 : 0)
         if (form !== "") { form = ""; makeShape() }
     }
@@ -140,5 +185,5 @@ QtObject {
         keepVelocity: true
         onLanded: at => r.landed(at)
     }
-    Component.onDestruction: if (shape) shape.destroy()
+    Component.onDestruction: { if (moving) ColorFlow.rest(-1); if (shape) shape.destroy() }
 }

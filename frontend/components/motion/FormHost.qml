@@ -129,7 +129,15 @@ Item {
 
     // --- the content ---
     // (S21: a sheet form opening from 0 draws nothing until it moves — the card must not show for the frame it is mapped)
-    Item { id: body; anchors.fill: parent; visible: !(host.sheetOk && host.progress <= 0 && host.nextDir === "open") }
+    // (the warm start draws it meanwhile, unseen: what a sheet form leaves outside its picture — the surface's shadows,
+    // the rest of a join — is then drawn for the first time before the travel, not on its first frame)
+    Item {
+        id: body
+        anchors.fill: parent
+        readonly property bool unseen: host.sheetOk && host.progress <= 0 && host.nextDir === "open"
+        visible: !unseen || host.warming
+        opacity: unseen ? 0.002 : 1
+    }
 
     // --- sheet forms (W59.4+) ---
     // The handover a surface applies while a sheet form warps its card (row 656, brief §5): its elevation shadow ×
@@ -143,10 +151,35 @@ Item {
     function pascal(n) {
         return n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
     }
+    // The warm start (SurfaceForm `warm`, B90): while the surface's run waits (`run.pending`), the form is made and
+    // takes its picture at the rest it starts from. Opening, that rest shows nothing — the form is drawn at an opacity
+    // the eye cannot see, just above the one the scene graph skips (0.001), so the layer and everything in it are
+    // really drawn. The second frame swapped with the form in it (the first may have been under way before it) starts
+    // the travel; `primeReady` is the surface's own word that its content is made.
+    property QtObject run: null
+    property bool primeReady: true
+    readonly property bool prime: run !== null && run.pending === true
+    readonly property bool warming: prime || (run !== null && run.busy === true)
+    property int primed: 0
+    onPrimeChanged: primed = 0
+    Connections {
+        target: host.prime ? host.Window.window : null
+        function onFrameSwapped() {
+            if (!host.prime) return
+            if (!sheet.item || !host.primeReady) { host.primed = 0; return }
+            host.primed++
+            if (host.primed >= 2) host.run.start()
+            else host.Window.window.update()
+        }
+    }
+    Timer { interval: 300; running: host.prime; onTriggered: if (host.prime) host.run.start() }
     Loader {
         id: sheet
         anchors.fill: parent
-        active: host.sheetOk && host.busy
+        // (`run.busy`: from the moment the travel is started, a frame before the progress leaves its rest — the form
+        // the wait made is the one that runs)
+        active: host.sheetOk && (host.busy || host.warming)
+        opacity: host.progress <= 0 ? 0.002 : 1
         source: active ? Qt.resolvedUrl("forms/" + host.pascal(host.form) + ".qml") : ""
         // (live, without a Binding object per property at rest: set once the sheet exists)
         onLoaded: {

@@ -326,8 +326,11 @@ Shape {
     // the owner places the item off the bar's centre, W34); 0, 0 while the shape is not out on a ruled strip. Reported
     // only on a change.
     property real barCx: width / 2
-    readonly property real openL: ruledStrip && visible && width > 8 ? -Math.floor(barCx) + 2 : 0
-    readonly property real openR: ruledStrip && visible && width > 8 ? Math.floor(width - barCx) - 2 : 0
+    // (`opens`: the owner's word that the shape is there — a motion form that has barely begun has brought nothing to
+    // the bar's edge yet, and a rule left out at once was a gap in the line over the card's whole box, session 29)
+    property bool opens: true
+    readonly property real openL: ruledStrip && visible && opens && width > 8 ? -Math.floor(barCx) + 2 : 0
+    readonly property real openR: ruledStrip && visible && opens && width > 8 ? Math.floor(width - barCx) - 2 : 0
     onOpenLChanged: IslandGeom.setOpening(openL, openR)
     onOpenRChanged: IslandGeom.setOpening(openL, openR)
     Component.onDestruction: IslandGeom.setOpening(0, 0)

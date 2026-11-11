@@ -82,6 +82,14 @@ Shape {
     readonly property real fOt: openO && !openT ? room(Math.min(neckO, y0, bw - rc, bw / 2)) : 0
     readonly property real fOb: openO && !openB ? room(Math.min(neckO, height - y1, bw - rc, bw / 2)) : 0
 
+    // The inner fillets as they stand at rest, for a neck of `n` px (the caller's, while a motion form still grows the
+    // drawn ones: what the neighbour is told must not move with every frame of that, B90).
+    function restTi(n) { return openT ? room(Math.min(n, bh - rBL, bh / 2, x0)) : 0 }
+    function restTo(n) { return openT && !openO ? room(Math.min(n, bh - rBR, bh / 2, width - x1)) : 0 }
+    function restBi(n) { return openB ? room(Math.min(n, bh - rTL, bh / 2, x0)) : 0 }
+    function restOt(n) { return openO && !openT ? room(Math.min(n, y0, bw - rc, bw / 2)) : 0 }
+    function restOb(n) { return openO && !openB ? room(Math.min(n, height - y1, bw - rc, bw / 2)) : 0 }
+
     function f(v) { return Math.round(v * 100) / 100 }
     function arc(r, sweep, x, y) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " 0 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
     function ln(x, y) { return " L " + f(x) + " " + f(y) }
