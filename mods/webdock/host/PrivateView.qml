@@ -76,7 +76,7 @@ WebEngineView {
 
     onRenderProcessTerminated: (status, code) => send("webdock.host.crashed", { pin: pinId })
 
-    onRecentlyAudibleChanged: send("webdock.host.audible", { pin: pinId, on: recentlyAudible })
+    onRecentlyAudibleChanged: function () { send("webdock.host.audible", { pin: pinId, on: view.recentlyAudible }) }
 
     // The page's console goes to the host's log only when the test asks for it (KURASHI_WEBDOCK_DEBUG=1):
     // the typed text of a fixture page is how the B27 keyboard test reads what arrived.

@@ -418,6 +418,163 @@ Now the well shows the picked site's page, in that card, where it opened.
 - [ ] Left and right bars, a second output, HiDPI: the geometry is output-absolute and logical by construction; not
       measured in a test.
 
+## Background pages (W73, session 29; I488)
+**User (session 29):** "Web Engine stops process like spotify after a song, so it can't be used to run that in the
+background for long (maybe it needs keep alive toggle or something? Idk since the site itself seems to still be up)".
+
+### The cause
+Read in the code, then measured (see "As built (W73)"): a hidden page's engine lifecycle was `Active` only while the
+engine recommended it, which it does while the page is visible or `recentlyAudible`. Between two songs a player is silent;
+`recentlyAudible` falls a moment after the last sound, the hidden page is frozen (no timers, no network), and the timer
+that starts the next song never runs. A frozen page cannot wake itself, and the site "seems to still be up" because its
+view is kept. The daemon had a second gap of the same kind: an audible site is kept past `max_loaded`, and the moment the
+gap's "not audible" report arrived, a site past the cap left `keep` and its page was destroyed.
+
+### How browsers and other shells do it (from the products and their documentation; not re-checked online for this card)
+- **Chrome** freezes or discards background tabs (Memory Saver; tab freezing on low memory) and, since Chrome 88, throttles
+  timers of pages hidden for five minutes to one wake-up a minute ("intensive throttling"). Exceptions: a tab that plays
+  audio or played it in the last 30 seconds, one with a live WebRTC connection, camera, microphone or screen capture, one
+  with unsaved form input, and the sites the user lists under "Always keep these sites active".
+- **Edge** "sleeping tabs": a tab inactive for a set time (default 2 h) sleeps; tabs playing audio and the sites under
+  "Never put these sites to sleep" do not. Edge's sidebar apps kept running while their pane was closed.
+- **Firefox** unloads tabs only under memory pressure, oldest first; a tab playing audio, a pinned tab and one in
+  picture-in-picture come last. Background timers run on a budget, not frozen.
+- **Safari** throttles background tabs and suspends their timers after a while; audio playback is exempt.
+- **Opera / Vivaldi side panels:** a messenger or a music panel (Opera's "Player": Spotify, YouTube Music) keeps running
+  while the panel is closed; Vivaldi users ask for hibernation of panels, so it is the other way round there.
+- **Quickshell shells / HyprPanel:** none host a web page; media keeps playing in the user's browser or player.
+- **Taken:** two of Chrome's and Edge's exceptions. (1) A page that played sound counts as playing for a grace time
+  after its last sound (Chrome's 30 s, longer here: see below). (2) A per-pin "keep running" switch, the dock's version of
+  "Always keep these sites active" and "Never put these sites to sleep", which also lifts the dock's own unload rules.
+
+### Design
+- **Grace after sound: 10 minutes.** A page that has played sound stays `Active` for 10 minutes after its last sound,
+  hidden or not, and the daemon keeps it loaded (past `max_loaded`) and the host running (the idle clock waits) for the
+  same time. Why 10: the gap between tracks is 0–5 s (gapless, a crossfade, a slow network's buffering, an ad break that is
+  itself audible), which any grace covers; the longer case is a player the user pauses — a phone call, a coffee, the
+  doorbell — and comes back to, which is minutes. Ten covers that, and a silent page does not stay awake forever: past
+  it, the page freezes as before and the dock's rules apply. (Chrome's 30 s is for a tab the user can see in a tab strip;
+  a dock page is out of sight, so a pause there is less likely to be noticed and resumed at once.) One constant, owned by
+  the daemon: it publishes the page's `awake` mark (below), the host only follows it.
+- **"Keep running in the background"** (`background`, a bool field of each pin, default off; Settings › Web dock › pins).
+  Such a pin's page is never frozen while it is loaded, and the dock's own rules never unload it: not `unload_after` (the
+  web engine stays running while it is loaded), not the `max_loaded` cap. It is loaded once it was opened (shown in any
+  place); after a restart of the session or the engine it loads when it is opened again — the dock does not start sites by
+  itself (Calm). Turning the switch off returns the pin to the rules, at once.
+- **The document:** a web pin carries `background: true` while the switch is on and `awake: true` while its page must stay
+  `Active` although it is hidden and silent (in its grace, or a loaded background pin); both absent otherwise. `audible`
+  stays what the engine says, so the indicator never claims sound during a pause (Shōjiki).
+- **Honesty where the pin is listed:** the pin's tip and its menu on the strip say "Keeps running in the background"; the
+  sidebar's and the bar card's pin keys name it in their accessible description; Settings' pin list says it on the switch,
+  and the pins setting's help names the cost; `unload_after`'s help says that a background pin and sound hold the engine;
+  the mod's description and its `cost = "high"` stay true (the engine is the cost).
+
+### States
+- **Playing, hidden:** `Active` (as before). **Silent, in the grace:** `Active`, `awake`. **Silent past the grace:**
+  `Frozen`, unloads by the rules. **Background pin, loaded:** `Active`, `awake`, kept, the engine held. **Background pin,
+  not opened yet:** nothing runs (no load, no engine). **Engine missing / failed:** the switch is inert like the pin (the
+  pin's own state says why).
+
+### Keyboard and a11y
+The switch is the records editor's own bool control (Tab, Space). The strip's tip shows on a rest or keyboard focus; the
+pin keys' accessible description adds "keeps running in the background".
+
+### Budget (Ma, rule 5)
+A background pin is the user's explicit exception to "idle = silent": its page's process and the web engine stay in memory
+(the host's tree with one site: about 250–300 MiB PSS, test-host's memory phase) and the page's own CPU and network run
+all day. The grace costs at most 10 minutes of the same after the last sound. No poll: the host follows the document, the
+daemon wakes once at the grace's end (a deadline, no ticker).
+
+### Definition of done (W73, background)
+- [ ] A hidden page that played sound plays its next track after a silent gap longer than the engine's own audible hold:
+      `mods/webdock/test/test-background.sh` (real daemon, a `file://` page whose second tone starts from a `setTimeout`),
+      failing on the old `WebPage.qml` and passing on the new one.
+- [ ] The daemon keeps a site past the cap for the grace after its sound, then lets it go, and the idle clock starts only
+      after the grace (unit tests); a `background` pin is kept past the cap and holds the engine.
+- [ ] `background` field (mod.toml, i18n en/ja), the tip and the menu say it, `unload_after`'s help and the pins' help are
+      true; MODS.md lists `background` and `awake`.
+
+## The card's size (W73, session 29; I488 (3))
+**The user's answer (session 28):** "the size a setting" — Phone, Tablet, Wide, one for all pins, for the bar's card.
+
+### How others size a web page in a panel (from the products; not re-checked online for this card)
+- **Firefox responsive design mode / Chrome device toolbar:** presets named after devices with their CSS viewports (Pixel
+  7: 412 × 915, iPhone 14: 390 × 844, iPad Mini: 768 × 1024, "Laptop" 1024+); the frame is the viewport, the browser's
+  chrome is not counted.
+- **MenubarX:** a popover per web app with size presets (phone, tablet, desktop) and a drag handle; the user agent is a
+  separate switch.
+- **Vivaldi / Edge side panels:** the width per panel (Edge's minimum 376 px), the height the window's.
+- **Taken:** three presets named by device class with real devices' CSS viewports less a browser's chrome; the user agent
+  stays the pin's own switch (MenubarX).
+
+### Design
+- **Setting** `mods.webdock.card_size`: `phone` (default, what W72 built) | `tablet` | `wide`; Settings › Web dock.
+  The daemon publishes it in `mod.webdock` as `card_size`, absent while `phone` (as `page_style`).
+- **Sizes (the page's viewport; the well adds its 36 px navigation row):** phone 412 × 760 (a Pixel-class phone's 412 ×
+  915 less a mobile browser's bars), tablet 768 × 900 (an iPad Mini's 768 × 1024 less the bars), wide 1024 × 720 (a small
+  laptop's 1024 × 768 less a tab strip). The card is the well plus the Stage's padding.
+- **When it does not fit:** it shrinks, never off screen. The width is the Stage's (it clamps a panel's `cardWidth` to
+  360–1100 px and the output's width less its padding); the height is at most the output less two bar heights and the
+  card's margins (W72's clamp). The page reflows to the smaller viewport; nothing is cut off.
+- **Meets the view:** the size is the place, the pin's view (mobile / desktop user agent) is what the site is told. A
+  phone card with the desktop view shows a desktop site at 412 px; a wide card with the mobile view a stretched mobile
+  site. The help text says so.
+- **Not the edge card:** the edge card keeps `width` and `large` (its own sizes); the sidebar's well fills the sidebar.
+- **A size change** resizes the well and the host's window (the card re-rests): no reload.
+
+### Definition of done (W73, size)
+- [ ] Setting (mod.toml, i18n en/ja, `card_size` in the document, forced provenance like every mod setting).
+- [ ] Shots of the three sizes from a bottom bar on nested niri (`mods/webdock/test/shots-card.sh` →
+      `card-{phone,tablet,wide}-light.png`), each fully on screen.
+
+## Which place shows the page (W73, session 29; I488 (4))
+**The user's answer (session 28):** "Last opened wins": the place opened most recently shows the pin's page, the others
+say "shown elsewhere" with a key to bring it here.
+
+### How others move one live thing between places (from the products; not re-checked online for this card)
+- **Spotify Connect:** the device that started playing last plays; every other device shows "Listening on <device>" with
+  a tap to play here. The closest model.
+- **Browsers' "Move tab to new window" / a tab dragged out:** the tab is in one window; the old window loses it, no reload.
+- **Edge sidebar "Open in a tab"** and **Arc's Little Arc "Open in Arc"**: an explicit move to the larger place.
+- **Taken:** Spotify Connect's rule and wording: the latest place shows it, the others say where it is and offer "Show
+  here" (the browsers' move: no reload).
+
+### Design
+- **Three places:** the edge card, the sidebar's dock panel, the bar's card. Each has an *opened* stamp (a counter the
+  daemon owns). A place is stamped when it opens on a pin (the edge card turning extended on a pin, or showing another;
+  the sidebar's dock panel or the bar card's panel resting for the first time after it was made, `fresh: true` on its
+  first `webdock.sidebar` / `webdock.card` report), and when a pin is picked in it (`webdock.open` at the edge,
+  `webdock.sidebar_select`, `webdock.card_select`). A move or resize of an open place (the card or the sidebar resting
+  again) is no opening and steals nothing.
+- **Who shows a pin's page:** of the open places showing that pin, the one with the latest stamp. When it closes, the page
+  goes to the next one (the latest of those still open), without a reload. Different pins show live in every place.
+- **The document:** each place that shows a pin whose page is elsewhere says where: `elsewhere` at the top level (the edge
+  card), `sidebar.elsewhere`, `card.elsewhere` — `"edge"`, `"sidebar"` or `"card"`; absent while the place shows it.
+  The host draws a place's page only where the document does not say `elsewhere`; with a daemon that does not publish it
+  (the mock), the old order (sidebar, bar card, edge) still decides.
+- **"Show here":** the place's notice ("This page is shown in the sidebar" / "in the bar's card" / "at the screen's edge")
+  has a key under it, "Show here": a click or Enter sends that place's select action (above), which stamps it. The edge
+  card's key is the host's (HostButton), the sidebar's and the bar card's the panel's Notice action.
+
+### States
+- **Shown here:** the page. **Shown elsewhere:** the notice with the place's name and "Show here". **The other place
+  closes:** the page comes here (it was the next latest). **A view pin:** drawn by the shell in each place at once (no
+  page to share). **The engine starting / missing:** the existing notices win over "elsewhere".
+
+### Keyboard and a11y
+"Show here" is a Tab stop (the Notice's action key in the shell, a HostButton in the host); Enter or Space presses it.
+The notice is text the screen reader reads; the key's name is "Show here".
+
+### Motion and budget
+The page leaves one window and appears in the other with the receiving place's own fade (the bar card's 120 ms, the
+sidebar's settle, the edge card's cut); no reload, no new process. Nothing runs to decide it: the stamps change on an
+action, the document carries the result.
+
+### Definition of done (W73, places)
+- [ ] Daemon unit tests: latest opened wins among open places, the next one takes it on a close, a re-rest steals nothing.
+- [ ] test-card.sh steps 4 and 4b rewritten to the rule: the edge opened after the card takes the page and the card says
+      so; "Show here" in the card brings it back; the sidebar opened after the card takes it; no reload in any move.
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on

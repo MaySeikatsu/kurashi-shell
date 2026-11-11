@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tone</title>
+<style>body{background:#2b4535;color:#f0e6d2;font:18px sans-serif;margin:16px}</style>
+</head>
+<body>
+<h1>Tone</h1>
+<p>Click to play.</p>
+<p id="o">silent</p>
+<script>
+// W73 (docs/ux/webdock.md "Background pages"): a stand-in for a music player between two tracks. A click (a user
+// gesture: the engine wants one before a page may play) plays track 1 for `len` seconds; a setTimeout then waits `gap`
+// seconds of silence and plays track 2 — with no gesture, as a player's next track. Settings from the hash:
+//   #gap=12&len=2&mode=element&push=0&tick=0   mode: element (a new <audio> per track, as many web players do), same (one <audio>,
+//                                its source changed), webaudio (one AudioContext)
+// Every step is logged (the host's debug log carries the page's console): `TRACK <n> start|refused|end`.
+const q = new URLSearchParams(location.hash.slice(1));
+const gap = Number(q.get('gap') || 12), len = Number(q.get('len') || 2), mode = q.get('mode') || 'element';
+const t0 = performance.now();
+const at = () => ((performance.now() - t0) / 1000).toFixed(1);
+const say = (s) => { console.log(s + ' t=' + at() + ' visibility=' + document.visibilityState); document.getElementById('o').textContent = s; };
+
+// A `len` s sine tone as a WAV blob (no file, no network).
+function wav(freq) {
+  const rate = 22050, n = Math.floor(rate * len), buf = new ArrayBuffer(44 + 2 * n), v = new DataView(buf);
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + 2 * n, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, 2 * n, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + 2 * i, Math.round(6000 * Math.sin(2 * Math.PI * freq * i / rate)), true);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+const tracks = [wav(440), wav(660)];
+let ctx = null, el = null, started = false;
+
+function next(n) {
+  if (n > 2) return;
+  if (n === 2) say('TRACK 2 due');
+  if (mode === 'webaudio') {
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.frequency.value = n === 1 ? 440 : 660; g.gain.value = 0.2;
+    osc.connect(g).connect(ctx.destination); osc.start();
+    say('TRACK ' + n + ' start (' + ctx.state + ')');
+    setTimeout(() => { osc.stop(); ended(n); }, len * 1000);
+    return;
+  }
+  const a = mode === 'same' && el ? el : new Audio();
+  el = a;
+  a.src = tracks[n - 1];
+  a.onended = () => ended(n);
+  a.play().then(() => say('TRACK ' + n + ' start'), (e) => say('TRACK ' + n + ' refused ' + e.name));
+}
+function ended(n) {
+  say('TRACK ' + n + ' end');
+  if (n !== 1) return;
+  // push=1: the next track gets an address of its own (history.pushState), as single-page players do.
+  if (q.get('push') === '1') { history.pushState({ track: 2 }, '', location.pathname + '?track=2' + location.hash); say('TRACK pushed'); }
+  setTimeout(() => next(2), gap * 1000);
+}
+document.addEventListener('click', () => {
+  if (started) return;
+  started = true;
+  if (mode === 'webaudio') ctx = new AudioContext();
+  next(1);
+});
+// tick=1: a timer that logs every second (`TICK <n>`), a silent page's work that a freeze would stop.
+if (q.get('tick') === '1') { let k = 0; setInterval(() => say('TICK ' + (++k)), 1000); }
+document.addEventListener('visibilitychange', () => console.log('VISIBILITY ' + document.visibilityState + ' t=' + at()));
+console.log('TRACK ready mode=' + mode + ' gap=' + gap + ' len=' + len);
+</script>
+</body></html>

@@ -52,6 +52,13 @@ Item {
     // Test only (KURASHI_WEBDOCK_DEBUG=1): the page drawn or frozen.
     onActiveChanged: if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
     property bool debugLog: false
+    // (W73: the engine's state names: Active, Frozen, Discarded)
+    function lifeLog(what) {
+        if (!debugLog) return
+        var n = ["Active", "Frozen", "Discarded"]
+        console.log("webdock-debug life " + pinId + " " + what + ": state " + n[web.lifecycleState] + " recommended "
+            + n[web.recommendedState] + " audible " + web.recentlyAudible + " visible " + web.visible)
+    }
     onTargetChanged: if (target !== "" && !atTarget) web.url = target
 
     onModeChanged: {
@@ -90,6 +97,11 @@ Item {
             }
         }
         onRenderProcessTerminated: (status, code) => page.painted = true
+        // Test only (KURASHI_WEBDOCK_DEBUG=1, W73): the engine's lifecycle, its recommendation and the sound.
+        onLifecycleStateChanged: page.lifeLog("lifecycle")
+        onRecommendedStateChanged: page.lifeLog("recommended")
+        onRecentlyAudibleChanged: function () { page.lifeLog("audible") }
+        onVisibleChanged: page.lifeLog("visible")
         onSheetRequested: request => page.openSheet(request)
     }
 
