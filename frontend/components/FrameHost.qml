@@ -16,6 +16,8 @@ Loader {
     // K62: whom a frame that draws a pen line salts it with (the block), and an explicit salt (≥ 0) instead.
     property Item anchor: null
     property int penSeed: -1
+    // (I489: the host's corners take the sheet's corner shape, FrameBase `shaped`)
+    property bool shaped: false
     property string kind: height >= 64 && width >= 120 ? "card" : "small"
     // The frame draws a ground of its own (kind "ground"): the surface hides its chrome-derived ground meanwhile.
     readonly property bool grounds: item !== null && item.grounds === true
@@ -35,5 +37,6 @@ Loader {
         item.animate = Qt.binding(function () { return fh.animate && Theme.springOn })
         item.anchor = Qt.binding(function () { return fh.anchor })
         item.penSeed = Qt.binding(function () { return fh.penSeed })
+        if (item.shaped !== undefined) item.shaped = Qt.binding(function () { return fh.shaped })
     }
 }

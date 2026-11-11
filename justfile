@@ -93,6 +93,7 @@ webdock:
     timeout 1200 bash mods/webdock/test/test-host.sh || status=1
     timeout 600 bash mods/webdock/test/test-real.sh || status=1
     timeout 900 bash mods/webdock/test/test-dock.sh || status=1
+    timeout 600 bash mods/webdock/test/test-background.sh || status=1
     exit "$status"
 
 # K59: every shader is compiled to the .qsb the frontend loads (Qt 6 shader tools, in nix develop) and committed beside

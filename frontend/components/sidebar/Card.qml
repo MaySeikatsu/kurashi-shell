@@ -8,6 +8,8 @@ import ".."
 // section out of the column (RightColumn).
 RoundBox {
     id: card
+    // (a sheet of its own: its corners take the sheet's corner shape, I489)
+    sheet: true
     property bool shown: true
     default property alias content: col.data
     readonly property real inPad: bare ? 0 : Theme.pad
@@ -41,6 +43,7 @@ RoundBox {
         radius: card.radius
         anchor: card
         kind: "card"
+        shaped: card.cornerJoin !== ""
     }
     Column {
         id: col

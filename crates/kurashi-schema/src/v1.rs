@@ -449,7 +449,8 @@ pub struct Theme {
     /// How a card meets the bar it opens from — its draw mode, apart from the chrome, as the bars, the dock and the
     /// sidebars have theirs. Automatic: as the look and its chrome draw it. Floating: a card of its own under its
     /// module, a gap off the bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the
-    /// bar, joined with straight corners.
+    /// bar, joined with straight corners. Bridge: a card of its own, held to its module by a short neck — the keycap
+    /// and the soft chrome's own connection, under any chrome.
     #[kurashi(default = Join::Auto, section = "shape", since = 7)]
     pub join: Join,
     #[kurashi(nested, section = "material")]
@@ -717,6 +718,8 @@ pub enum Join {
     Dynamic,
     /// Connected
     Connected,
+    /// Bridge
+    Bridge,
 }
 
 /// Session 28 (I270): the corner where two joined surfaces meet.

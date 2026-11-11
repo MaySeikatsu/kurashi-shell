@@ -1066,10 +1066,10 @@ The shape of the sheet's corners, beside their radius: where joined surfaces mee
 
 #### `theme.join` — Cards join their bar
 
-How a card meets the bar it opens from — its draw mode, apart from the chrome, as the bars, the dock and the sidebars have theirs. Automatic: as the look and its chrome draw it. Floating: a card of its own under its module, a gap off the bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the bar, joined with straight corners.
+How a card meets the bar it opens from — its draw mode, apart from the chrome, as the bars, the dock and the sidebars have theirs. Automatic: as the look and its chrome draw it. Floating: a card of its own under its module, a gap off the bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the bar, joined with straight corners. Bridge: a card of its own, held to its module by a short neck — the keycap and the soft chrome's own connection, under any chrome.
 
 - type: `choice` · default: `"auto"`
-- choices: `"auto"` | `"float"` | `"dynamic"` | `"connected"`
+- choices: `"auto"` | `"float"` | `"dynamic"` | `"connected"` | `"bridge"`
 - since schema v7
 
 #### `theme.chrome` — Chrome

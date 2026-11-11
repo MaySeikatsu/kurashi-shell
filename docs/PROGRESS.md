@@ -380,4 +380,11 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S28.6 | Colour flow: gradient, frame outline, glow on one clock (K131) | ✅ functional · 🟡 UX (seen running on niri; no suite, I487) | feat/s28-expressive |
 | S28.7 | Text effects and fresh text, `TextFx` (K132, I473) | ✅ functional · 🟡 UX (each spawn and effect seen on niri; headings and some labels only, I485) | feat/s28-expressive |
 | S28.8 | Layout moves: a bar travels to its new edge (K133, I478) | ✅ functional · 🟡 UX (follow, part, drip seen on niri as bursts; I486) | feat/s28-expressive |
+| S29.1 | Motion gets the frame budget: the colour clock steps and rests, sheet forms warm up, the rule is cut once (K135; B99, B90, B109) | ✅ functional (frame times on nested niri, CPU read from the live session) · 🟡 UX (the user has not seen it; B98) | feat/s29-polish |
+| S29.2 | The month grid is made with its view (B108) | ✅ functional · 🟡 UX (seen in bursts on niri) | feat/s29-polish |
+| S29.3 | One line: cards take the frame's line colour, joins meet the rule, corner shapes as insets (K136; B105, B106) | ✅ functional · 🟡 UX (pixels read on niri at five shapes and three radii) | feat/s29-polish |
+| S29.4 | Bridge, `theme.join = bridge` (K137) | ✅ functional · 🟡 UX (line, flat, keycap, soft seen on niri; I491) | feat/s29-polish |
+| S29.5 | Sheets of their own take the corner shape (K136 (4), I489 (3)) | ✅ functional · 🟡 UX (floating card and sidebar section seen at four shapes; I492) | feat/s29-polish |
+| S29.6 | Web dock: pages that keep playing, the card's size, last opened wins (card W73, K138; I488, B110) | ✅ functional (`test-background`, `test-card`, `test-sidebar`) · 🟡 UX (three sizes shot on niri; B107) | feat/s29-webdock-w73 |
+| S29.7 | The sliding launcher's sheet form through the card-level host: warm start, the same face through the form (B111) | ✅ functional · 🟡 UX (centre placement sampled on niri; the user's report, not yet their eyes) | feat/s29-polish |
 

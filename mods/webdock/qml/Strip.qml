@@ -114,6 +114,7 @@ Flickable {
                         pin: cell.modelData.pin
                         tileSize: strip.tile
                         shown: strip.shownId === cell.modelData.pin.id
+                        tipEdge: strip.edge
                         onActivated: strip.pinSelected(cell.modelData.pin.id)
                         onMenuRequested: strip.pinMenu(cell.modelData.pin.id)
                         onTabbed: back => strip.tabFrom(back)

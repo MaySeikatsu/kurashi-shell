@@ -12,7 +12,14 @@ Item {
     property color color: "white"
     readonly property RoundPen border: RoundPen {}
     readonly property real bw: rb.border.color.a > 0 ? Math.max(0, rb.border.width) : 0
-    readonly property bool sq: Theme.squircle > 0 && rb.radius > 0.5 && rb.radius < Math.min(rb.width, rb.height) / 2 - 0.5
+    // I489 (session 29): a box that is a sheet of its own — a floating card, a sidebar's section, the notification
+    // centre — takes the sheet's corner shape (`theme.join_corner`), as the joined surfaces do; every other box (a
+    // button, a field, a tile) keeps its rounding.
+    property bool sheet: false
+    readonly property string cornerJoin: rb.sheet && rb.radius > 0.5 && Theme.joinCorner !== "round" && Theme.joinCorner !== ""
+        && rb.radius < Math.min(rb.width, rb.height) / 2 - 0.5 ? Theme.joinCorner : ""
+    readonly property bool sq: cornerJoin !== ""
+        || (Theme.squircle > 0 && rb.radius > 0.5 && rb.radius < Math.min(rb.width, rb.height) / 2 - 0.5)
 
     // Session 26: in Settings (Theme.hosted) a box takes the shell's pen for its outline (K62) and the chrome's wash on a
     // ground's fill (I460), as the shell's own blocks do; the shell's boxes keep their straight line and flat fill.
@@ -58,6 +65,7 @@ Item {
         active: rb.sq && !rb.painted
         sourceComponent: SquircleRect {
             radius: rb.radius
+            join: rb.cornerJoin
             color: rb.color
             borderWidth: rb.lineW
             borderColor: rb.border.color

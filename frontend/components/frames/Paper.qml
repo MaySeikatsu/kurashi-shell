@@ -30,7 +30,7 @@ FrameBase {
         opacity: f.small ? 0.07 : 0.11
     }
     Rectangle {
-        visible: !f.ground
+        visible: !f.ground && !f.shaped
         anchors.fill: parent
         anchors.margins: 1.5
         radius: Math.max(0, f.radius - 1.5)
@@ -40,26 +40,31 @@ FrameBase {
     }
 
     // ---- the ground: the surface's paper, the fine grain and longer fibres over it ----
-    Rectangle {
-        visible: f.ground
+    // (made only for a ground: every key, tile and card of the look carries this frame, and three items that a block
+    // never shows were a fifth of what a block costs to make — session 29, 100 blocks: 155 ms)
+    Loader {
         anchors.fill: parent
-        color: Theme.surface
-    }
-    Image {
-        visible: f.ground
-        anchors.fill: parent
-        source: f.ground ? f.fine : ""
-        sourceSize: Qt.size(160, 160)
-        fillMode: Image.Tile
-        smooth: false
-        opacity: 0.14
-    }
-    Image {
-        visible: f.ground
-        anchors.fill: parent
-        source: f.coarse
-        sourceSize: Qt.size(256, 256)
-        fillMode: Image.Tile
-        opacity: 0.1
+        active: f.ground
+        sourceComponent: Item {
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.surface
+            }
+            Image {
+                anchors.fill: parent
+                source: f.fine
+                sourceSize: Qt.size(160, 160)
+                fillMode: Image.Tile
+                smooth: false
+                opacity: 0.14
+            }
+            Image {
+                anchors.fill: parent
+                source: f.coarse
+                sourceSize: Qt.size(256, 256)
+                fillMode: Image.Tile
+                opacity: 0.1
+            }
+        }
     }
 }

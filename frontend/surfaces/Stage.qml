@@ -426,7 +426,7 @@ PanelWindow {
     Region { id: cardRegion; item: card }
     Region { id: peekRegion; item: peekCard }
     // (rounded as the cards are drawn: a square region showed the blur past their corners, I276)
-    Region { id: cardBlur; item: card; radius: card.radius }
+    Region { id: cardBlur; item: card; radius: card.cornerJoin !== "" ? Math.min(Theme.blurCorner(card.radius), card.width / 2, card.height / 2) : card.radius }
     Region { id: peekBlur; item: peekCard; radius: peekCard.radius }
     // A morphing peek grows from its widget's group: behind its body as drawn, never its card's box ahead of it (I295).
     Region {
@@ -448,10 +448,12 @@ PanelWindow {
         y: stage.flip ? stage.morphH - stage.blurTop - stage.blurH : stage.blurTop
         width: stage.shapeW
         height: stage.blurH
-        topLeftRadius: stage.flip ? shape.rBot : shape.rTop
-        topRightRadius: stage.flip ? shape.rBot : shape.rTop
-        bottomLeftRadius: stage.flip ? shape.rTop : shape.rBot
-        bottomRightRadius: stage.flip ? shape.rTop : shape.rBot
+        // (the round corner within the sheet's corner shape: Theme.blurCorner)
+        readonly property real capR: Math.min(width, height) / 2
+        topLeftRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rBot : shape.rTop))
+        topRightRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rBot : shape.rTop))
+        bottomLeftRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rTop : shape.rBot))
+        bottomRightRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rTop : shape.rBot))
         // (K83, iris: only inside the circle; otherwise an empty union, so the region is exactly today's)
         Region {
             readonly property bool on: stage.sf !== null && stage.sf.irisR >= 0
@@ -743,7 +745,7 @@ PanelWindow {
     // stays where a peek cannot join: beside a side bar, and with the springs off.
     readonly property bool peekBalloon: peekTip.has && (peekSide || !Theme.springOn)
     // K98, as a card: in dynamic a peek near the frame's corner runs into it instead of standing a few px beside it.
-    readonly property bool peekDynamic: peekMorph && !joined && Theme.surfaceJoin
+    readonly property bool peekDynamic: peekMorph && !peekJoined && Theme.surfaceJoin
         && FG.edgeOf(outLay, peekFlip ? "bottom" : "top").draw === "dynamic"
     readonly property bool peekMergesL: peekDynamic && peekBoxL + peekShape.x0 < holeL + mergeRoom
     readonly property bool peekMergesR: peekDynamic && !peekMergesL && peekBoxL + peekShape.x0 + peekShape.w > holeR - mergeRoom
@@ -757,7 +759,7 @@ PanelWindow {
     Binding { target: stage; property: "shownW"; value: stage.peekReq && stage.peekReq.w !== undefined ? Number(stage.peekReq.w) : 0; when: stage.peekWanted; restoreMode: Binding.RestoreNone }
     readonly property bool peekFlip: shownEdge === "bottom"
     readonly property real peekEdgeY: peekBarInset + Theme.barH
-    readonly property real peekE: joined ? peekBarInset + (peekFlip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2) : peekEdgeY
+    readonly property real peekE: peekJoined ? peekBarInset + (peekFlip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2) : peekEdgeY
     readonly property real peekOriginW: Math.max(8, shownW - 6)
     readonly property real peekOriginCx: shownX + shownW / 2
     readonly property int peekSlackX: 16 + Theme.softR
@@ -819,13 +821,13 @@ PanelWindow {
     readonly property real peekShapeW: peekSf ? peekSf.w * peekSf.sx : Math.max(0, peekSprings.wOut * (1 - peekSprings.squeeze))
     readonly property real peekShapeCx: peekSf ? peekSf.cx : peekSprings.cxOut - peekBoxL
     readonly property real peekFoot: peekSf ? peekEdgeY + (peekSf.foot - peekEdgeY) * peekSf.sy : peekSprings.hOut
-    readonly property real peekBodyTop0: joined ? lerp(peekE, peekInset, peekGrow) : peekEdgeY
+    readonly property real peekBodyTop0: peekJoined ? lerp(peekE, peekInset, peekGrow) : peekEdgeY
     readonly property real peekBodyTop: peekSf && peekBodyTop0 > peekEdgeY ? peekEdgeY + (peekBodyTop0 - peekEdgeY) * peekSf.sy : peekBodyTop0
     readonly property real peekNeckRoom: Math.max(0, peekShapeW / 2 - Theme.rSm - 8)
     // As the panels' neck: under the widget's group, as near the body's centre as the group's flat foot allows.
     readonly property var peekHome: {
         var rev = IslandGeom.revision
-        if (!joined || !peekMorph) return null
+        if (!peekJoined || !peekMorph) return null
         var keys = ["group:right", "group:workspaces", "group:tasks"]
         for (var i = 0; i < keys.length; i++) {
             var g = IslandGeom.rectOf(peekScreen, keys[i])
@@ -858,7 +860,7 @@ PanelWindow {
         layer.enabled: stage.peekSf !== null && stage.peekMorph
         layer.effect: FormMask {
             form: peekRun.shape
-            keep: stage.peekEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : Theme.surfaceLineW)
+            keep: stage.peekEdgeY - (Theme.outlineW > 0 || stage.peekJoined ? 0 : Theme.surfaceLineW)
             flipped: stage.peekFlip
             cut: peekRun.form === "expand"
         }
@@ -882,7 +884,7 @@ PanelWindow {
             id: peekShape
             visible: peekShapeBox.visible
             anchors.fill: parent
-            joined: stage.joined
+            joined: stage.peekJoined
             headless: true
             // (the join's radii are the cards': one fillet everywhere a surface meets the bar, user, session 27)
             neckF: Theme.rJoin
@@ -896,8 +898,8 @@ PanelWindow {
             h: Math.max(0, stage.peekFoot - stage.peekBodyTop)
             rTop: Theme.rSm
             rBot: Math.min(Theme.rLg, Math.max(Theme.rSm, w / 4))
-            edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
-            neck: stage.joined ? 0 : Theme.cardNeck
+            edgeY: stage.peekJoined ? stage.peekE : stage.peekEdgeY
+            neck: stage.peekJoined ? 0 : Theme.cardNeck
             // (I277: the peek is the bar's sheet, as the card it grows out of; a look's tooltip fill, W53)
             fill: stage.peekBalloon ? peekTip.fill(Theme.surfaceAlpha) : Theme.surfaceAlpha
             edgeL: stage.peekMergesL ? stage.holeL - stage.peekBoxL : -1e6
@@ -1061,7 +1063,9 @@ PanelWindow {
         when: stage.shown
         restoreMode: Binding.RestoreNone
     }
-    readonly property bool headMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null && !fromModule
+    // (session 29: a bridged card on a strip hangs from the strip's edge under the pill; the pill stays the bar's)
+    readonly property bool headKind: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null && !fromModule
+    readonly property bool headMode: headKind && !bridgeStrip
     // Row 512 (K71: a bar on each edge, floating or docked): the bar the shape grows from — the island's own bar for its
     // views (`pillOf().edge`), the bar of the widget a panel grew out of (`rectOf().edge`), else the island's bar, else
     // "the bar" (BarConfig) — and that bar's inset (a floating bar's band + gap). The local frame below counts y from that
@@ -1102,7 +1106,7 @@ PanelWindow {
     }
     readonly property bool morphMode: !placed && Theme.surfaceJoin
         && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge)) && besideAt === null
-        && (headMode || panelKinds.indexOf(contentKind) >= 0 || fromModule)
+        && (headKind || panelKinds.indexOf(contentKind) >= 0 || fromModule)
     readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
     // keeps the card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
@@ -1116,12 +1120,20 @@ PanelWindow {
     // The bar's inner edge (local): where a strip ends and a headless shape grows out of it.
     readonly property real barEdgeY: barInset + Theme.barH
     // The card's content sits where it always did: past the bar and 4 px (BarConfig's inset); the shape ends at its foot.
-    readonly property real cardTop: barEdgeY + 4
+    // (a bridged card on a strip stands a gap off the strip, its neck across the gap)
+    readonly property real cardTop: barEdgeY + (bridgeStrip ? Math.max(8, Theme.gap) : 4)
     // The bar's groups float as blocks (a chrome with groups and a shadow of either kind: no strip under them, Bar.qml):
     // the card joins the island's own block (I115), or a widget's block. Else the neck joins the card to the bar's strip.
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
     // (I489: Dynamic and Connected take the strip's form under every chrome; Automatic keeps the chrome's)
-    readonly property bool joined: Theme.groups && lifted && !Theme.joinForced
+    // (session 29: Bridge takes the block's form under every chrome; on a strip the neck hangs from the strip's edge)
+    readonly property bool blocks: Theme.groups && lifted
+    readonly property bool joined: (blocks && !Theme.joinForced) || Theme.joinBridge
+    readonly property bool bridgeStrip: Theme.joinBridge && !blocks
+    // (a peek keeps the chrome's own form: under a block where the groups float, from the strip's edge else)
+    readonly property bool peekJoined: joined && blocks
+    // The line a neck hangs from under a widget or the pill: the block's foot, or the strip's edge.
+    readonly property real neckFoot: blocks ? groupFoot : barEdgeY
     // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
     readonly property real neckR: joined ? 0 : Theme.cardNeck
@@ -1142,10 +1154,10 @@ PanelWindow {
     readonly property var origin: {
         if (!shown || headMode) return { x: pillOutCx - pillW / 2, w: pillW, e: pillTop + pillH, kind: "pill" }
         var r = originRect
-        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : barEdgeY, kind: "widget",
+        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? neckFoot : barEdgeY, kind: "widget",
                                  r: r.r >= 0 ? r.r : Theme.rSm }
-        if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined ? pillTop + pillH : barEdgeY, kind: "pill" }
-        return { x: outW / 2 - 40, w: 80, e: joined ? groupFoot : barEdgeY, kind: "centre" }
+        if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined && blocks ? pillTop + pillH : barEdgeY, kind: "pill" }
+        return { x: outW / 2 - 40, w: 80, e: joined ? neckFoot : barEdgeY, kind: "centre" }
     }
     readonly property real originCx: origin.x + origin.w / 2
     // The origin's corner radius (W59.9a: liquid flows from it, a headless shape's corners start at it): the pill's, a
@@ -1279,6 +1291,8 @@ PanelWindow {
         id: run
         surface: stage.formSurface
         want: stage.formWant
+        // (B90: a sheet form and its picture are made before the travel starts, `cardHost.run`)
+        warm: true
         // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
         hold: !springs.settled && Math.abs(springs.h - stage.closedFoot) > 1 && Math.abs(springs.h - stage.cardFoot) > 1
         fromCx: stage.morphMode ? stage.originCx - stage.boxL : stage.formFrameW / 2
@@ -1501,8 +1515,10 @@ PanelWindow {
         pressAt: isNaN(stage.pressAt.x) ? stage.pressAt : Qt.point(stage.pressAt.x, stage.flip ? stage.morphH - stage.pressAt.y : stage.pressAt.y)
         // (W59.9a: on a morph the sheet captures the body's box only — `bodySrc`; SheetRest draws the rest)
         source: stage.morphMode && run.sheet ? bodySrc : card
-        // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1)
-        visible: !run.sheet || run.p > 0
+        // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1, and while it is made ahead of an
+        // opening, unseen)
+        visible: !run.sheet || run.p > 0 || run.pending
+        run: run
     Item {
         id: formLayer
         anchors.fill: parent
@@ -1586,6 +1602,7 @@ PanelWindow {
             anchors.fill: parent
             joined: stage.joined
             headless: !stage.headMode
+            opens: run.covers
             hx0: stage.pillCx - stage.pillW / 2
             hy0: stage.pillTop
             hw: stage.pillW
@@ -1724,6 +1741,8 @@ PanelWindow {
     }
     RoundBox {
         id: card
+        // (a sheet of its own where no shape draws it: its corners take the sheet's corner shape, I489)
+        sheet: true
         visible: stage.shown
         // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel
         // asks for its card width (contract row 66); the session menu is as wide as its row of tiles; the rest keep 360 px.
@@ -1811,16 +1830,50 @@ PanelWindow {
         Loader {
             anchors.fill: parent
             active: !stage.morphDraws && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
-            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
+            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a; shaped: card.cornerJoin !== "" }
         }
         // I460 prototype: the wash on the card's fill.
+        // I489 (session 29): under a corner shape other than round (`card.cornerJoin`) the wash and the material are cut
+        // to the card's own shape — a mask of it, drawn once per size (as JoinedCard's) — or their rounded rectangle
+        // lay over the shaped corners.
+        readonly property bool cornerMasked: card.cornerJoin !== "" && (Theme.washOn || Theme.texShell)
+            && !stage.morphDraws && !stage.ownChrome && card.visible
+        readonly property real groundR: cornerMasked ? 0 : Math.max(0, card.radius - Theme.outlineW)
+        Loader {
+            id: cornerMask
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: card.cornerMasked
+            sourceComponent: Item {
+                readonly property alias copy: maskCopy
+                SquircleRect {
+                    id: maskDraw
+                    anchors.fill: parent
+                    radius: Math.max(0, card.radius - Theme.outlineW)
+                    refRadius: card.radius
+                    join: card.cornerJoin
+                    color: "white"
+                    onOuterChanged: maskCopy.scheduleUpdate()
+                }
+                StillCopy {
+                    id: maskCopy
+                    x: -100000
+                    width: parent.width
+                    height: parent.height
+                    sourceItem: maskDraw
+                    hideSource: true
+                }
+            }
+        }
+        readonly property var groundMask: cornerMask.item ? cornerMask.item.copy : null
         Loader {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.washOn && !stage.morphDraws && !stage.ownChrome
             sourceComponent: Wash {
                 anchors.fill: parent
-                radius: Math.max(0, card.radius - Theme.outlineW)
+                radius: card.groundR
+                mask: card.groundMask
                 fill: Qt.alpha(Theme.panel, 1)
                 strength: Theme.panel.a
             }
@@ -1831,7 +1884,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.texShell && !Theme.texText && !stage.morphDraws && !stage.ownChrome
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+            sourceComponent: Relief { anchors.fill: parent; radius: card.groundR; mask: card.groundMask }
         }
         // With `texture.text` the relief lies over the views too: their text and icons sink into the same sheet.
         Loader {
@@ -1839,7 +1892,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.texShell && Theme.texText && !stage.morphDraws && !stage.ownChrome
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+            sourceComponent: Relief { anchors.fill: parent; radius: card.groundR; mask: card.groundMask }
         }
         // W53.4: the look's ground pattern (Aqua's pinstripes) on the window's ground, under the views; made only while the
         // look has one.

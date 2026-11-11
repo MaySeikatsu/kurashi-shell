@@ -100,10 +100,14 @@ ShellRoot {
         cardPin: root.barCardPinId
         cardOpen: root.barCardOpen
         cardSlot: barCard.slot
+        // W73: where a place's pin is shown when it is another place (last opened wins); absent: here.
+        sideElsewhere: root.sideDoc.elsewhere || ""
+        cardElsewhere: root.barCardDoc.elsewhere || ""
+        edgeElsewhere: root.doc.elsewhere || ""
     }
 
-    // W72: the bar card's page, where the bar card's well rests (`card.place`), while it shows a site (and the sidebar
-    // does not show the same pin: the sidebar keeps it, the card's well says so).
+    // W72: the bar card's page, where the bar card's well rests (`card.place`), while it shows a site (and no place
+    // opened later shows the same pin: W73, the card's well then says where it is).
     readonly property var barCardDoc: doc.card || ({})
     readonly property string barCardPinId: barCardDoc.pin || ""
     readonly property var barCardPinObj: pinById(barCardPinId)

@@ -207,22 +207,36 @@ Column {
         // The day marks' contributions (row 71). The host draws none itself: each day cell below places one ModLoader
         // per contribution, so this host only lists them.
         SlotHost { id: marks; slot: "clock.expanded.daymark"; layout: "cells" }
-        // B37 (W35): the 42 day cells, a Block each, took ~65 ms to make, all of it before the island's first frame (the
-        // view is made when the card opens). They are made asynchronously in a box of their final size: the card has its
-        // height at once, so the shape grows straight to it, and the cells are there before the view fades in.
+        // The 42 day cells are made with the view, in one go (session 29). They were made off the frame (B37, W35: a
+        // Block each, ~65 ms), and a card or a sidebar that opens in a motion form showed the grid filling in cell by
+        // cell after everything else stood — seconds, where something else in the shell was animating and the
+        // incubator got a slice a frame (the user: "why is it not spawning directly like the rest?"). So each cell is
+        // kept light instead: one focus ring and one pointer area for the whole grid, the marks' row only where a mod
+        // contributes marks.
         Loader {
             id: grid
             x: Math.round((cal.width - view.weekW - width) / 2 + view.weekW)
             width: 7 * view.cell
             height: view.cell / 2 + view.weeks * view.cell
-            asynchronous: true
             // I203: the sixth row comes and goes with the month. The box eases to its new height, so the agenda below it (and the
             // card, which follows the view's height) glide instead of jumping. Off while the card is away or the month not dated.
             Behavior on height {
                 enabled: view.visible && view.valid && Theme.springOn
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
-            sourceComponent: Grid {
+            sourceComponent: Item {
+                id: gridBox
+                // The cell under a press (its key sinks), and the one the press began on (a click is a release on it).
+                property int pressedIdx: -1
+                property int downIdx: -1
+                // The cell's index at a point of the day rows, or -1 outside the month.
+                function idxAt(mx, my) {
+                    var c = Math.floor(mx / view.cell), r = Math.floor(my / view.cell)
+                    if (c < 0 || c > 6 || r < 0 || r >= view.weeks) return -1
+                    var d = r * 7 + c - view.lead + 1
+                    return d >= 1 && d <= view.count ? r * 7 + c : -1
+                }
+            Grid {
                 columns: 7
                 Repeater {
                     model: 7
@@ -287,14 +301,7 @@ Column {
                             fill: dayCell.isToday ? Theme.accent
                                 : (dayCell.isSel ? (view.flatCells ? Qt.alpha(Theme.fg, 0.08) : Theme.selected) : Theme.containerHigh)
                             flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
-                            pressed: dayTap.pressed
-                        }
-                        FocusRing {
-                            anchors.fill: dayBlock
-                            anchors.bottomMargin: Theme.shadowDy
-                            anchors.margins: -1
-                            shown: dayCell.isSel && cal.activeFocus
-                            corner: view.flatCells ? dayBlock.width / 2 + 1 : Theme.rSm + 3
+                            pressed: gridBox.pressedIdx === dayCell.index
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -313,32 +320,59 @@ Column {
                             text: parent.day
                         }
                         // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number, on the
-                        // keycap's foot (I203). Each gets the cell's date; a cell outside the month gets none.
-                        Row {
+                        // keycap's foot (I203). Each gets the cell's date; a cell outside the month gets none. Made only
+                        // where a mod contributes marks at all.
+                        Loader {
                             id: marksRow
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: dayCell.faceBot - height
-                            spacing: 2
-                            Repeater {
-                                model: dayCell.inMonth ? marks.entries.slice(0, 3) : []
-                                delegate: ModLoader {
-                                    required property var modelData
-                                    url: modelData.qml
-                                    extra: ({ date: dayCell.iso })
+                            active: dayCell.inMonth && marks.entries.length > 0
+                            sourceComponent: Row {
+                                spacing: 2
+                                Repeater {
+                                    model: marks.entries.slice(0, 3)
+                                    delegate: ModLoader {
+                                        required property var modelData
+                                        url: modelData.qml
+                                        extra: ({ date: dayCell.iso })
+                                    }
                                 }
-                            }
-                        }
-                        MouseArea {
-                            id: dayTap
-                            anchors.fill: parent
-                            enabled: parent.inMonth
-                            onClicked: {
-                                view.select(new Date(view.year, view.month, parent.day))
-                                cal.forceActiveFocus()
                             }
                         }
                     }
                 }
+            }
+            // The selected day's ring, one for the grid: on that day's key (its face, less the hard shadow), a pixel out.
+            FocusRing {
+                readonly property int idx: view.lead + view.sel.getDate() - 1
+                x: (idx % 7) * view.cell + 1
+                y: view.cell / 2 + Math.floor(idx / 7) * view.cell + 1 - Math.round(Theme.shadowDy / 2)
+                width: view.cell - 2
+                height: view.cell - 3 - Theme.shadowDy
+                shown: view.valid && cal.activeFocus
+                corner: view.flatCells ? (view.cell - 4) / 2 + 1 : Theme.rSm + 3
+            }
+            // One pointer area for the day rows: the day under the pointer sinks while pressed, a click on a day of the
+            // month selects it; outside the month a press goes on to what lies under the grid.
+            MouseArea {
+                y: view.cell / 2
+                width: 7 * view.cell
+                height: view.weeks * view.cell
+                onPressed: ev => {
+                    gridBox.downIdx = gridBox.idxAt(ev.x, ev.y)
+                    gridBox.pressedIdx = gridBox.downIdx
+                    if (gridBox.downIdx < 0) ev.accepted = false
+                }
+                onPositionChanged: ev => { gridBox.pressedIdx = pressed && gridBox.idxAt(ev.x, ev.y) === gridBox.downIdx ? gridBox.downIdx : -1 }
+                onReleased: gridBox.pressedIdx = -1
+                onCanceled: gridBox.pressedIdx = -1
+                onClicked: ev => {
+                    var i = gridBox.idxAt(ev.x, ev.y)
+                    if (i < 0 || i !== gridBox.downIdx) return
+                    view.select(new Date(view.year, view.month, i - view.lead + 1))
+                    cal.forceActiveFocus()
+                }
+            }
             }
         }
         // ISO week numbers beside the rows (W19, I46), when clock.week_numbers is on. Not focus stops: the grid's keys do it.

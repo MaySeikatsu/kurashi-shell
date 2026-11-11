@@ -100,7 +100,9 @@ Shape {
     readonly property bool casts: Theme.sinkX !== 0 || Theme.sinkY !== 0
 
     function f(v) { return Math.round(v * 100) / 100 }
-    function arc(r, sweep, x, y) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " 0 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
+    // (`ref`: the radius this corner has on the shape's own contour, d = 0 — in the arc's rotation, for corner.js's
+    // stepped corners; ColumnShape `arc`)
+    function arc(r, sweep, x, y, ref) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " " + f(ref > 0 ? ref : 0) + " 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
     function rrect(X0, Y0, X1, Y1, r) {
         if (X1 - X0 < 1 || Y1 - Y0 < 1) return ""
         r = Math.max(0, Math.min(r, (X1 - X0) / 2, (Y1 - Y0) / 2))
@@ -191,29 +193,29 @@ Shape {
         if (!back) {
             if (flushR) {
                 // (starts at the neighbour: `hangStartR`; down its edge, the foot's fillet concentric with the outside one)
-                s += arc(fn + dd, 0, x1 - fn, Y1)
+                s += arc(fn + dd, 0, x1 - fn, Y1, fn)
             } else {
-                s += rnd ? arc(n + dd, 0, x1 - dd, E + n) : " L " + f(x1 - dd) + " " + f(E - dd)
-                s += " L " + f(X1) + " " + f(yN) + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1)
+                s += rnd ? arc(n + dd, 0, x1 - dd, E + n, n) : " L " + f(x1 - dd) + " " + f(E - dd)
+                s += " L " + f(X1) + " " + f(yN) + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1, rb)
             }
             if (flushL) {
-                s += " L " + f(x0 + fn) + " " + f(Y1) + arc(fn + dd, 0, x0 - dd, yFoot)
+                s += " L " + f(x0 + fn) + " " + f(Y1) + arc(fn + dd, 0, x0 - dd, yFoot, fn)
             } else {
-                s += " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b) + " L " + f(X0) + " " + f(yN) + " L " + f(x0 + dd) + " " + f(yF)
-                s += rnd ? arc(n + dd, 0, x0 - n, E - dd) : " L " + f(x0) + " " + f(E - dd)
+                s += " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b, rb) + " L " + f(X0) + " " + f(yN) + " L " + f(x0 + dd) + " " + f(yF)
+                s += rnd ? arc(n + dd, 0, x0 - n, E - dd, n) : " L " + f(x0) + " " + f(E - dd)
             }
         } else {
             if (flushL) {
-                s += arc(fn + dd, 1, x0 + fn, Y1)
+                s += arc(fn + dd, 1, x0 + fn, Y1, fn)
             } else {
-                s += rnd ? arc(n + dd, 1, x0 + dd, E + n) : " L " + f(x0 + dd) + " " + f(E - dd)
-                s += " L " + f(X0) + " " + f(yN) + " L " + f(X0) + " " + f(Y1 - b) + arc(b, 0, X0 + b, Y1)
+                s += rnd ? arc(n + dd, 1, x0 + dd, E + n, n) : " L " + f(x0 + dd) + " " + f(E - dd)
+                s += " L " + f(X0) + " " + f(yN) + " L " + f(X0) + " " + f(Y1 - b) + arc(b, 0, X0 + b, Y1, rb)
             }
             if (flushR) {
-                s += " L " + f(x1 - fn) + " " + f(Y1) + arc(fn + dd, 1, x1 + dd, yFoot)
+                s += " L " + f(x1 - fn) + " " + f(Y1) + arc(fn + dd, 1, x1 + dd, yFoot, fn)
             } else {
-                s += " L " + f(X1 - b) + " " + f(Y1) + arc(b, 0, X1, Y1 - b) + " L " + f(X1) + " " + f(yN) + " L " + f(x1 - dd) + " " + f(yF)
-                s += rnd ? arc(n + dd, 1, x1 + n, E - dd) : " L " + f(x1) + " " + f(E - dd)
+                s += " L " + f(X1 - b) + " " + f(Y1) + arc(b, 0, X1, Y1 - b, rb) + " L " + f(X1) + " " + f(yN) + " L " + f(x1 - dd) + " " + f(yF)
+                s += rnd ? arc(n + dd, 1, x1 + n, E - dd, n) : " L " + f(x1) + " " + f(E - dd)
             }
         }
         return s
@@ -326,8 +328,11 @@ Shape {
     // the owner places the item off the bar's centre, W34); 0, 0 while the shape is not out on a ruled strip. Reported
     // only on a change.
     property real barCx: width / 2
-    readonly property real openL: ruledStrip && visible && width > 8 ? -Math.floor(barCx) + 2 : 0
-    readonly property real openR: ruledStrip && visible && width > 8 ? Math.floor(width - barCx) - 2 : 0
+    // (`opens`: the owner's word that the shape is there — a motion form that has barely begun has brought nothing to
+    // the bar's edge yet, and a rule left out at once was a gap in the line over the card's whole box, session 29)
+    property bool opens: true
+    readonly property real openL: ruledStrip && visible && opens && width > 8 ? -Math.floor(barCx) + 2 : 0
+    readonly property real openR: ruledStrip && visible && opens && width > 8 ? Math.floor(width - barCx) - 2 : 0
     onOpenLChanged: IslandGeom.setOpening(openL, openR)
     onOpenRChanged: IslandGeom.setOpening(openL, openR)
     Component.onDestruction: IslandGeom.setOpening(0, 0)

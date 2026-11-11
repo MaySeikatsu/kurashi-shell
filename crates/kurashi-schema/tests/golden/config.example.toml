@@ -259,8 +259,9 @@
 # from the chrome, as the bars, the dock and the sidebars have theirs. Automatic: as the
 # look and its chrome draw it. Floating: a card of its own under its module, a gap off the
 # bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the
-# bar, joined with straight corners.
-#   choices: "auto" | "float" | "dynamic" | "connected" · since schema v7
+# bar, joined with straight corners. Bridge: a card of its own, held to its module by a
+# short neck — the keycap and the soft chrome's own connection, under any chrome.
+#   choices: "auto" | "float" | "dynamic" | "connected" | "bridge" · since schema v7
 # join = "auto"
 #
 # Chrome — How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and

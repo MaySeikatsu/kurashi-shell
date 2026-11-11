@@ -13,6 +13,8 @@ Item {
     // Draw the bands, the frame, or both (a panel with a band of its own between them lays one under it, one over it).
     property bool bands: true
     property bool frame: true
+    // (I489: the panel's corners take the sheet's corner shape, FrameBase `shaped`)
+    property bool shaped: false
     readonly property int g: Theme.grid(Screen.height)
     readonly property bool banded: Theme.fillBands > 1
     Loader {
@@ -45,5 +47,6 @@ Item {
         anchors.fill: parent
         radius: pd.radius
         kind: "card"
+        shaped: pd.shaped
     }
 }

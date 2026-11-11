@@ -53,7 +53,10 @@ Scope {
         if (s === null) s = focusedScreen || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
         return s ? s.name : ""
     }
-    onToggledChanged: toggledOn = toggled ? pickName() : ""
+    onToggledChanged: {
+        if (traceLog) console.log("sb-trace " + Date.now() + " " + side + " toggled=" + toggled)
+        toggledOn = toggled ? pickName() : ""
+    }
     onWantOutputChanged: if (toggled) toggledOn = pickName()
     Component.onCompleted: if (toggled) toggledOn = pickName()
 
@@ -272,6 +275,9 @@ Scope {
             SurfaceForm {
                 id: sbRun
                 surface: "sidebar"
+                // (B90: the form and its picture are made before the travel starts, FormHost `run`)
+                warm: true
+                onPendingChanged: if (sb.traceLog) console.log("sb-trace " + Date.now() + " " + sb.side + " form " + (pending ? "waits" : "starts"))
                 // (a column a screen tall: its form takes a little longer than a card's)
                 extent: col.sh
                 shapes: ["expand", "iris", "stamp", "outline"]
@@ -436,7 +442,12 @@ Scope {
                     // the pointer's place stays put), the whole width while it catches clicks.
                     readonly property real boxW: Math.min(col.sw, 640 + col.inset + col.joinR + Theme.gap + Theme.softR
                         + Math.abs(Theme.sinkX) + 12)
-                    implicitWidth: catcher ? col.sw : Math.ceil(boxW)
+                    // (once it is the whole width it stays so until the window goes: a toggled column that closes stops
+                    // catching clicks at once, and a window that shrank at that moment drew one frame with the column
+                    // out of place or missing before its form began — session 29, seen on nested niri)
+                    property bool wide: false
+                    onCatcherChanged: if (catcher) wide = true
+                    implicitWidth: catcher || wide ? col.sw : Math.ceil(boxW)
                     // K71: only the edge's holder keeps the zone (windows tile beside a pinned column); every other
                     // column ignores zones and stands where the layout says, from the screen's edges.
                     // I301: where nothing holds the edge's zone, a column that keeps space only while it is out holds it then.
@@ -467,10 +478,12 @@ Scope {
                         y: win.blurY0
                         width: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurX1 - win.shX0) : 0
                         height: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurY1 - win.blurY0) : 0
-                        topLeftRadius: shape.sTL
-                        topRightRadius: shape.sTR
-                        bottomLeftRadius: shape.sBL
-                        bottomRightRadius: shape.sBR
+                        // (the round corner within the sheet's corner shape: Theme.blurCorner)
+                        readonly property real capR: Math.min(width, height) / 2
+                        topLeftRadius: Math.min(capR, Theme.blurCorner(shape.sTL))
+                        topRightRadius: Math.min(capR, Theme.blurCorner(shape.sTR))
+                        bottomLeftRadius: Math.min(capR, Theme.blurCorner(shape.sBL))
+                        bottomRightRadius: Math.min(capR, Theme.blurCorner(shape.sBR))
                         // W53.3: under flyouts the blur lies under each flyout's plate only (up to four: the notifications,
                         // the calendar and the sections after them; I325).
                         Region {
@@ -583,6 +596,8 @@ Scope {
                     onRestRectChanged: logGeom()
                     onWidthChanged: logGeom()
                     Component.onCompleted: {
+                        if (sb.traceLog) console.log("sb-trace " + Date.now() + " " + sb.side + " window made")
+                        if (catcher) wide = true
                         Light.setZone(win, col.out, sb.side, col.holder ? col.reserve : 0)
                         if (sb.geometryLog) console.log("sidebar-window up " + sb.side + " " + col.out)
                         logGeom()
@@ -597,7 +612,9 @@ Scope {
                     // Under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover, for the bar to
                     // leave its rule out there (SidebarGeom) — on every frame the column shows, sliding or at rest, so the
                     // moving column reads as it does at rest (I278: the rule ran through it while it moved).
-                    readonly property bool opens: !col.gate && col.p > 0 && shapeRect.width > 0
+                    // (under a motion form the column stands at rest from the start: the rule is left out only once
+                    // the form has brought the column there, `covers`)
+                    readonly property bool opens: !col.gate && col.p > 0 && shapeRect.width > 0 && sbRun.covers
                     // Row 521: one opening per bar the column meets — the bar at its start (top), the one at its end
                     // (bottom) and a docked bar on its own side — each `[edge, from, to]` along that bar's edge.
                     readonly property string openingsKey: {
@@ -609,10 +626,17 @@ Scope {
                             out.push([edge, Math.round(a), Math.round(a + col.colW + f)])
                         }
                         // (A join with the frame's band opens the band's rule the same way: Frame.qml, FramePieces.)
-                        if (col.joinStart === "bar:top" || col.joinStart === "frame") across("top", shape.fTi)
-                        if (col.joinEnd === "bar:bottom" || col.joinEnd === "frame") across("bottom", shape.fBi)
+                        // (the fillets at their rest size: a form grows the drawn ones over its last frames, and an
+                        // opening that followed them had the bar redraw its rule on each of those frames, B90)
+                        // (and less each fillet's tail, `ruleReach`: the neighbour's rule runs on under the last pixels of
+                        // the fillet's line, which lie in the rule's own row where this window cannot draw)
+                        var nT = col.joinStart === "edge" ? 0 : col.aR, nB = col.joinEnd === "edge" ? 0 : col.aR
+                        var nO = col.sideBar ? col.aR : 0
+                        if (col.joinStart === "bar:top" || col.joinStart === "frame") across("top", shape.ruleReach(shape.restTi(nT)))
+                        if (col.joinEnd === "bar:bottom" || col.joinEnd === "frame") across("bottom", shape.ruleReach(shape.restBi(nB)))
                         if (col.sideBar || (!col.floating && ShellLayout.bandOf(col.out, sb.side) > 0))
-                            out.push([sb.side, Math.round(offTop + y0 - shape.fOt), Math.round(offTop + y1 + shape.fOb)])
+                            out.push([sb.side, Math.round(offTop + y0 - shape.ruleReach(shape.restOt(nO))),
+                                      Math.round(offTop + y1 + shape.ruleReach(shape.restOb(nO)))])
                         return JSON.stringify(out)
                     }
                     onOpeningsKeyChanged: {
@@ -694,7 +718,9 @@ Scope {
                         edge: sb.side
                         direction: sbRun.dir
                         progress: sbRun.sheet ? sbRun.p : 1
-                        visible: !sbRun.sheet || sbRun.p > 0
+                        visible: !sbRun.sheet || sbRun.p > 0 || sbRun.pending
+                        run: sbRun
+                        primeReady: colLoader.status !== Loader.Loading
                         source: bodySrc
                     // K83 (W59.9a): a shape form draws the column (and its shadows) through its mask while it moves.
                     ShapeLayer {

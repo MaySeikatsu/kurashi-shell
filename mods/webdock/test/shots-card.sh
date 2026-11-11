@@ -2,7 +2,8 @@
 # The web dock's page in the bar's card on nested niri (W72, I482; the lead platform: tools/bench/niri-sandbox.sh), for
 # review against docs/ux/webdock.md "In the bar's card": the real kurashid and frontend, the web host as the daemon starts
 # it, file:// pages (no network). For each scheme (light, dark): the card from a bottom bar's right corner (the user's
-# layout) with a page, the same card on a load error, the card from a top bar, and the card with no pin. Evidence to look
+# layout) with a page, the same card on a load error, the card in each `card_size` (W73: card-{phone,tablet,wide}), the
+# card from a top bar, and the card with no pin. Evidence to look
 # at; it fails only when the host never gets ready or a log shows a QML problem. Shots in mods/webdock/shots/card/.
 #   nix develop -c mods/webdock/test/shots-card.sh
 # One sandbox at a time (its name: ${KURASHI_NIRI_SB_NAME:-${KURASHI_SB_PREFIX}webdock-card-niri}).
@@ -20,8 +21,9 @@ trap '"$SB" stop > /dev/null 2>&1' EXIT
 export KURASHI_WEBDOCK_DEBUG=1
 magick -size 1920x1080 gradient:'#9cb7c9-#d9c7a3' "$OUT/wall.png"
 
-conf() { # conf <scheme> <bar edge> <pins: yes|no>
-  local bars pins=""
+conf() { # conf <scheme> <bar edge> <pins: yes|no> [card size]
+  local bars pins="" size=""
+  [ -n "${4:-}" ] && size="card_size = \"$4\""
   if [ "$2" = bottom ]; then
     bars='[edges.top]
 bar = false
@@ -52,8 +54,17 @@ $bars
 [mods]
 enabled = ["webdock"]
 [mods.webdock]
+$size
 $pins
 T
+}
+# The card's region from the panel's last report (W73: the card's size varies): 40 px round the panel, down to the bar.
+card_region() {
+  local line px py pw
+  line=$(logs | grep -F 'webdock-panel card ' | grep -v 'webdock-panel card off' | tail -1 | sed 's/.* panel //')
+  read -r px py pw _ <<< "$line"
+  [ -n "$px" ] || { echo "1380,240 540x840"; return; }
+  echo "$(( px - 40 < 0 ? 0 : px - 40 )),$(( py - 60 < 0 ? 0 : py - 60 )) $(( pw + 80 > 1920 - px + 40 ? 1920 - px + 40 : pw + 80 ))x$(( 1080 - (py - 60 < 0 ? 0 : py - 60) ))"
 }
 K() { "$SB" act "$@"; }
 doc() { K --json sub mod.webdock --count 0 | python3 -c "import json,sys; d=json.loads(sys.stdin.readline()); d=d.get('data', d); print($1)"; }
@@ -80,6 +91,18 @@ for scheme in ${SCHEMES:-light dark}; do
   sleep 3
   shot "card-error-$scheme" "1380,240 540x840"
   K act webdock.card_select '{"pin":"site"}' > /dev/null
+  # W73 (docs/ux/webdock.md "The card's size"): the three sizes from the bottom bar, each fully on screen.
+  for size in ${SIZES:-phone tablet wide}; do
+    conf "$scheme" bottom yes "$size"
+    "$SB" config "$OUT/config.toml"
+    sleep 2
+    open_card
+    wait_doc "'place' in d.get('card', {}) and d.get('card_size', 'phone') == '$size'" 10 \
+      || fail "the card never placed its page in the $size size ($scheme)"
+    sleep 2.5
+    shot "card-$size-$scheme" "$(card_region)"
+  done
+  conf "$scheme" bottom yes
   conf "$scheme" top yes
   "$SB" config "$OUT/config.toml"
   sleep 2

@@ -46,6 +46,11 @@ Shape {
     property bool chrome: false        // ring and hard shadow (the floating mode's block)
     property bool flipY: false         // the frame is mirrored vertically: the hard shadow still falls down on screen
     property bool flipX: false         // the frame is mirrored horizontally (a left column): it still falls the screen's way
+    // The fill ends on the neighbour's edge instead of running `k` px past it (it keeps the feet of its fillets, which
+    // lie in the neighbour's rule). For a caller that draws the shape a line's width into its neighbour — so the
+    // outline's tail, tangent to the neighbour's rule, is whole — over a translucent neighbour: a fill that ran on
+    // would lie twice along the connecting edge.
+    property bool flushFill: false
     property color fill: Theme.panel
 
     // A shape joined to the frame's ruled band (`ruled`) is outlined as the frame is (its ink and stroke, I303).
@@ -82,16 +87,44 @@ Shape {
     readonly property real fOt: openO && !openT ? room(Math.min(neckO, y0, bw - rc, bw / 2)) : 0
     readonly property real fOb: openO && !openB ? room(Math.min(neckO, height - y1, bw - rc, bw / 2)) : 0
 
+    // The inner fillets as they stand at rest, for a neck of `n` px (the caller's, while a motion form still grows the
+    // drawn ones: what the neighbour is told must not move with every frame of that, B90).
+    function restTi(n) { return openT ? room(Math.min(n, bh - rBL, bh / 2, x0)) : 0 }
+    // How far of a ruled fillet of `f` px the neighbour should leave its rule out: the fillet less its tail. The
+    // fillet's line meets the rule tangentially, so over its last sqrt(2 (f + ow) ow) px it lies in the rule's own row —
+    // the neighbour's, where a window that ends on that edge (a pinned column, the dock) draws nothing. Left out there,
+    // the line thinned to nothing some pixels before the rule began (the user, session 29, with two screenshots: "like
+    // there is a pixel missing or not fully aligned"). The rule runs under the tail instead and hands over exactly where
+    // the curve leaves its row.
+    // (By the corner's shape, `theme.join_corner`: a stair's line lies in the rule's row for its first run, a square
+    // corner's for the whole fillet, a cut's and an outward quarter's for about the line's width.)
+    function ruleReach(f) {
+        if (!(f > 0.5) || !(ow > 0)) return f
+        var j = Theme.joinCorner
+        var tail = j === "steps" ? f - (Math.ceil(f / Corner.STEP - 1e-6) - 1) * Corner.STEP
+            : j === "square" ? f
+            : j === "chamfer" || j === "bulge" ? ow
+            : Math.ceil(Math.sqrt(2 * (f + ow) * ow))
+        return Math.max(0, f - tail)
+    }
+    function restTo(n) { return openT && !openO ? room(Math.min(n, bh - rBR, bh / 2, width - x1)) : 0 }
+    function restBi(n) { return openB ? room(Math.min(n, bh - rTL, bh / 2, x0)) : 0 }
+    function restOt(n) { return openO && !openT ? room(Math.min(n, y0, bw - rc, bw / 2)) : 0 }
+    function restOb(n) { return openO && !openB ? room(Math.min(n, height - y1, bw - rc, bw / 2)) : 0 }
+
     function f(v) { return Math.round(v * 100) / 100 }
-    function arc(r, sweep, x, y) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " 0 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
+    // (`ref`: the radius this corner has on the shape's own contour, d = 0 — written where an arc has no use for a
+    // number, its rotation, for corner.js's stepped corners)
+    function arc(r, sweep, x, y, ref) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " " + f(ref > 0 ? ref : 0) + " 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
     function ln(x, y) { return " L " + f(x) + " " + f(y) }
 
     // The outline inset by `d`, moved down by `dy` (the hard shadow); `fl` false leaves the fillets out (the shadow).
     // Clockwise: the start side (left to right), the outer side (down), the end side (right to left), the inner side (up).
-    function path(d, fl, dy) {
+    function path(d, fl, dy, flush) {
         if (!shown) return ""
         var X0 = x0 + d, X1 = x1 - d, Y0 = y0 + d + dy, Y1 = y1 - d + dy
         var Et = y0 + dy, Eb = y1 + dy, T = y0 - k + d + dy, B = y1 + k - d + dy, S = x1, R = x1 + k - d
+        if (flush) { T = Et; B = Eb; R = S }
         if (X1 - X0 < 1) return ""
         if ((openT ? Et : Y0) >= (openB ? Eb : Y1) - 1) return ""
         var tl = Math.max(0, rTL - d), tr = Math.max(0, rTR - d), br = Math.max(0, rBR - d), bl = Math.max(0, rBL - d)
@@ -104,46 +137,46 @@ Shape {
             else {
                 s += ln(X1, T)
                 if (b > 0.5) {
-                    if (ruled) s += ln(X1, Et - d) + ln(x1 + b, Et - d) + arc(b + d, 0, X1, Et + b)
-                    else s += ln(X1, Et) + ln(X1 + b, Et) + arc(b, 0, X1, Et + b)
+                    if (ruled) s += ln(X1, Et - d) + ln(x1 + b, Et - d) + arc(b + d, 0, X1, Et + b, b)
+                    else s += ln(X1, Et) + ln(X1 + b, Et) + arc(b, 0, X1, Et + b, b)
                 }
             }
         } else {
-            s = "M " + f(X0) + " " + f(Y0 + tl) + arc(tl, 1, X0 + tl, Y0)
+            s = "M " + f(X0) + " " + f(Y0 + tl) + arc(tl, 1, X0 + tl, Y0, rTL)
             if (openO) {
                 if (g > 0.5) {
-                    if (ruled) s += ln(S - g, Y0) + arc(g + d, 0, S + d, y0 - g + dy) + ln(R, y0 - g + dy)
-                    else s += ln(S - g, Y0) + arc(g, 0, S, Y0 - g) + ln(R, Y0 - g)
+                    if (ruled) s += ln(S - g, Y0) + arc(g + d, 0, S + d, y0 - g + dy, g) + ln(R, y0 - g + dy)
+                    else s += ln(S - g, Y0) + arc(g, 0, S, Y0 - g, g) + ln(R, Y0 - g)
                 } else s += ln(R, Y0)
-            } else s += ln(X1 - tr, Y0) + arc(tr, 1, X1, Y0 + tr)
+            } else s += ln(X1 - tr, Y0) + arc(tr, 1, X1, Y0 + tr, rTR)
         }
         // The outer side.
         if (openO) {
             if (openB) s += ln(R, B)
             else if (h > 0.5) {
-                if (ruled) s += ln(R, y1 + h + dy) + ln(S + d, y1 + h + dy) + arc(h + d, 0, S - h, Y1)
-                else s += ln(R, Y1 + h) + ln(S, Y1 + h) + arc(h, 0, S - h, Y1)
+                if (ruled) s += ln(R, y1 + h + dy) + ln(S + d, y1 + h + dy) + arc(h + d, 0, S - h, Y1, h)
+                else s += ln(R, Y1 + h) + ln(S, Y1 + h) + arc(h, 0, S - h, Y1, h)
             } else s += ln(R, Y1)
         } else if (openB) {
             if (c > 0.5) {
-                if (ruled) s += ln(X1, Eb - c) + arc(c + d, 0, x1 + c, Eb + d) + ln(X1, Eb + d)
-                else s += ln(X1, Eb - c) + arc(c, 0, X1 + c, Eb) + ln(X1, Eb)
+                if (ruled) s += ln(X1, Eb - c) + arc(c + d, 0, x1 + c, Eb + d, c) + ln(X1, Eb + d)
+                else s += ln(X1, Eb - c) + arc(c, 0, X1 + c, Eb, c) + ln(X1, Eb)
             }
             s += ln(X1, B)
-        } else s += ln(X1, Y1 - br) + arc(br, 1, X1 - br, Y1)
+        } else s += ln(X1, Y1 - br) + arc(br, 1, X1 - br, Y1, rBR)
         // The end side.
         if (openB) {
             s += ln(X0, B)
             if (e > 0.5) {
-                if (ruled) s += ln(X0, Eb + d) + ln(x0 - e, Eb + d) + arc(e + d, 0, X0, Eb - e)
-                else s += ln(X0, Eb) + ln(X0 - e, Eb) + arc(e, 0, X0, Eb - e)
+                if (ruled) s += ln(X0, Eb + d) + ln(x0 - e, Eb + d) + arc(e + d, 0, X0, Eb - e, e)
+                else s += ln(X0, Eb) + ln(X0 - e, Eb) + arc(e, 0, X0, Eb - e, e)
             }
-        } else s += ln(X0 + bl, Y1) + arc(bl, 1, X0, Y1 - bl)
+        } else s += ln(X0 + bl, Y1) + arc(bl, 1, X0, Y1 - bl, rBL)
         // The inner side.
         if (openT) {
             if (a > 0.5) {
-                if (ruled) s += ln(X0, Et + a) + arc(a + d, 0, x0 - a, Et - d) + ln(X0, Et - d)
-                else s += ln(X0, Et + a) + arc(a, 0, X0 - a, Et) + ln(X0, Et)
+                if (ruled) s += ln(X0, Et + a) + arc(a + d, 0, x0 - a, Et - d, a) + ln(X0, Et - d)
+                else s += ln(X0, Et + a) + arc(a, 0, X0 - a, Et, a) + ln(X0, Et)
             }
             s += ln(X0, T)
         } else s += ln(X0, Y0 + tl)
@@ -152,7 +185,7 @@ Shape {
     function band(a, b) { var p = path(a, true, 0), q = path(b, true, 0); return p === "" ? "" : p + " " + q }
 
     // The fill's own path (inside the outline and the ring): the caller clips the column's relief to it.
-    readonly property string fillPath: shown ? path(ow + gw, true, 0) : ""
+    readonly property string fillPath: shown ? path(ow + gw, true, 0, flushFill) : ""
     // The body's rect without the fillets (the soft shadow's).
     readonly property rect bodyRect: Qt.rect(x0, y0, bw, bh)
     // The body's corners as they lie on screen (the caller's mirroring undone), for the window's blur region: it follows

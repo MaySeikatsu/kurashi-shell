@@ -57,16 +57,28 @@ PanelWindow {
     property string sidePin: ""
     property bool sideOpen: false
     property Item sideSlot: null
-    readonly property bool shownInSide: sideOpen && shownId === sidePin
-    readonly property var sidePage: sideOpen ? pageFor(sidePin, rep.count) : null
-    // W72: the bar card rests open on the web pin `cardPin`; its page is drawn in `cardSlot` (SideWindow, `card`). One page
-    // per pin, the sidebar first, then the bar card, then this edge card (docs/ux/webdock.md "One page, three places").
+    // W72: the bar card rests open on the web pin `cardPin`; its page is drawn in `cardSlot` (SideWindow, `card`).
     property string cardPin: ""
     property bool cardOpen: false
     property Item cardSlot: null
-    readonly property bool cardLive: cardOpen && !(sideOpen && sidePin === cardPin)
+    // W73 ("last opened wins", docs/ux/webdock.md "Which place shows the page"): one page per pin, in the place the daemon
+    // names — a place whose pin is shown elsewhere says where (`elsewhere`: edge, sidebar, card). A daemon that does not
+    // say (the mock) leaves W72's order: the sidebar, then the bar card, then this edge card.
+    property string sideElsewhere: ""
+    property string cardElsewhere: ""
+    property string edgeElsewhere: ""
+    readonly property bool sideLive: sideOpen && sideElsewhere === ""
+    readonly property bool shownInSide: sideLive && shownId === sidePin
+    readonly property var sidePage: sideLive ? pageFor(sidePin, rep.count) : null
+    readonly property bool cardLive: cardOpen && cardElsewhere === "" && !(sideLive && sidePin === cardPin)
     readonly property bool shownInCard: cardLive && shownId === cardPin
     readonly property var cardPage: cardLive ? pageFor(cardPin, rep.count) : null
+    // W73: a pin's page stays Active while hidden and silent when the daemon says so (its grace after a sound, a pin that
+    // keeps running in the background), or while it plays.
+    function awakeOf(id) {
+        var p = pinById(id)
+        return !!p && (p.awake === true || p.audible === true || p.background === true)
+    }
 
     readonly property int gap: Theme.gap
     readonly property bool sideways: edge === "left" || edge === "right"
@@ -883,7 +895,7 @@ PanelWindow {
                                     profile: prof
                                     report: card.report
                                     mode: card.modeOf(pid)
-                                    readonly property bool inSide: card.sideOpen && pid === card.sidePin && card.sideSlot !== null
+                                    readonly property bool inSide: card.sideLive && pid === card.sidePin && card.sideSlot !== null
                                     // W72: the bar card's page, unless the sidebar shows the same pin
                                     readonly property bool inCard: !inSide && card.cardLive && pid === card.cardPin
                                         && card.cardSlot !== null
@@ -891,6 +903,7 @@ PanelWindow {
                                     sideHost: inSide ? card.sideSlot : (inCard ? card.cardSlot : null)
                                     debugLog: card.debugLog
                                     active: inSide || inCard || (card.open && pid === card.shownId)
+                                    awake: card.awakeOf(pid)
                                     newTabsInDock: card.newTabs !== "browser"
                                 }
                             }
@@ -973,18 +986,33 @@ PanelWindow {
                             }
 
                             // W30: the shown pin's page is in the open sidebar (one page per pin): the card says where it is.
-                            Text {
+                            // (W72: or in the bar's card. W73: with "Show here", which brings it to this card: `webdock.open`
+                            // stamps the edge as the place opened last.)
+                            Column {
                                 anchors.centerIn: parent
                                 width: pane.width - 2 * Theme.pad
                                 visible: card.open && (card.shownInSide || card.shownInCard)
                                 z: 3
-                                wrapMode: Text.Wrap
-                                horizontalAlignment: Text.AlignHCenter
-                                // (W72: or in the bar's card)
-                                text: I18n.tr(card.shownInSide ? "webdock.side.elsewhere" : "webdock.card.elsewhere")
-                                color: Theme.dim
-                                font.pixelSize: Theme.fs
-                                font.family: Theme.fam(text, Theme.families)
+                                spacing: Theme.gap
+                                Text {
+                                    width: parent.width
+                                    wrapMode: Text.Wrap
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: I18n.tr(card.shownInSide ? "webdock.side.elsewhere" : "webdock.card.elsewhere")
+                                    color: Theme.dim
+                                    font.pixelSize: Theme.fs
+                                    font.family: Theme.fam(text, Theme.families)
+                                    // (test only: the edge card's notice, test-card.sh)
+                                    onVisibleChanged: if (card.debugLog && visible) console.log("webdock-debug edge notice " + text)
+                                }
+                                HostButton {
+                                    id: hereKey
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    label: I18n.tr("webdock.elsewhere.here")
+                                    primary: true
+                                    onClicked: if (card.report && card.shownId !== "")
+                                        card.report("webdock.open", { pin: card.shownId, output: card.output })
+                                }
                             }
 
                             // The web engine is still starting: the card frame is up before the host is connected.

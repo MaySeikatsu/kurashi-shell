@@ -33,7 +33,11 @@ Item {
     // ColumnShape runs its open sides on past the neighbour's edge, under where its own window would end for the dock. Here the
     // window has room for the fillets, so they are cut: an overlap of the outline's width, enough to hide a rule under the card.
     // (Translucent, an overlap is a line of double fill along the connecting edge; CardJoin has the rule left out there.)
-    readonly property real over: pad - (Theme.tok("color.surface_alpha", 1) < 0.999 ? 0 : Math.max(1, Theme.outlineW))
+    // (Session 29: where the neighbour rules its edge the card's outline ends in that rule — its last pixels lie in the
+    // rule's own row, tangent to it — so the cut leaves the rule's width; cut on the edge, the line thinned to nothing
+    // some pixels before the rule began: "like there is a pixel missing". The fill then ends on the edge, `flushFill`.)
+    readonly property bool translucent: Theme.tok("color.surface_alpha", 1) < 0.999
+    readonly property real over: pad - (Theme.frameOutline ? Theme.frameOutlineW : (translucent ? 0 : Math.max(1, Theme.outlineW)))
     readonly property bool cutL: edge === "left" || (!vertical && flushStart)
     readonly property bool cutR: edge === "right" || (!vertical && flushEnd)
     readonly property bool cutT: edge === "top" || (vertical && flushStart)
@@ -69,6 +73,7 @@ Item {
                 flipX: jc.mirrorX
                 flipY: jc.mirrorY
                 ruled: Theme.frameOutline
+                flushFill: jc.translucent
                 fill: jc.fill
             }
         }

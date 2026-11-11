@@ -287,8 +287,11 @@ Singleton {
     // chromes — leaves every surface without a line (the user, session 28: "even if chrome is set to flat and/or frame
     // outline is off, widgets, cards, dock, sidebars all still get that outline"). What is joined to the frame or a bar
     // (ColumnShape, JoinedCard) follows the frame's outline alone: `frameOutlineW`.
+    // Its colour is the frame's line wherever the frame draws one (session 29, the user with three screenshots: "cards
+    // don't follow outline color" — a card on its bar kept the chrome's still ink beside a frame line that glowed or
+    // moved through the colour flow): one line round the screen and everything that stands on it.
     readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
-    readonly property color surfaceLineColor: outlineW > 0 ? outlineColor : (frameOutline ? frameOutlineColor : "transparent")
+    readonly property color surfaceLineColor: frameOutline ? frameOutlineColor : (outlineW > 0 ? outlineColor : "transparent")
     // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
     // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
     readonly property string textEffect: String(tok("text.effect", "none"))
@@ -296,13 +299,26 @@ Singleton {
     readonly property string textScope: String(tok("text.scope", "titles"))
     readonly property real textSpawnSpeed: Math.max(0.25, Math.min(3, Number(tok("text.spawn_speed", 1)) || 1))
     // Session 28 (`theme.join`, `theme.join_corner`): how a card meets its bar — "auto" as the look draws it, "float"
-    // a card of its own, "dynamic" and "connected" one shape with the bar — and the corner where joined surfaces meet (corner.js
+    // a card of its own, "dynamic" and "connected" one shape with the bar, "bridge" a card on a neck (session 29) — and
+    // the corner where joined surfaces meet (corner.js
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
     readonly property string joinKind: String(tok("join.kind", "auto"))
     readonly property string joinCorner: String(tok("join.corner", "round"))
+    // I489 (session 29): a window's blur region has round corners only. Under a corner shape that cuts inside the
+    // round one (a cut, steps, an outward quarter's notch) a region rounded as the surface used to be showed the blurred
+    // desk past the shaped corner, as a ghost of the old rounding; so the region's corner is the round one that lies
+    // within the shape (a larger radius), and none under a square corner. `r`: the surface's own corner radius.
+    function blurCorner(r) {
+        return joinCorner === "chamfer" || joinCorner === "steps" ? r * 1.71
+            : joinCorner === "bulge" ? r * 2.42 : joinCorner === "square" ? 0 : r
+    }
     // Whether cards join their bar at all (`[decor] surface.join`, W53.5, unless the user says: `theme.join`).
     readonly property bool surfaceJoin: joinKind === "float" ? false
-        : (joinKind === "dynamic" || joinKind === "connected" ? true : decor("surface.join", true) !== false)
+        : (joinKind === "dynamic" || joinKind === "connected" || joinKind === "bridge" ? true : decor("surface.join", true) !== false)
+    // Session 29 (the user: the small bridges of the keycap and the soft chrome "shouldn't be baked into the chrome but
+    // exposed"): Bridge hangs a card of its own from its module by a neck under every chrome — from the module's
+    // block where the bar's groups float, from the strip's edge where the bar is one strip.
+    readonly property bool joinBridge: joinKind === "bridge"
     // I489 (the user: the cards' connection as a draw mode of its own, not baked into the chrome): Dynamic and
     // Connected grow the card out of the bar as one shape — by fillets, or straight — whatever the chrome's own form
     // is (keycap and soft chrome hang a card from its module's block by a neck: that is Automatic there).

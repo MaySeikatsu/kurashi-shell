@@ -49,14 +49,14 @@ let
   # into the Nix layer. A null option writes nothing and leaves the mod's default in place.
   webdockSettingKeys = [
     "default_view" "width" "large" "edge" "unload_after" "max_loaded" "hover" "reopen_last"
-    "pinned" "reserve" "indicator" "strip" "new_tabs"
+    "pinned" "reserve" "indicator" "strip" "new_tabs" "card_size"
   ];
   webdockSetting = type: description: lib.mkOption {
     type = lib.types.nullOr type;
     default = null;
     inherit description;
   };
-  webdockPinToml = pin: lib.filterAttrs (_: v: v != null) { inherit (pin) id title target view profile icon; };
+  webdockPinToml = pin: lib.filterAttrs (_: v: v != null) { inherit (pin) id title target view profile icon background; };
   webdockToml =
     lib.filterAttrs (_: v: v != null) (lib.genAttrs webdockSettingKeys (key: wd.${key}))
     // lib.optionalAttrs (wd.pins != [ ]) { pins = map webdockPinToml wd.pins; };
@@ -289,6 +289,7 @@ in
             view = webdockSetting (lib.types.enum [ "default" "mobile" "desktop" ]) "The site's view; `default` (or null) takes {option}`programs.kurashi.webdock.default_view`.";
             profile = webdockSetting lib.types.str "The storage profile: pins with one profile share its logins and view; null takes the pin's id.";
             icon = webdockSetting lib.types.str "The pin's icon; null leaves it empty (the site's favicon, else a letter tile).";
+            background = webdockSetting lib.types.bool "Keep the site running in the background: never frozen while loaded, never unloaded by the dock's own rules (a player that goes on playing; it costs memory and CPU all day). Mod default: false.";
           };
         });
         default = [ ];
@@ -316,6 +317,7 @@ in
 
       default_view = webdockSetting (lib.types.enum [ "mobile" "desktop" ]) "The view of a pin that says `default`: mobile (phone width, mobile user agent) or desktop (mod default: mobile).";
       width = webdockSetting (lib.types.ints.between 360 720) "Phone width in pixels (mod default: 412).";
+      card_size = webdockSetting (lib.types.enum [ "phone" "tablet" "wide" ]) "The page's size in the bar module's card, one for all pins (mod default: phone).";
       large = webdockSetting (lib.types.ints.between 50 95) "The large size, as a percentage of the output's width (mod default: 90).";
       edge = webdockSetting (lib.types.enum [ "right" "left" "top" "bottom" ]) "The screen edge the dock sits at (mod default: right).";
       unload_after = webdockSetting (lib.types.ints.between 0 1440) "Minutes without a shown site before the web engine stops; 0 keeps it running while the dock is on (mod default: 60).";

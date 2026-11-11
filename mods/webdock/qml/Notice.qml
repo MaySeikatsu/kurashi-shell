@@ -7,6 +7,8 @@ Item {
     id: notice
     property string text: ""
     property string actionLabel: ""
+    // The action's key (a test finds it on screen by it).
+    readonly property Item actionItem: action
     signal actionPressed()
 
     Column {

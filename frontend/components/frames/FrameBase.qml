@@ -17,6 +17,9 @@ Item {
     // K62: a frame drawing a pen line salts it with its block's place (`anchor`, pen.js `salt`) or `penSeed` (≥ 0).
     property Item anchor: null
     property int penSeed: -1
+    // I489 (session 29): the host's corners are not round (a sheet under `theme.join_corner`): a frame leaves out
+    // what would trace the round corner (washi's inner hairline).
+    property bool shaped: false
     readonly property bool card: kind === "card"
     readonly property bool small: kind === "small"
     readonly property bool ground: kind === "ground"

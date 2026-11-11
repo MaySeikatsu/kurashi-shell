@@ -36,12 +36,26 @@ Singleton {
     readonly property bool running: on && (when === "always" || (when === "active" && busy) || (when === "media" && playing))
 
     // The clock: 0 … 1, one round in 12 s at speed 1.
+    // B99 (session 29, measured on the user's session while music played: the shell at 125 % of a core, eight windows
+    // redrawn at the display's rate, niri at 40 %): the clock steps, it is not an animation. Every colour that flows is
+    // a full redraw of every window that shows it (the gradient is a shader over each washed surface, and each commit
+    // makes the compositor blur again), and a slow drift does not need the display's rate: 15 steps a second at the
+    // slow speeds (under 2 levels of 255 a step, a pixel of the gradient's drift), the display's rate only at speed 2
+    // and up. A Timer alone does not run the animation driver (Qt parks a lone pause on a single shot), so between steps
+    // nothing wakes.
     property real phase: 0
-    NumberAnimation on phase {
-        running: cf.running
-        from: 0; to: 1
-        duration: Math.round(12000 / cf.speed)
-        loops: Animation.Infinite
+    readonly property int stepMs: Math.round(1000 / Math.min(60, Math.max(15, 30 * speed)))
+    // A surface in motion (a card, a sidebar, the launcher opening or closing: components/motion/SurfaceForm.qml) has
+    // the frame budget to itself: the clock rests for that moment and goes on from where it stood. A count, with a
+    // watch that clears it should a surface go without giving its rest back.
+    property int rests: 0
+    function rest(d) { rests = Math.max(0, rests + d) }
+    property Timer restWatch: Timer { interval: 4000; running: cf.rests > 0; onTriggered: cf.rests = 0 }
+    property Timer clock: Timer {
+        interval: cf.stepMs
+        repeat: true
+        running: cf.running && cf.rests === 0
+        onTriggered: { var p = cf.phase + cf.stepMs * cf.speed / 12000; cf.phase = p - Math.floor(p) }
     }
     // The gradient's pattern for wash.frag (0 = still).
     readonly property int patternIndex: !gradientOn ? 0 : pattern === "breathe" ? 2 : pattern === "cycle" ? 3 : pattern === "chase" ? 4 : 1
