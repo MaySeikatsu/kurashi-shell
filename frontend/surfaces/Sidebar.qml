@@ -626,12 +626,15 @@ Scope {
                         // (A join with the frame's band opens the band's rule the same way: Frame.qml, FramePieces.)
                         // (the fillets at their rest size: a form grows the drawn ones over its last frames, and an
                         // opening that followed them had the bar redraw its rule on each of those frames, B90)
+                        // (and less each fillet's tail, `ruleReach`: the neighbour's rule runs on under the last pixels of
+                        // the fillet's line, which lie in the rule's own row where this window cannot draw)
                         var nT = col.joinStart === "edge" ? 0 : col.aR, nB = col.joinEnd === "edge" ? 0 : col.aR
                         var nO = col.sideBar ? col.aR : 0
-                        if (col.joinStart === "bar:top" || col.joinStart === "frame") across("top", shape.restTi(nT))
-                        if (col.joinEnd === "bar:bottom" || col.joinEnd === "frame") across("bottom", shape.restBi(nB))
+                        if (col.joinStart === "bar:top" || col.joinStart === "frame") across("top", shape.ruleReach(shape.restTi(nT)))
+                        if (col.joinEnd === "bar:bottom" || col.joinEnd === "frame") across("bottom", shape.ruleReach(shape.restBi(nB)))
                         if (col.sideBar || (!col.floating && ShellLayout.bandOf(col.out, sb.side) > 0))
-                            out.push([sb.side, Math.round(offTop + y0 - shape.restOt(nO)), Math.round(offTop + y1 + shape.restOb(nO))])
+                            out.push([sb.side, Math.round(offTop + y0 - shape.ruleReach(shape.restOt(nO))),
+                                      Math.round(offTop + y1 + shape.ruleReach(shape.restOb(nO)))])
                         return JSON.stringify(out)
                     }
                     onOpeningsKeyChanged: {

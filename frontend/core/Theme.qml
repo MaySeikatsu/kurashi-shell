@@ -287,8 +287,11 @@ Singleton {
     // chromes — leaves every surface without a line (the user, session 28: "even if chrome is set to flat and/or frame
     // outline is off, widgets, cards, dock, sidebars all still get that outline"). What is joined to the frame or a bar
     // (ColumnShape, JoinedCard) follows the frame's outline alone: `frameOutlineW`.
+    // Its colour is the frame's line wherever the frame draws one (session 29, the user with three screenshots: "cards
+    // don't follow outline color" — a card on its bar kept the chrome's still ink beside a frame line that glowed or
+    // moved through the colour flow): one line round the screen and everything that stands on it.
     readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
-    readonly property color surfaceLineColor: outlineW > 0 ? outlineColor : (frameOutline ? frameOutlineColor : "transparent")
+    readonly property color surfaceLineColor: frameOutline ? frameOutlineColor : (outlineW > 0 ? outlineColor : "transparent")
     // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
     // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
     readonly property string textEffect: String(tok("text.effect", "none"))

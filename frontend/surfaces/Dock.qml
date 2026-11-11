@@ -455,9 +455,10 @@ Scope {
                         // every frame of that, B90)
                         var o = dock.winOrigin(), n = dock.aR
                         if (dock.horiz)
-                            return [Math.round(o.x + body.x - joinedShape.restTi(n)), Math.round(o.x + body.x + body.width + joinedShape.restTo(n))].join(",")
-                        return [Math.round(o.y + body.y - joinedShape.restOt(n)),
-                                Math.round(o.y + body.y + body.height - Theme.shadowDy + joinedShape.restOb(n))].join(",")
+                            return [Math.round(o.x + body.x - joinedShape.ruleReach(joinedShape.restTi(n))),
+                                    Math.round(o.x + body.x + body.width + joinedShape.ruleReach(joinedShape.restTo(n)))].join(",")
+                        return [Math.round(o.y + body.y - joinedShape.ruleReach(joinedShape.restOt(n))),
+                                Math.round(o.y + body.y + body.height - Theme.shadowDy + joinedShape.ruleReach(joinedShape.restOb(n)))].join(",")
                     }
                     onOpeningKeyChanged: {
                         SidebarGeom.clear(dock.outName, "dock")

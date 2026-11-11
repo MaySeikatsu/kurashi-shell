@@ -11,6 +11,8 @@
 var K_CIRCLE = 0.5523
 var K_SQUIRCLE = 0.88
 // `sq` is the look's squircle ratio (`Theme.squircle`, token `shape.squircle_k`, I300) or `true` for the default one.
+// The size of one step of a stepped corner (`theme.join_corner = steps`), in px.
+var STEP = 5
 function kOf(sq) { return typeof sq === "number" && sq > K_CIRCLE && sq < 1 ? sq : K_SQUIRCLE }
 
 function f(v) { return Math.round(v * 100) / 100 }
@@ -92,7 +94,11 @@ function squircled(svg, sq, join) {
             if (cmd === "M") { sx = x; sy = y; cmd = "L" }
         } else if (cmd === "A") {
             var r = +t[i], ax = +t[i + 5], ay = +t[i + 6]
-            segs.push({ c: "A", a: t.slice(i, i + 7), px: cx, py: cy, x: ax, y: ay, r: r,
+            // (the arc's rotation — nothing to a circle's arc — carries the radius this corner has on the shape's own
+            // contour, when the path is that contour inset by a line's width: see "steps" below)
+            var arcA = t.slice(i, i + 7), ref = +arcA[2]
+            arcA[2] = "0"
+            segs.push({ c: "A", a: arcA, px: cx, py: cy, x: ax, y: ay, r: r, ref: ref > 0 ? ref : 0,
                         q: Math.abs(Math.abs(ax - cx) - r) < 0.6 && Math.abs(Math.abs(ay - cy) - r) < 0.6 })
             i += 7
             cx = ax; cy = ay
@@ -146,16 +152,54 @@ function squircled(svg, sq, join) {
             // A quarter turn from p to q round the bare corner c: a fillet where two surfaces join, or a surface's own
             // corner (I489: the shape is for every corner of the sheet). A pill's end stays round.
             var c = cornerOf(g.px, g.py, g.x, g.y, +g.a[4])
-            if (join === "chamfer") out.push("L", f(g.x) + " " + f(g.y))
+            // (`ref`, the corner's radius on the shape's own contour: this path is that contour inset by
+            // `g.r − ref` — outward for a fillet ruled into its neighbour, inward for a free corner. A cut and an
+            // outward quarter are then drawn as the contour's own, moved in by that much; drawn from this path's own
+            // radius, a cut's line was 0.7 of its width and an outward quarter's next to nothing.)
+            var dl = g.ref > 0 ? g.r - g.ref : 0
+            var eu = Math.hypot(c.x - g.px, c.y - g.py), ev = Math.hypot(g.x - c.x, g.y - c.y)
+            var eux = eu > 0 ? (c.x - g.px) / eu : 0, euy = eu > 0 ? (c.y - g.py) / eu : 0
+            var evx = ev > 0 ? (g.x - c.x) / ev : 0, evy = ev > 0 ? (g.y - c.y) / ev : 0
+            if (join === "chamfer") {
+                if (dl !== 0) {
+                    var rc = g.r - dl * (Math.SQRT2 - 1)
+                    out.push("L", f(c.x - eux * rc) + " " + f(c.y - euy * rc), "L", f(c.x + evx * rc) + " " + f(c.y + evy * rc))
+                }
+                out.push("L", f(g.x) + " " + f(g.y))
+            }
             else if (join === "square") out.push("L", f(c.x) + " " + f(c.y), "L", f(g.x) + " " + f(g.y))
             else if (join === "steps") {
-                var st = Math.max(2, Math.min(6, Math.round(g.r / 5)))
-                var ux = (c.x - g.px) / st, uy = (c.y - g.py) / st, vx = (g.x - c.x) / st, vy = (g.y - c.y) / st
+                // Steps of STEP px on a lattice anchored at the bare corner; what is left over is the first run and the
+                // last rise. An outline is the band between this path and the same path inset by the line's width,
+                // whose corner has another radius: with a number of steps taken from the radius (r / 5, rounded) the
+                // two stairs differed by a step at some radii and the line broke at the corner (the user, session 29:
+                // "depending on the monitor"). Anchored at the corner, the inset stair is the outer one moved along the
+                // diagonal — given the same number of steps: the one of the contour's own corner (`ref`, which the
+                // shape writes into the arc), since a radius a line's width off may lie the other side of a multiple
+                // of STEP.
+                var lu = Math.hypot(c.x - g.px, c.y - g.py), lv = Math.hypot(g.x - c.x, g.y - c.y)
+                var st = Math.max(1, Math.ceil((g.ref > 0 ? g.ref : Math.min(lu, lv)) / STEP - 1e-6))
+                var ux = (c.x - g.px) / lu, uy = (c.y - g.py) / lu, vx = (g.x - c.x) / lv, vy = (g.y - c.y) / lv
+                var sx = g.px, sy = g.py
                 for (var w = 1; w <= st; w++) {
-                    out.push("L", f(g.px + ux * w + vx * (w - 1)) + " " + f(g.py + uy * w + vy * (w - 1)))
-                    out.push("L", f(g.px + ux * w + vx * w) + " " + f(g.py + uy * w + vy * w))
+                    var run = w === 1 ? Math.max(0, lu - (st - 1) * STEP) : STEP
+                    var rise = w === st ? Math.max(0, lv - (st - 1) * STEP) : STEP
+                    sx += ux * run; sy += uy * run
+                    out.push("L", f(sx) + " " + f(sy))
+                    sx += vx * rise; sy += vy * rise
+                    out.push("L", f(sx) + " " + f(sy))
                 }
-            } else if (join === "bulge") out.push(quarter(g.px, g.py, g.r, 1 - (+g.a[4]), g.x, g.y, sq).trim())
+            } else if (join === "bulge") {
+                // The quarter turned outward, round the contour's bare corner (this path's, moved back by `dl`).
+                var rb = g.r - 2 * dl, ox = c.x + dl * (evx - eux), oy = c.y + dl * (evy - euy)
+                if (dl === 0 || !(rb > 0.05)) out.push(quarter(g.px, g.py, g.r, 1 - (+g.a[4]), g.x, g.y, sq).trim())
+                else {
+                    var ax0 = ox - eux * rb, ay0 = oy - euy * rb, bx0 = ox + evx * rb, by0 = oy + evy * rb
+                    out.push("L", f(ax0 - evx * dl) + " " + f(ay0 - evy * dl), "L", f(ax0) + " " + f(ay0))
+                    out.push(quarter(ax0, ay0, rb, 1 - (+g.a[4]), bx0, by0, sq).trim())
+                    out.push("L", f(bx0 + eux * dl) + " " + f(by0 + euy * dl), "L", f(g.x) + " " + f(g.y))
+                }
+            }
             else out.push("A", g.a.join(" "))
         } else if (!sq) out.push("A", g.a.join(" "))
         else {
