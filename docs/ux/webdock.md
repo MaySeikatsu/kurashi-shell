@@ -105,9 +105,9 @@ of being phone shaped." The edge dock stays exactly as it is; the sidebar is a s
   card's window and the sidebar's (a reparent: the page is kept, no reload, measured in the spike). `max_loaded` and
   `unload_after` are unchanged; a site on screen in the sidebar counts as shown (the idle clock waits), and a site on
   screen at the edge and in the sidebar at once is kept even past the cap.
-- **Both visible:** different pins show live in both places. The **same** pin: the **sidebar shows the live page** (the
-  user put it there on purpose and it is the larger place), and the edge card shows "This page is shown in the
-  sidebar" (`webdock.side.elsewhere`) in its body.
+- **Both visible:** different pins show live in both places. The **same** pin: since W73 the place opened last shows the
+  live page and the other says where it is, with "Show here" (see "Which place shows the page"). (W30 to W72: the sidebar
+  always kept it, and the edge card said "This page is shown in the sidebar".)
 - **Placement (contract row 250):** the sidebar hands a panel that declares `property var placement` its rect at rest
   in the sidebar window (`{output, side, inset, top, width, height}`; null while it slides, scrolls or is clipped —
   generic, no mod named, `frontend/components/sidebar/Placement.qml`). The panel adds the well's offset and reports
@@ -292,9 +292,9 @@ page the first Esc is handed to the page (a key event the host makes: `isTrusted
 the keyboard's own events does not react) and the card stays; a second Esc within 1.5 s closes the card; with the keys
 on the card's own row Esc closes at once. (2) *A click on the module opens the card*, a second click closes it; the
 dock at the edge is a middle click, its key or the command line. Built; an entry in the module's menu is not (I488).
-(3) *The card's size is a setting* (Phone, Tablet, Wide; one for all pins). Not built (I488). (4) *Last opened wins*:
-the place opened most recently shows the pin's page, the others say "shown elsewhere" with a key to bring it here. Not
-built (I488). Suite: `mods/webdock/test/test-card.sh` steps 6 and 6b.
+(3) *The card's size is a setting* (Phone, Tablet, Wide; one for all pins). Built in W73 ("The card's size"). (4) *Last
+opened wins*: the place opened most recently shows the pin's page, the others say "shown elsewhere" with a key to bring it
+here. Built in W73 ("Which place shows the page"). Suite: `mods/webdock/test/test-card.sh` steps 6 and 6b.
 
 **User (2026-11-10, with a screenshot of a bottom bar's right corner):** "make the webdock actually appear in the corner it
 opens from on hover, basically filling the blank field with web content here". The bar module's card (click, or a rest
@@ -321,9 +321,9 @@ Now the well shows the picked site's page, in that card, where it opened.
   the pins as one row of 40 px app keys with the settings key at its end (unchanged, the panel's row); under it the **well**,
   `radius.lg`, filled by the page: a 36 px navigation row (back, forward, title, home once the page left the pin's address,
   reload, mobile/desktop view, **Show at the edge**, open in browser) and the page under it, masked to the well's radius.
-- **Size:** the card asks for the dock's phone width (`geometry.width`, 412 px, plus the card's padding: contract row 66's
-  `cardWidth`), so a mobile site gets the width it gets at the edge; the well is 1.6 × its width tall, at most the output
-  less the bars and margins, at least 240 px. Not resizable here: "Show at the edge" is the way to the large size.
+- **Size:** since W73 the setting `card_size` (Phone, Tablet, Wide; see "The card's size"). (W72: the dock's phone width,
+  `geometry.width`, and a well 1.6 × its width tall.) Not resizable by dragging: "Show at the edge" is the way to the
+  large size.
 - **Page style:** plain. `mods.webdock.page_style` (phone, notebook, plain) is the edge card's (and the sidebar's well is
   plain too): in the bar's card the card is the frame; a phone or notebook inside a card would be a frame in a frame.
 - **Which pin:** the card has a pin of its own (`card.pin`, kept while the card is closed, like the sidebar's): a click on a
@@ -336,12 +336,12 @@ Now the well shows the picked site's page, in that card, where it opened.
   named). The panel adds the well's offset and reports `webdock.card {on, output, x, y, width, height}` on change only; the
   daemon publishes `mod.webdock.card {pin?, place?}` and the host maps a layer window (Overlay, exclusion ignored, anchored
   top-left with those margins) exactly over the well. The page **moves** into that window (a reparent, no reload).
-- **One page, three places — who shows it:** a pin's page is in one window at a time. Priority: **the sidebar, then the bar's
-  card, then the edge card.** The sidebar keeps it (the user put it there; the larger, lasting place) and the bar's card
-  says "This page is shown in the sidebar"; the bar's card takes it from the edge card (the card under the pointer is the
-  one looked at), and the edge card says "This page is shown in the bar's card" (`webdock.card.elsewhere`). Different pins
-  show live in every place at once. Nothing is reloaded when the card closes and opens again, when its pin changes back and
-  forth, or when the page moves between places (the host's load reports are counted in the test).
+- **One page, three places — who shows it:** a pin's page is in one window at a time. Since W73 (the user's answer (4)):
+  **the place opened last** shows it and the others say where it is, with "Show here" — see "Which place shows the page".
+  (W72 built a fixed priority — the sidebar, then the bar's card, then the edge card; a daemon that does not publish
+  `elsewhere`, the mock, still gets that order.) Different pins show live in every place at once. Nothing is reloaded
+  when the card closes and opens again, when its pin changes back and forth, or when the page moves between places (the
+  host's load reports are counted in the test).
 - **Lifetime (Ma):** a site in the open card counts as shown — kept past `max_loaded`, the idle clock waits; closed, its
   page is Frozen like any hidden page and unloads by the dock's rules. The host's card window exists only while it is mapped.
 
@@ -358,7 +358,8 @@ Now the well shows the picked site's page, in that card, where it opened.
 - **A site that refuses to be framed:** framing headers (`X-Frame-Options`, CSP `frame-ancestors`) do not apply: the page is
   not in a frame, it is the top-level document of its own view. A site that refuses the embedded engine (Google sign-in)
   is the dock's existing case: the sign-in sheet says so with "Open in browser" (`webdock.signin_refused`).
-- **Shown in the sidebar:** `webdock.side.elsewhere`; the pin keys still switch to another pin.
+- **Shown in another place opened later** (W73): `webdock.side.elsewhere`, `webdock.edge.elsewhere`, with "Show here";
+  the pin keys still switch to another pin.
 - **The card opening or moving:** the well is empty (the card's colour) and the page appears once the card rests.
 
 ### Hover, keyboard, a11y
@@ -459,8 +460,8 @@ gap's "not audible" report arrived, a site past the cap left `keep` and its page
 - **"Keep running in the background"** (`background`, a bool field of each pin, default off; Settings › Web dock › pins).
   Such a pin's page is never frozen while it is loaded, and the dock's own rules never unload it: not `unload_after` (the
   web engine stays running while it is loaded), not the `max_loaded` cap. It is loaded once it was opened (shown in any
-  place); after a restart of the session or the engine it loads when it is opened again — the dock does not start sites by
-  itself (Calm). Turning the switch off returns the pin to the rules, at once.
+  place); an engine that restarts (a crash) loads it again, but after a restart of the session it waits until it is opened
+  — the dock does not start sites by itself (Calm). Turning the switch off returns the pin to the rules, at once.
 - **The document:** a web pin carries `background: true` while the switch is on and `awake: true` while its page must stay
   `Active` although it is hidden and silent (in its grace, or a loaded background pin); both absent otherwise. `audible`
   stays what the engine says, so the indicator never claims sound during a pause (Shōjiki).
@@ -485,14 +486,32 @@ A background pin is the user's explicit exception to "idle = silent": its page's
 all day. The grace costs at most 10 minutes of the same after the last sound. No poll: the host follows the document, the
 daemon wakes once at the grace's end (a deadline, no ticker).
 
+### As built (W73)
+- **Measured, two causes** (`mods/webdock/test/test-background.sh`, real daemon, `pages/tone.html`: a click plays track
+  1, a `setTimeout` plays track 2 after 8 s of silence; details in `docs/ux/webdock-engine.md` "The engine's lifecycle"):
+  1. *The freeze* — a page hidden in a silence (the player paused, between tracks, the card closed in the gap) was frozen
+     at once (QtWebEngine recommends `Frozen`, then `Discarded`) and its track 2 never started. Old `WebPage.qml`: FAIL
+     ("track 2 of tone never started while hidden", lifecycle `Frozen`); new: track 2 starts hidden 7.9 s after the hide,
+     the page stays `Active`. A page hidden *while it plays* was not frozen at the next gap: the engine does not revisit
+     its recommendation when the sound stops — so the freeze needs a hide (or any re-evaluation) in a silence.
+  2. *The cap* — past `max_loaded`, the gap's "not audible" report dropped the player from `keep` and the host destroyed
+     its page. Old daemon: FAIL ("the gap's silence unloaded the player past the cap (keep ['other'])"); new: kept,
+     `awake`, track 2 starts.
+  Which of the two the user met is not known (it needs their pins and a real player); both are fixed.
+- **Autoplay** is not a cause: a page that had one click may start new `<audio>` elements from a timer later.
+- **Not proven on a real music service:** Spotify's web player needs an account (and Widevine), and the sandboxes keep
+  agents off the network (K37). The stand-in plays through Chromium's fake audio output.
+
 ### Definition of done (W73, background)
-- [ ] A hidden page that played sound plays its next track after a silent gap longer than the engine's own audible hold:
+- [x] A hidden page that played sound plays its next track after a silent gap longer than the engine's own audible hold:
       `mods/webdock/test/test-background.sh` (real daemon, a `file://` page whose second tone starts from a `setTimeout`),
       failing on the old `WebPage.qml` and passing on the new one.
-- [ ] The daemon keeps a site past the cap for the grace after its sound, then lets it go, and the idle clock starts only
+- [x] The daemon keeps a site past the cap for the grace after its sound, then lets it go, and the idle clock starts only
       after the grace (unit tests); a `background` pin is kept past the cap and holds the engine.
-- [ ] `background` field (mod.toml, i18n en/ja), the tip and the menu say it, `unload_after`'s help and the pins' help are
+- [x] `background` field (mod.toml, i18n en/ja), the tip and the menu say it, `unload_after`'s help and the pins' help are
       true; MODS.md lists `background` and `awake`.
+- [ ] The tip on a background pin's key not shot; Settings' record form shows the switch with the field's label (the
+      generic records editor; not shot here).
 
 ## The card's size (W73, session 29; I488 (3))
 **The user's answer (session 28):** "the size a setting" — Phone, Tablet, Wide, one for all pins, for the bar's card.
@@ -571,9 +590,13 @@ sidebar's settle, the edge card's cut); no reload, no new process. Nothing runs 
 action, the document carries the result.
 
 ### Definition of done (W73, places)
-- [ ] Daemon unit tests: latest opened wins among open places, the next one takes it on a close, a re-rest steals nothing.
-- [ ] test-card.sh steps 4 and 4b rewritten to the rule: the edge opened after the card takes the page and the card says
-      so; "Show here" in the card brings it back; the sidebar opened after the card takes it; no reload in any move.
+- [x] Daemon unit tests: latest opened wins among open places, the next one takes it on a close, a re-rest steals nothing.
+- [x] test-card.sh step 4: the edge opened after the card takes the page and the card says so; "Show here" pressed in the
+      card's well brings it back and the edge card says so; closing the card hands it to the edge; no reload.
+- [x] test-sidebar.sh step 2b: the edge opened on the sidebar's pin takes the page, the sidebar says so; "Show here"
+      pressed in the sidebar brings it back; no reload.
+- [ ] The bar card and the sidebar at once (test-card.sh 4b): opening the bar card closes the sidebar in the shell today,
+      so the case is reached only through the daemon (unit test), not on screen.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per

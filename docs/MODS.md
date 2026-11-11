@@ -245,8 +245,12 @@ new_tabs: dock|browser, edge: right|left|top|bottom, output?, geometry {strip, w
 pins: [pin], host {state: off|starting|ready|failed|missing, reason?, detail?}, dirs {profiles, icons}}`. `pinned`,
 `hover`, `reserve`, `indicator`, `new_tabs` and `geometry.strip` are the settings in effect (row 110); `engaged` is
 true while the strip or the card has keyboard focus; `geometry.grace` (24 px) is the hysteresis every part's input
-region adds around what it draws. A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
-audible?, blocked?: [permission], error?}`: `kind` follows `target` (`mod:<id>:<panel>` → view, `https`, `http`,
+region adds around what it draws. W73: `card_size?` (`tablet` | `wide`, absent while `phone`: the bar card's size) and
+`elsewhere?` (`sidebar` | `card`: the edge card's pin is shown in that place, which was opened later; absent while the
+edge card shows it). A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
+audible?, background?, awake?, blocked?: [permission], error?}`: `background` (true, else absent) is the pin's "keep
+running in the background"; `awake` (true, else absent) says its page stays `Active` though hidden and silent — in its
+grace of 10 minutes after its last sound, or a loaded background pin (W73); `kind` follows `target` (`mod:<id>:<panel>` → view, `https`, `http`,
 `file` → web); for web pins `view` is the effective view (the pin's, or `default_view` when it says `default`) and
 `profile` the effective profile (the pin's, or its id); `loaded`, `icon`, `audible`, `blocked`, `error` come from the
 host's reports. QtWebEngine sets the user agent per profile, so **pins that share a profile share its view**: the first
@@ -260,9 +264,15 @@ toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable
 (`xdg-open`; http, https only) · `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (the sidebar
 panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`) ·
 `webdock.sidebar_select {pin}` (the pin the sidebar shows). An unknown pin is `invalid` with `webdock.error.unknown_pin`.
-In the sidebar (K56): the document's optional `sidebar {pin?, place?}` — absent until the sidebar panel is used —
-names the pin the sidebar shows and, while it rests open, where its page area is; the host maps its second window
-there and moves that pin's page into it. **Host reports**
+In the sidebar (K56): the document's optional `sidebar {pin?, place?, elsewhere?}` — absent until the sidebar panel is
+used — names the pin the sidebar shows and, while it rests open, where its page area is; the host maps its second window
+there and moves that pin's page into it. The bar card (W72) likewise: `card {pin?, place?, hover?, engaged?, close?,
+focus?, elsewhere?}` and `webdock.card {on, output?, x?, y?, width?, height?, fresh?}`, `webdock.card_select {pin}`.
+**Last opened wins (W73):** of the open places showing a pin (the edge card, the sidebar, the bar card) the one opened
+or picked last shows its page; `elsewhere` (`edge` | `sidebar` | `card`) on the others names it. A place is stamped by
+`webdock.open`, `webdock.select`, `webdock.toggle` and a reveal at the edge, by `webdock.sidebar_select` and
+`webdock.card_select`, and by the first rest of a sidebar panel or a bar card (`fresh: true` on its first
+`webdock.sidebar` / `webdock.card` report; a rest after a move does not stamp). **Host reports**
 (the host's scoped connection): `webdock.host.loaded {pin, icon?}` (icon: a file under `dirs.icons`) ·
 `webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on}` · `webdock.host.blocked {pin, permission}`
 (`camera|microphone|location|notifications|screen|clipboard|download|other`; cleared by the next `loaded`) ·
@@ -291,9 +301,11 @@ extended, else the strip) and hides with `engaged` = false. A timer exists only 
 `webdock.host.new_window`; a popup with an opener is a sheet either way.
 
 **Lifecycle (daemon):** the host starts when a web pin becomes `shown`. `keep` lists the web pins the host keeps
-loaded, most recently shown first: the shown pin, then up to `max_loaded` in all; an audible pin is never dropped. The
-idle clock runs while no web pin is shown and none is audible; after `unload_after` minutes (0 = never while the mod is
-on) the daemon stops the host, empties `keep` and every `loaded`. A view pin never starts the host.
+loaded, most recently shown first: the shown pin, then up to `max_loaded` in all; an audible pin is never dropped, nor
+one in its grace (10 minutes after its last sound, W73), nor a background pin once it was opened. The idle clock runs
+while no web pin is shown and none is audible, in its grace or a background pin that was opened; after `unload_after`
+minutes (0 = never while the mod is on) the daemon stops the host, empties `keep` and every `loaded`. The daemon wakes
+once at a grace's end (no ticker). A view pin never starts the host.
 
 **Host (QML, `mods/webdock/host/`; row 95):** it imports the shell's core through a link in its own folder,
 `host/core` → `../../../frontend/core` (Quickshell refuses imports that leave a config root; the link keeps one copy of
@@ -301,12 +313,14 @@ Store/Theme/I18n), and draws its own small controls (`frontend/components` would
 `geometry.strip`, while `mode` is `extended` and `shown` is a web pin: phone = `width` × min(2 × `width`, output height
 − 2 gaps), large = `large` % of the output's width × the full height − 2 gaps. One `WebEngineView` per pin in `keep`,
 created when first shown, destroyed when it leaves `keep` (→ `unloaded`); views not shown are hidden and `Frozen` unless
-`recentlyAudible`. One profile per effective profile name (storage `dirs.profiles/<profile>`); mobile view = the
+`recentlyAudible` or the pin is `audible`, `awake` or `background` (W73: QtWebEngine recommends `Frozen` for a page hidden
+in a silence, and a frozen player never starts its next track). One profile per effective profile name (storage `dirs.profiles/<profile>`); mobile view = the
 engine's user agent with an Android platform and `Mobile`, client hints `mobile` on; privacy settings per
 `docs/ux/webdock.md` "Privacy" (Chromium switches via `//@ pragma DefaultEnv QTWEBENGINE_CHROMIUM_FLAGS = …`).
 
 **Settings:** `pins` (records, W17-records: `id` slug unique, `title`, `target` url with schemes https, http, file, mod,
-`view` default|mobile|desktop, `profile`, `icon`), `default_view` (mobile|desktop, mobile), `width` (360..720 px, 412),
+`view` default|mobile|desktop, `profile`, `icon`, `background` bool false: W73), `default_view` (mobile|desktop, mobile),
+`card_size` (phone|tablet|wide, phone: the bar card's page 412 × 760, 768 × 900 or 1024 × 720, W73), `width` (360..720 px, 412),
 `large` (50..95 %, 90), `edge` (right|left|top|bottom, right), `unload_after` (0..1440 min, 60), `max_loaded` (1..12, 4),
 `hover` (true), `reopen_last` (true), `pinned` (false), `reserve` (false: a pinned strip claims its width as an
 exclusive zone; the card always overlays), `indicator` (true), `strip` (40..64 px, 56), `new_tabs` (dock|browser, dock).
