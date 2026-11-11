@@ -321,7 +321,8 @@ Now the well shows the picked site's page, in that card, where it opened.
   the pins as one row of 40 px app keys with the settings key at its end (unchanged, the panel's row); under it the **well**,
   `radius.lg`, filled by the page: a 36 px navigation row (back, forward, title, home once the page left the pin's address,
   reload, mobile/desktop view, **Show at the edge**, open in browser) and the page under it, masked to the well's radius.
-- **Size:** since W73 the setting `card_size` (Phone, Tablet, Wide; see "The card's size"). (W72: the dock's phone width,
+- **Size:** since W73 the setting `card_size` (Phone, Tablet, Wide; since W74 "As at the edge", the default, and a key in
+  the card that steps through them; see "The card's size"). (W72: the dock's phone width,
   `geometry.width`, and a well 1.6 × its width tall.) Not resizable by dragging: "Show at the edge" is the way to the
   large size.
 - **Page style:** plain. `mods.webdock.page_style` (phone, notebook, plain) is the edge card's (and the sidebar's well is
@@ -528,8 +529,8 @@ daemon wakes once at the grace's end (a deadline, no ticker).
   stays the pin's own switch (MenubarX).
 
 ### Design
-- **Setting** `mods.webdock.card_size`: `phone` (default, what W72 built) | `tablet` | `wide`; Settings › Web dock.
-  The daemon publishes it in `mod.webdock` as `card_size`, absent while `phone` (as `page_style`).
+- **Setting** `mods.webdock.card_size`: `phone` | `tablet` | `wide`; Settings › Web dock. (W74: a first choice `dock`,
+  the edge card's size, is the default now and the document's `card_size` is absent while `dock`: see below.)
 - **Sizes (the page's viewport; the well adds its 36 px navigation row):** phone 412 × 760 (a Pixel-class phone's 412 ×
   915 less a mobile browser's bars), tablet 768 × 900 (an iPad Mini's 768 × 1024 less the bars), wide 1024 × 720 (a small
   laptop's 1024 × 768 less a tab strip). The card is the well plus the Stage's padding.
@@ -548,6 +549,57 @@ daemon wakes once at the grace's end (a deadline, no ticker).
       `mods/webdock/shots/card/card-{phone,tablet,wide}-{light,dark}.png`), each fully on screen. On the 1920 × 1080
       output the tablet's height is clamped (the well about 850 px instead of 936): it shrinks, as designed.
 - [ ] Left/right bars and a second output: not shot (the Stage's clamp is per output by construction).
+
+### W74: the edge dock's size by default, a key to switch (session 29)
+**User (session 29):** "I prefer the previous webdock card default size that it had in the edge, so make this the
+default, other a setting/button to switch."
+- **The size it had at the edge, read from the code:** the edge card in its phone size is `width` wide (the setting,
+  360–720 px, 412) and `min(2 × width, the usable height − 2 gaps)` tall (`host/WebCard.qml` `phoneW`/`phoneH`,
+  `qml/DockWindow.qml` `cardW`/`cardH`); the frame (phone, notebook, plain) is drawn inside that box. The edge's `large`
+  is a toggle of the edge card (`webdock.size`), not a size of its own: the bar card follows `width` only, so it does not
+  jump when the edge card is made large.
+- **The new first choice `dock`** ("As at the edge"), the default: the bar card's **well** (the navigation row and the
+  page under it) is the edge card's box, `width` × `2 × width` — 412 × 824 by default, so the page is 412 × 788 under its
+  36 px row. The card round it adds the Stage's padding, as for every size. `phone`, `tablet`, `wide` stay (W73's
+  viewports). The document publishes `card_size` absent while `dock`, and `phone`, `tablet` or `wide` otherwise.
+- **When it does not fit:** W73's clamp, unchanged: the panel is at most the output's height less two bar heights and
+  ten paddings (`1080 − 72 − 120 = 888` px on a 1080p output), so the well is at most 840 px there: the default
+  412 × 824 well fits on a 1080p output from a bottom or a top bar; a `width` of 720 asks for 1440 and shrinks to the
+  clamp, never off screen; the width is the Stage's clamp (360–1100 px and the output).
+- **The size key** in the card's row of keys, between the last pin and the settings key: `[pins …] [size] [⚙]`. A
+  press (click, Enter, Space) steps to the next size — As at the edge → Phone → Tablet → Wide → As at the edge — and
+  writes `card_size` through the daemon (`webdock.card_size {size?}`, no argument steps), one undoable transaction of the
+  user layer (`kurashi undo` and Settings' undo take it back). The card resizes and re-rests; the page moves with it, no
+  reload; the key keeps the keyboard. Its icon is `resize` (the subset's), the same for every size; the size is in words.
+- **States of the key:** *live* — the tip (on a rest or keyboard focus) says "Card size: As at the edge. Press for
+  Phone."; *forced* (a layer above the user's sets `card_size`: `forced.card_size` in the document, I91) — the key is
+  drawn at half strength, a press does nothing (the daemon refuses it too: `webdock.error.forced`), the tip and the
+  accessible description say "Set by {by} in the configuration. Change it there."; *no pin / engine missing / failed*
+  — the key stays (the size is the card's, not the page's); *the sidebar* — no key (the sidebar's well fills the pane).
+- **Keyboard and a11y:** a Tab stop between the pins and the settings key (forced too: the reason must be reachable),
+  Enter or Space presses it; Tab past the settings key still hands the keyboard to the page. Accessible name "Card size:
+  <size>", role button; description the next size, or the forced reason.
+- **Motion:** the card's own resize (the Stage's), the page cut in once it rests (W72); nothing new runs at rest.
+
+### As built (W74, size)
+- Measured on nested niri, 1920 × 1080, bottom bar: the default well is 412 × 824 at y 204 (the panel 872 px, under the
+  888 px clamp): it fits whole; Phone 412 × 796, Tablet 768 × 848 and Wide 1024 × 756 are clamped as in W73.
+- The key's icon is the subset's `resize` (a dotted box with a corner arrow); the words are in the tip and the name.
+- Under the mock (no `webdock.card_size`, row 731) a press is refused silently and nothing changes.
+
+### Definition of done (W74, size)
+- [x] `card_size` gains `dock` (first, default) in mod.toml, i18n en/ja (label, help that says how it follows `width`),
+      MODS.md, `nix/hm-module.nix`; unit tests: absent while `dock`, named otherwise; the step, a bad size and the
+      refusal when forced (`card_size_step`).
+- [x] test-card.sh step 1b (sway, 2560 × 1440): the default well is 412 × 824; one press of the size key on screen makes
+      it Phone (the document, the well 412 × 796 and the host's window follow, no reload); `kurashi undo` brings the
+      default back.
+- [x] Shots on nested niri, bottom bar, light and dark (`shots-card.sh` → `mods/webdock/shots/card/card-dock-*`,
+      `card-key-tip-*` (the tip on a rest), `card-pressed-*` (after one click on the key: Phone)), whole card on screen.
+- [ ] The forced state on screen (inert key, the reason in its tip): not shot — the suites set no forced layer; the
+      daemon's refusal is unit-tested and the QML follows `forced.card_size` as the strip's pin toggle does.
+- [ ] Keyboard on screen (Tab to the key, Space): not driven by a suite; the key is an IconButton Tab stop before the
+      settings key, and step 6's Tab walk to the page (one stop longer now) still passes.
 
 ## Which place shows the page (W73, session 29; I488 (4))
 **The user's answer (session 28):** "Last opened wins": the place opened most recently shows the pin's page, the others
@@ -600,6 +652,51 @@ action, the document carries the result.
       pressed in the sidebar brings it back; no reload.
 - [ ] The bar card and the sidebar at once (test-card.sh 4b): opening the bar card closes the sidebar in the shell today,
       so the case is reached only through the daemon (unit test), not on screen.
+
+### W74: does a hover reveal take the page? (session 29)
+W73 stamped the edge on every reveal, a hover's too, so resting the pointer on the edge while the bar card or the sidebar
+showed the same pin moved the page to the edge — the user only meant to look. **The user's answer (session 29):** "A as
+default, B as setting."
+- **A (default, `hover_takes_page = true`, W73's behaviour):** any reveal of the edge dock counts as opening it; a hover
+  reveal on the pin another place shows takes the page, the other place says "This page is shown at the screen's edge"
+  with "Show here".
+- **B (`hover_takes_page = false`):** only a deliberate open takes the page — a click or a key on a pin of the strip
+  (`webdock.select`), the dock's key or action (`webdock.toggle`, `webdock.open`), "Show here" (`webdock.open`). A
+  hover-revealed edge dock ranks below every open place: while another place shows the pin, the edge card says "This page
+  is shown in the bar's card" / "in the sidebar" with "Show here"; when no other place shows it, the hover-revealed dock
+  shows the page as before (it is the only open place). It never steals by an old stamp: an edge opened on purpose
+  earlier, then hidden, does not keep its rank through the next hover reveal.
+- **Why A is the default:** the user chose it; and it is the simpler model (Spotify Connect's "the device you touched
+  last plays"). B is for a user who rests on the edge to glance at the dock while the page plays in a sidebar that stays open.
+- **How others do it:** Spotify Connect moves playback only on a deliberate "play here", never on opening the app
+  (B's model); macOS Universal Control / Handoff offer the app on the other device and move it on a click (B); browsers'
+  tab previews on hover show a still, never the live tab (B). A is the dock's own, simpler rule.
+- **Setting:** `mods.webdock.hover_takes_page` (bool, true), Settings › Web dock, next to "Reveal on hover"; the daemon
+  owns it (rule 1); the document does not carry it (the result is in `elsewhere`). Forced like every mod setting.
+- **States:** hover reveal, page elsewhere (B): the notice and "Show here" (the existing edge notice); hover reveal, page
+  nowhere else (B): the page; deliberate open (A and B): the page; the other place closes while the hover-revealed dock
+  is open: the page comes to the edge (it is the next open place); `reopen_last` off: a hover reveal shows the strip only,
+  nothing to take.
+- **A click on the shown pin in the strip** (B, page elsewhere) keeps its meaning: it puts the card away (W20). "Show
+  here" is the way to bring the page.
+- **Keyboard and a11y:** unchanged — "Show here" is the host's HostButton (Tab stop, Enter, Space; name "Show here").
+- **As built (W74), where a hover meets another place:** while a Stage card is open (the bar's card included) the
+  shell's click-away window (`frontend/surfaces/ClickAway.qml`, Top layer, the whole usable area) lies over the edge's
+  2 px hover zone, so the pointer cannot reveal the edge dock then: the bar card meets a hover reveal only through the
+  daemon (a card opened by `mod.panel.open` from a key while the pointer rests on the edge is not reachable either). The
+  case on screen is a sidebar that stays open (`visibility = always` or a hover-revealed column: no catcher) showing the
+  pin — that is where the rule matters to the user today. The daemon's rule is the same for all three places.
+
+### Definition of done (W74, places)
+- [x] Setting in mod.toml, i18n en/ja (label and help in the user's terms), `nix/hm-module.nix`, MODS.md.
+- [x] Unit tests in `dock.rs`: A — a hover reveal takes the page; B — a hover reveal does not, the old-stamp sequence
+      (card open, edge opened on purpose, edge hidden, hover reveal) does not steal, a hover reveal with no other place
+      shows the page, "Show here" (`webdock.open`), the dock's key and a strip click take it, the card closing hands it
+      to the hover-revealed edge.
+- [x] test-card.sh step 4c on screen (sway, real daemon): with B, a rest on the right edge while an always-open left
+      sidebar shows the pin reveals the dock and the sidebar keeps the page; the edge card says "This page is shown in the
+      sidebar"; its "Show here" pressed on screen takes it; with A, a rest takes the page; no reload.
+- [ ] The bar card against a hover reveal on screen: not reachable (the click-away window, above). Not shot on niri.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per

@@ -245,7 +245,7 @@ new_tabs: dock|browser, edge: right|left|top|bottom, output?, geometry {strip, w
 pins: [pin], host {state: off|starting|ready|failed|missing, reason?, detail?}, dirs {profiles, icons}}`. `pinned`,
 `hover`, `reserve`, `indicator`, `new_tabs` and `geometry.strip` are the settings in effect (row 110); `engaged` is
 true while the strip or the card has keyboard focus; `geometry.grace` (24 px) is the hysteresis every part's input
-region adds around what it draws. W73: `card_size?` (`tablet` | `wide`, absent while `phone`: the bar card's size) and
+region adds around what it draws. W73: `card_size?` (`phone` | `tablet` | `wide`; absent while `dock`, the default since W74: the bar card's size) and
 `elsewhere?` (`sidebar` | `card`: the edge card's pin is shown in that place, which was opened later; absent while the
 edge card shows it). A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
 audible?, background?, awake?, blocked?: [permission], error?}`: `background` (true, else absent) is the pin's "keep
@@ -263,14 +263,18 @@ until the shell's strip exists), `width` the phone width in px, `large` a percen
 toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable) · `webdock.open_external {url}`
 (`xdg-open`; http, https only) · `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (the sidebar
 panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`) ·
-`webdock.sidebar_select {pin}` (the pin the sidebar shows). An unknown pin is `invalid` with `webdock.error.unknown_pin`.
+`webdock.sidebar_select {pin}` (the pin the sidebar shows) · `webdock.card_size {size?}` (W74: the bar card's size key;
+a settings write of `card_size`, undoable; no argument steps dock → phone → tablet → wide → dock; a bad size is
+`webdock.error.card_size`, a forced `card_size` is refused with `webdock.error.forced`). An unknown pin is `invalid` with `webdock.error.unknown_pin`.
 In the sidebar (K56): the document's optional `sidebar {pin?, place?, elsewhere?}` — absent until the sidebar panel is
 used — names the pin the sidebar shows and, while it rests open, where its page area is; the host maps its second window
 there and moves that pin's page into it. The bar card (W72) likewise: `card {pin?, place?, hover?, engaged?, close?,
 focus?, elsewhere?}` and `webdock.card {on, output?, x?, y?, width?, height?, fresh?}`, `webdock.card_select {pin}`.
 **Last opened wins (W73):** of the open places showing a pin (the edge card, the sidebar, the bar card) the one opened
 or picked last shows its page; `elsewhere` (`edge` | `sidebar` | `card`) on the others names it. A place is stamped by
-`webdock.open`, `webdock.select`, `webdock.toggle` and a reveal at the edge, by `webdock.sidebar_select` and
+`webdock.open`, `webdock.select`, `webdock.toggle` and a reveal at the edge (W74: a hover reveal only while
+`hover_takes_page` is on; off, a hover-revealed edge ranks below every open place and shows the page only when no other
+place does), by `webdock.sidebar_select` and
 `webdock.card_select`, and by the first rest of a sidebar panel or a bar card (`fresh: true` on its first
 `webdock.sidebar` / `webdock.card` report; a rest after a move does not stamp). **Host reports**
 (the host's scoped connection): `webdock.host.loaded {pin, icon?}` (icon: a file under `dirs.icons`) ·
@@ -320,9 +324,10 @@ engine's user agent with an Android platform and `Mobile`, client hints `mobile`
 
 **Settings:** `pins` (records, W17-records: `id` slug unique, `title`, `target` url with schemes https, http, file, mod,
 `view` default|mobile|desktop, `profile`, `icon`, `background` bool false: W73), `default_view` (mobile|desktop, mobile),
-`card_size` (phone|tablet|wide, phone: the bar card's page 412 × 760, 768 × 900 or 1024 × 720, W73), `width` (360..720 px, 412),
+`card_size` (dock|phone|tablet|wide, dock: the bar card's well `width` × 2 × `width` as the edge card's box (W74), else
+the page 412 × 760, 768 × 900 or 1024 × 720, W73), `width` (360..720 px, 412),
 `large` (50..95 %, 90), `edge` (right|left|top|bottom, right), `unload_after` (0..1440 min, 60), `max_loaded` (1..12, 4),
-`hover` (true), `reopen_last` (true), `pinned` (false), `reserve` (false: a pinned strip claims its width as an
+`hover` (true), `hover_takes_page` (true: a hover reveal takes a page another place shows, W74), `reopen_last` (true), `pinned` (false), `reserve` (false: a pinned strip claims its width as an
 exclusive zone; the card always overlays), `indicator` (true), `strip` (40..64 px, 56), `new_tabs` (dock|browser, dock).
 
 ## Lifecycle

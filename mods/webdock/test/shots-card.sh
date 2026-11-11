@@ -2,8 +2,9 @@
 # The web dock's page in the bar's card on nested niri (W72, I482; the lead platform: tools/bench/niri-sandbox.sh), for
 # review against docs/ux/webdock.md "In the bar's card": the real kurashid and frontend, the web host as the daemon starts
 # it, file:// pages (no network). For each scheme (light, dark): the card from a bottom bar's right corner (the user's
-# layout) with a page, the same card on a load error, the card in each `card_size` (W73: card-{phone,tablet,wide}), the
-# card from a top bar, and the card with no pin. Evidence to look
+# layout) with a page, the same card on a load error, the card in each `card_size` (W73: card-{phone,tablet,wide}; W74:
+# card-dock, the default, its size key's tip, and card-pressed after one press of the key), the card from a top bar, and
+# the card with no pin. Evidence to look
 # at; it fails only when the host never gets ready or a log shows a QML problem. Shots in mods/webdock/shots/card/.
 #   nix develop -c mods/webdock/test/shots-card.sh
 # One sandbox at a time (its name: ${KURASHI_NIRI_SB_NAME:-${KURASHI_SB_PREFIX}webdock-card-niri}).
@@ -86,21 +87,34 @@ for scheme in ${SCHEMES:-light dark}; do
     || fail "the host never got ready ($scheme)"
   wait_doc "'place' in d.get('card', {})" 10 || fail "the card never placed its page ($scheme)"
   sleep 2
-  shot "card-bottom-$scheme" "1380,240 540x840"
+  shot "card-bottom-$scheme" "$(card_region)"
   K act webdock.card_select '{"pin":"bad"}' > /dev/null
   sleep 3
-  shot "card-error-$scheme" "1380,240 540x840"
+  shot "card-error-$scheme" "$(card_region)"
   K act webdock.card_select '{"pin":"site"}' > /dev/null
-  # W73 (docs/ux/webdock.md "The card's size"): the three sizes from the bottom bar, each fully on screen.
-  for size in ${SIZES:-phone tablet wide}; do
+  # W73 (docs/ux/webdock.md "The card's size"): the sizes from the bottom bar, each fully on screen; W74: the default
+  # (`dock`, the edge card's size) first, then one press of the card's size key on screen (card-pressed: phone).
+  for size in ${SIZES:-dock phone tablet wide}; do
     conf "$scheme" bottom yes "$size"
     "$SB" config "$OUT/config.toml"
     sleep 2
     open_card
-    wait_doc "'place' in d.get('card', {}) and d.get('card_size', 'phone') == '$size'" 10 \
+    wait_doc "'place' in d.get('card', {}) and d.get('card_size', 'dock') == '$size'" 10 \
       || fail "the card never placed its page in the $size size ($scheme)"
     sleep 2.5
     shot "card-$size-$scheme" "$(card_region)"
+    if [ "$size" = dock ]; then
+      read -r kx ky _ <<< "$(logs | grep -F 'webdock-panel sizekey ' | tail -1 | sed 's/.*webdock-panel sizekey //')"
+      [ -n "${kx:-}" ] || fail "the card logged no size key ($scheme)"
+      "$SB" move "$kx" "$ky"; sleep 0.6
+      shot "card-key-tip-$scheme" "$(card_region)"
+      "$SB" click "$kx" "$ky"
+      wait_doc "d.get('card_size') == 'phone' and 'place' in d.get('card', {})" 10 \
+        || fail "a press of the size key did not step to phone ($scheme)"
+      sleep 2.5
+      shot "card-pressed-$scheme" "$(card_region)"
+      "$SB" move 600 400
+    fi
   done
   conf "$scheme" bottom yes
   conf "$scheme" top yes
@@ -109,13 +123,13 @@ for scheme in ${SCHEMES:-light dark}; do
   open_card
   wait_doc "'place' in d.get('card', {})" 10 || fail "the card never placed its page on a top bar ($scheme)"
   sleep 2
-  shot "card-top-$scheme" "1380,0 540x840"
+  shot "card-top-$scheme" "$(card_region)"
   conf "$scheme" bottom no
   "$SB" config "$OUT/config.toml"
   sleep 2
   open_card
   sleep 2.5
-  shot "card-empty-$scheme" "1380,240 540x840"
+  shot "card-empty-$scheme" "$(card_region)"
   logs > "$OUT/logs-$scheme.txt"
   "$SB" stop > /dev/null 2>&1
   if grep -E 'WARN.{0,12}(scene|qml)|TypeError|ReferenceError|is not a type|is not defined|Binding loop|failed to transition' \
