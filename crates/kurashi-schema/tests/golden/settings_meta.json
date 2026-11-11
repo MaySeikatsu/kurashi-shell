@@ -3155,6 +3155,10 @@
                 {
                   "label": "config.choice.join.connected",
                   "value": "connected"
+                },
+                {
+                  "label": "config.choice.join.bridge",
+                  "value": "bridge"
                 }
               ],
               "control": "select",

@@ -212,10 +212,22 @@ Item {
     // fillets), connected (one shape, straight); Automatic as the look in effect joins or not.
     function paintJoin(ctx, w, h, v) {
         var fill = Theme.containerHigh, bh = 12, cw = w * 0.5, cx = w - cw - 12, top = 8
-        var how = v === "auto" ? (Theme.decor("surface.join", true) !== false ? "dynamic" : "float") : v
+        // (Automatic is the chrome's own: a bridge where the bar's groups float as blocks, else the look's)
+        var how = v === "auto" ? (Theme.groups && Theme.lifted ? "bridge" : (Theme.decor("surface.join", true) !== false ? "dynamic" : "float")) : v
         ctx.fillStyle = fill
         ctx.fillRect(0, h - bh, w, bh)
         if (how === "float") { rr(ctx, cx, top, cw, h - bh - top - 5, 6); ctx.fill() }
+        else if (how === "bridge") {
+            // A card of its own, a gap off the bar, held to its module by a short neck with small fillets.
+            var gap = 5, nw = 9, nx = cx + cw / 2, cb = h - bh - gap
+            rr(ctx, cx, top, cw, cb - top, 6); ctx.fill()
+            ctx.beginPath()
+            ctx.moveTo(nx - nw - 2, cb); ctx.quadraticCurveTo(nx - nw, cb, nx - nw, cb + 2)
+            ctx.lineTo(nx - nw, h - bh - 2); ctx.quadraticCurveTo(nx - nw, h - bh, nx - nw - 2, h - bh)
+            ctx.lineTo(nx + nw + 2, h - bh); ctx.quadraticCurveTo(nx + nw, h - bh, nx + nw, h - bh - 2)
+            ctx.lineTo(nx + nw, cb + 2); ctx.quadraticCurveTo(nx + nw, cb, nx + nw + 2, cb)
+            ctx.closePath(); ctx.fill()
+        }
         else {
             var f = how === "connected" ? 0 : 6
             ctx.beginPath()
