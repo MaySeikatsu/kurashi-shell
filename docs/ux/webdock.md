@@ -581,15 +581,25 @@ default, other a setting/button to switch."
   <size>", role button; description the next size, or the forced reason.
 - **Motion:** the card's own resize (the Stage's), the page cut in once it rests (W72); nothing new runs at rest.
 
+### As built (W74, size)
+- Measured on nested niri, 1920 × 1080, bottom bar: the default well is 412 × 824 at y 204 (the panel 872 px, under the
+  888 px clamp): it fits whole; Phone 412 × 796, Tablet 768 × 848 and Wide 1024 × 756 are clamped as in W73.
+- The key's icon is the subset's `resize` (a dotted box with a corner arrow); the words are in the tip and the name.
+- Under the mock (no `webdock.card_size`, row 731) a press is refused silently and nothing changes.
+
 ### Definition of done (W74, size)
-- [ ] `card_size` gains `dock` (first, default) in mod.toml, i18n en/ja (label, help that says how it follows `width`),
-      MODS.md, `nix/hm-module.nix`; unit test: absent while `dock`, named otherwise; the step action and its refusal when
-      forced.
-- [ ] test-card.sh: the default well is `width` × `2 × width` (or the clamp); one press of the size key on screen makes
-      it Phone (the document and the well's size change, no reload); `kurashi undo` brings the default back.
-- [ ] Shots on nested niri, bottom bar, light and dark: the default size and after one press of the key — whole card on
-      screen (`shots-card.sh` → `card-dock-*`, `card-pressed-*`).
-- [ ] The forced state: inert key with the reason (not shot unless a forced layer is set up in the suite).
+- [x] `card_size` gains `dock` (first, default) in mod.toml, i18n en/ja (label, help that says how it follows `width`),
+      MODS.md, `nix/hm-module.nix`; unit tests: absent while `dock`, named otherwise; the step, a bad size and the
+      refusal when forced (`card_size_step`).
+- [x] test-card.sh step 1b (sway, 2560 × 1440): the default well is 412 × 824; one press of the size key on screen makes
+      it Phone (the document, the well 412 × 796 and the host's window follow, no reload); `kurashi undo` brings the
+      default back.
+- [x] Shots on nested niri, bottom bar, light and dark (`shots-card.sh` → `mods/webdock/shots/card/card-dock-*`,
+      `card-key-tip-*` (the tip on a rest), `card-pressed-*` (after one click on the key: Phone)), whole card on screen.
+- [ ] The forced state on screen (inert key, the reason in its tip): not shot — the suites set no forced layer; the
+      daemon's refusal is unit-tested and the QML follows `forced.card_size` as the strip's pin toggle does.
+- [ ] Keyboard on screen (Tab to the key, Space): not driven by a suite; the key is an IconButton Tab stop before the
+      settings key, and step 6's Tab walk to the page (one stop longer now) still passes.
 
 ## Which place shows the page (W73, session 29; I488 (4))
 **The user's answer (session 28):** "Last opened wins": the place opened most recently shows the pin's page, the others
@@ -657,7 +667,7 @@ default, B as setting."
   shows the page as before (it is the only open place). It never steals by an old stamp: an edge opened on purpose
   earlier, then hidden, does not keep its rank through the next hover reveal.
 - **Why A is the default:** the user chose it; and it is the simpler model (Spotify Connect's "the device you touched
-  last plays"). B is for a user who rests on the edge to glance at the dock while the page plays in the card.
+  last plays"). B is for a user who rests on the edge to glance at the dock while the page plays in a sidebar that stays open.
 - **How others do it:** Spotify Connect moves playback only on a deliberate "play here", never on opening the app
   (B's model); macOS Universal Control / Handoff offer the app on the other device and move it on a click (B); browsers'
   tab previews on hover show a still, never the live tab (B). A is the dock's own, simpler rule.
@@ -670,15 +680,23 @@ default, B as setting."
 - **A click on the shown pin in the strip** (B, page elsewhere) keeps its meaning: it puts the card away (W20). "Show
   here" is the way to bring the page.
 - **Keyboard and a11y:** unchanged — "Show here" is the host's HostButton (Tab stop, Enter, Space; name "Show here").
+- **As built (W74), where a hover meets another place:** while a Stage card is open (the bar's card included) the
+  shell's click-away window (`frontend/surfaces/ClickAway.qml`, Top layer, the whole usable area) lies over the edge's
+  2 px hover zone, so the pointer cannot reveal the edge dock then: the bar card meets a hover reveal only through the
+  daemon (a card opened by `mod.panel.open` from a key while the pointer rests on the edge is not reachable either). The
+  case on screen is a sidebar that stays open (`visibility = always` or a hover-revealed column: no catcher) showing the
+  pin — that is where the rule matters to the user today. The daemon's rule is the same for all three places.
 
 ### Definition of done (W74, places)
-- [ ] Setting in mod.toml, i18n en/ja (label and help in the user's terms), `nix/hm-module.nix`, MODS.md.
-- [ ] Unit tests in `dock.rs`: A — a hover reveal takes the page; B — a hover reveal does not, the old-stamp sequence
+- [x] Setting in mod.toml, i18n en/ja (label and help in the user's terms), `nix/hm-module.nix`, MODS.md.
+- [x] Unit tests in `dock.rs`: A — a hover reveal takes the page; B — a hover reveal does not, the old-stamp sequence
       (card open, edge opened on purpose, edge hidden, hover reveal) does not steal, a hover reveal with no other place
-      shows the page, "Show here" (`webdock.open`) and a strip click take it.
-- [ ] test-card.sh on screen (sway, real daemon): with B, a rest on the screen's edge while the bar card shows the pin
-      reveals the dock and the card keeps the page; the edge card says it is in the bar's card; its "Show here" pressed on
-      screen takes it; with A, a rest takes the page; no reload.
+      shows the page, "Show here" (`webdock.open`), the dock's key and a strip click take it, the card closing hands it
+      to the hover-revealed edge.
+- [x] test-card.sh step 4c on screen (sway, real daemon): with B, a rest on the right edge while an always-open left
+      sidebar shows the pin reveals the dock and the sidebar keeps the page; the edge card says "This page is shown in the
+      sidebar"; its "Show here" pressed on screen takes it; with A, a rest takes the page; no reload.
+- [ ] The bar card against a hover reveal on screen: not reachable (the click-away window, above). Not shot on niri.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
