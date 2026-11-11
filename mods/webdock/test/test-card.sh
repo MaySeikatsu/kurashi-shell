@@ -11,8 +11,9 @@
 #   3. a click on the second pin's key switches the page; back to the first: no new load of either;
 #   4. the same pin at the edge while the card shows it: the card keeps the page (no load); the edge takes it once the card
 #      closes (no load);
-#   4c. W74: `hover_takes_page = false`: a rest on the screen's edge reveals the dock and the card keeps the page, the edge
-#      card says so and its Show here (pressed on screen) takes it; `true` (the default): a rest takes the page;
+#   4c. W74: `hover_takes_page = false`: a rest on the screen's edge reveals the dock and an always-open left sidebar keeps
+#      the pin's page, the edge card says so and its Show here (pressed on screen) takes it; `true` (the default): a rest
+#      takes the page (an open Stage card's click-away window covers the edge zone, so the bar card cannot meet a hover);
 #   5. `bar.hover = card`: a rest on the module opens the card; the pointer moved into the page keeps it; leaving closes it;
 #   6. Tab past the card's keys hands the keyboard to the page; a click in the page gives it the keyboard (typed text
 #      arrives either way); Esc closes the card;
@@ -334,30 +335,34 @@ K act sidebar.close >/dev/null || true
 K set sidebar.left.sections '[]' >/dev/null || true
 qml_errors
 
-# ---- 4c. W74: a hover reveal of the edge and the bar card's page (`hover_takes_page`) ----
-# B (off): a rest on the screen's edge while the card shows the pin reveals the dock, the card keeps the page and the edge
-# card says where it is; its Show here, pressed on screen, takes it. A (on, the default): a rest takes the page.
-# (the edge dock's `shown` is still `site` from step 4; `reopen_last` brings its card back on a reveal)
-EDGE_Y=$(( H_OUT - 20 ))   # low on the right edge: below the top bar's card
+# ---- 4c. W74: a hover reveal of the edge and a page another place shows (`hover_takes_page`) ----
+# While a Stage card is open the click-away window covers the usable area, edge zone included, so the pointer cannot
+# reveal the dock over an open bar card; the place a hover reveal meets on screen is a sidebar that stays open
+# (`visibility = always`, no catcher). B (off): a rest on the right edge while the left sidebar shows the pin reveals the
+# dock, the sidebar keeps the page and the edge card says where it is; its Show here, pressed on screen, takes it. A (on,
+# the default): a rest takes the page. (The edge dock's `shown` is `site` from step 4; `reopen_last` reopens its card.)
+EDGE_Y=$(( H_OUT * 2 / 3 ))
+K set sidebar.left.sections '["mod:webdock:webdock"]' >/dev/null || fail "sidebar.left.sections with the dock was refused"
+K act webdock.sidebar_select '{"pin":"site"}' >/dev/null
+K set sidebar.left.visibility '"always"' >/dev/null || fail "sidebar.left.visibility = always was refused"
+wait_until 15 doc_is "'place' in d.get('sidebar', {}) and d['sidebar'].get('pin') == 'site' and 'elsewhere' not in d['sidebar']" \
+  || fail "the always-open sidebar never placed the dock's page ($(doc "d.get('sidebar')"))"
+wait_until 10 grep -qF 'webdock-debug side shown' "$HOSTLOG" || fail "the host did not show the page in the sidebar"
 K set mods.webdock.hover_takes_page false >/dev/null || fail "mods.webdock.hover_takes_page = false was refused"
 wait_until 5 eval 'K get mods.webdock.hover_takes_page | grep -q false' || fail "hover_takes_page = false was not taken"
-mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
-K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
-wait_until 5 panel_open || fail "the card did not open"
-wait_px "$CX" "$CY" '#2b3a55' 15
-hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
-e0=$(count "webdock-debug edge notice This page is shown in the bar's card" "$HOSTLOG")
+sh0=$(count 'webdock-debug side hidden' "$HOSTLOG")
+e0=$(count "webdock-debug edge notice This page is shown in the sidebar" "$HOSTLOG")
 here0=$(count 'webdock-debug edge here ' "$HOSTLOG")
+mv_to $(( W_OUT / 2 )) $(( H_OUT / 2 ))
 mv_to $(( W_OUT - 1 )) "$EDGE_Y"
 wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'site'" || fail "a rest on the edge did not reveal the dock ($(doc "(d['mode'], d.get('shown'))"))"
-wait_until 5 doc_is "d.get('elsewhere') == 'card' and 'elsewhere' not in d['card']" \
-  || fail "hover_takes_page off: the hover reveal took the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
-wait_until 10 eval '[ "$(count "webdock-debug edge notice This page is shown in the bar'"'"'s card" "$HOSTLOG")" -gt '"$e0"' ]' \
-  || fail "the hover-revealed edge card does not say the page is in the bar's card"
+wait_until 5 doc_is "d.get('elsewhere') == 'sidebar' and 'elsewhere' not in d['sidebar']" \
+  || fail "hover_takes_page off: the hover reveal took the page ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug edge notice This page is shown in the sidebar" "$HOSTLOG")" -gt '"$e0"' ]' \
+  || fail "the hover-revealed edge card does not say the page is in the sidebar"
 sleep 1
-[ "$(count 'webdock-debug card hidden' "$HOSTLOG")" = "$hid0" ] || fail "the card's window lost the page to a hover reveal"
-wait_px "$CX" "$CY" '#2b3a55' 15
-ok "hover_takes_page off: a hover reveal leaves the page in the bar card; the edge card says where it is"
+[ "$(count 'webdock-debug side hidden' "$HOSTLOG")" = "$sh0" ] || fail "the sidebar's window lost the page to a hover reveal"
+ok "hover_takes_page off: a hover reveal leaves the page in the sidebar; the edge card says where it is"
 # Its "Show here" on screen: the host logs the key's middle in its window (right edge: the window ends at the strip, its
 # height is the usable area under the top bar).
 wait_until 5 eval '[ "$(count "webdock-debug edge here " "$HOSTLOG")" -gt '"$here0"' ]' || fail "the edge card logged no Show here key"
@@ -365,32 +370,32 @@ read -r EHX EHY EAW EAH <<< "$({ grep -F 'webdock-debug edge here ' "$HOSTLOG" |
 HX=$(( W_OUT - 56 - EAW + EHX )); HY=$(( H_OUT - EAH + EHY ))
 mv_to "$HX" "$HY"
 ptr "$HX" "$HY"
-wait_until 5 doc_is "'elsewhere' not in d and d['card'].get('elsewhere') == 'edge'" \
-  || fail "Show here at $HX,$HY on the hover-revealed edge did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
-wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
+wait_until 5 doc_is "'elsewhere' not in d and d['sidebar'].get('elsewhere') == 'edge'" \
+  || fail "Show here at $HX,$HY on the hover-revealed edge did not take the page ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug side hidden" "$HOSTLOG")" -gt '"$sh0"' ]' || fail "the sidebar's window kept the page"
 wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
 ok "Show here pressed on the hover-revealed edge card takes the page"
 K act webdock.hide >/dev/null
-wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['card']" || fail "the hidden edge did not hand the page back to the card"
-wait_px "$CX" "$CY" '#2b3a55' 15
+wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['sidebar']" || fail "the hidden edge did not hand the page back to the sidebar"
 # A (on): a rest takes it.
 K set mods.webdock.hover_takes_page true >/dev/null || fail "mods.webdock.hover_takes_page = true was refused"
 wait_until 5 eval 'K get mods.webdock.hover_takes_page | grep -q true' || fail "hover_takes_page = true was not taken"
-hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
-mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+sh0=$(count 'webdock-debug side hidden' "$HOSTLOG")
+mv_to $(( W_OUT / 2 )) $(( H_OUT / 2 ))
 mv_to $(( W_OUT - 1 )) "$EDGE_Y"
 wait_until 5 doc_is "d['mode'] == 'extended'" || fail "a rest on the edge did not reveal the dock again"
-wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
-  || fail "hover_takes_page on: the hover reveal did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
-wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
-ok "hover_takes_page on (the default): a hover reveal takes the page from the bar card"
+wait_until 5 doc_is "d['sidebar'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
+  || fail "hover_takes_page on: the hover reveal did not take the page ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug side hidden" "$HOSTLOG")" -gt '"$sh0"' ]' || fail "the sidebar's window kept the page"
+ok "hover_takes_page on (the default): a hover reveal takes the page from the sidebar"
 K act webdock.hide >/dev/null
-mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
-wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['card']" || fail "the card did not get the page back"
+mv_to $(( W_OUT / 2 )) $(( H_OUT / 2 ))
+wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['sidebar']" || fail "the sidebar did not get the page back"
 [ "$(loads site)" = "$L0" ] || fail "a hover reveal moved the page with a reload ($L0 → $(loads site))"
-K act ui.close >/dev/null
-wait_until 5 panel_closed || fail "the card did not close"
 K reset mods.webdock.hover_takes_page >/dev/null || true
+K set sidebar.left.visibility '"hidden"' >/dev/null || true
+wait_until 10 doc_is "'place' not in d.get('sidebar', {})" || fail "the sidebar did not close"
+K set sidebar.left.sections '[]' >/dev/null || true
 qml_errors
 
 # ---- 5. hover: the pointer from the module into the page keeps the card ----
