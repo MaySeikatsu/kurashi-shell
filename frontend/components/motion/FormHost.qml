@@ -158,8 +158,11 @@ Item {
     // the travel; `primeReady` is the surface's own word that its content is made.
     property QtObject run: null
     property bool primeReady: true
-    readonly property bool prime: run !== null && run.pending === true
-    readonly property bool warming: prime || (run !== null && run.busy === true)
+    // (only in a window that is shown: a surface kept after it closed, K139, is asked to open before its window is
+    // back, and a form made then measured its place with no window to measure in — it drew at the window's corner)
+    readonly property bool placed: Window.window !== null && Window.window.visible
+    readonly property bool prime: run !== null && run.pending === true && placed
+    readonly property bool warming: prime || (run !== null && run.busy === true && placed)
     property int primed: 0
     onPrimeChanged: primed = 0
     Connections {

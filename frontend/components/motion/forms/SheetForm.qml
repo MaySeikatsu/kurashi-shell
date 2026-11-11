@@ -41,10 +41,18 @@ Item {
     readonly property bool horizontal: edge === "left" || edge === "right"
     // Where the captured card lies in this item (normally the same rect: FormHost's body fills it).
     readonly property rect area: {
+        // (read again on every frame the window draws while the form is there: where the source lies may change — a
+        // window kept after a close, K139, takes its width after it is shown — and mapToItem tells of no change)
+        var dep = tick
         var s = source, w = width, h = height
         if (!s || s.width <= 0 || s.height <= 0) return Qt.rect(0, 0, w, h)
         var o = s.mapToItem(sheet, 0, 0)
         return Qt.rect(o.x, o.y, s.width, s.height)
+    }
+    property int tick: 0
+    Connections {
+        target: sheet.Window.window
+        function onAfterAnimating() { sheet.tick++ }
     }
     readonly property real along: horizontal ? area.height : area.width
     readonly property real away: horizontal ? area.width : area.height
