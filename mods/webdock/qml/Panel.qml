@@ -66,7 +66,9 @@ Item {
     // does not say (the mock) leaves W72's order: in a card, the sidebar's pin stays in the sidebar.
     readonly property string elsewhere: !selWeb ? ""
         : ownDoc.elsewhere !== undefined ? String(ownDoc.elsewhere)
-        : (inCard && sideDoc.place !== undefined && String(sideDoc.pin) === selId ? "sidebar" : "")
+        // (the sidebar's own `elsewhere` absent too: a daemon that publishes it says "card" when the card holds the page)
+        : (inCard && sideDoc.place !== undefined && sideDoc.elsewhere === undefined && String(sideDoc.pin) === selId
+            ? "sidebar" : "")
     readonly property bool shownElsewhere: elsewhere !== ""
     readonly property bool selLoaded: selWeb && sel.loaded === true
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"

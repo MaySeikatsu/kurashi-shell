@@ -482,7 +482,8 @@ pin keys' accessible description adds "keeps running in the background".
 
 ### Budget (Ma, rule 5)
 A background pin is the user's explicit exception to "idle = silent": its page's process and the web engine stay in memory
-(the host's tree with one site: about 250–300 MiB PSS, test-host's memory phase) and the page's own CPU and network run
+(the host's process tree measured by test-host's memory phase, session 29: 530 MiB PSS with one kept site, 575 MiB with
+five, `file://` fixture pages — a real site costs more) and the page's own CPU and network run
 all day. The grace costs at most 10 minutes of the same after the last sound. No poll: the host follows the document, the
 daemon wakes once at the grace's end (a deadline, no ticker).
 
