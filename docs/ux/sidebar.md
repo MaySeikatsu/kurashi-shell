@@ -120,3 +120,11 @@ cost is bounded like the launcher's; every section watches its documents only wh
 ## Later
 Paper-notebook sidebar style (BACKLOG I144) · detachable left panels (ii's detach/pin) · tabs inside right sections
 (ii's notifications | mixer) · a swipe from the edge.
+
+## Kept after closing (session 29, K139)
+**Job.** A sidebar that opens at once the second time. **Others.** GNOME's quick settings and calendar, Plasma's applets, Caelestia, DankMaterialShell and Noctalia keep their panels loaded for the session; macOS keeps Notification Centre's views. None makes a panel again per opening.
+**Design.** `sidebar.keep_loaded` (Settings › Sidebar, "Keep a closed sidebar ready", on by default). A closed sidebar keeps its window and content for a minute, not on screen. Opened again within it, it is a fresh column: no tile's page left over, scrolled to its top, the mods' panels loaded anew. After the minute it is gone.
+**States.** Off: as before. Pinned: nothing to keep. A change of sections, mode, width or look while it is kept applies to the kept column. Two outputs: each output's column is kept by itself.
+**Keyboard and a11y.** Unchanged: focus goes to the column when it opens.
+**Budget.** For the minute: the column's memory, and its sections' documents stay watched; 0 frames. **Definition of done.** Opens from a kept window without making it (28 ms against 241 ms on nested niri): met. The suites that watch the window come and go still pass: see the PR. Seen by the user: not yet.
+

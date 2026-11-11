@@ -2670,6 +2670,12 @@ pub struct Sidebar {
     /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
+    /// Keep a closed sidebar ready
+    /// A sidebar that has closed keeps its window and content for a minute, off screen, so it opens again at once. It
+    /// costs its memory for that minute, and what its sections watch stays watched. Off: a closed sidebar is gone at
+    /// once and is made again each time it opens.
+    #[kurashi(default = true, since = 7)]
+    pub keep_loaded: bool,
 }
 
 // --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------

@@ -2740,6 +2740,13 @@ The bar's quick settings button opens the right sidebar instead of the quick set
 
 - type: `bool` · default: `false`
 
+#### `sidebar.keep_loaded` — Keep a closed sidebar ready
+
+A sidebar that has closed keeps its window and content for a minute, off screen, so it opens again at once. It costs its memory for that minute, and what its sections watch stays watched. Off: a closed sidebar is gone at once and is made again each time it opens.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ## Keys
 
 ### Shortcuts

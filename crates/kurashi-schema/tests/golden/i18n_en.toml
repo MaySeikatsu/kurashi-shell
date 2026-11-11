@@ -916,6 +916,8 @@
 "config.sidebar.left.draw.help" = "Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, joined to the bar by rounded fillets. Floating: a gap away from every edge, every corner rounded, with the look's shadow. Automatic follows the layout's draw mode."
 "config.sidebar.from_bar.label" = "Quick settings opens the right sidebar"
 "config.sidebar.from_bar.help" = "The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own buttons stay; put them in the bar or take them out below."
+"config.sidebar.keep_loaded.label" = "Keep a closed sidebar ready"
+"config.sidebar.keep_loaded.help" = "A sidebar that has closed keeps its window and content for a minute, off screen, so it opens again at once. It costs its memory for that minute, and what its sections watch stays watched. Off: a closed sidebar is gone at once and is made again each time it opens."
 "config.settings.window.label" = "Settings opens as"
 "config.settings.window.help" = "A normal window the compositor places and tiles, or a sheet the shell draws in the middle of the screen over a dimmed desktop — made of the shell's material and lit by its light, like every shell surface."
 "config.choice.settings_window.window" = "A window"

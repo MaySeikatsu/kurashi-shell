@@ -236,8 +236,21 @@ Scope {
             readonly property int openZone: SidebarGeom.openZone(out, sb.side)
             readonly property string outKey: out + "|" + wanted
             onOutKeyChanged: { SidebarGeom.setOut(out, sb.side, wanted) }
-            // The window exists: out, sliding in or out.
+            // The window is on screen: out, sliding in or out.
             property bool held: false
+            // B102 (session 29, K139; `sidebar.keep_loaded`, on by default): a column that has closed keeps its window and
+            // its content for a minute, unmapped — no surface, no frame — so opening it again makes nothing (measured:
+            // 177 ms to make the window and its content, 182 ms more to its first picture). Its sections keep their
+            // subscriptions for that minute; a mod's panel is unloaded at once (the window's `live`). After the
+            // minute, and with the setting off, everything goes as before (Ma: nothing while closed).
+            readonly property bool keepOn: cfg.valueOf("sidebar.keep_loaded", true) === true
+            property bool kept: false
+            onHeldChanged: {
+                if (held) { keepTimer.stop(); kept = false }
+                else if (keepOn && !pinned) { kept = true; keepTimer.restart() }
+            }
+            onKeepOnChanged: if (!keepOn) { keepTimer.stop(); kept = false }
+            Timer { id: keepTimer; interval: 60000; onTriggered: col.kept = false }
 
             // ---- the slide: 0 = behind its screen edge, 1 = at rest ----
             property real p: 0
@@ -429,8 +442,35 @@ Scope {
                 return true
             }
             LazyLoader {
-                active: col.held && col.barsFirst
+                active: (col.held || col.kept) && col.barsFirst
                 PanelWindow {
+                    // (kept after a close, B102: unmapped until it opens again or its minute is over)
+                    visible: col.held
+                    // What the content asks: on screen, or only kept (a mod's panel is loaded only while live).
+                    readonly property bool live: col.held
+                    // (what was last said of it: the window's own visibility also changes while it is being made)
+                    property bool up: false
+                    function say(on) {
+                        if (on === up) return
+                        up = on
+                        if (on) {
+                            if (catcher) wide = true
+                            Light.setZone(win, col.out, sb.side, col.holder ? col.reserve : 0)
+                            if (sb.geometryLog) console.log("sidebar-window up " + sb.side + " " + col.out)
+                            logGeom()
+                        } else {
+                            wide = false
+                            Light.setZone(win, "", sb.side, 0)
+                            SidebarGeom.clear(outName, sb.side)
+                            col.focusHeld = false
+                            col.pointerIn = false
+                            if (sb.geometryLog) console.log("sidebar-window down " + sb.side + " " + outName)
+                        }
+                    }
+                    onVisibleChanged: {
+                        if (sb.traceLog && visible && !up) console.log("sb-trace " + Date.now() + " " + sb.side + " window shown")
+                        say(visible)
+                    }
                     // (the change of colour as a cross-fade: components/ColorFade.qml)
                     ColorFade {}
                     id: win
@@ -597,18 +637,10 @@ Scope {
                     onWidthChanged: logGeom()
                     Component.onCompleted: {
                         if (sb.traceLog) console.log("sb-trace " + Date.now() + " " + sb.side + " window made")
-                        if (catcher) wide = true
-                        Light.setZone(win, col.out, sb.side, col.holder ? col.reserve : 0)
-                        if (sb.geometryLog) console.log("sidebar-window up " + sb.side + " " + col.out)
-                        logGeom()
+                        say(visible)
                     }
-                    Component.onDestruction: {
-                        Light.setZone(win, "", sb.side, 0)
-                        SidebarGeom.clear(outName, sb.side)
-                        col.focusHeld = false
-                        col.pointerIn = false
-                        if (sb.geometryLog) console.log("sidebar-window down " + sb.side + " " + outName)
-                    }
+                    // (a kept window that goes was said down when it was unmapped)
+                    Component.onDestruction: say(false)
                     // Under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover, for the bar to
                     // leave its rule out there (SidebarGeom) — on every frame the column shows, sliding or at rest, so the
                     // moving column reads as it does at rest (I278: the rule ran through it while it moved).

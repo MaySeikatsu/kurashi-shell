@@ -15,6 +15,11 @@ Card {
         height: item ? item.implicitHeight : 0
         provide: ms.panel !== "" ? "panel:" + ms.panel : ""
         mod: ms.mod
+        // (B102: a sidebar kept after it closed keeps no mod's panel — its subscriptions, and what it shows of another
+        // process, go with the close as they always did)
+        // (through Window.window, which re-evaluates when the item joins its window; QsWindow.window alone does not)
+        readonly property var qsw: ms.Window.window ? ms.QsWindow.window : null
+        shown: !qsw || qsw.live !== false
     }
     // Where the panel rests in the right sidebar's window (optional `placement`, W30; see LeftColumn).
     Placement {
