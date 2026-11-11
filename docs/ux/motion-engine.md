@@ -396,6 +396,24 @@ of content first) · forced off (reduce motion) · pack missing/invalid (falls b
 the diagnostic in Settings) · multi-output (each output's surface runs its own driver from its own bar) · scale 1.5 (layer
 textures at device pixels) · pixel looks (stepped curves step the warp too; at rest exactly on the grid).
 
+### Warm start (session 29, K135)
+A sheet form's first frames were its slowest: the form is made, and the surface is drawn into its layer for the first
+time (every glyph, picture and shader of a window that did not exist a moment ago). They fell inside the motion, so an
+opening began with two or three long frames. A surface that says `SurfaceForm.warm` and gives its FormHost the run
+(`FormHost.run`) gets this instead:
+- **Asked to open:** the form is made and takes its picture while the progress stands at 0. Nothing is seen (the form
+  and what it leaves outside its picture, the surface's shadows, are drawn at an opacity the eye cannot see, just above
+  the one the scene graph skips). The travel starts on the second frame swapped with the form in it; `primeReady` is
+  the surface's word that its content is made.
+- **Asked to close:** the same at 1: the form shows the card as it stands, then travels.
+- **Asked back before it began:** the surface is told it has landed where it stood.
+- **Limits:** 300 ms after the form exists, 1.2 s without a host: then the travel starts as it used to.
+- **Neighbours:** `covers` says when what the surface joins should count it as there (past 90 % of an opening, not
+  while closing); a bar leaves its rule out then, once, at the fillets' rest size.
+- **The colour clock** (`ColorFlow`) rests from the moment a transition is asked for until it has landed.
+Cost: two frames before an opening moves; about 75 ms before a sidebar's close moves (B100). Wired: sidebar, the Stage's
+card, launcher, dock.
+
 ## 11. Accessibility, Ma and budget
 - **Reduce motion** (D1, user: short fades): forces the built-in `reduced` profile — every form `fade`, `effects` curve
   ≤ 150 ms, no accents, `vestibular`/`flash` forms never — instead of today's cuts, as macOS and WCAG 2.3.3 suggest;
