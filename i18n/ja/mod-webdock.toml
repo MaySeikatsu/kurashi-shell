@@ -3,7 +3,7 @@
 
 # カタログ項目と設定。
 "mods.webdock.name" = "ウェブドック"
-"mods.webdock.description" = "よく使うサイトや画面を、画面の端からホバーひとつで開けます。ウェブエンジンはサイトを開いている間だけ動きます。"
+"mods.webdock.description" = "よく使うサイトや画面を、画面の端からホバーひとつで開けます。ウェブエンジンは、サイトを開いているか音を出している間と、バックグラウンドで動かし続けるピンが読み込まれている間だけ動きます。"
 "mods.webdock.pins" = "ピン"
 "mods.webdock.default_view" = "既定の表示"
 "mods.webdock.width" = "スマホ幅 (px)"
@@ -55,7 +55,7 @@
 
 # 設定の補足、エラー、デーモンのカタログが出すアクションの名前 (デーモンのカードが使う)。
 "mods.webdock.default_view.help" = "新しいピンを開くときの表示: モバイル (スマホ幅、モバイル用の UA) またはデスクトップ。"
-"mods.webdock.unload_after.help" = "表示中のサイトがなくなってからウェブエンジンを止めるまでの分数 (0 はドックが有効な間ずっと動かす)。"
+"mods.webdock.unload_after.help" = "表示中のサイトがなくなってからウェブエンジンを止めるまでの分数 (0 はドックが有効な間ずっと動かす)。音を出しているサイトと、その最後の音から 10 分間、そしてバックグラウンドで動かし続けるピンが読み込まれている間はエンジンを止めません。"
 "webdock.error.runtime" = "ウェブドックが予期せず止まりました"
 "webdock.error.argument" = "ドックが受け付けない引数です"
 "webdock.error.size" = "カードの大きさは「スマホ」か「大きく」にしてください"
@@ -138,3 +138,15 @@
 "webdock.card.elsewhere" = "このページはバーのカードに表示されています"
 "action.webdock.sidebar" = "サイドバーのウェブドックが位置に落ち着いた、または離れた"
 "action.webdock.sidebar_select" = "ピンをサイドバーに表示する"
+
+# W73 (docs/ux/webdock.md「Background pages」「The card's size」「Which place shows the page」)。
+"mods.webdock.pins.background" = "バックグラウンドで動かし続ける"
+"mods.webdock.pins.help" = "バックグラウンドで動かし続けるピンは、一度開くとドックが凍結も解放もしません。隠れていても再生や処理を続け、オフにするまでウェブエンジンがメモリと CPU を使い続けます。音を出したサイトは、最後の音から 10 分間はいずれにしても動き続けます。"
+"mods.webdock.card_size" = "バーのカードの大きさ"
+"mods.webdock.card_size.help" = "バーのモジュールのカードに出るページの大きさ：スマートフォン、タブレット、小さなノートパソコンの画面。画面に収まるよう縮みます。サイトに伝わるのはピンの表示 (モバイルかデスクトップ) です。スマホの大きさでデスクトップ表示にすると、デスクトップのページがスマホの幅で表示されます。"
+"mods.webdock.card_size.phone" = "スマホ"
+"mods.webdock.card_size.tablet" = "タブレット"
+"mods.webdock.card_size.wide" = "ワイド"
+"webdock.pin.background" = "バックグラウンドで動き続けます"
+"webdock.edge.elsewhere" = "このページは画面の端に表示されています"
+"webdock.elsewhere.here" = "ここに表示"

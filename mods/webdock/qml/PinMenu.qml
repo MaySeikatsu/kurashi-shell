@@ -38,6 +38,16 @@ Rectangle {
             font.pixelSize: Theme.fsLabel
             font.family: Theme.fam(text, Theme.families)
         }
+        // W73: a pin that keeps running in the background says so here too (it costs memory and power while hidden).
+        Text {
+            visible: menu.pin.background === true && menu.pin.kind !== "view"
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: I18n.tr("webdock.pin.background")
+            color: Theme.dim
+            font.pixelSize: Theme.fsCaption
+            font.family: Theme.fam(text, Theme.families)
+        }
         Text {
             visible: menu.forced
             width: parent.width

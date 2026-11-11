@@ -83,3 +83,23 @@ Prototype option 1 on niri: one pin as a Helium `--app` window with a niri windo
 show/hide/move, measured against the dock's states (hidden, shown, large, the four edges, multi-output) and the budget
 (BENCH). If placement and focus feel right, write the K-decision for shell-hosted windows and the dock's move to it;
 if not, option 3.
+
+## The engine's lifecycle, measured (W73, session 29)
+
+QtWebEngine 6.11 (`qs-webengine`), headless sway sandbox, Chromium's fake audio output (no sound server: the ALSA open
+fails with "Host is down", and the engine still reports the sound), `mods/webdock/test/pages/tone.html`:
+
+- **`recommendedState` is re-evaluated on the view's own events** (shown or hidden, a load, a lifecycle change), not when
+  the sound stops. A page hidden while it plays stays `Active` through the silence that follows (its recommendation is not
+  revisited), so its next track starts — measured with a new `<audio>` per track, one `<audio>` with a new source,
+  WebAudio, and with `history.pushState` per track.
+- **A page hidden in a silence** (the gap between tracks, a pause, the second before the first sound) is recommended
+  `Frozen` at once, then `Discarded`; a host that follows the recommendation freezes it, and a frozen page never runs the
+  timer that starts its next track. That is the freeze `WebPage.qml` followed before W73 (test-background.sh "gap": fails
+  on the old file, passes on the new one).
+- **The engine's own audible hold** after the last sound is short: in the logs `recentlyAudible` falls right after the
+  page logs its track's end (not timed more exactly) — far shorter than any pause.
+- **Autoplay:** a page that had one click may start new `<audio>` elements from a timer later, hidden or not
+  (`playbackRequiresUserGesture` default): autoplay is not what stops a player here.
+- **Timers of a hidden page** run about once a second (Chromium's background throttling): a ticking page logged 5 ticks
+  in 6 s while hidden and `Active`.

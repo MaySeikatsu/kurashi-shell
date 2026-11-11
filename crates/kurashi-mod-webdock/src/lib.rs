@@ -355,7 +355,9 @@ impl Shared {
         } else {
             None
         };
-        if self.with_dock(|d| Ok(d.place(place)))? {
+        // W73: `fresh` marks the panel's first rest (the sidebar opened on the dock: "last opened wins").
+        let fresh = opt_bool(args, "fresh")?.unwrap_or(false);
+        if self.with_dock(|d| Ok(d.place(place, fresh)))? {
             self.host.start();
         }
         Ok(None)
@@ -401,7 +403,9 @@ impl Shared {
         } else {
             None
         };
-        if self.with_dock(|d| Ok(d.card_place(place)))? {
+        // W73: `fresh` marks the card's first rest since it opened ("last opened wins").
+        let fresh = opt_bool(args, "fresh")?.unwrap_or(false);
+        if self.with_dock(|d| Ok(d.card_place(place, fresh)))? {
             self.host.start();
         }
         Ok(None)
@@ -551,7 +555,8 @@ impl Shared {
         let on = args["on"]
             .as_bool()
             .ok_or_else(|| dock_error(DockError::Argument))?;
-        self.with_dock(|d| d.audible(pin, on).map_err(dock_error))?;
+        let now = Instant::now();
+        self.with_dock(|d| d.audible(pin, on, now).map_err(dock_error))?;
         Ok(None)
     }
 
@@ -580,7 +585,7 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 15] = [
+const SETTING_KEYS: [&str; 16] = [
     "pins",
     "default_view",
     "width",
@@ -596,6 +601,7 @@ const SETTING_KEYS: [&str; 15] = [
     "strip",
     "new_tabs",
     "page_style",
+    "card_size",
 ];
 
 fn forced_of(settings: &Settings) -> BTreeMap<String, String> {
@@ -728,8 +734,12 @@ async fn supervise(
     let mut idle_since: Option<Instant> = None;
     loop {
         let deadline = shared.idle_deadline(&mut idle_since);
-        // The hover deadline exists only while a reveal or a hide is pending (K40, rule 5).
-        let due = shared.dock.lock().expect("dock lock").due_at();
+        // The hover deadline exists only while a reveal or a hide is pending (K40, rule 5); the grace's end only while a
+        // page that played sound is in its grace (W73).
+        let (due, grace) = {
+            let dock = shared.dock.lock().expect("dock lock");
+            (dock.due_at(), dock.grace_due())
+        };
         tokio::select! {
             changed = settings.changed() => {
                 if !changed {
@@ -750,6 +760,11 @@ async fn supervise(
                 if shared.fire_hover() {
                     shared.host.start();
                 }
+            }
+            () = sleep_until_or_pending(grace) => {
+                // The page goes back to the dock's rules: `keep` and `awake` change, the idle clock may start.
+                let now = Instant::now();
+                let _ = shared.with_dock(|d| Ok(d.expire(now)));
             }
         }
     }

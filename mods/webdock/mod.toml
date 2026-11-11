@@ -29,6 +29,7 @@ default = []
 unique = "id"
 item_label = "title"
 label = "mods.webdock.pins"
+help = "mods.webdock.pins.help"
   [[setting.field]]
   key = "id"
   type = "string"
@@ -62,6 +63,12 @@ label = "mods.webdock.pins"
   type = "string"
   default = ""
   label = "mods.webdock.pins.icon"
+  # W73 (I488; docs/ux/webdock.md "Background pages"): never frozen while loaded, never unloaded by the dock's rules.
+  [[setting.field]]
+  key = "background"
+  type = "bool"
+  default = false
+  label = "mods.webdock.pins.background"
 
 [[setting]]
 key = "default_view"
@@ -96,6 +103,15 @@ default = "phone"
 choices = ["phone", "notebook", "plain"]
 label = "mods.webdock.page_style"
 help = "mods.webdock.page_style.help"
+
+# W73 (I488; docs/ux/webdock.md "The card's size"): the page's size in the bar module's card, one for all pins.
+[[setting]]
+key = "card_size"
+type = "enum"
+default = "phone"
+choices = ["phone", "tablet", "wide"]
+label = "mods.webdock.card_size"
+help = "mods.webdock.card_size.help"
 
 [[setting]]
 key = "edge"
