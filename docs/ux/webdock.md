@@ -542,9 +542,11 @@ daemon wakes once at the grace's end (a deadline, no ticker).
 - **A size change** resizes the well and the host's window (the card re-rests): no reload.
 
 ### Definition of done (W73, size)
-- [ ] Setting (mod.toml, i18n en/ja, `card_size` in the document, forced provenance like every mod setting).
-- [ ] Shots of the three sizes from a bottom bar on nested niri (`mods/webdock/test/shots-card.sh` →
-      `card-{phone,tablet,wide}-light.png`), each fully on screen.
+- [x] Setting (mod.toml, i18n en/ja, `card_size` in the document, forced provenance like every mod setting).
+- [x] Shots of the three sizes from a bottom bar on nested niri (`mods/webdock/test/shots-card.sh` →
+      `mods/webdock/shots/card/card-{phone,tablet,wide}-{light,dark}.png`), each fully on screen. On the 1920 × 1080
+      output the tablet's height is clamped (the well about 850 px instead of 936): it shrinks, as designed.
+- [ ] Left/right bars and a second output: not shot (the Stage's clamp is per output by construction).
 
 ## Which place shows the page (W73, session 29; I488 (4))
 **The user's answer (session 28):** "Last opened wins": the place opened most recently shows the pin's page, the others
