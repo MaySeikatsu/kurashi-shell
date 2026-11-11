@@ -76,7 +76,10 @@ Item {
     readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
     // I281: a squircle look draws the shadow, the rim and the ring's fill as squircles (SquircleRect, made only then);
     // a pill (its corner half the face or more) stays round.
-    readonly property bool sq: Theme.squircle > 0 && Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
+    // (I492: or the sheet's corner shape, `Theme.blockJoin`; a pill stays round either way)
+    readonly property bool cornered: Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
+    readonly property string join: Theme.blockJoin !== "" && cornered && blk.radius > 0.5 ? Theme.blockJoin : ""
+    readonly property bool sq: (Theme.squircle > 0 || join !== "") && cornered
     // W53.5: the banded fill (card-sized blocks with a fill, while the look has bands) and the pixel grid's hard edges.
     readonly property bool banded: Theme.fillBands > 1 && fill.a > 0 && width >= 120 && faceH >= 64
     readonly property bool smoothEdges: Theme.pixelGrid <= 0
@@ -97,7 +100,7 @@ Item {
         Loader {
             anchors.fill: parent
             active: blk.sq
-            sourceComponent: SquircleRect { radius: face.r; color: Theme.line }
+            sourceComponent: SquircleRect { radius: face.r; color: Theme.line; join: blk.join }
         }
     }
     // I471b: under the painted edge a block's ground is one stroke of a brush, past its ends and with no outline, ring or
@@ -222,6 +225,7 @@ Item {
                 active: blk.sq
                 sourceComponent: SquircleRect {
                     radius: face.r
+                    join: blk.join
                     color: rim.fillC
                     borderWidth: rim.lineW
                     borderColor: blk.outlineInk
@@ -232,11 +236,45 @@ Item {
         Loader {
             anchors.fill: parent
             anchors.margins: rim.lineW
-            active: Theme.washOn && !blk.bare && !blk.sq && blk.ringW <= 0 && face.shownFill.a > 0.99
+            // (I492: under a corner shape the wash is cut to the block's own shape — a mask of it, drawn once per size,
+            // as the Stage's card; a squircle block has none, as before)
+            active: Theme.washOn && !blk.bare && (!blk.sq || blk.join !== "") && blk.ringW <= 0 && face.shownFill.a > 0.99
                 && (Qt.colorEqual(blk.fill, Theme.surface) || Qt.colorEqual(blk.fill, Theme.container)
                     || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_low", "#000"))
                     || Qt.colorEqual(blk.fill, Theme.tok("color.surface_container_lowest", "#000")))
-            sourceComponent: Wash { radius: Math.max(0, face.r - rim.lineW); fill: face.shownFill }
+            sourceComponent: Item {
+                Loader {
+                    id: washMask
+                    anchors.fill: parent
+                    active: blk.join !== ""
+                    sourceComponent: Item {
+                        readonly property alias copy: maskCopy
+                        SquircleRect {
+                            id: maskDraw
+                            anchors.fill: parent
+                            radius: Math.max(0, face.r - rim.lineW)
+                            refRadius: face.r
+                            join: blk.join
+                            color: "white"
+                            onOuterChanged: maskCopy.scheduleUpdate()
+                        }
+                        StillCopy {
+                            id: maskCopy
+                            x: -100000
+                            width: parent.width
+                            height: parent.height
+                            sourceItem: maskDraw
+                            hideSource: true
+                        }
+                    }
+                }
+                Wash {
+                    anchors.fill: parent
+                    radius: blk.join !== "" ? 0 : Math.max(0, face.r - rim.lineW)
+                    mask: washMask.item ? washMask.item.copy : null
+                    fill: face.shownFill
+                }
+            }
         }
         // Under the content: the press flash of a chrome without sink or shrink (line), and the material's relief (K59).
         Loader {
@@ -336,7 +374,7 @@ Item {
                 z: -1
                 anchors.fill: parent
                 active: blk.sq && blk.ringW > 0 && !blk.bare
-                sourceComponent: SquircleRect { radius: face.innerR; color: face.shownFill }
+                sourceComponent: SquircleRect { radius: face.innerR; refRadius: face.r; join: blk.join; color: face.shownFill }
             }
             // K62: the pen's text modifiers draw the content (text, icons) through one layer while any is in effect;
             // not over a picture or a web page (`relief: false`).
@@ -392,6 +430,7 @@ Item {
                 FrameHost {
                     id: frameHost
                     visible: blk.framed
+                    shaped: blk.join !== ""
                     anchors.fill: parent
                     radius: face.r
                     pressed: blk.pressed

@@ -98,7 +98,10 @@ Item {
     // --- handover (read by the host: CONTRACT-CHANGE row 656) ---
     // (a form may widen these windows — genie's body pours a long way, so its shadow fades with it, S21)
     property real shadowK: smooth01((p - 0.9) / 0.1)
-    property real filletK: smooth01((p - 0.85) / 0.15)
+    // (session 29: the fillets come in from the form's middle on, not over its last 15 % — the neighbour's rule opens
+    // for them as the form begins, and a join that stood without its fillets until the very end, beside a rule already
+    // cut for them, read as a gap)
+    property real filletK: smooth01((p - 0.5) / 0.4)
     readonly property bool solidFill: true
     readonly property bool blurOff: true
 

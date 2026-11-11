@@ -626,6 +626,51 @@ Scope {
                             if (at < ruleLen) segs.push([at, ruleLen])
                             return segs
                         }
+                        // Session 29 (the user: cut at once the rule "disappears before the surface is spawning there"; held
+                        // until the surface stood it "looks like it's not belonging"): a piece of the rule that goes fades
+                        // out, and one that comes back fades in, over a quarter of a second, while the surface that
+                        // joins the bar builds or leaves. Only on a change of the segments (a string: the list is
+                        // rebuilt on every patch); nothing runs at rest. Under a pen the line that comes back is the
+                        // pen's own (drawn once it stands still, `settleMs`); the piece that goes fades as a straight one.
+                        property var fadeOut: []
+                        property var fadeIn: []
+                        property real fadeT: 1
+                        property var lastSegs: null
+                        // The pieces of `a` that `b` does not cover (both sorted, [[from, to]]).
+                        function minus(a, b) {
+                            var out = []
+                            for (var i = 0; i < a.length; i++) {
+                                var s = a[i][0], e = a[i][1]
+                                for (var j = 0; j < b.length && s < e; j++) {
+                                    if (b[j][1] <= s || b[j][0] >= e) continue
+                                    if (b[j][0] > s) out.push([s, b[j][0]])
+                                    s = Math.max(s, b[j][1])
+                                }
+                                if (s < e) out.push([s, e])
+                            }
+                            return out
+                        }
+                        readonly property string segsKey: JSON.stringify(ruleSegs)
+                        onSegsKeyChanged: {
+                            var cur = ruleSegs, prev = lastSegs
+                            lastSegs = cur
+                            fadeAnim.stop()
+                            if (prev === null || !Theme.springOn || !visible) { fadeOut = []; fadeIn = []; fadeT = 1; return }
+                            var go = minus(prev, cur), come = rulePen.active ? [] : minus(cur, prev)
+                            fadeOut = go; fadeIn = come
+                            if (go.length > 0 || come.length > 0) { fadeT = 0; fadeAnim.start() }
+                            else fadeT = 1
+                        }
+                        NumberAnimation {
+                            id: fadeAnim
+                            target: bg; property: "fadeT"
+                            from: 0; to: 1
+                            duration: 260
+                            easing.type: Easing.InOutQuad
+                            onFinished: { bg.fadeOut = []; bg.fadeIn = [] }
+                        }
+                        // The rule's pieces drawn whole: all of them, less those still coming in.
+                        readonly property var shownSegs: fadeIn.length > 0 ? minus(ruleSegs, fadeIn) : ruleSegs
                         // Floating (K71, image 8): the look's own Block — fill, outline, ring, shadow and pen — with rounded ends.
                         Loader {
                             active: bar.drawFloating
@@ -677,9 +722,40 @@ Scope {
                             }
                         }
                         Repeater {
-                            model: !bar.drawFloating && Theme.frameOutline && !rulePen.active ? bg.ruleSegs : []
+                            model: !bar.drawFloating && Theme.frameOutline && !rulePen.active ? bg.shownSegs : []
                             Rectangle {
                                 required property var modelData
+                                // (inside the frame's band while the body is slid out past it: the band's rule stands there)
+                                visible: !win.bandShows
+                                // (the frame outline's, I303: on for keycap and line chrome, the bar's inner side as the frame's)
+                                color: Theme.frameOutlineColor
+                                x: bar.vertical ? (bar.edge === "left" ? bg.width - width : 0) : modelData[0]
+                                y: bar.vertical ? modelData[0] : (bar.edge === "top" ? bg.height - height : 0)
+                                width: bar.vertical ? Theme.frameOutlineW : Math.max(0, modelData[1] - modelData[0])
+                                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.frameOutlineW
+                            }
+                        }
+                        // (the pieces going and coming, session 29: see `fadeOut`)
+                        Repeater {
+                            model: !bar.drawFloating && Theme.frameOutline ? bg.fadeOut : []
+                            Rectangle {
+                                required property var modelData
+                                opacity: 1 - bg.fadeT
+                                // (inside the frame's band while the body is slid out past it: the band's rule stands there)
+                                visible: !win.bandShows
+                                // (the frame outline's, I303: on for keycap and line chrome, the bar's inner side as the frame's)
+                                color: Theme.frameOutlineColor
+                                x: bar.vertical ? (bar.edge === "left" ? bg.width - width : 0) : modelData[0]
+                                y: bar.vertical ? modelData[0] : (bar.edge === "top" ? bg.height - height : 0)
+                                width: bar.vertical ? Theme.frameOutlineW : Math.max(0, modelData[1] - modelData[0])
+                                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.frameOutlineW
+                            }
+                        }
+                        Repeater {
+                            model: !bar.drawFloating && Theme.frameOutline && !rulePen.active ? bg.fadeIn : []
+                            Rectangle {
+                                required property var modelData
+                                opacity: bg.fadeT
                                 // (inside the frame's band while the body is slid out past it: the band's rule stands there)
                                 visible: !win.bandShows
                                 // (the frame outline's, I303: on for keycap and line chrome, the bar's inner side as the frame's)
