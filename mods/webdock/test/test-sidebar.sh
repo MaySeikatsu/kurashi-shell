@@ -187,6 +187,36 @@ grep -q 'webdock-debug page site frozen' "$HOSTLOG" || fail "the first page was 
 [ "$(doc "sorted(d['keep'])")" = "['other', 'site']" ] || fail "both pages should stay loaded: keep = $(doc "d['keep']")"
 ok "a click on the second pin shows its page in the sidebar; the first stays loaded, frozen"
 
+# ---- 2b. last opened wins (W73, I488 (4)): the edge opened on the sidebar's pin takes the page; Show here brings it back ----
+L0=$(count 'sent webdock.host.loaded {"pin":"other"}' "$HOSTLOG")
+hid0=$(count 'webdock-debug side hidden' "$HOSTLOG")
+shown0=$(count 'webdock-debug side shown' "$HOSTLOG")
+K act webdock.pin '{"on":true}' >/dev/null || fail "webdock.pin refused"   # (the edge card stays while the pointer is away)
+K act webdock.open '{"pin":"other"}' >/dev/null || fail "webdock.open other refused"
+wait_doc "d['sidebar'].get('elsewhere') == 'edge' and 'elsewhere' not in d" 5 \
+  || fail "the daemon does not give the page to the edge opened last ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
+for _ in $(seq 40); do [ "$(count 'webdock-debug side hidden' "$HOSTLOG")" -gt "$hid0" ] && break; sleep 0.25; done
+[ "$(count 'webdock-debug side hidden' "$HOSTLOG")" -gt "$hid0" ] || fail "the sidebar's window kept the page"
+for _ in $(seq 40); do grep -qF "webdock-panel notice This page is shown at the screen's edge" "$R/qs.log" && break; sleep 0.25; done
+grep -qF "webdock-panel notice This page is shown at the screen's edge" "$R/qs.log" || fail "the sidebar does not say the page is at the edge"
+wait_px $(( SW - 56 - 206 )) $(( SH * 2 / 3 + 40 )) '#3a2b45' 15
+ok "the edge opened on the sidebar's pin shows its page; the sidebar says where it is"
+for _ in $(seq 40); do grep -qF 'webdock-panel here-side ' "$R/qs.log" && break; sleep 0.25; done
+read -r HX HY <<< "$({ grep -F 'webdock-panel here-side ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel here-side //')"
+[ -n "$HX" ] || fail "the sidebar's notice has no Show here key"
+ptr move "$HX" $(( OY + HY ))
+ptr click "$HX" $(( OY + HY )) left
+wait_doc "d.get('elsewhere') == 'sidebar' and 'elsewhere' not in d['sidebar']" 5 \
+  || fail "Show here did not bring the page to the sidebar ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
+for _ in $(seq 40); do [ "$(count 'webdock-debug side shown' "$HOSTLOG")" -gt "$shown0" ] && break; sleep 0.25; done
+[ "$(count 'webdock-debug side shown' "$HOSTLOG")" -gt "$shown0" ] || fail "the sidebar's window did not take the page back"
+wait_px "$CX" "$CY" '#3a2b45' 10
+[ "$(count 'sent webdock.host.loaded {"pin":"other"}' "$HOSTLOG")" = "$L0" ] || fail "moving the page between the sidebar and the edge reloaded it"
+K act webdock.hide >/dev/null
+K act webdock.pin '{"on":false}' >/dev/null
+ok "Show here in the sidebar brings the page back from the edge, with no reload"
+qml_errors
+
 # ---- 3. closing the sidebar hides the page: unmapped, no frames, frozen, kept ----
 hid0=$(count 'webdock-debug side hidden' "$HOSTLOG")
 K act sidebar.toggle '{"side":"left"}' >/dev/null

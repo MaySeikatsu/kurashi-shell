@@ -244,7 +244,7 @@ wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in
 wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
 wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown at the screen'"'"'s edge" "$R/qs.log")" -gt '"$n0"' ]' \
   || fail "the card does not say its pin is shown at the edge"
-wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT / 2 + 120 )) '#2b3a55' 15
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
 ok "the edge opened after the card shows the page; the card says so"
 # "Show here" in the card's well (the panel logs where its key is on the output).
 wait_until 5 grep -qF 'webdock-panel here ' "$R/qs.log" || fail "the card's notice has no Show here key"
@@ -261,7 +261,7 @@ ok "Show here in the card brings the page back; the edge card says it is in the 
 K act ui.close >/dev/null
 wait_until 5 panel_closed || fail "the card did not close"
 wait_until 5 doc_is "'elsewhere' not in d" || fail "the edge did not get the page back when the card closed"
-wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT / 2 + 120 )) '#2b3a55' 15
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
 [ "$(loads site)" = "$L0" ] || fail "moving the page between the card and the edge reloaded it ($L0 → $(loads site))"
 K act webdock.hide >/dev/null
 K act webdock.pin '{"on":false}' >/dev/null

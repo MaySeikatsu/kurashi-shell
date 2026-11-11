@@ -87,13 +87,20 @@ Item {
         var v = { mod: rest.substring(0, c), panel: rest.substring(c + 1) }
         return v.mod === "webdock" ? null : v
     }
+    // (a card's: on the output; a left sidebar's: x on the output, y from the usable area's top)
     function logHere() {
-        var cp = cardPlacement
-        if (!debugLog || !shownElsewhere || !cp || cp.rest !== true || !notice.actionItem) return
+        if (!debugLog || !shownElsewhere || !notice.actionItem) return
         var c = notice.actionItem.mapToItem(panel, notice.actionItem.width / 2, notice.actionItem.height / 2)
-        console.log("webdock-panel here " + Math.round(cp.x + c.x) + " " + Math.round(cp.y + c.y))
+        var cp = cardPlacement
+        if (inCard && cp && cp.rest === true)
+            console.log("webdock-panel here " + Math.round(cp.x + c.x) + " " + Math.round(cp.y + c.y))
+        else if (placement && placement.side === "left")
+            console.log("webdock-panel here-side " + Math.round(placement.inset + c.x) + " " + Math.round(placement.top + c.y))
     }
-    onCardPlacementChanged: if (debugLog && shownElsewhere) Qt.callLater(logHere)
+    onCardPlacementChanged: if (debugLog && shownElsewhere) hereLog.restart()
+    onPlacementChanged: if (debugLog && shownElsewhere) hereLog.restart()
+    // (test only: once the notice's column has laid out)
+    Timer { id: hereLog; interval: 300; onTriggered: panel.logHere() }
     function choose(id) {
         if (placement) Store.act("webdock.sidebar_select", { pin: id })
         else if (inCard) Store.act("webdock.card_select", { pin: id })
@@ -269,7 +276,7 @@ Item {
             // (test only: what the well says, mods/webdock/test/test-card.sh)
             onTextChanged: if (panel.debugLog) console.log("webdock-panel notice " + (text === "" ? "-" : text))
             // (test only: where "Show here" is on the output while the card rests, test-card.sh)
-            onActionLabelChanged: Qt.callLater(panel.logHere)
+            onActionLabelChanged: if (panel.debugLog) hereLog.restart()
             text: !panel.hasDoc ? I18n.tr("webdock.dock.unavailable")
                 : panel.pins.length === 0 ? I18n.tr("webdock.empty")
                 : panel.sel !== null && panel.sel.kind === "view" ? (viewBody.item === null ? I18n.tr("webdock.view.gone") : "")
