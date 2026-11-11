@@ -5,10 +5,14 @@
 #   1. a top bar with the dock's module at its end: the card opens (`mod.panel.open`); the panel reports its well on the
 #      output and the host maps its card window there: the window's rect is the well's, inside the card, under the pins
 #      row; the page fills it under the navigation row and its colour is on screen;
+#   1b. W74: the default well is the edge card's box (`width` × twice that); one press of the card's size key steps it to
+#      phone (the well resizes, no reload); `kurashi undo` brings the default back;
 #   2. closing the card unmaps the window (0 frames in 3 s), the page stays loaded; reopening shows it with no new load;
 #   3. a click on the second pin's key switches the page; back to the first: no new load of either;
 #   4. the same pin at the edge while the card shows it: the card keeps the page (no load); the edge takes it once the card
 #      closes (no load);
+#   4c. W74: `hover_takes_page = false`: a rest on the screen's edge reveals the dock and the card keeps the page, the edge
+#      card says so and its Show here (pressed on screen) takes it; `true` (the default): a rest takes the page;
 #   5. `bar.hover = card`: a rest on the module opens the card; the pointer moved into the page keeps it; leaving closes it;
 #   6. Tab past the card's keys hands the keyboard to the page; a click in the page gives it the keyboard (typed text
 #      arrives either way); Esc closes the card;
@@ -193,6 +197,32 @@ sleep 0.5
 timeout 20 grim -g "$(( PX - 40 )),0 $(( PW + 80 ))x$(( PY + PH + 40 ))" "$SHOTS/card-top.png" && ok "shot mods/webdock/shots/card-top.png"
 qml_errors
 
+# ---- 1b. W74: the default size is the edge card's; the size key steps it, one undo step takes it back ----
+# The edge card's phone box is `width` (412) × twice that; the well (the row and the page) takes it. 2560 × 1440 has room.
+[ "$WW" = 412 ] && [ "$WH" = 824 ] || fail "the default card's well is ${WW}x$WH, not the edge card's 412x824"
+doc_is "'card_size' not in d" || fail "the default size is published: $(doc "d.get('card_size')")"
+ok "the default card's well is the edge card's box (412x824), card_size absent"
+wait_until 5 grep -qF 'webdock-panel sizekey ' "$R/qs.log" || fail "the card has no size key"
+read -r SX SY SNAME _ <<< "$({ grep -F 'webdock-panel sizekey ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel sizekey //')"
+[ "$SNAME" = dock ] || fail "the size key names $SNAME, not dock"
+L1=$(loads site)
+mv_to "$SX" "$SY"
+ptr "$SX" "$SY"
+wait_until 5 doc_is "d.get('card_size') == 'phone'" || fail "a press of the size key did not step to phone ($(doc "d.get('card_size')"))"
+wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 796" ]' || fail "the well did not take the phone size ($(panel_card))"
+check_geometry site top
+[ "$WW" = 412 ] && [ "$WH" = 796 ] || fail "the phone card's well is ${WW}x$WH"
+wait_px "$CX" "$CY" '#2b3a55' 15
+[ "$(loads site)" = "$L1" ] || fail "the size change reloaded the page ($L1 → $(loads site))"
+ok "one press of the size key: card_size phone, the well 412x796, the page moved with it, no reload"
+timeout 10 "$W/kurashi" undo >/dev/null || fail "kurashi undo was refused"
+wait_until 5 doc_is "'card_size' not in d" || fail "one undo did not bring the default size back ($(doc "d.get('card_size')"))"
+wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 824" ]' || fail "the well did not go back to 412x824 ($(panel_card))"
+check_geometry site top
+wait_px "$CX" "$CY" '#2b3a55' 15
+ok "one undo takes the size key's write back (the well 412x824 again)"
+qml_errors
+
 # ---- 2. close: unmapped, no frames, kept; reopen: no new load ----
 L0=$(loads site)
 [ "$L0" -ge 1 ] || fail "no load report for the page ($HOSTLOG)"
@@ -302,6 +332,65 @@ K act ui.close >/dev/null
 wait_until 5 panel_closed || true
 K act sidebar.close >/dev/null || true
 K set sidebar.left.sections '[]' >/dev/null || true
+qml_errors
+
+# ---- 4c. W74: a hover reveal of the edge and the bar card's page (`hover_takes_page`) ----
+# B (off): a rest on the screen's edge while the card shows the pin reveals the dock, the card keeps the page and the edge
+# card says where it is; its Show here, pressed on screen, takes it. A (on, the default): a rest takes the page.
+# (the edge dock's `shown` is still `site` from step 4; `reopen_last` brings its card back on a reveal)
+EDGE_Y=$(( H_OUT - 20 ))   # low on the right edge: below the top bar's card
+K set mods.webdock.hover_takes_page false >/dev/null || fail "mods.webdock.hover_takes_page = false was refused"
+wait_until 5 eval 'K get mods.webdock.hover_takes_page | grep -q false' || fail "hover_takes_page = false was not taken"
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
+wait_until 5 panel_open || fail "the card did not open"
+wait_px "$CX" "$CY" '#2b3a55' 15
+hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
+e0=$(count "webdock-debug edge notice This page is shown in the bar's card" "$HOSTLOG")
+here0=$(count 'webdock-debug edge here ' "$HOSTLOG")
+mv_to $(( W_OUT - 1 )) "$EDGE_Y"
+wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'site'" || fail "a rest on the edge did not reveal the dock ($(doc "(d['mode'], d.get('shown'))"))"
+wait_until 5 doc_is "d.get('elsewhere') == 'card' and 'elsewhere' not in d['card']" \
+  || fail "hover_takes_page off: the hover reveal took the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug edge notice This page is shown in the bar'"'"'s card" "$HOSTLOG")" -gt '"$e0"' ]' \
+  || fail "the hover-revealed edge card does not say the page is in the bar's card"
+sleep 1
+[ "$(count 'webdock-debug card hidden' "$HOSTLOG")" = "$hid0" ] || fail "the card's window lost the page to a hover reveal"
+wait_px "$CX" "$CY" '#2b3a55' 15
+ok "hover_takes_page off: a hover reveal leaves the page in the bar card; the edge card says where it is"
+# Its "Show here" on screen: the host logs the key's middle in its window (right edge: the window ends at the strip, its
+# height is the usable area under the top bar).
+wait_until 5 eval '[ "$(count "webdock-debug edge here " "$HOSTLOG")" -gt '"$here0"' ]' || fail "the edge card logged no Show here key"
+read -r EHX EHY EAW EAH <<< "$({ grep -F 'webdock-debug edge here ' "$HOSTLOG" || true; } | tail -1 | sed 's/.*webdock-debug edge here //')"
+HX=$(( W_OUT - 56 - EAW + EHX )); HY=$(( H_OUT - EAH + EHY ))
+mv_to "$HX" "$HY"
+ptr "$HX" "$HY"
+wait_until 5 doc_is "'elsewhere' not in d and d['card'].get('elsewhere') == 'edge'" \
+  || fail "Show here at $HX,$HY on the hover-revealed edge did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
+ok "Show here pressed on the hover-revealed edge card takes the page"
+K act webdock.hide >/dev/null
+wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['card']" || fail "the hidden edge did not hand the page back to the card"
+wait_px "$CX" "$CY" '#2b3a55' 15
+# A (on): a rest takes it.
+K set mods.webdock.hover_takes_page true >/dev/null || fail "mods.webdock.hover_takes_page = true was refused"
+wait_until 5 eval 'K get mods.webdock.hover_takes_page | grep -q true' || fail "hover_takes_page = true was not taken"
+hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+mv_to $(( W_OUT - 1 )) "$EDGE_Y"
+wait_until 5 doc_is "d['mode'] == 'extended'" || fail "a rest on the edge did not reveal the dock again"
+wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
+  || fail "hover_takes_page on: the hover reveal did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
+ok "hover_takes_page on (the default): a hover reveal takes the page from the bar card"
+K act webdock.hide >/dev/null
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+wait_until 5 doc_is "d['mode'] == 'hidden' and 'elsewhere' not in d['card']" || fail "the card did not get the page back"
+[ "$(loads site)" = "$L0" ] || fail "a hover reveal moved the page with a reload ($L0 → $(loads site))"
+K act ui.close >/dev/null
+wait_until 5 panel_closed || fail "the card did not close"
+K reset mods.webdock.hover_takes_page >/dev/null || true
 qml_errors
 
 # ---- 5. hover: the pointer from the module into the page keeps the card ----
