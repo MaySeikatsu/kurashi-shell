@@ -29,6 +29,12 @@ Item {
         pin.loaded === true ? I18n.tr("webdock.dock.state.loaded") : "",
         pin.error ? I18n.tr("webdock.dock.state.error") : ""
     ].filter(function (s) { return s !== "" }).join(", ")
+    // W73 (docs/ux/webdock.md "Background pages"): a pin that keeps running in the background says so — in its tip (a
+    // rest or the keyboard on it) and its accessible description (Shōjiki: it costs memory and power while hidden).
+    readonly property bool background: !isView && pin.background === true
+    // The side the tip stands on (Tip.qml's `edge`: the strip's edge; above the key in a panel's row).
+    property string tipEdge: "bottom"
+    Accessible.description: background ? I18n.tr("webdock.pin.background") : ""
 
     signal activated()
     signal menuRequested()
@@ -107,6 +113,12 @@ Item {
         corner: key.radius
     }
     HoverHandler { id: hover }
+    Tip {
+        target: tile
+        text: tile.background ? I18n.tr("webdock.pin.background") : ""
+        shown: (hover.hovered || tile.activeFocus) && tile.background
+        edge: tile.tipEdge
+    }
     TapHandler {
         id: tap
         acceptedButtons: Qt.LeftButton

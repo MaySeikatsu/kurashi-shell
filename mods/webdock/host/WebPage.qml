@@ -3,7 +3,7 @@ import QtWebEngine
 
 // One pin's page in the card's body (MODS.md "Web dock": one view per pin in `keep`). It exists while its pin is in
 // `keep` (the Repeater creates it when the pin is first shown and destroys it when the pin leaves `keep`, which
-// reports `unloaded`). The card draws only the shown page; the others are hidden and Frozen unless audible.
+// reports `unloaded`). The card draws only the shown page; the others are hidden and Frozen unless audible or awake (W73).
 Item {
     id: page
 
@@ -16,6 +16,9 @@ Item {
     property bool active: false
     // new_tabs (K40): a link for a new tab or window loads in this page (true) or goes to the browser (false).
     property bool newTabsInDock: true
+    // W73: the page stays Active though hidden and silent — the pin's `awake`, `audible` or `background` in mod.webdock
+    // (the daemon's grace after a sound, a pin that keeps running).
+    property bool awake: false
 
     // What the card draws: the first paint (the skeleton goes), a failed load (code and text), a popup sheet.
     property bool painted: false
@@ -81,8 +84,11 @@ Item {
         // (W72: the engine's own recommendation — Active while it is visible or audible — so the freeze comes once the
         // engine has seen the hide; set at the hide itself it was refused, "page is visible", and the page stayed Active.
         // Never Discarded here: the dock's own rules unload a page.)
+        // W73 (I488, docs/ux/webdock.md "Background pages"): and Active while the daemon says the page stays awake — in
+        // its grace after a sound, or a background pin. Measured: the engine recommends Frozen for a page hidden in a
+        // silence (a pause, the gap between two tracks) and the frozen player never starts its next track.
         lifecycleState: web.recommendedState === WebEngineView.LifecycleState.Active || web.recentlyAudible
-            || (page.active && web.visible)
+            || (page.active && web.visible) || page.awake
             ? WebEngineView.LifecycleState.Active : WebEngineView.LifecycleState.Frozen
 
         onLoadingChanged: request => {
@@ -124,7 +130,7 @@ Item {
             anchors.fill: parent
             z: 1
             lifecycleState: recommendedState === WebEngineView.LifecycleState.Active || recentlyAudible
-                || (page.active && visible)
+                || (page.active && visible) || page.awake
                 ? WebEngineView.LifecycleState.Active : WebEngineView.LifecycleState.Frozen
         }
     }

@@ -28,14 +28,21 @@ Item {
     // card moves. Null outside a Stage card.
     property var cardPlacement: null
     readonly property bool inCard: cardPlacement !== null && !placement
-    // The card takes the dock's phone width round the well (contract row 66: the card's outer width; its padding is the
-    // Stage's `pad + 4` on each side), so a mobile site gets the width it gets at the edge.
-    readonly property int cardWidth: ((d.geometry && d.geometry.width) || 412) + 2 * (Theme.pad + 4)
+    // W73 (`mods.webdock.card_size`, docs/ux/webdock.md "The card's size"): the page's viewport in the card, from real
+    // devices' CSS viewports less a browser's bars — phone 412 × 760, tablet 768 × 900, wide 1024 × 720; the well adds its
+    // 36 px navigation row. The card takes that width round the well (contract row 66: the card's outer width; its padding
+    // is the Stage's `pad + 4` on each side; the Stage clamps it to 360–1100 px and the output), so it shrinks, never runs
+    // off screen.
+    readonly property string cardSize: d.card_size === "tablet" || d.card_size === "wide" ? d.card_size : "phone"
+    readonly property int viewW: cardSize === "wide" ? 1024 : cardSize === "tablet" ? 768 : 412
+    readonly property int viewH: cardSize === "wide" ? 720 : cardSize === "tablet" ? 900 : 760
+    readonly property int cardWidth: viewW + 2 * (Theme.pad + 4)
 
     width: parent ? parent.width : 420
-    // In the card the well is 1.6 × its width tall, at most the output less the bars and the card's margins.
+    // In the card the well is the viewport and its navigation row tall, at most the output less the bars and the card's
+    // margins (W72's clamp), at least 240 px.
     implicitHeight: fillHeight > 0 ? fillHeight : (inCard
-        ? Math.max(240 + tile + Theme.gap, Math.min(Math.round(width * 1.6) + tile + Theme.gap,
+        ? Math.max(240 + tile + Theme.gap, Math.min(viewH + 36 + tile + Theme.gap,
             (Screen.height > 0 ? Screen.height : 1080) - 2 * Theme.barH - 10 * Theme.pad))
         : 560)
 
@@ -54,9 +61,13 @@ Item {
     readonly property var sel: pinOf(selId)
     readonly property bool selWeb: sel !== null && sel.kind === "web"
     readonly property var view: sel !== null && sel.kind === "view" ? viewOf(String(sel.target)) : null
-    // W72: one page per pin, the sidebar first (docs/ux/webdock.md "One page, three places"): the card's pin open in the
-    // sidebar too stays there, and the card says so.
-    readonly property bool inSidebar: inCard && selWeb && sideDoc.place !== undefined && String(sideDoc.pin) === selId
+    // W73: one page per pin, in the place opened last (docs/ux/webdock.md "Which place shows the page"): this place's pin
+    // shown in another place says where (`elsewhere` of this place in the document: edge, sidebar, card). A daemon that
+    // does not say (the mock) leaves W72's order: in a card, the sidebar's pin stays in the sidebar.
+    readonly property string elsewhere: !selWeb ? ""
+        : ownDoc.elsewhere !== undefined ? String(ownDoc.elsewhere)
+        : (inCard && sideDoc.place !== undefined && String(sideDoc.pin) === selId ? "sidebar" : "")
+    readonly property bool shownElsewhere: elsewhere !== ""
     readonly property bool selLoaded: selWeb && sel.loaded === true
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
         || Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
@@ -76,6 +87,13 @@ Item {
         var v = { mod: rest.substring(0, c), panel: rest.substring(c + 1) }
         return v.mod === "webdock" ? null : v
     }
+    function logHere() {
+        var cp = cardPlacement
+        if (!debugLog || !shownElsewhere || !cp || cp.rest !== true || !notice.actionItem) return
+        var c = notice.actionItem.mapToItem(panel, notice.actionItem.width / 2, notice.actionItem.height / 2)
+        console.log("webdock-panel here " + Math.round(cp.x + c.x) + " " + Math.round(cp.y + c.y))
+    }
+    onCardPlacementChanged: if (debugLog && shownElsewhere) Qt.callLater(logHere)
     function choose(id) {
         if (placement) Store.act("webdock.sidebar_select", { pin: id })
         else if (inCard) Store.act("webdock.card_select", { pin: id })
@@ -101,6 +119,9 @@ Item {
         if (key === sent) return
         // The first report of a panel is never an "off": nothing was placed yet.
         if (sent === "" && !wellPlace) return
+        // W73: the panel's first rest is the sidebar opening on the dock (`fresh`: "last opened wins"); a rest after a
+        // slide or a scroll is not.
+        if (sent === "") args = Object.assign({ fresh: true }, args)
         sent = key
         if (debugLog) console.log("webdock-panel " + (wellPlace ? "place " + args.output + " " + args.side + " " + args.inset
             + " " + args.top + " " + args.width + " " + args.height + " panel " + Math.round(panel.width) + " "
@@ -129,6 +150,8 @@ Item {
         var key = JSON.stringify(args)
         if (key === cardSent) return
         if (cardSent === "" && !cardWellPlace) return
+        // W73: the card's first rest since it opened (the panel is made with the card) is an opening: `fresh`.
+        if (cardSent === "") args = Object.assign({ fresh: true }, args)
         cardSent = key
         if (debugLog) console.log("webdock-panel card " + (cardWellPlace ? args.output + " " + args.x + " " + args.y + " "
             + args.width + " " + args.height + " panel " + Math.round(cardPlacement.x) + " " + Math.round(cardPlacement.y)
@@ -201,7 +224,7 @@ Item {
         onClicked: Store.act("settings.open", { key: "mods.webdock.pins" })
         // W72: Tab past the card's last key hands the keyboard to the page (the host's window asks for it once).
         Keys.onTabPressed: event => {
-            if (panel.inCard && panel.selWeb && !panel.inSidebar && panel.cardPlaced) {
+            if (panel.inCard && panel.selWeb && !panel.shownElsewhere && panel.cardPlaced) {
                 Store.act("webdock.card_focus")
                 event.accepted = true
             } else event.accepted = false
@@ -240,28 +263,36 @@ Item {
             when: viewBody.item !== null && viewBody.item.fillHeight !== undefined
         }
         Notice {
+            id: notice
             anchors.fill: parent
             visible: text !== ""
             // (test only: what the well says, mods/webdock/test/test-card.sh)
             onTextChanged: if (panel.debugLog) console.log("webdock-panel notice " + (text === "" ? "-" : text))
+            // (test only: where "Show here" is on the output while the card rests, test-card.sh)
+            onActionLabelChanged: Qt.callLater(panel.logHere)
             text: !panel.hasDoc ? I18n.tr("webdock.dock.unavailable")
                 : panel.pins.length === 0 ? I18n.tr("webdock.empty")
                 : panel.sel !== null && panel.sel.kind === "view" ? (viewBody.item === null ? I18n.tr("webdock.view.gone") : "")
                 : !panel.selWeb ? ""
                 : panel.hostState === "missing" ? I18n.tr("webdock.host.missing")
                 : panel.hostState === "failed" ? I18n.tr(panel.hostReason || "webdock.dock.host.failed")
-                // W72: the card's pin shown in the sidebar stays there; otherwise the page comes once the card rests, and
-                // a page already loaded needs no word meanwhile.
-                : panel.inSidebar ? I18n.tr("webdock.side.elsewhere")
+                // W73: the pin's page is in a place opened later: the well says where, with "Show here". Otherwise the
+                // page comes once the card rests (W72), and a page already loaded needs no word meanwhile.
+                : panel.shownElsewhere ? I18n.tr(panel.elsewhere === "edge" ? "webdock.edge.elsewhere"
+                    : panel.elsewhere === "card" ? "webdock.card.elsewhere" : "webdock.side.elsewhere")
                 : panel.inCard ? (panel.hostState !== "ready" ? I18n.tr("webdock.host.starting")
                     : (panel.selLoaded ? "" : I18n.tr("webdock.loading")))
                 : !panel.placement ? I18n.tr("webdock.side.unplaced")
                 : panel.hostState === "ready" ? I18n.tr("webdock.loading")
                 : I18n.tr("webdock.host.starting")
             actionLabel: panel.pins.length === 0 ? I18n.tr("webdock.dock.empty.add")
+                : panel.shownElsewhere && panel.hasDoc && panel.hostState !== "missing" && panel.hostState !== "failed"
+                    ? I18n.tr("webdock.elsewhere.here")
                 : (panel.selWeb && !panel.placement && !panel.inCard && panel.hasDoc ? I18n.tr("webdock.side.at_edge") : "")
             onActionPressed: {
                 if (panel.pins.length === 0) Store.act("settings.open", { key: "mods.webdock.pins" })
+                // W73: "Show here" picks the pin in this place again, which makes it the place opened last.
+                else if (panel.shownElsewhere) panel.choose(panel.selId)
                 else Store.act("webdock.open", { pin: panel.selId })
             }
         }

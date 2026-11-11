@@ -19,6 +19,9 @@ pub const REVEAL: Duration = Duration::from_millis(250);
 pub const REVEAL_SHARED: Duration = Duration::from_millis(500);
 /// A dock that nothing holds (no part inside, not pinned, not engaged) hides after `HIDE` (K40).
 pub const HIDE: Duration = Duration::from_millis(400);
+/// A page that played sound counts as playing for this long after its last sound (W73, docs/ux/webdock.md "Background
+/// pages"): the gap between two tracks and a player paused for a moment keep their page awake, loaded and the engine up.
+pub const AUDIBLE_GRACE: Duration = Duration::from_secs(10 * 60);
 /// The permissions a page can be blocked on (MODS.md: `webdock.host.blocked`).
 pub const PERMISSIONS: &[&str] = &[
     "camera",
@@ -131,6 +134,43 @@ impl PageStyle {
     }
 }
 
+/// The bar card's size (`card_size`, W73; docs/ux/webdock.md "The card's size"): a phone's, a tablet's or a small
+/// laptop's viewport.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CardSize {
+    Phone,
+    Tablet,
+    Wide,
+}
+
+impl CardSize {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Phone => "phone",
+            Self::Tablet => "tablet",
+            Self::Wide => "wide",
+        }
+    }
+}
+
+/// The three places a pin's page can show in (W73, docs/ux/webdock.md "Which place shows the page").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Spot {
+    Edge,
+    Sidebar,
+    Card,
+}
+
+impl Spot {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Edge => "edge",
+            Self::Sidebar => "sidebar",
+            Self::Card => "card",
+        }
+    }
+}
+
 /// A part of the dock the pointer or the keyboard can be in (K40): the screen edge that reveals the dock, the strip
 /// and the card (the mod's own card for a site, the shell's for a view).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,6 +240,8 @@ pub struct PinSpec {
     pub view: ViewSetting,
     /// The profile the site's storage lives in: the pin's own, or its id.
     pub profile: String,
+    /// "Keep running in the background" (W73): never frozen while loaded, never unloaded by the dock's rules.
+    pub background: bool,
 }
 
 /// Why an action or a host report is refused (its i18n key is in [`DockError::key`]).
@@ -256,6 +298,7 @@ pub struct Config {
     pub indicator: bool,
     pub new_tabs: NewTabs,
     pub page_style: PageStyle,
+    pub card_size: CardSize,
 }
 
 impl Config {
@@ -305,6 +348,11 @@ impl Config {
                 Some("plain") => PageStyle::Plain,
                 _ => PageStyle::Phone,
             },
+            card_size: match settings.get("card_size").as_ref().and_then(Value::as_str) {
+                Some("tablet") => CardSize::Tablet,
+                Some("wide") => CardSize::Wide,
+                _ => CardSize::Phone,
+            },
         }
     }
 }
@@ -319,6 +367,8 @@ struct PinState {
     error: Option<String>,
     /// A `file://` URL under the icon cache.
     icon: Option<String>,
+    /// The end of the grace after the page's last sound (W73, [`AUDIBLE_GRACE`]); `None` while it plays or never did.
+    grace: Option<Instant>,
 }
 
 /// The side of the sidebar window the dock's panel sits in (W30, `webdock.sidebar`).
@@ -387,6 +437,12 @@ struct Card {
 pub struct Dock {
     /// The bar card's page (W72).
     card: Card,
+    /// W73 ("last opened wins"): when each place last opened on a pin or had one picked, as a running count (0 = never);
+    /// of the open places that show a pin, the latest shows its page.
+    stamp: u64,
+    edge_at: u64,
+    side_at: u64,
+    card_at: u64,
     /// The pin the sidebar panel shows (W30), kept while the sidebar is closed.
     side_pin: Option<String>,
     /// The sidebar panel's page area while the panel is at rest in an open sidebar; `None` otherwise.
@@ -418,6 +474,10 @@ impl Dock {
     pub fn new(settings: &Settings, profiles: PathBuf, icons: PathBuf) -> Self {
         let mut dock = Self {
             card: Card::default(),
+            stamp: 0,
+            edge_at: 0,
+            side_at: 0,
+            card_at: 0,
             side_pin: None,
             place: None,
             pins: Vec::new(),
@@ -497,7 +557,12 @@ impl Dock {
 
     /// `webdock.sidebar`: the sidebar panel's page area at rest (`Some`), or the panel moved, hid or went (`None`).
     /// An open sidebar with no pin of its own shows the first pin. True when it shows a site (the host starts).
-    pub fn place(&mut self, place: Option<Place>) -> bool {
+    /// `fresh` (W73): the panel's first rest since it was made — the sidebar opened on the dock, which stamps it; a rest
+    /// after a slide or a scroll does not.
+    pub fn place(&mut self, place: Option<Place>, fresh: bool) -> bool {
+        if fresh && place.is_some() {
+            self.stamp(Spot::Sidebar);
+        }
         self.place = place;
         self.default_side_pin();
         match self.side_web() {
@@ -514,6 +579,7 @@ impl Dock {
     pub fn side_select(&mut self, pin: &str) -> Result<bool, DockError> {
         let (id, _) = self.find(pin)?;
         self.side_pin = Some(id);
+        self.stamp(Spot::Sidebar);
         Ok(match self.side_web() {
             Some(id) => {
                 self.touch(&id);
@@ -537,8 +603,12 @@ impl Dock {
 
     /// `webdock.card` (W72): the bar card's page area at rest (`Some`), or the card moved, closed or went (`None`; the
     /// pointer and the use of the host's window over it go with it — its unmap sends no leave). An open card with no
-    /// pin of its own shows the first pin. True when it shows a site (the host starts).
-    pub fn card_place(&mut self, place: Option<CardPlace>) -> bool {
+    /// pin of its own shows the first pin. True when it shows a site (the host starts). `fresh` (W73): the card's first
+    /// rest since it opened, which stamps it; a rest after a move or a resize does not.
+    pub fn card_place(&mut self, place: Option<CardPlace>, fresh: bool) -> bool {
+        if fresh && place.is_some() {
+            self.stamp(Spot::Card);
+        }
         if place.is_none() {
             self.card.hover = false;
             self.card.engaged = false;
@@ -553,6 +623,7 @@ impl Dock {
     pub fn card_select(&mut self, pin: &str) -> Result<bool, DockError> {
         let (id, _) = self.find(pin)?;
         self.card.pin = Some(id);
+        self.stamp(Spot::Card);
         Ok(self.touch_card())
     }
 
@@ -611,6 +682,7 @@ impl Dock {
             for st in self.states.values_mut() {
                 st.loaded = false;
                 st.audible = false;
+                st.grace = None;
             }
         }
         if matches!(state, HostState::Failed { .. } | HostState::Missing) && state != self.host {
@@ -629,6 +701,7 @@ impl Dock {
         let (id, kind) = self.find(pin)?;
         self.mode = Mode::Extended;
         self.shown = Some(id.clone());
+        self.stamp(Spot::Edge);
         if let Some(output) = output {
             self.output = Some(output.into());
         }
@@ -669,6 +742,7 @@ impl Dock {
         match self.shown.clone() {
             Some(shown) => {
                 self.mode = Mode::Extended;
+                self.stamp(Spot::Edge);
                 let web = self.is_web(&shown);
                 if web {
                     self.touch(&shown);
@@ -714,6 +788,7 @@ impl Dock {
         }
         self.mode = Mode::Extended;
         self.shown = Some(id.clone());
+        self.stamp(Spot::Edge);
         if kind == Kind::Web {
             self.touch(&id);
         }
@@ -784,6 +859,7 @@ impl Dock {
                 match self.shown.clone().filter(|_| self.config.reopen_last) {
                     Some(shown) => {
                         self.mode = Mode::Extended;
+                        self.stamp(Spot::Edge);
                         let web = self.is_web(&shown);
                         if web {
                             self.touch(&shown);
@@ -851,14 +927,39 @@ impl Dock {
         let st = self.states.entry(pin.to_string()).or_default();
         st.loaded = false;
         st.audible = false;
+        st.grace = None;
         Ok(())
     }
 
-    /// `webdock.host.audible`: the site plays sound. An audible pin is kept loaded, whatever the cap.
-    pub fn audible(&mut self, pin: &str, on: bool) -> Result<(), DockError> {
+    /// `webdock.host.audible`: the site plays sound, or stopped. An audible pin is kept loaded, whatever the cap, and
+    /// so is one in its grace after the last sound (W73, [`AUDIBLE_GRACE`]): the silence between two tracks, a pause.
+    pub fn audible(&mut self, pin: &str, on: bool, now: Instant) -> Result<(), DockError> {
         self.web_pin(pin)?;
-        self.states.entry(pin.to_string()).or_default().audible = on;
+        let st = self.states.entry(pin.to_string()).or_default();
+        if on {
+            st.grace = None;
+        } else if st.audible {
+            st.grace = Some(now + AUDIBLE_GRACE);
+        }
+        st.audible = on;
         Ok(())
+    }
+
+    /// The moment the first grace after a sound ends, for the supervisor's timer (rule 5: none while none runs).
+    pub fn grace_due(&self) -> Option<Instant> {
+        self.states.values().filter_map(|st| st.grace).min()
+    }
+
+    /// The graces that ended by `now` end: their pins go back to the dock's rules. True when one ended.
+    pub fn expire(&mut self, now: Instant) -> bool {
+        let mut any = false;
+        for st in self.states.values_mut() {
+            if st.grace.is_some_and(|g| g <= now) {
+                st.grace = None;
+                any = true;
+            }
+        }
+        any
     }
 
     /// `webdock.host.blocked`: the page asked for a permission the host refused (cleared by its next load).
@@ -880,13 +981,17 @@ impl Dock {
         let st = self.states.entry(pin.to_string()).or_default();
         st.loaded = false;
         st.audible = false;
+        st.grace = None;
         st.error = Some("webdock.error.crashed".into());
         Ok(())
     }
 
-    /// The host runs now, and nothing web is shown or audible, so the idle clock runs (MODS.md "Lifecycle").
+    /// The host runs now, and nothing web is shown, audible, in its grace after a sound or a loaded background pin
+    /// (W73), so the idle clock runs (MODS.md "Lifecycle").
     pub fn is_idle(&self) -> bool {
-        self.host.is_running() && !self.web_visible() && !self.any_audible()
+        self.host.is_running()
+            && !self.web_visible()
+            && !self.pins.iter().any(|p| self.holds(&p.id))
     }
 
     /// How long the host may stay idle before it stops; `None` = never.
@@ -895,8 +1000,9 @@ impl Dock {
             .then(|| Duration::from_secs(u64::from(self.config.unload_after) * 60))
     }
 
-    /// The pins the host keeps loaded (MODS.md): the most recently shown sites, up to `max_loaded`, then any
-    /// audible site beyond the cap. Nothing while the host does not run.
+    /// The pins the host keeps loaded (MODS.md): the most recently shown sites, up to `max_loaded`, then beyond the cap
+    /// any site that holds itself (audible, in its grace, a background pin: W73) or is on screen. Nothing while the
+    /// host does not run.
     pub fn keep(&self) -> Vec<String> {
         if !self.host.is_running() {
             return Vec::new();
@@ -918,7 +1024,7 @@ impl Dock {
         keep.extend(
             rest.iter()
                 .filter(|id| {
-                    self.is_audible(id)
+                    self.holds(id)
                         || shown.as_deref() == Some(id.as_str())
                         || side.as_deref() == Some(id.as_str())
                         || card.as_deref() == Some(id.as_str())
@@ -974,6 +1080,14 @@ impl Dock {
         if self.config.page_style != PageStyle::Phone {
             doc["page_style"] = json!(self.config.page_style.name());
         }
+        // W73: the bar card's size, absent while the phone (the default); and the place that shows the edge card's page
+        // when that is another one (absent while the edge card shows it).
+        if self.config.card_size != CardSize::Phone {
+            doc["card_size"] = json!(self.config.card_size.name());
+        }
+        if let Some(at) = self.elsewhere(Spot::Edge) {
+            doc["elsewhere"] = json!(at.name());
+        }
         // I91: the settings the configuration forces and their sources; absent when nothing is forced (no nulls).
         if !self.forced.is_empty() {
             doc["forced"] = json!(self.forced);
@@ -993,6 +1107,9 @@ impl Dock {
                     "width": p.width,
                     "height": p.height,
                 });
+            }
+            if let Some(at) = self.elsewhere(Spot::Sidebar) {
+                side["elsewhere"] = json!(at.name());
             }
             doc["sidebar"] = side;
         }
@@ -1025,6 +1142,9 @@ impl Dock {
             if c.focus > 0 {
                 card["focus"] = json!(c.focus);
             }
+            if let Some(at) = self.elsewhere(Spot::Card) {
+                card["elsewhere"] = json!(at.name());
+            }
             doc["card"] = card;
         }
         doc
@@ -1054,6 +1174,13 @@ impl Dock {
             }
             if st.audible {
                 out["audible"] = json!(true);
+            }
+            // W73: the pin keeps running in the background; its page stays Active though hidden and silent.
+            if p.background {
+                out["background"] = json!(true);
+            }
+            if self.is_awake(&p.id) {
+                out["awake"] = json!(true);
             }
             if !st.blocked.is_empty() {
                 out["blocked"] = json!(st.blocked);
@@ -1161,12 +1288,67 @@ impl Dock {
             .filter(|s| self.is_web(s))
     }
 
-    fn any_audible(&self) -> bool {
-        self.states.values().any(|st| st.audible)
+    /// The site holds itself loaded and the engine up (W73): it plays, it is in its grace after a sound, or it is a
+    /// background pin that was opened (in `recent`).
+    fn holds(&self, id: &str) -> bool {
+        self.states
+            .get(id)
+            .is_some_and(|st| st.audible || st.grace.is_some())
+            || self.is_background(id)
     }
 
-    fn is_audible(&self, id: &str) -> bool {
-        self.states.get(id).is_some_and(|st| st.audible)
+    /// A background pin that was opened, so its page is loaded while the host runs (W73).
+    fn is_background(&self, id: &str) -> bool {
+        self.pins
+            .iter()
+            .any(|p| p.id == id && p.kind == Kind::Web && p.background)
+            && self.recent.iter().any(|r| r == id)
+    }
+
+    /// Its page must stay Active though it may be hidden and silent (W73, `awake`): in its grace, or a loaded
+    /// background pin. Not while it plays: the engine keeps a sounding page Active itself.
+    fn is_awake(&self, id: &str) -> bool {
+        let st = self.states.get(id);
+        !st.is_some_and(|st| st.audible)
+            && (st.is_some_and(|st| st.grace.is_some())
+                || (self.is_background(id) && st.is_some_and(|st| st.loaded)))
+    }
+
+    fn stamp(&mut self, spot: Spot) {
+        self.stamp += 1;
+        let at = self.stamp;
+        match spot {
+            Spot::Edge => self.edge_at = at,
+            Spot::Sidebar => self.side_at = at,
+            Spot::Card => self.card_at = at,
+        }
+    }
+
+    /// The place that shows the page of the site `id` (W73, "last opened wins"): of the open places showing it, the
+    /// one stamped last; on a tie (nothing stamped, a shell that predates `fresh`) the sidebar, then the bar card.
+    fn holder(&self, id: &str) -> Option<Spot> {
+        let mut best: Option<(u64, u8, Spot)> = None;
+        let places = [
+            (self.side_web(), self.side_at, 2, Spot::Sidebar),
+            (self.card_web(), self.card_at, 1, Spot::Card),
+            (self.edge_web(), self.edge_at, 0, Spot::Edge),
+        ];
+        for (web, at, rank, spot) in places {
+            if web.as_deref() == Some(id) && best.is_none_or(|(a, r, _)| (at, rank) > (a, r)) {
+                best = Some((at, rank, spot));
+            }
+        }
+        best.map(|(_, _, spot)| spot)
+    }
+
+    /// The place that shows the page of the site `spot` shows, when that is another place (W73: `elsewhere`).
+    fn elsewhere(&self, spot: Spot) -> Option<Spot> {
+        let web = match spot {
+            Spot::Edge => self.edge_web(),
+            Spot::Sidebar => self.side_web(),
+            Spot::Card => self.card_web(),
+        }?;
+        self.holder(&web).filter(|h| *h != spot)
     }
 
     fn is_web(&self, id: &str) -> bool {
@@ -1367,6 +1549,7 @@ fn parse_pin(row: &Map<String, Value>) -> Option<PinSpec> {
         kind,
         view,
         profile,
+        background: row.get("background").and_then(Value::as_bool) == Some(true),
     })
 }
 
@@ -2034,14 +2217,17 @@ mod tests {
         let mut d = dock(&[]);
         d.set_host(HostState::Ready);
         d.side_select("mail").unwrap();
-        d.place(Some(Place {
-            output: "DP-1".into(),
-            side: Side::Left,
-            inset: 12,
-            top: 60,
-            width: 396,
-            height: 1336,
-        }));
+        d.place(
+            Some(Place {
+                output: "DP-1".into(),
+                side: Side::Left,
+                inset: 12,
+                top: 60,
+                width: 396,
+                height: 1336,
+            }),
+            true,
+        );
         let doc = d.doc();
         assert_eq!(keys(&doc["sidebar"]), keys(fixture), "the sidebar");
         assert_eq!(
@@ -2072,7 +2258,7 @@ mod tests {
         // (the edge shows chat, so mail is past a cap of one but on screen in the card)
         d.open("chat", Some("DP-1")).unwrap();
         assert!(
-            d.card_place(Some(card_place())),
+            d.card_place(Some(card_place()), true),
             "an open card on a site starts the host"
         );
         let doc = d.doc();
@@ -2099,7 +2285,7 @@ mod tests {
         assert_eq!(doc["card"]["focus"], 1);
 
         // Closed: the place, the pointer and the keyboard go; the pin and the counters stay; late reports are dropped.
-        assert!(!d.card_place(None));
+        assert!(!d.card_place(None, false));
         d.card_page(true, false);
         d.card_close();
         d.card_focus();
@@ -2114,7 +2300,7 @@ mod tests {
         assert!(!d.card_select("weather").unwrap());
         assert!(d.card_select("nope").is_err());
         assert!(
-            !d.card_place(Some(card_place())),
+            !d.card_place(Some(card_place()), true),
             "a view pin needs no host"
         );
         assert!(d.card_select("mail").unwrap());
@@ -2125,7 +2311,7 @@ mod tests {
     fn a_failed_host_forgets_the_bar_cards_pointer() {
         let mut d = dock(&[]);
         d.set_host(HostState::Ready);
-        d.card_place(Some(card_place()));
+        d.card_place(Some(card_place()), true);
         d.card_page(true, true);
         d.set_host(HostState::Missing);
         let doc = d.doc();
@@ -2148,7 +2334,7 @@ mod tests {
         d.loaded("mail", Some("/c/icons/mail.png")).unwrap();
         d.crashed("chat").unwrap();
         d.blocked("chat", "camera").unwrap();
-        d.audible("chat", true).unwrap();
+        d.audible("chat", true, t0).unwrap();
         let doc = d.doc();
         assert_eq!(keys(&doc), keys(fixture), "the top level");
         assert_eq!(
@@ -2186,7 +2372,7 @@ mod tests {
         );
         d.set_host(HostState::Ready);
         assert!(
-            d.place(Some(place_left())),
+            d.place(Some(place_left()), true),
             "the first pin is a site: the host starts"
         );
         let doc = d.doc();
@@ -2198,7 +2384,7 @@ mod tests {
         assert_eq!(doc["keep"], json!(["mail"]), "the sidebar's site is kept");
         assert!(!d.is_idle(), "a site in the sidebar is shown");
         // Closing the sidebar hides the page but keeps it loaded and keeps the pin for next time.
-        assert!(!d.place(None));
+        assert!(!d.place(None, false));
         let doc = d.doc();
         assert_eq!(doc["sidebar"], json!({"pin": "mail"}));
         assert_eq!(doc["keep"], json!(["mail"]));
@@ -2217,7 +2403,7 @@ mod tests {
             "a closed sidebar starts nothing"
         );
         assert_eq!(d.doc()["keep"], json!([]), "nor loads anything");
-        assert!(d.place(Some(place_left())));
+        assert!(d.place(Some(place_left()), true));
         assert_eq!(
             d.doc()["sidebar"]["pin"],
             "chat",
@@ -2237,7 +2423,7 @@ mod tests {
         d.set_host(HostState::Ready);
         d.open("mail", Some("DP-1")).unwrap();
         d.side_select("chat").unwrap();
-        d.place(Some(place_left()));
+        d.place(Some(place_left()), true);
         let keep = d.doc()["keep"].clone();
         assert_eq!(keep, json!(["chat", "mail"]), "both on screen, cap 1");
         d.collapse();
@@ -2252,7 +2438,7 @@ mod tests {
     fn a_removed_sidebar_pin_falls_back_to_the_first_pin_while_open() {
         let mut d = dock(&[]);
         d.side_select("chat").unwrap();
-        d.place(Some(place_left()));
+        d.place(Some(place_left()), true);
         let rows = json!([
             {"id": "mail", "title": "Mail", "target": "https://mail.example.org/", "view": "default", "profile": "", "icon": ""},
         ]);
@@ -2312,5 +2498,168 @@ mod tests {
         let view = parse_pin(&row("weather", "mod:weather:weather", "")).unwrap();
         assert_eq!(view.kind, Kind::View);
         assert!(parse_pin(&row("x", "javascript:alert(1)", "")).is_none());
+    }
+
+    fn pin_of<'a>(doc: &'a Value, id: &str) -> &'a Value {
+        doc["pins"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap()
+    }
+
+    /// W73 (I488): the silence between two tracks keeps a player past the cap, awake, and the engine up, for the grace;
+    /// after it the pin goes back to the rules and the idle clock may run.
+    #[test]
+    fn a_player_past_the_cap_is_kept_awake_through_the_grace_after_its_sound() {
+        let t0 = Instant::now();
+        let mut d = dock(&[("max_loaded", json!(1))]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        d.loaded("mail", None).unwrap();
+        d.audible("mail", true, t0).unwrap();
+        d.open("chat", Some("DP-1")).unwrap();
+        assert_eq!(d.keep(), vec!["chat", "mail"], "playing past the cap");
+        assert!(
+            pin_of(&d.doc(), "mail").get("awake").is_none(),
+            "a sounding page needs no mark"
+        );
+
+        // The track ends: silent, but in its grace.
+        let t1 = t0 + Duration::from_secs(180);
+        d.audible("mail", false, t1).unwrap();
+        assert_eq!(d.keep(), vec!["chat", "mail"], "the gap keeps the player");
+        let doc = d.doc();
+        assert_eq!(pin_of(&doc, "mail")["awake"], true);
+        assert!(
+            pin_of(&doc, "mail").get("audible").is_none(),
+            "audible stays the engine's word"
+        );
+        d.collapse();
+        assert!(!d.is_idle(), "a player in its grace holds the engine");
+        assert_eq!(d.grace_due(), Some(t1 + AUDIBLE_GRACE));
+
+        // The next track starts within the grace: the grace goes; it ends again later.
+        d.audible("mail", true, t1 + Duration::from_secs(2))
+            .unwrap();
+        assert_eq!(d.grace_due(), None);
+        let t2 = t1 + Duration::from_secs(400);
+        d.audible("mail", false, t2).unwrap();
+        assert!(!d.expire(t2 + AUDIBLE_GRACE - Duration::from_secs(1)));
+        assert!(d.keep().contains(&"mail".to_string()));
+        assert!(d.expire(t2 + AUDIBLE_GRACE), "the grace ends");
+        assert_eq!(d.grace_due(), None);
+        assert_eq!(d.keep(), vec!["chat"], "past the grace the cap applies");
+        assert!(pin_of(&d.doc(), "mail").get("awake").is_none());
+        assert!(d.is_idle(), "nothing holds the engine now");
+
+        // A first "not audible" report (no sound before it) starts no grace; a host that stops takes the grace with it.
+        d.audible("chat", false, t2).unwrap();
+        assert_eq!(d.grace_due(), None);
+        d.audible("chat", true, t2).unwrap();
+        d.audible("chat", false, t2).unwrap();
+        assert!(d.grace_due().is_some());
+        d.set_host(HostState::Off);
+        assert_eq!(d.grace_due(), None);
+    }
+
+    /// W73: a background pin, once opened, is kept past the cap, awake while loaded, and holds the engine; one that was
+    /// never opened changes nothing.
+    #[test]
+    fn a_background_pin_is_kept_awake_and_holds_the_engine_once_opened() {
+        let mut rows = rows();
+        rows.as_array_mut().unwrap().push(json!(
+            {"id": "radio", "title": "Radio", "target": "https://radio.example.org/", "background": true}
+        ));
+        let mut d = Dock::new(
+            &settings_with(rows, &[("max_loaded", json!(1))]),
+            PathBuf::from("/d/profiles"),
+            PathBuf::from("/c/icons"),
+        );
+        d.set_host(HostState::Ready);
+        assert_eq!(pin_of(&d.doc(), "radio")["background"], true);
+        assert!(pin_of(&d.doc(), "mail").get("background").is_none());
+        d.open("mail", Some("DP-1")).unwrap();
+        d.collapse();
+        assert!(d.is_idle(), "a background pin never opened holds nothing");
+        assert_eq!(d.keep(), vec!["mail"]);
+
+        d.open("radio", Some("DP-1")).unwrap();
+        d.loaded("radio", None).unwrap();
+        d.open("chat", Some("DP-1")).unwrap();
+        let mut keep = d.keep();
+        keep.sort();
+        assert_eq!(keep, vec!["chat", "radio"], "kept past the cap");
+        assert_eq!(pin_of(&d.doc(), "radio")["awake"], true);
+        d.collapse();
+        assert!(!d.is_idle(), "a loaded background pin holds the engine");
+    }
+
+    /// W73 (I488 (4)): of the open places that show a pin, the one opened or picked last shows its page; the others say
+    /// where it is. A re-rest (a move, a resize) steals nothing; a close hands the page to the next one.
+    #[test]
+    fn the_place_opened_last_shows_the_page_and_the_others_say_where() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        assert!(d.doc().get("elsewhere").is_none(), "one place: it shows it");
+
+        // The bar card opens on mail after the edge: the card shows it.
+        d.card_place(Some(card_place()), true);
+        let doc = d.doc();
+        assert_eq!(doc["elsewhere"], "card");
+        assert!(doc["card"].get("elsewhere").is_none());
+
+        // "Show here" at the edge (webdock.open) takes it back; the card's re-rest after a move does not.
+        d.open("mail", Some("DP-1")).unwrap();
+        assert_eq!(d.doc()["card"]["elsewhere"], "edge");
+        d.card_place(None, false);
+        d.card_place(Some(card_place()), false);
+        assert_eq!(
+            d.doc()["card"]["elsewhere"],
+            "edge",
+            "a re-rest steals nothing"
+        );
+        assert!(d.doc().get("elsewhere").is_none());
+        d.card_select("mail").unwrap();
+        assert_eq!(
+            d.doc()["elsewhere"],
+            "card",
+            "a pick in the card brings it there"
+        );
+
+        // The sidebar opens on mail last: it shows it, both others say so.
+        d.side_select("mail").unwrap();
+        d.place(Some(place_left()), true);
+        let doc = d.doc();
+        assert_eq!(doc["elsewhere"], "sidebar");
+        assert_eq!(doc["card"]["elsewhere"], "sidebar");
+        assert!(doc["sidebar"].get("elsewhere").is_none());
+
+        // The sidebar closes: the card (the latest of the others) shows it again.
+        d.place(None, false);
+        let doc = d.doc();
+        assert!(doc["card"].get("elsewhere").is_none());
+        assert_eq!(doc["elsewhere"], "card");
+
+        // Different pins show in every place at once.
+        d.card_select("chat").unwrap();
+        let doc = d.doc();
+        assert!(doc.get("elsewhere").is_none() && doc["card"].get("elsewhere").is_none());
+    }
+
+    /// W73: the bar card's size is published unless it is the phone (the default).
+    #[test]
+    fn the_card_size_is_published_unless_it_is_the_phone() {
+        assert!(dock(&[]).doc().get("card_size").is_none());
+        assert_eq!(
+            dock(&[("card_size", json!("tablet"))]).doc()["card_size"],
+            "tablet"
+        );
+        assert_eq!(
+            dock(&[("card_size", json!("wide"))]).doc()["card_size"],
+            "wide"
+        );
     }
 }

@@ -230,42 +230,70 @@ wait_px "$CX" "$CY" '#2b3a55' 15
 [ "$(loads site)" = "$L0" ] && [ "$(loads other)" = "$LO" ] || fail "switching pins reloaded a page (site $L0 → $(loads site), other $LO → $(loads other))"
 ok "the pin keys switch the card's page and back, with no reload"
 
-# ---- 4. the same pin at the edge ----
+# ---- 4. the same pin at the edge: last opened wins (W73, I488 (4)) ----
+# The edge card opens on the card's pin after the card: the edge shows the page, the card says where it is with "Show here";
+# that key brings it back to the card; closing the card hands it to the edge again. No move reloads the page.
+hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
+shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
+n0=$(count "webdock-panel notice This page is shown at the screen's edge" "$R/qs.log")
+K act webdock.pin '{"on":true}' >/dev/null || fail "webdock.pin refused"   # (the edge card stays while the pointer is away)
 K act webdock.open '{"pin":"site"}' >/dev/null
 wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'site'" || fail "the edge card did not open"
-sleep 1
-px_is "$CX" "$CY" '#2b3a55' || fail "the card lost its page to the edge card"
+wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
+  || fail "the daemon does not give the page to the edge opened last ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
+wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown at the screen'"'"'s edge" "$R/qs.log")" -gt '"$n0"' ]' \
+  || fail "the card does not say its pin is shown at the edge"
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT / 2 + 120 )) '#2b3a55' 15
+ok "the edge opened after the card shows the page; the card says so"
+# "Show here" in the card's well (the panel logs where its key is on the output).
+wait_until 5 grep -qF 'webdock-panel here ' "$R/qs.log" || fail "the card's notice has no Show here key"
+read -r HX HY <<< "$({ grep -F 'webdock-panel here ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel here //')"
+e0=$(count "webdock-debug edge notice This page is shown in the bar's card" "$HOSTLOG")
+mv_to "$HX" "$HY"
+ptr "$HX" "$HY"
+wait_until 5 doc_is "d.get('elsewhere') == 'card' and 'elsewhere' not in d['card']" || fail "Show here did not bring the page to the card ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' || fail "the card's window did not take the page back"
+wait_px "$CX" "$CY" '#2b3a55' 15
+wait_until 5 eval '[ "$(count "webdock-debug edge notice This page is shown in the bar'"'"'s card" "$HOSTLOG")" -gt '"$e0"' ]' \
+  || fail "the edge card does not say the page is in the bar's card"
+ok "Show here in the card brings the page back; the edge card says it is in the bar's card"
 K act ui.close >/dev/null
 wait_until 5 panel_closed || fail "the card did not close"
-wait_until 10 eval '[ "$(grep -F "webdock-debug card hidden" "$HOSTLOG" | wc -l)" -gt 0 ]'
-sleep 1
+wait_until 5 doc_is "'elsewhere' not in d" || fail "the edge did not get the page back when the card closed"
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT / 2 + 120 )) '#2b3a55' 15
 [ "$(loads site)" = "$L0" ] || fail "moving the page between the card and the edge reloaded it ($L0 → $(loads site))"
 K act webdock.hide >/dev/null
-ok "the same pin at the edge: the card keeps the page while the edge shows the pin; closing the card reloads nothing"
+K act webdock.pin '{"on":false}' >/dev/null
+ok "the same pin at the edge: the place opened last shows the page, Show here moves it, closing hands it on; no reload"
 qml_errors
 
-# ---- 4b. the same pin in the sidebar: the sidebar keeps the page, the card says so; closed, the card takes it ----
+# ---- 4b. the same pin in the sidebar: the card opened after the sidebar takes the page; closed, the sidebar has it ----
 K set sidebar.left.sections '["mod:webdock:webdock"]' >/dev/null || fail "sidebar.left.sections with the dock was refused"
 K act webdock.sidebar_select '{"pin":"site"}' >/dev/null
 K act sidebar.toggle "{\"side\":\"left\",\"output\":\"$OUT\"}" >/dev/null
 wait_until 10 doc_is "'place' in d.get('sidebar', {})" || fail "the sidebar never placed the dock's page ($(doc "d.get('sidebar')"))"
 wait_until 10 grep -qF 'webdock-debug side shown' "$HOSTLOG" || fail "the host did not show the page in the sidebar"
 shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
-n0=$(count 'webdock-panel notice This page is shown in the sidebar' "$R/qs.log")
+side0=$(count 'webdock-debug side shown' "$HOSTLOG")
+n0=$(count "webdock-panel notice This page is shown in the bar's card" "$R/qs.log")
 K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
 wait_until 5 panel_open || fail "the card did not open beside the sidebar"
 if doc_is "'place' in d.get('sidebar', {})"; then
-  wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown in the sidebar" "$R/qs.log")" -gt '"$n0"' ]' \
-    || fail "the card does not say its pin is shown in the sidebar"
-  sleep 1
-  [ "$(count 'webdock-debug card shown' "$HOSTLOG")" = "$shown0" ] || fail "the card took the page the sidebar shows"
+  wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' \
+    || fail "the card opened after the sidebar did not take the page"
+  wait_until 5 doc_is "d['sidebar'].get('elsewhere') == 'card'" || fail "the daemon kept the page in the sidebar ($(doc "d.get('sidebar')"))"
+  wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown in the bar'"'"'s card" "$R/qs.log")" -gt '"$n0"' ]' \
+    || fail "the sidebar does not say its pin is shown in the bar's card"
+  wait_px "$CX" "$CY" '#2b3a55' 15
+  K act ui.close >/dev/null
+  wait_until 5 panel_closed || fail "the card did not close"
+  doc_is "'place' in d.get('sidebar', {})" || fail "closing the card closed the sidebar"
+  wait_until 10 eval '[ "$(count "webdock-debug side shown" "$HOSTLOG")" -gt '"$side0"' ]' \
+    || fail "the sidebar did not take the page back once the card closed"
+  ok "the same pin in the sidebar: the card opened later shows the page, the sidebar says so; closed, the sidebar has it again"
   K act sidebar.toggle '{"side":"left"}' >/dev/null
   wait_until 10 doc_is "'place' not in d.get('sidebar', {})" || fail "the sidebar did not close"
-  panel_open || fail "closing the sidebar closed the card"
-  wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' \
-    || fail "the card did not take the page once the sidebar closed"
-  wait_px "$CX" "$CY" '#2b3a55' 15
-  ok "the same pin in the sidebar: the sidebar keeps the page, the card says so; closed, the card shows it"
 else
   ok "(opening the card closed the sidebar: no both-at-once case to check)"
 fi
