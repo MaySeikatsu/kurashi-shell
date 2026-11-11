@@ -304,6 +304,14 @@ Singleton {
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
     readonly property string joinKind: String(tok("join.kind", "auto"))
     readonly property string joinCorner: String(tok("join.corner", "round"))
+    // I489 (session 29): a window's blur region has round corners only. Under a corner shape that cuts inside the
+    // round one (a cut, steps, an outward quarter's notch) a region rounded as the surface used to be showed the blurred
+    // desk past the shaped corner, as a ghost of the old rounding; so the region's corner is the round one that lies
+    // within the shape (a larger radius), and none under a square corner. `r`: the surface's own corner radius.
+    function blurCorner(r) {
+        return joinCorner === "chamfer" || joinCorner === "steps" ? r * 1.71
+            : joinCorner === "bulge" ? r * 2.42 : joinCorner === "square" ? 0 : r
+    }
     // Whether cards join their bar at all (`[decor] surface.join`, W53.5, unless the user says: `theme.join`).
     readonly property bool surfaceJoin: joinKind === "float" ? false
         : (joinKind === "dynamic" || joinKind === "connected" || joinKind === "bridge" ? true : decor("surface.join", true) !== false)

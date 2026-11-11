@@ -489,11 +489,14 @@ Scope {
                         + " " + f(E) + arc(R, 1, snapCx - as, E) + " Z"
                 }
                 readonly property bool drawn: !freed && !leaving && win.drip
-                readonly property string fillPath: !drawn ? "" : Corner.squircled(detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true), Theme.squircle)
-                readonly property string linePath: !drawn ? "" : Corner.squircled(detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false), Theme.squircle)
+                // (I489: a toast's corners take the sheet's corner shape, as every surface drawn as a path)
+                readonly property string fillPath: !drawn ? "" : Corner.squircled(detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true), Theme.squircle, Theme.joinCorner)
+                readonly property string linePath: !drawn ? "" : Corner.squircled(detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false), Theme.squircle, Theme.joinCorner)
                 readonly property string shadowPath: !drawn || (win.shadowSx === 0 && win.shadowSy === 0) ? ""
-                    : Corner.squircled(detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z", Theme.squircle)
-                readonly property color lineColor: card.urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+                    : Corner.squircled(detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z", Theme.squircle, Theme.joinCorner)
+                // (the frame's line where the frame draws one, as every surface's: session 29)
+                readonly property color lineColor: card.urgent ? Theme.accent
+                    : (Theme.frameOutline ? Theme.frameOutlineColor : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline))
 
                 // ---- where the card is drawn (local top), and its space in the stack.
                 readonly property real ly: detached ? ry + dy : by0

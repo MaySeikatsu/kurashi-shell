@@ -530,10 +530,12 @@ Scope {
                         // (K83, W59.9a: none while a shape form masks the dock — it would show the body's rect)
                         width: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.width : 0
                         height: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.height : 0
-                        topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rDock
-                        topRightRadius: dock.joined ? joinedShape.sTR : Theme.rDock
-                        bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rDock
-                        bottomRightRadius: dock.joined ? joinedShape.sBR : Theme.rDock
+                        // (joined: the round corner within the sheet's corner shape, Theme.blurCorner)
+                        readonly property real capR: Math.min(width, height) / 2
+                        topLeftRadius: dock.joined ? Math.min(capR, Theme.blurCorner(joinedShape.sTL)) : Theme.rDock
+                        topRightRadius: dock.joined ? Math.min(capR, Theme.blurCorner(joinedShape.sTR)) : Theme.rDock
+                        bottomLeftRadius: dock.joined ? Math.min(capR, Theme.blurCorner(joinedShape.sBL)) : Theme.rDock
+                        bottomRightRadius: dock.joined ? Math.min(capR, Theme.blurCorner(joinedShape.sBR)) : Theme.rDock
                     }
                     // Test only (frontend/test-dock.sh): the window's size and each tile's box in window coordinates, logged once
                     // the dock stands after a change. Off without the variable.

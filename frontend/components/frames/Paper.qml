@@ -30,7 +30,7 @@ FrameBase {
         opacity: f.small ? 0.07 : 0.11
     }
     Rectangle {
-        visible: !f.ground
+        visible: !f.ground && !f.shaped
         anchors.fill: parent
         anchors.margins: 1.5
         radius: Math.max(0, f.radius - 1.5)

@@ -426,7 +426,7 @@ PanelWindow {
     Region { id: cardRegion; item: card }
     Region { id: peekRegion; item: peekCard }
     // (rounded as the cards are drawn: a square region showed the blur past their corners, I276)
-    Region { id: cardBlur; item: card; radius: card.radius }
+    Region { id: cardBlur; item: card; radius: card.cornerJoin !== "" ? Math.min(Theme.blurCorner(card.radius), card.width / 2, card.height / 2) : card.radius }
     Region { id: peekBlur; item: peekCard; radius: peekCard.radius }
     // A morphing peek grows from its widget's group: behind its body as drawn, never its card's box ahead of it (I295).
     Region {
@@ -448,10 +448,12 @@ PanelWindow {
         y: stage.flip ? stage.morphH - stage.blurTop - stage.blurH : stage.blurTop
         width: stage.shapeW
         height: stage.blurH
-        topLeftRadius: stage.flip ? shape.rBot : shape.rTop
-        topRightRadius: stage.flip ? shape.rBot : shape.rTop
-        bottomLeftRadius: stage.flip ? shape.rTop : shape.rBot
-        bottomRightRadius: stage.flip ? shape.rTop : shape.rBot
+        // (the round corner within the sheet's corner shape: Theme.blurCorner)
+        readonly property real capR: Math.min(width, height) / 2
+        topLeftRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rBot : shape.rTop))
+        topRightRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rBot : shape.rTop))
+        bottomLeftRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rTop : shape.rBot))
+        bottomRightRadius: Math.min(capR, Theme.blurCorner(stage.flip ? shape.rTop : shape.rBot))
         // (K83, iris: only inside the circle; otherwise an empty union, so the region is exactly today's)
         Region {
             readonly property bool on: stage.sf !== null && stage.sf.irisR >= 0
@@ -1739,6 +1741,8 @@ PanelWindow {
     }
     RoundBox {
         id: card
+        // (a sheet of its own where no shape draws it: its corners take the sheet's corner shape, I489)
+        sheet: true
         visible: stage.shown
         // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel
         // asks for its card width (contract row 66); the session menu is as wide as its row of tiles; the rest keep 360 px.
@@ -1826,16 +1830,50 @@ PanelWindow {
         Loader {
             anchors.fill: parent
             active: !stage.morphDraws && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
-            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
+            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a; shaped: card.cornerJoin !== "" }
         }
         // I460 prototype: the wash on the card's fill.
+        // I489 (session 29): under a corner shape other than round (`card.cornerJoin`) the wash and the material are cut
+        // to the card's own shape — a mask of it, drawn once per size (as JoinedCard's) — or their rounded rectangle
+        // lay over the shaped corners.
+        readonly property bool cornerMasked: card.cornerJoin !== "" && (Theme.washOn || Theme.texShell)
+            && !stage.morphDraws && !stage.ownChrome && card.visible
+        readonly property real groundR: cornerMasked ? 0 : Math.max(0, card.radius - Theme.outlineW)
+        Loader {
+            id: cornerMask
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: card.cornerMasked
+            sourceComponent: Item {
+                readonly property alias copy: maskCopy
+                SquircleRect {
+                    id: maskDraw
+                    anchors.fill: parent
+                    radius: Math.max(0, card.radius - Theme.outlineW)
+                    refRadius: card.radius
+                    join: card.cornerJoin
+                    color: "white"
+                    onOuterChanged: maskCopy.scheduleUpdate()
+                }
+                StillCopy {
+                    id: maskCopy
+                    x: -100000
+                    width: parent.width
+                    height: parent.height
+                    sourceItem: maskDraw
+                    hideSource: true
+                }
+            }
+        }
+        readonly property var groundMask: cornerMask.item ? cornerMask.item.copy : null
         Loader {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.washOn && !stage.morphDraws && !stage.ownChrome
             sourceComponent: Wash {
                 anchors.fill: parent
-                radius: Math.max(0, card.radius - Theme.outlineW)
+                radius: card.groundR
+                mask: card.groundMask
                 fill: Qt.alpha(Theme.panel, 1)
                 strength: Theme.panel.a
             }
@@ -1846,7 +1884,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.texShell && !Theme.texText && !stage.morphDraws && !stage.ownChrome
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+            sourceComponent: Relief { anchors.fill: parent; radius: card.groundR; mask: card.groundMask }
         }
         // With `texture.text` the relief lies over the views too: their text and icons sink into the same sheet.
         Loader {
@@ -1854,7 +1892,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
             active: Theme.texShell && Theme.texText && !stage.morphDraws && !stage.ownChrome
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+            sourceComponent: Relief { anchors.fill: parent; radius: card.groundR; mask: card.groundMask }
         }
         // W53.4: the look's ground pattern (Aqua's pinstripes) on the window's ground, under the views; made only while the
         // look has one.

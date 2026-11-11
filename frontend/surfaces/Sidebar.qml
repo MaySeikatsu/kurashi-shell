@@ -478,10 +478,12 @@ Scope {
                         y: win.blurY0
                         width: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurX1 - win.shX0) : 0
                         height: Theme.blur && !win.flyouts && !win.formBlurOff ? Math.max(0, win.blurY1 - win.blurY0) : 0
-                        topLeftRadius: shape.sTL
-                        topRightRadius: shape.sTR
-                        bottomLeftRadius: shape.sBL
-                        bottomRightRadius: shape.sBR
+                        // (the round corner within the sheet's corner shape: Theme.blurCorner)
+                        readonly property real capR: Math.min(width, height) / 2
+                        topLeftRadius: Math.min(capR, Theme.blurCorner(shape.sTL))
+                        topRightRadius: Math.min(capR, Theme.blurCorner(shape.sTR))
+                        bottomLeftRadius: Math.min(capR, Theme.blurCorner(shape.sBL))
+                        bottomRightRadius: Math.min(capR, Theme.blurCorner(shape.sBR))
                         // W53.3: under flyouts the blur lies under each flyout's plate only (up to four: the notifications,
                         // the calendar and the sections after them; I325).
                         Region {
