@@ -15,18 +15,36 @@ Item {
     // the page's icon, saved once per icon to `iconDir/<pin>.png` (the daemon's icon cache: it accepts nothing else) and
     // reported with the load, so the shell — another process, without the engine's favicon provider — can show it.
     property string iconDir: ""
+    property bool siteIcons: true
     property string savedIcon: ""
+    // (session 31: a grab draws the item in its window, so it works only while that window is shown — the page often
+    // loads in a hidden one, and the one try on load failed without a word; the user saw no icon at all. It is tried
+    // again whenever the page is shown, and every few seconds while it is shown and has none saved.)
     function saveIcon() {
+        var w = favicon.Window.window
+        if (debugLog) console.log("webdock-debug icon " + pinId + " dir=" + (iconDir !== "") + " icon=" + String(web.icon)
+            + " status=" + favicon.status + " win=" + (w ? w.visible : "none") + " grabbing=" + grabbing + " saved=" + savedIcon)
         if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
+        if (!w || !w.visible || grabbing) return
         var at = String(web.icon)
-        favicon.grabToImage(function (res) {
+        grabbing = favicon.grabToImage(function (res) {
+            page.grabbing = false
             var path = page.iconDir + "/" + page.pinId.replace(/[^A-Za-z0-9_.-]/g, "_") + ".png"
-            if (res.saveToFile(path)) {
+            var saved = res.saveToFile(path)
+            if (page.debugLog) console.log("webdock-debug icon saved " + page.pinId + " " + path + " " + saved)
+            if (saved) {
                 page.savedIcon = at
                 if (page.report) page.report("webdock.host.loaded", { pin: page.pinId, icon: path })
             }
         }, Qt.size(64, 64))
     }
+    property bool grabbing: false
+    readonly property bool iconOwed: iconDir !== "" && String(web.icon) !== "" && String(web.icon) !== savedIcon
+    Connections {
+        target: page.iconOwed && favicon.Window.window ? favicon.Window.window : null
+        function onVisibleChanged() { Qt.callLater(page.saveIcon) }
+    }
+    Timer { interval: 3000; repeat: true; running: page.iconOwed && page.active; onTriggered: page.saveIcon() }
     // (drawn, at an opacity the eye cannot see, so it can be grabbed; only while it holds an icon)
     Image {
         id: favicon
@@ -102,7 +120,11 @@ Item {
     property Item home: null
     property Item sideHost: null
     // Test only (KURASHI_WEBDOCK_DEBUG=1): the page drawn or frozen.
-    onActiveChanged: if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
+    onActiveChanged: {
+        if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
+        // (I495: a page shown again tries its icon)
+        if (active) Qt.callLater(saveIcon)
+    }
     property bool debugLog: false
     // (W73: the engine's state names: Active, Frozen, Discarded)
     function lifeLog(what) {
@@ -127,6 +149,7 @@ Item {
         id: web
         anchors.fill: parent
         pinId: page.pinId
+        siteIcons: page.siteIcons
         report: page.report
         profile: page.profile
         newTabsInDock: page.newTabsInDock

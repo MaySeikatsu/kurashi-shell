@@ -201,6 +201,11 @@ wait_until 5 panel_open || fail "the card did not open"
 check_geometry site top
 wait_px "$CX" "$CY" '#2b3a55' 15
 ok "the page is on screen inside the card ($CX,$CY is the page's colour)"
+# Session 31 (I495): the page's own icon is saved while the card shows it and the pin names it (the strip and the bar draw
+# it in place of the letter).
+wait_until 10 doc_is "any(p['id'] == 'site' and str(p.get('icon') or '').startswith('file://') for p in d['pins'])" \
+  || fail "the page's icon was not saved for its pin ($(doc "[(p['id'], p.get('icon')) for p in d['pins']]"))"
+ok "the page's icon is saved and named on its pin"
 wait_until 5 doc_is "d['card'].get('pin') == 'site' and 'place' in d['card']" || fail "the daemon's card: $(doc "d.get('card')")"
 sleep 0.5
 timeout 20 grim -g "$(( PX - 40 )),0 $(( PW + 80 ))x$(( PY + PH + 40 ))" "$SHOTS/card-top.png" && ok "shot mods/webdock/shots/card-top.png"
@@ -471,7 +476,7 @@ wait_px "$CX" "$CY" '#2b3a55' 15
 # By keyboard: a click on the first pin's key gives the card the keys; Tab walks the keys and, past the settings key,
 # hands the keyboard to the page (`webdock.card_focus`); typed text arrives; Esc closes the card.
 ptr $(( PX + 20 )) $(( PY + 20 ))
-for _ in 1 2 3 4 5; do
+for _ in 1 2 3 4 5 6 7 8; do   # (the pins, +, keep, size, settings: session 31 added the keep key)
   keys tab
   doc_is "d['card'].get('focus', 0) >= 1" && break
 done
@@ -598,15 +603,24 @@ wait_until 10 doc_is "d.get('sizes', {}).get('$OUT', {}).get('height') == 824 an
 ok "the bar card's side grip: wider writes the width alone ($(doc "d['sizes']['$OUT']"); height 824 kept, the well ${WW}x$WH)"
 K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null || fail "webdock.resize (reset) refused"
 wait_until 10 doc_is "'sizes' not in d" || fail "the reset kept the box"
-# Keep open at the edge: the page moves to the edge dock, pinned; the bar card closes.
-wait_until 10 eval '[ -n "$(card_keys o)" ]'
-read -r _ _ _ _ _ _ _ KX KY <<< "$(card_keys o)"
-mv_to "$KX" "$KY"
-ptr "$KX" "$KY"
-wait_until 5 panel_closed || fail "Keep open at the edge did not close the bar card"
+# Session 31 (the user: the pin keeps the bar's card open while other content has the focus): kept (`ui.keep`), a click
+# on the desk passes through and the card stays; let go, the next click elsewhere closes it.
+K act ui.keep '{"on":true}' >/dev/null || fail "ui.keep refused"
+wait_until 5 doc_is "d.get('kept') == d.get('panel') and d.get('panel', '') != ''" runtime.ui \
+  || fail "ui.keep did not keep the open card ($(doc "(d.get('panel'), d.get('kept'))" runtime.ui))"
+ptr $(( W_OUT / 4 )) $(( H_OUT / 2 ))
+sleep 1
+panel_closed && fail "a click elsewhere closed the kept card"
+K act ui.keep '{"on":false}' >/dev/null || fail "ui.keep off refused"
+wait_until 5 doc_is "'kept' not in d" runtime.ui || fail "ui.keep off left the card kept"
+ptr $(( W_OUT / 4 )) $(( H_OUT / 2 ))
+wait_until 5 panel_closed || fail "let go, a click elsewhere did not close the card"
+ok "a kept bar card stays through a click elsewhere; let go, a click elsewhere closes it"
+# (the steps below use the strip at the edge, as "Keep open at the edge" left it before session 31)
+K act webdock.open '{"pin":"o"}' >/dev/null || fail "webdock.open refused"
+K act webdock.pin '{"on":true}' >/dev/null || fail "webdock.pin refused"
 wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'o' and d['pinned'] == True" \
-  || fail "Keep open at the edge did not pin the page at the edge ($(doc "(d['mode'], d.get('shown'), d['pinned'])"))"
-ok "Keep open at the edge: the page at the edge, the dock pinned, the bar card closed"
+  || fail "the edge did not open pinned on o ($(doc "(d['mode'], d.get('shown'), d['pinned'])"))"
 qml_errors
 
 # ---- 6d. W76: the pin's menu on the strip: Reload, Update pin to this page, Unpin but keep open ----

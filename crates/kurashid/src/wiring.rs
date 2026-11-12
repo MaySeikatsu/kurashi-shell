@@ -344,6 +344,32 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             Ok(None)
         }
     });
+    // Session 31 (the user: a pinned card "stays open" while other content has the focus): `ui.keep {on}` keeps the open
+    // panel open — runtime.ui `kept` names it (absent while none); a click elsewhere no longer closes it (ClickAway), Esc,
+    // its module and `ui.close` still do. A panel that changes is no longer the kept one (the frontend compares).
+    let h = hub.clone();
+    actions.register("ui.keep", "action.ui.keep", move |a| {
+        let hub = h.clone();
+        async move {
+            let on = a["on"]
+                .as_bool()
+                .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+            hub.update("runtime.ui", None, |d| {
+                let panel = d["panel"].as_str().unwrap_or_default().to_owned();
+                match d.as_object_mut() {
+                    Some(o) if on && !panel.is_empty() => {
+                        o.insert("kept".into(), json!(panel));
+                    }
+                    Some(o) => {
+                        o.remove("kept");
+                    }
+                    None => {}
+                }
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
     // What `kurashi act --list` shows for the ones that take arguments (PROTOCOL §6).
     for (id, args) in [
         ("island.expand", "{island?, face?}"),
@@ -353,6 +379,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         ("sidebar.open", "{side, output?}"),
         ("ui.peek", "{source?, output, x, w}"),
         ("ui.polkit", "{active}"),
+        ("ui.keep", "{on}"),
     ] {
         actions.describe(id, args);
     }

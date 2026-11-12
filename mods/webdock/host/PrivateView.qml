@@ -29,7 +29,10 @@ WebEngineView {
     settings.localContentCanAccessRemoteUrls: false
     // The engine fetches no page icon (favicon.ico, touch icons): the net log test found the favicon.ico request
     // of a page the fixture did not make. Letter tiles stand in for the icons (docs/ux/webdock.md "Privacy").
-    settings.autoLoadIconsForPage: false
+    // (session 31, `mods.webdock.site_icons`, on by default: the user asked for the sites' own images — the page's
+    // icon from the site it is on; off, no icon request at all, as K38's net-log proof checks)
+    property bool siteIcons: false
+    settings.autoLoadIconsForPage: siteIcons
     settings.touchIconsEnabled: false
 
     function send(action, args) {

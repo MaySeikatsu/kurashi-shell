@@ -2292,6 +2292,11 @@ pub struct Desktop {
     /// The song that plays, with its controls; hidden while nothing plays.
     #[kurashi(default = true, requires = "desktop.enabled == true")]
     pub media: bool,
+    /// Moving level bars
+    /// The now-playing card's bars move with the sound. Each move redraws the whole desktop on every screen — on two
+    /// large screens about a core's quarter each while music plays — so by default they stand as a still "playing" mark.
+    #[kurashi(default = false, requires = "desktop.media == true", since = 7)]
+    pub media_bars: bool,
     /// Weather
     /// Today's weather, while the weather mod is on and has a place.
     #[kurashi(default = true, requires = "desktop.enabled == true")]
