@@ -281,7 +281,18 @@ place does), by `webdock.sidebar_select` and
 `webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on, title?}` (the page title rides along, I495) · `webdock.host.blocked {pin, permission}`
 (`camera|microphone|location|notifications|screen|clipboard|download|other`; cleared by the next `loaded`) ·
 `webdock.host.new_window {pin, url}` (→ `open_external`) · `webdock.host.crashed {pin}` (`error` =
-`webdock.error.crashed` until the next `loaded`).
+`webdock.error.crashed` until the next `loaded`) · `webdock.host.url {pin, url}` (W76: published as the pin's `at` while
+the page is away from its own address).
+**Round three (W76, session 30; CONTRACT-CHANGE 740, 742):** the document's top-level `sizes {<output>: {width,
+height}}` (the card's box the user dragged; absent while none) and, on a pin, `temporary: true` (a page the settings do not
+hold: "+", or "Unpin but keep open"; not listed in the strip), `was` (a pin made from a temporary page: the host renames
+it, no reload), `at` (the page's address while it is not the pin's own), `reload` (a counter the host answers),
+`page_title` (with `audible`, I495). Actions: `webdock.browse {place: edge|card|sidebar, output?}` → `{pin}` ·
+`webdock.go {pin, text}` → `{url}` (an address, or a search with `search`; `javascript:` and `data:` are words) ·
+`webdock.drop {pin}` · `webdock.unpin {pin}` (the page is kept) · `webdock.reload {pin}` · `webdock.resize {output,
+width?, height?}` (writes `sizes`; none removes the row) · `webdock.retarget {pin, url?}` (no url: the page's `at`) ·
+`webdock.add {url, title?, from?}` (from a temporary page: it is adopted). Settings `sizes` (records) and `search`
+(`https://duckduckgo.com/?q={q}` by default), `bar_site`, `bar_playing` (I495).
 
 **Shell side (K40, rows 88, 109–111):** the shell draws the indicator, the strip and the card of a view pin
 (`surface:dock` → `qml/surfaces/dock.qml`, one per output, required property `screen`); the bar widget

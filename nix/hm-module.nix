@@ -49,7 +49,7 @@ let
   # into the Nix layer. A null option writes nothing and leaves the mod's default in place.
   webdockSettingKeys = [
     "default_view" "width" "large" "edge" "unload_after" "max_loaded" "hover" "hover_takes_page" "reopen_last"
-    "pinned" "reserve" "indicator" "strip" "new_tabs" "card_size"
+    "pinned" "reserve" "indicator" "strip" "new_tabs" "card_size" "search" "bar_site" "bar_playing"
   ];
   webdockSetting = type: description: lib.mkOption {
     type = lib.types.nullOr type;
@@ -323,6 +323,9 @@ in
       unload_after = webdockSetting (lib.types.ints.between 0 1440) "Minutes without a shown site before the web engine stops; 0 keeps it running while the dock is on (mod default: 60).";
       max_loaded = webdockSetting (lib.types.ints.between 1 12) "Sites kept loaded at once, the shown one included (mod default: 4).";
       hover = webdockSetting lib.types.bool "Reveal the dock when the pointer rests on its edge; off, only the keybind and the bar button show it (mod default: true).";
+      search = webdockSetting lib.types.str "Where a word typed into the address field is looked up; `{q}` stands for the words (mod default: DuckDuckGo).";
+      bar_site = webdockSetting lib.types.bool "The bar module shows the open site's image beside its icon (mod default: false).";
+      bar_playing = webdockSetting lib.types.bool "While a site plays sound, the bar module shows its image and the page's title (mod default: false).";
       hover_takes_page = webdockSetting lib.types.bool "A hover reveal of the edge dock takes a pin's page from the bar's card or the sidebar; off, only a click, the dock's key or Show here moves it (mod default: true).";
       reopen_last = webdockSetting lib.types.bool "A reveal opens the page that was open; clicking its icon puts it away (mod default: true).";
       pinned = webdockSetting lib.types.bool "The strip stays while the pointer is elsewhere (mod default: false).";
