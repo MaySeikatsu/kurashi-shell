@@ -1556,3 +1556,18 @@ automatic blocks already frame each zone's stretch as one (the user: "like it wo
 **Why.** The user's points 12 and 4e, their answer "named groups", Noctalia v5's capsule groups as the model
 (https://docs.noctalia.dev/noctalia/v5.4.0/bar/). Comma-separated members keep the records editor usable at once; the
 drag and drop of the brief (docs/ux/groups.md) is the next step.
+
+## K146 — Settings docks in a sidebar section as a third host (session 31, card W77, I501)
+**Decision.** A sidebar section `settings` shows the full Settings: the section reports its well's rect at rest with
+`settings.dock {output, side, inset, top, width, height, radius?}` (`{}` when it goes); the daemon keeps it in the new
+document `runtime.settings.dock` and starts Settings for it (`KURASHI_SETTINGS_DOCK=1`) when none runs, tracking the
+process it started so a rest while it starts never starts a second. Settings adds a host `dock` beside window and sheet: a
+layer surface anchored to the usable area's top and the sidebar's side, exactly over the well (the frame the web dock's
+sidebar window uses, so the compositor puts both in the same place — the card's `x, y` from the output's corner would
+differ between a pinned column, which keeps a zone, and every other one, which ignores zones). One content item: a window
+the user opened keeps it and the dock offers "Show here" (and the other way round). A process started only for the dock
+ends a minute after the dock goes, so a slide or a scroll (each withdraws the rect) never restarts it. Under 720 px the
+chrome goes compact (search across, a pages drawer). `settings.open` with no target asks a running Settings `open`
+instead of `current`, so a dock-only process shows its window.
+**Why.** The user's answer to I501, "Full Settings docked"; KDE's KCMs hosted in another shell (the same modules in a
+dialog) and browsers' side panels (a page reflowed to a column) are the models (docs/ux/settings.md "In a sidebar").

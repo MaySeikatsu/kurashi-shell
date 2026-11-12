@@ -536,7 +536,7 @@ fn put(t: &mut dyn toml_edit::TableLike, path: &[&str], item: toml_edit::Item) {
     }
 }
 /// The right sidebar's core sections (W29, docs/ux/sidebar.md), offered before the mods' panels.
-const SIDEBAR_SECTIONS: [&str; 7] = [
+const SIDEBAR_SECTIONS: [&str; 8] = [
     "header",
     "toggles",
     "sliders",
@@ -545,6 +545,8 @@ const SIDEBAR_SECTIONS: [&str; 7] = [
     "media",
     // Session 30 (I501): the launcher's search as a section.
     "launcher",
+    // W77 (I501, K146): Settings itself, docked over the section's well.
+    "settings",
 ];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
@@ -2561,6 +2563,38 @@ impl ConfigStore {
             },
         );
         let app = Arc::new(app);
+        // W77 (K146): Settings docked over a sidebar section's well. The rect goes into `runtime.settings.dock`
+        // (absent while undocked); a rest starts Settings when it does not run (never twice: the process the daemon
+        // started is tracked until it exits, so a report while it is still starting does not start another).
+        self.hub.register(SETTINGS_RUNTIME_DOC, json!({}), None);
+        let started = Arc::new(Mutex::new(false));
+        let (me, dock_app) = (self.clone(), app.clone());
+        actions.register("settings.dock", "action.settings.dock", move |v| {
+            let me = me.clone();
+            let app = dock_app.clone();
+            let started = started.clone();
+            async move {
+                let Some(dock) = settings_dock_of(&v)? else {
+                    let _ = me.hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
+                        if let Some(o) = d.as_object_mut() {
+                            o.remove("dock");
+                        }
+                    });
+                    return Ok(Some(json!({"docked": false})));
+                };
+                // Started (or found running) first: a dock nothing will draw is not written (Shōjiki).
+                let how = tokio::task::spawn_blocking(move || app.run_for_dock(&started))
+                    .await
+                    .map_err(|e| ActionError::Internal(e.to_string()))??;
+                let _ = me.hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
+                    if !d.is_object() {
+                        *d = json!({});
+                    }
+                    d["dock"] = dock;
+                });
+                Ok(Some(json!({"docked": true, "opened": how})))
+            }
+        });
         let me = self.clone();
         actions.register("settings.open", "action.settings.open", move |v| {
             let me = me.clone();
@@ -2633,7 +2667,8 @@ impl SettingsApp {
             SettingsTarget::Page(page) => {
                 probe(&qs, &self.dir, &["page", page]).then_some("jumped")
             }
-            SettingsTarget::Window => probe(&qs, &self.dir, &["current"]).then_some("open"),
+            // (`open` also shows the window of a process that runs only for a sidebar's dock, W77)
+            SettingsTarget::Window => probe(&qs, &self.dir, &["open"]).then_some("open"),
         };
         if let Some(how) = running {
             return Ok(how);
@@ -2659,6 +2694,93 @@ impl SettingsApp {
         reap(child);
         Ok("launched")
     }
+}
+
+impl SettingsApp {
+    /// W77 (K146): makes sure a Settings process runs for a sidebar's dock. Answers `running` (the process the daemon
+    /// started for a dock has not exited, or a window answers) or `launched` (a new process with
+    /// `KURASHI_SETTINGS_DOCK=1`: it maps no window of its own and ends a minute after the dock goes). `started` is held
+    /// across the check and the start, so two reports at once start one process.
+    pub fn run_for_dock(&self, started: &Arc<Mutex<bool>>) -> Result<&'static str, ActionError> {
+        if !self.dir.join("shell.qml").is_file() {
+            return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
+        }
+        let qs = find_program("qs", &self.path)
+            .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
+        let mut alive = started.lock().expect("settings dock lock");
+        if *alive || probe(&qs, &self.dir, &["current"]) {
+            return Ok("running");
+        }
+        let child = Command::new(&qs)
+            .arg("-p")
+            .arg(&self.dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0)
+            .env_remove("KURASHI_SETTINGS_KEY")
+            .env_remove("KURASHI_SETTINGS_PAGE")
+            .env("KURASHI_SETTINGS_DOCK", "1")
+            .spawn()
+            .map_err(|e| {
+                tracing::warn!(error = %e, "settings for the dock did not start");
+                ActionError::Unavailable(SETTINGS_NO_RUNTIME.into())
+            })?;
+        *alive = true;
+        let flag = started.clone();
+        let spawned = std::thread::Builder::new()
+            .name("settings-dock".into())
+            .spawn(move || {
+                let mut child = child;
+                let _ = child.wait();
+                *flag.lock().expect("settings dock lock") = false;
+            });
+        if let Err(e) = spawned {
+            tracing::warn!(error = %e, "settings for the dock not reaped");
+        }
+        Ok("launched")
+    }
+}
+
+/// The Settings runtime document (W77, K146): `dock` while a sidebar section shows Settings, absent otherwise.
+pub const SETTINGS_RUNTIME_DOC: &str = "runtime.settings";
+
+/// `settings.dock` args: `{}` (the dock goes) or the well's rect, `{output, side, inset, top, width, height, radius?}`
+/// in the sidebar window's frame (Placement: from the usable area's top and the sidebar's side). Anything else is
+/// `error.args.invalid`.
+fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
+    let bad = || ActionError::Invalid(ARGS_INVALID.into());
+    let Some(o) = v.as_object() else {
+        return if v.is_null() { Ok(None) } else { Err(bad()) };
+    };
+    if o.is_empty() {
+        return Ok(None);
+    }
+    let output = o
+        .get("output")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(bad)?;
+    let side = o
+        .get("side")
+        .and_then(Value::as_str)
+        .filter(|s| *s == "left" || *s == "right")
+        .ok_or_else(bad)?;
+    let int = |k: &str, lo: i64| {
+        o.get(k)
+            .and_then(Value::as_f64)
+            .filter(|n| n.fract() == 0.0 && *n >= lo as f64 && *n <= 100_000.0)
+            .map(|n| n as i64)
+            .ok_or_else(bad)
+    };
+    let (inset, top) = (int("inset", 0)?, int("top", 0)?);
+    let (width, height) = (int("width", 1)?, int("height", 1)?);
+    let mut dock = json!({"output": output, "side": side, "inset": inset, "top": top,
+                          "width": width, "height": height});
+    if !matches!(o.get("radius"), None | Some(Value::Null)) {
+        dock["radius"] = json!(int("radius", 0)?);
+    }
+    Ok(Some(dock))
 }
 
 /// Where `settings.open` takes Settings: a setting's row, a page (`keys`, `mod:<id>`; I40), or
