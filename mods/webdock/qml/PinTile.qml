@@ -74,6 +74,8 @@ Item {
             sourceSize.height: 64
             fillMode: Image.PreserveAspectFit
             asynchronous: true
+            // (the host saves a newer icon under the same name: I495)
+            cache: false
             visible: tile.iconUp
         }
         Text {

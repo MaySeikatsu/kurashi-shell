@@ -160,3 +160,11 @@
 "webdock.error.card_size" = "The card size must be as at the edge, phone, tablet or wide"
 "webdock.error.forced" = "The configuration sets this; change it there"
 "action.webdock.card_size" = "Change the size of the bar's web dock card"
+
+# I495 (session 30): the bar module's views.
+"mods.webdock.bar_site" = "Show the open site in the bar"
+"mods.webdock.bar_site.help" = "The bar module shows the image of the site the dock shows last, beside its own icon, so you see what opens."
+"mods.webdock.bar_playing" = "Show what plays in the bar"
+"mods.webdock.bar_playing.help" = "While a site plays sound, the bar module shows that site's image and the page's title — the track for a music site."
+"webdock.dock.widget.playing" = "{site} plays: {title}"
+"webdock.dock.widget.site" = "shows {site}"

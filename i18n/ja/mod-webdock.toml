@@ -160,3 +160,11 @@
 "webdock.error.card_size" = "カードの大きさは、端と同じ、スマホ、タブレット、ワイドのどれかです"
 "webdock.error.forced" = "設定ファイルで決められています。変更はそちらで行います"
 "action.webdock.card_size" = "バーのウェブドックのカードの大きさを変える"
+
+# I495 (session 30)
+"mods.webdock.bar_site" = "開いているサイトをバーに表示"
+"mods.webdock.bar_site.help" = "バーのモジュールが、ドックが最後に表示したサイトの画像を自分のアイコンの横に表示します。何が開くかがわかります。"
+"mods.webdock.bar_playing" = "再生中のものをバーに表示"
+"mods.webdock.bar_playing.help" = "サイトが音を鳴らしている間、バーのモジュールにそのサイトの画像とページのタイトル（音楽サイトなら曲名）を表示します。"
+"webdock.dock.widget.playing" = "{site} で再生中：{title}"
+"webdock.dock.widget.site" = "{site} を表示中"

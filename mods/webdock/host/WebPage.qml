@@ -11,6 +11,36 @@ Item {
     property string target: ""
     property var profile: null
     property var report: null
+    // I495 (session 30, the user: the strip and the bar show the site's own image, its letter only where none is known):
+    // the page's icon, saved once per icon to `iconDir/<pin>.png` (the daemon's icon cache: it accepts nothing else) and
+    // reported with the load, so the shell — another process, without the engine's favicon provider — can show it.
+    property string iconDir: ""
+    property string savedIcon: ""
+    function saveIcon() {
+        if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
+        var at = String(web.icon)
+        favicon.grabToImage(function (res) {
+            var path = page.iconDir + "/" + page.pinId.replace(/[^A-Za-z0-9_.-]/g, "_") + ".png"
+            if (res.saveToFile(path)) {
+                page.savedIcon = at
+                if (page.report) page.report("webdock.host.loaded", { pin: page.pinId, icon: path })
+            }
+        }, Qt.size(64, 64))
+    }
+    // (drawn, at an opacity the eye cannot see, so it can be grabbed; only while it holds an icon)
+    Image {
+        id: favicon
+        z: -1
+        width: 32
+        height: 32
+        opacity: 0.01
+        visible: String(web.icon) !== ""
+        source: web.icon
+        sourceSize: Qt.size(64, 64)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        onStatusChanged: if (status === Image.Ready) Qt.callLater(page.saveIcon)
+    }
     // The profile's view: "mobile" or "desktop". A change reloads the page (the user agent is sent with a request).
     property string mode: ""
     property bool active: false

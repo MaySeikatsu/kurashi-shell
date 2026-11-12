@@ -79,6 +79,8 @@ ShellRoot {
         id: card
         pins: root.pins
         keepWeb: root.keepWeb
+        // I495 (session 30): where a page's icon is saved for the strip and the bar (the daemon's `dirs.icons`)
+        iconDir: root.doc.dirs ? (root.doc.dirs.icons || "") : ""
         shownId: root.shownId
         open: root.cardOpen
         edge: root.doc.edge || "right"

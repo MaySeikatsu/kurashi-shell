@@ -327,6 +327,10 @@ pub struct Config {
     pub hover: bool,
     /// A hover reveal counts as opening the edge, so it takes a page another place shows (`hover_takes_page`, W74).
     pub hover_takes_page: bool,
+    /// The bar module shows the shown pin's image beside its own (`bar_site`, I495).
+    pub bar_site: bool,
+    /// While a page plays sound the bar module shows its image and its title (`bar_playing`, I495).
+    pub bar_playing: bool,
     /// A reveal opens the card of the shown pin again (`reopen_last`).
     pub reopen_last: bool,
     /// The dock stays open: nothing hides it (`pinned`).
@@ -374,6 +378,8 @@ impl Config {
             max_loaded: number("max_loaded", 4).max(1),
             hover: flag("hover", true),
             hover_takes_page: flag("hover_takes_page", true),
+            bar_site: flag("bar_site", false),
+            bar_playing: flag("bar_playing", false),
             reopen_last: flag("reopen_last", true),
             pinned: flag("pinned", false),
             reserve: flag("reserve", false),
@@ -409,6 +415,8 @@ struct PinState {
     icon: Option<String>,
     /// The end of the grace after the page's last sound (W73, [`AUDIBLE_GRACE`]); `None` while it plays or never did.
     grace: Option<Instant>,
+    /// The page's title as the host last reported it with its sound (I495): what a player's page names.
+    page_title: Option<String>,
 }
 
 /// The side of the sidebar window the dock's panel sits in (W30, `webdock.sidebar`).
@@ -992,6 +1000,16 @@ impl Dock {
         Ok(())
     }
 
+    /// The page's title the host reports with its sound (I495); a pin that is not a known web pin is ignored.
+    pub fn page_title(&mut self, pin: &str, title: Option<String>) {
+        if self.web_pin(pin).is_err() {
+            return;
+        }
+        if let Some(t) = title {
+            self.states.entry(pin.to_string()).or_default().page_title = Some(t);
+        }
+    }
+
     /// The moment the first grace after a sound ends, for the supervisor's timer (rule 5: none while none runs).
     pub fn grace_due(&self) -> Option<Instant> {
         self.states.values().filter_map(|st| st.grace).min()
@@ -1132,6 +1150,13 @@ impl Dock {
         if self.config.card_size != CardSize::Dock {
             doc["card_size"] = json!(self.config.card_size.name());
         }
+        // I495 (session 30): the bar module's views, named only while on.
+        if self.config.bar_site {
+            doc["bar_site"] = json!(true);
+        }
+        if self.config.bar_playing {
+            doc["bar_playing"] = json!(true);
+        }
         // B117: named only while off (the shell keeps the edge's hover zone reachable over an open card while it is on).
         if !self.config.hover_takes_page {
             doc["hover_takes_page"] = json!(false);
@@ -1220,11 +1245,19 @@ impl Dock {
             out["view"] = json!(view.name());
             out["profile"] = json!(p.profile);
             out["loaded"] = json!(st.loaded);
-            if let Some(icon) = st.icon {
+            // I495 (session 30): an icon the host saved before (an earlier run, a page since unloaded) shows until the
+            // page reports one again.
+            if let Some(icon) = st.icon.or_else(|| {
+                let saved = self.icons.join(format!("{}.png", icon_name(&p.id)));
+                saved.is_file().then(|| file_url(&saved))
+            }) {
                 out["icon"] = json!(icon);
             }
             if st.audible {
                 out["audible"] = json!(true);
+                if let Some(t) = st.page_title.as_ref().filter(|t| !t.is_empty()) {
+                    out["page_title"] = json!(t);
+                }
             }
             // W73: the pin keeps running in the background; its page stays Active though hidden and silent.
             if p.background {
@@ -1673,6 +1706,19 @@ fn unique_id(base: &str, taken: &[&str]) -> String {
         }
         n += 1;
     }
+}
+
+/// The file name the host gives a pin's icon (`WebPage.saveIcon`): the id with anything but `[A-Za-z0-9_.-]` as `_`.
+fn icon_name(id: &str) -> String {
+    id.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
 }
 
 /// The `file://` URL of an icon the host reports, if it is an absolute path under the icon cache with no `..`
@@ -2861,5 +2907,44 @@ mod tests {
             Err(DockError::Forced)
         );
         assert_eq!(DockError::Forced.key(), "webdock.error.forced");
+    }
+
+    /// I495 (session 30): the page's title rides with its sound into the pin's doc, only while it sounds; the bar
+    /// module's views are named in the doc only while on.
+    #[test]
+    fn a_sounding_page_names_its_title_and_the_bar_views_follow_their_settings() {
+        let now = Instant::now();
+        let mut d = dock(&[]);
+        assert!(d.doc().get("bar_site").is_none() && d.doc().get("bar_playing").is_none());
+        d.audible("mail", true, now).unwrap();
+        d.page_title("mail", Some("Song — Artist".into()));
+        let pin = |d: &Dock| d.doc()["pins"].as_array().unwrap()[0].clone();
+        assert_eq!(pin(&d)["page_title"], "Song — Artist");
+        d.audible("mail", false, now).unwrap();
+        assert!(pin(&d).get("page_title").is_none(), "silent: no title");
+        d.page_title("weather", Some("x".into()));
+        d.page_title("nobody", Some("x".into()));
+        let d = dock(&[("bar_site", json!(true)), ("bar_playing", json!(true))]);
+        assert_eq!(d.doc()["bar_site"], true);
+        assert_eq!(d.doc()["bar_playing"], true);
+    }
+
+    /// I495: an icon the host saved in an earlier run shows before the page reports one again.
+    #[test]
+    fn a_saved_icon_shows_before_the_page_loads() {
+        let dir =
+            std::env::temp_dir().join(format!("kurashi-webdock-icons-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("mail.png"), b"png").unwrap();
+        let d = Dock::new(
+            &settings_with(rows(), &[]),
+            PathBuf::from("/d/profiles"),
+            dir.clone(),
+        );
+        let pins = d.doc()["pins"].clone();
+        assert_eq!(pins[0]["icon"], json!(file_url(&dir.join("mail.png"))));
+        assert!(pins[1].get("icon").is_none(), "no file, no icon");
+        assert_eq!(icon_name("a b/ç"), "a_b__");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

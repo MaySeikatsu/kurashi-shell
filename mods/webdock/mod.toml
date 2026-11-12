@@ -154,6 +154,22 @@ default = true
 label = "mods.webdock.hover_takes_page"
 help = "mods.webdock.hover_takes_page.help"
 
+# I495 (session 30; the user: "show the active site right next to the pinned bar module", "shows the active current site
+# playing music and their title"): the bar module's two views.
+[[setting]]
+key = "bar_site"
+type = "bool"
+default = false
+label = "mods.webdock.bar_site"
+help = "mods.webdock.bar_site.help"
+
+[[setting]]
+key = "bar_playing"
+type = "bool"
+default = false
+label = "mods.webdock.bar_playing"
+help = "mods.webdock.bar_playing.help"
+
 [[setting]]
 key = "reopen_last"
 type = "bool"

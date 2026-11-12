@@ -118,6 +118,9 @@ impl NativeMod for Webdock {
             },
         )?;
         let writer = ctx.settings_writer();
+        // I495 (session 30): the host saves the pages' icons here; it cannot make the directory itself (QML). Should it
+        // fail, the host's save fails and the strip keeps the letters it showed before.
+        let _ = std::fs::create_dir_all(self.dirs.icons());
         let dock = Dock::new(&settings, self.dirs.profiles(), self.dirs.icons())
             .with_forced(forced_of(&settings));
         let initial = dock.doc();
@@ -573,7 +576,14 @@ impl Shared {
             .as_bool()
             .ok_or_else(|| dock_error(DockError::Argument))?;
         let now = Instant::now();
-        self.with_dock(|d| d.audible(pin, on, now).map_err(dock_error))?;
+        // I495 (session 30): the page's title rides along (a player's page names its track there: Spotify, YouTube),
+        // for the bar module's playing view.
+        let title = str_arg(args, "title").map(str::to_owned);
+        self.with_dock(|d| {
+            d.audible(pin, on, now).map_err(dock_error)?;
+            d.page_title(pin, title);
+            Ok(())
+        })?;
         Ok(None)
     }
 
@@ -602,8 +612,10 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 17] = [
+const SETTING_KEYS: [&str; 19] = [
     "pins",
+    "bar_site",
+    "bar_playing",
     "default_view",
     "width",
     "large",

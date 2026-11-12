@@ -76,7 +76,9 @@ WebEngineView {
 
     onRenderProcessTerminated: (status, code) => send("webdock.host.crashed", { pin: pinId })
 
-    onRecentlyAudibleChanged: function () { send("webdock.host.audible", { pin: pinId, on: view.recentlyAudible }) }
+    onRecentlyAudibleChanged: function () { send("webdock.host.audible", { pin: pinId, on: view.recentlyAudible, title: String(view.title || "") }) }
+    // I495 (session 30): a player's page names its track in its title — the bar module's playing view follows it.
+    onTitleChanged: if (view.recentlyAudible) send("webdock.host.audible", { pin: pinId, on: true, title: String(view.title || "") })
 
     // The page's console goes to the host's log only when the test asks for it (KURASHI_WEBDOCK_DEBUG=1):
     // the typed text of a fixture page is how the B27 keyboard test reads what arrived.
