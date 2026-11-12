@@ -1543,3 +1543,16 @@ the form's solid fill end at the landing). Closings and motion off have none.
 **Why.** The user: the opening's face "pops towards the actual background … this shouldn't be a stiff pop but rather
 ease/blend over". B111 removed one cause (the launcher); the blend covers every remaining difference between a form's
 picture and the surface at rest, whatever its cause, at the cost of one extra pass for a few frames.
+
+## K145 — Named groups, one model for bars and sidebars; core keys can be records (session 30, I502)
+**Decision.** `[[layout.groups]]` rows `{id, name, members, accordion}` (members comma-separated ids), the schema's
+records type now open to core keys (`KurashiLeaf::record`, `ModuleGroups`). A bar zone or a sidebar lists a group as
+`group:<id>`; the daemon offers every group to both lists, expands a zone's group into its members tagged `group` in
+`runtime.layout` (and lists `groups: {id: {name, accordion}}` per output; both absent while unused, so the existing
+fixtures stand), and the shell draws a tagged run as one block (a folding one shows its first member until the pointer
+or the keyboard is in it). In a sidebar the shell expands a group itself: one tab whose page stacks the members, or the
+members under the group's name in one column. A `bar.grouping` choice was built and dropped the same day: today's
+automatic blocks already frame each zone's stretch as one (the user: "like it works today"), so it would add nothing.
+**Why.** The user's points 12 and 4e, their answer "named groups", Noctalia v5's capsule groups as the model
+(https://docs.noctalia.dev/noctalia/v5.4.0/bar/). Comma-separated members keep the records editor usable at once; the
+drag and drop of the brief (docs/ux/groups.md) is the next step.

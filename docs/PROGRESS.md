@@ -397,4 +397,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S30.5 | An opening sheet form blends into the surface at its landing (K144, I503 item 6) | ✅ functional (no error, splat seen in bursts) · 🟡 UX (a blend of 220 ms is below what grim's bursts resolve; the user judges) | feat/s30-refine |
 | S30.6 | Fresh text on all text, Settings hides a Reset that changes nothing (I503 item 5, I505 item 11) | ✅ functional · 🟡 UX (quick card's labels in kana on niri; Settings not shot) | feat/s30-refine |
 | S30.7 | Web dock: the sites' own images, the open site and what plays in the bar, a user agent without QtWebEngine (I495, I498) | 🟡 functional (unit tests; not seen on screen; WhatsApp needs the user's network) · 🟡 UX | feat/s30-webdock |
+| S30.8 | Named groups: `layout.groups` (a core records key), a bar group a block of its own that can fold, a group as one sidebar tab or one stack (K145, I502) | ✅ functional (layout unit test, offers test) · 🟡 UX (bar and sidebar seen on nested niri; no drag and drop in Settings yet: the records editor) | feat/s30-groups |
+| S30.9 | A sidebar's "+" chooses what it shows; the launcher's search and mods' desk cards (notes, lyrics) as sections (I500 c, I501) | ✅ functional · 🟡 UX (seen on niri; Settings docked in a sidebar is W77, the web dock's Local mode W78) | feat/s30-groups |
 
