@@ -201,6 +201,11 @@ wait_until 5 panel_open || fail "the card did not open"
 check_geometry site top
 wait_px "$CX" "$CY" '#2b3a55' 15
 ok "the page is on screen inside the card ($CX,$CY is the page's colour)"
+# Session 31 (I495): the page's own icon is saved while the card shows it and the pin names it (the strip and the bar draw
+# it in place of the letter).
+wait_until 10 doc_is "any(p['id'] == 'site' and str(p.get('icon') or '').startswith('file://') for p in d['pins'])" \
+  || fail "the page's icon was not saved for its pin ($(doc "[(p['id'], p.get('icon')) for p in d['pins']]"))"
+ok "the page's icon is saved and named on its pin"
 wait_until 5 doc_is "d['card'].get('pin') == 'site' and 'place' in d['card']" || fail "the daemon's card: $(doc "d.get('card')")"
 sleep 0.5
 timeout 20 grim -g "$(( PX - 40 )),0 $(( PW + 80 ))x$(( PY + PH + 40 ))" "$SHOTS/card-top.png" && ok "shot mods/webdock/shots/card-top.png"
