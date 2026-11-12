@@ -12,6 +12,8 @@ import "decor"
 // place at rest (K61: its relief carries the sheet along while the stack springs).
 RoundBox {
     id: c
+    // (a sheet of its own, in the toast stack and the centre: its corners take the sheet's corner shape, I489)
+    sheet: true
     property var item: ({})
     property bool swipeable: true
     property bool bare: false
@@ -57,6 +59,7 @@ RoundBox {
             item.title = Qt.binding(function () { return c.item.summary || "" })
             item.tailSide = Qt.binding(function () { return c.tailSide })
             item.tailAt = Qt.binding(function () { return c.tailAt })
+            if (item.sheet !== undefined) item.sheet = true
         }
     }
     border.color: urgent ? Theme.accent : Theme.surfaceLineColor

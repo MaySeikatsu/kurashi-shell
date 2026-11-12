@@ -41,10 +41,18 @@ Item {
     readonly property bool horizontal: edge === "left" || edge === "right"
     // Where the captured card lies in this item (normally the same rect: FormHost's body fills it).
     readonly property rect area: {
+        // (read again on every frame the window draws while the form is there: where the source lies may change — a
+        // window kept after a close, K139, takes its width after it is shown — and mapToItem tells of no change)
+        var dep = tick
         var s = source, w = width, h = height
         if (!s || s.width <= 0 || s.height <= 0) return Qt.rect(0, 0, w, h)
         var o = s.mapToItem(sheet, 0, 0)
         return Qt.rect(o.x, o.y, s.width, s.height)
+    }
+    property int tick: 0
+    Connections {
+        target: sheet.Window.window
+        function onAfterAnimating() { sheet.tick++ }
     }
     readonly property real along: horizontal ? area.height : area.width
     readonly property real away: horizontal ? area.width : area.height
@@ -90,7 +98,10 @@ Item {
     // --- handover (read by the host: CONTRACT-CHANGE row 656) ---
     // (a form may widen these windows — genie's body pours a long way, so its shadow fades with it, S21)
     property real shadowK: smooth01((p - 0.9) / 0.1)
-    property real filletK: smooth01((p - 0.85) / 0.15)
+    // (session 29: the fillets come in from the form's middle on, not over its last 15 % — the neighbour's rule opens
+    // for them as the form begins, and a join that stood without its fillets until the very end, beside a rule already
+    // cut for them, read as a gap)
+    property real filletK: smooth01((p - 0.5) / 0.4)
     readonly property bool solidFill: true
     readonly property bool blurOff: true
 

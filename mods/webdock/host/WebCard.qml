@@ -1012,6 +1012,18 @@ PanelWindow {
                                     primary: true
                                     onClicked: if (card.report && card.shownId !== "")
                                         card.report("webdock.open", { pin: card.shownId, output: card.output })
+                                    // (test only, W74: the key's middle in the window, and the window's size — test-card.sh
+                                    // presses it on screen after a hover reveal)
+                                    onVisibleChanged: if (card.debugLog && visible) hereLog.restart()
+                                    Timer {
+                                        id: hereLog
+                                        interval: 300
+                                        onTriggered: {
+                                            var p = hereKey.mapToItem(null, hereKey.width / 2, hereKey.height / 2)
+                                            console.log("webdock-debug edge here " + Math.round(p.x) + " " + Math.round(p.y)
+                                                + " " + card.availW + " " + card.availH)
+                                        }
+                                    }
                                 }
                             }
 

@@ -249,12 +249,17 @@ Shape {
         // breath of the second colour)
         sourceComponent: PaintBands { color: Theme.paintSheet; wild: true; blend: Theme.paintBlend * 0.3 }
     }
+    // Session 29: the outline as a stroke along its centre line (as the pen draws it, and the frame its rule), not
+    // the band between two contours a line's width apart: the curve renderer antialiases such a band unevenly round a
+    // corner, and the user saw a card's corner rougher than the frame's beside it.
+    readonly property bool stroked: !penOn && !Theme.painted && ow > 0 && shown
     ShapePath {
-        strokeWidth: -1
-        strokeColor: "transparent"
-        fillRule: ShapePath.OddEvenFill
-        fillColor: sh.penOn || Theme.painted ? "transparent" : sh.oc
-        PathSvg { path: sh.penOn ? "" : sh.band(0, sh.ow) }
+        strokeWidth: sh.stroked ? sh.ow : -1
+        strokeColor: sh.stroked ? sh.oc : "transparent"
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.MiterJoin
+        PathSvg { path: sh.stroked ? sh.path(sh.ow / 2, true, 0) : "" }
     }
     ShapePath {
         strokeWidth: -1

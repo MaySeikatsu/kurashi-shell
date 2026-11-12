@@ -665,6 +665,8 @@
 "config.sidebar.left.draw.label" = "描き方"
 "config.sidebar.left.draw.help" = "ダイナミック：バー（なければ画面の端）から反対の端まで、その側にぴったり付き、丸いフィレットでバーとつながります。フローティング：どの端からも少し離し、すべての角を丸くして、ルックの影を付けます。自動はレイアウトの描き方に従います。"
 "config.sidebar.from_bar.help" = "バーのクイック設定ボタンで、クイック設定カードの代わりに右のサイドバーを開きます。サイドバー自身のボタンはそのまま。下でバーに置くか外せます。"
+"config.sidebar.keep_loaded.label" = "閉じたサイドバーを待機させる"
+"config.sidebar.keep_loaded.help" = "閉じたサイドバーは、ウィンドウと中身を画面の外で1分間保ち、次に開くときはすぐに現れます。その1分間はメモリを使い、各セクションが見ている情報の購読も続きます。オフ：閉じたサイドバーはすぐに破棄され、開くたびに作り直されます。"
 "config.sidebar.from_bar.label" = "クイック設定で右のサイドバーを開く"
 # K59/K60: texture, light, text colour, Japanese font
 "settings.section.texture" = "質感"
@@ -987,7 +989,7 @@
 "config.choice.join.connected" = "コネクテッド"
 "config.choice.join.bridge" = "ブリッジ"
 "config.theme.join_corner.label" = "角の形"
-"config.theme.join_corner.help" = "シートの角の形（半径とは別）：つながった面が出会うところ（カードとバー、ドック、サイドバーとフレーム）、フレームの内側の角、つながったカード・ドック・サイドバーの自由な角。丸み、まっすぐなカット、ピクセルの階段、しずく、または角のまま。画面そのものの角は上の設定のまま、浮いているカード・トースト・カードの中のブロックは丸みを保ちます。"
+"config.theme.join_corner.help" = "シートの角の形（半径とは別）：つながった面が出会うところ（カードとバー、ドック、サイドバーとフレーム）、フレームの内側の角、つながったカード・ドック・サイドバーの自由な角。丸み、まっすぐなカット、ピクセルの階段、しずく、または角のまま。浮いているカード、トースト、カードの中のキー・タイル・入力欄もこの形になります。画面そのものの角は上の設定のまま、ピル形はピル形のままです。"
 "config.choice.join_corner.round" = "丸み"
 "config.choice.join_corner.chamfer" = "カット"
 "config.choice.join_corner.steps" = "階段"

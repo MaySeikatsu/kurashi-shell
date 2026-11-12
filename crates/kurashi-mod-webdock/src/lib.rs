@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use dock::{
-    CardPlace, Dock, DockError, Part, Place, Side, View, add_row, move_row, remove_row,
-    retarget_row, rows_of, view_rows,
+    CardPlace, Dock, DockError, Part, Place, Side, View, add_row, card_size_step, move_row,
+    remove_row, retarget_row, rows_of, view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -471,6 +471,23 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.card_size {size?}` (W74): the bar card's size key — the size named, else the next one after the value
+    /// in effect — written through the settings (one undoable step). Refused while the configuration forces it.
+    async fn card_size(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let current = self.settings.get("card_size");
+        let next = card_size_step(
+            current.as_ref().and_then(Value::as_str),
+            str_arg(args, "size"),
+            self.settings.forced_by("card_size").is_some(),
+        )
+        .map_err(dock_error)?;
+        self.writer
+            .set("card_size", json!(next))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
     /// `webdock.add {url, title?}` → `{pin}`: a new web pin at the end of the list (K40).
     async fn add(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
@@ -585,7 +602,7 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 16] = [
+const SETTING_KEYS: [&str; 17] = [
     "pins",
     "default_view",
     "width",
@@ -594,6 +611,7 @@ const SETTING_KEYS: [&str; 16] = [
     "unload_after",
     "max_loaded",
     "hover",
+    "hover_takes_page",
     "reopen_last",
     "pinned",
     "reserve",
@@ -712,6 +730,9 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
         |s, a| async move { s.view(&a).await },
     )?;
     write_action(ctx, s, "webdock.pin", |s, a| async move { s.pin(&a).await })?;
+    write_action(ctx, s, "webdock.card_size", |s, a| async move {
+        s.card_size(&a).await
+    })?;
     write_action(ctx, s, "webdock.add", |s, a| async move { s.add(&a).await })?;
     write_action(ctx, s, "webdock.remove", |s, a| async move {
         s.remove(&a).await

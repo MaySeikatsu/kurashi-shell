@@ -104,12 +104,13 @@ choices = ["phone", "notebook", "plain"]
 label = "mods.webdock.page_style"
 help = "mods.webdock.page_style.help"
 
-# W73 (I488; docs/ux/webdock.md "The card's size"): the page's size in the bar module's card, one for all pins.
+# W73 (I488; docs/ux/webdock.md "The card's size"): the page's size in the bar module's card, one for all pins. W74: the
+# edge card's own size (`dock`: `width` × twice that) is the first choice and the default; the card's size key steps on.
 [[setting]]
 key = "card_size"
 type = "enum"
-default = "phone"
-choices = ["phone", "tablet", "wide"]
+default = "dock"
+choices = ["dock", "phone", "tablet", "wide"]
 label = "mods.webdock.card_size"
 help = "mods.webdock.card_size.help"
 
@@ -143,6 +144,15 @@ type = "bool"
 default = true
 label = "mods.webdock.hover"
 help = "mods.webdock.hover.help"
+
+# W74 (docs/ux/webdock.md "Which place shows the page"): a hover reveal of the edge takes a pin's page from the bar's
+# card or the sidebar (on), or only a click, the dock's key or "Show here" does (off).
+[[setting]]
+key = "hover_takes_page"
+type = "bool"
+default = true
+label = "mods.webdock.hover_takes_page"
+help = "mods.webdock.hover_takes_page.help"
 
 [[setting]]
 key = "reopen_last"

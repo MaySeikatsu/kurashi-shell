@@ -1603,6 +1603,7 @@ PanelWindow {
             joined: stage.joined
             headless: !stage.headMode
             opens: run.covers
+            opensSoft: run.sheet
             hx0: stage.pillCx - stage.pillW / 2
             hy0: stage.pillTop
             hw: stage.pillW

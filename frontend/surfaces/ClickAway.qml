@@ -30,7 +30,19 @@ Scope {
             WlrLayershell.namespace: "kurashi-clickaway"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             color: "transparent"
+            // B117 (session 29, the user: the web dock's edge should reveal on hover while a card is open): an edge
+            // whose hover zone asks for it (EdgeStrips.setClear) keeps its outer 2 px out of this window's input, so
+            // the zone under it still sees the pointer. A press there closes nothing.
+            readonly property string outName: ca.modelData ? ca.modelData.name : ""
+            mask: Region {
+                item: catcher
+                Region { intersection: Intersection.Subtract; x: 0; y: 0; width: catcher.width; height: EdgeStrips.clearOn(outName, "top") ? 2 : 0 }
+                Region { intersection: Intersection.Subtract; x: 0; y: catcher.height - 2; width: catcher.width; height: EdgeStrips.clearOn(outName, "bottom") ? 2 : 0 }
+                Region { intersection: Intersection.Subtract; x: 0; y: 0; width: EdgeStrips.clearOn(outName, "left") ? 2 : 0; height: catcher.height }
+                Region { intersection: Intersection.Subtract; x: catcher.width - 2; y: 0; width: EdgeStrips.clearOn(outName, "right") ? 2 : 0; height: catcher.height }
+            }
             MouseArea {
+                id: catcher
                 anchors.fill: parent
                 acceptedButtons: Qt.AllButtons
                 onPressed: Store.act("ui.close")

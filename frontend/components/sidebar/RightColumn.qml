@@ -35,6 +35,11 @@ Item {
         flyItems = out
     }
 
+    // B102: a column kept after its sidebar closed opens again as a fresh one — no page left over, scrolled to its top.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool live: !qsw || qsw.live !== false
+    onLiveChanged: if (!live) { slideAnim.stop(); slide = 0; pageC = null; pageFrom = null; flick.contentY = 0 }
+
     // ---- a tile's page over the sections ----
     property Component pageC: null
     property Item pageFrom: null

@@ -1058,7 +1058,7 @@ How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly sq
 
 #### `theme.join_corner` — Corner shape
 
-The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; cards that float, toasts and the blocks inside a card keep their rounding.
+The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the sidebars; cards that float, toasts, and the keys, tiles and fields inside a card follow too. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; a pill stays a pill.
 
 - type: `choice` · default: `"round"`
 - choices: `"round"` | `"chamfer"` | `"steps"` | `"bulge"` | `"square"`
@@ -2739,6 +2739,13 @@ Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, j
 The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own buttons stay; put them in the bar or take them out below.
 
 - type: `bool` · default: `false`
+
+#### `sidebar.keep_loaded` — Keep a closed sidebar ready
+
+A sidebar that has closed keeps its window and content for a minute, off screen, so it opens again at once. It costs its memory for that minute, and what its sections watch stays watched. Off: a closed sidebar is gone at once and is made again each time it opens.
+
+- type: `bool` · default: `true`
+- since schema v7
 
 ## Keys
 

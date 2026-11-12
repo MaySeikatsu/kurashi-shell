@@ -447,6 +447,7 @@ Item {
             anchors.fill: parent
             joined: m.joined
             opens: run.covers
+            opensSoft: run.sheet
             hx0: m.pillCx - m.pillW / 2
             hy0: m.pillTop
             hw: m.pillW

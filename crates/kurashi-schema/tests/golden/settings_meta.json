@@ -8652,6 +8652,19 @@
               "restart": false,
               "since": 1,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.sidebar.keep_loaded.help",
+              "key": "sidebar.keep_loaded",
+              "label": "config.sidebar.keep_loaded.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         }

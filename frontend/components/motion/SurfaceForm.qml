@@ -118,7 +118,9 @@ QtObject {
     // (A sheet form only: there the surface stands at rest inside the form's picture. A shape form draws the live
     // shape, which hangs from its neighbour's rule in every frame — `test-island-join`: with the rule back at the start
     // of a close it ran on under the folding card.)
-    readonly property bool covers: !sheet || (want && !pending && p > 0.9)
+    // (From the moment the form has begun to draw the surface: the neighbour fades its rule out from then on, Bar's
+    // `fadeOut`. Held to the end of the form the rule looked as if it did not belong to the surface growing over it.)
+    readonly property bool covers: !sheet || (want && !pending && p > 0.04)
     property Timer primeWait: Timer { interval: 1200; onTriggered: if (r.pending) r.start() }
     function start() {
         primeWait.stop()

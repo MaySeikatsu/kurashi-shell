@@ -319,6 +319,9 @@ Singleton {
     // exposed"): Bridge hangs a card of its own from its module by a neck under every chrome — from the module's
     // block where the bar's groups float, from the strip's edge where the bar is one strip.
     readonly property bool joinBridge: joinKind === "bridge"
+    // I492 (session 29; the user, after a comparison of every look: "make them all follow"): the blocks inside a card —
+    // tiles, keys, fields, day cells, desktop widgets — take the sheet's corner shape too. A pill stays a pill.
+    readonly property string blockJoin: joinCorner !== "round" && joinCorner !== "" ? joinCorner : ""
     // I489 (the user: the cards' connection as a draw mode of its own, not baked into the chrome): Dynamic and
     // Connected grow the card out of the bar as one shape — by fillets, or straight — whatever the chrome's own form
     // is (keycap and soft chrome hang a card from its module's block by a neck: that is Automatic there).

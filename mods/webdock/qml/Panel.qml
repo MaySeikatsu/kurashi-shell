@@ -30,13 +30,27 @@ Item {
     readonly property bool inCard: cardPlacement !== null && !placement
     // W73 (`mods.webdock.card_size`, docs/ux/webdock.md "The card's size"): the page's viewport in the card, from real
     // devices' CSS viewports less a browser's bars — phone 412 × 760, tablet 768 × 900, wide 1024 × 720; the well adds its
-    // 36 px navigation row. The card takes that width round the well (contract row 66: the card's outer width; its padding
-    // is the Stage's `pad + 4` on each side; the Stage clamps it to 360–1100 px and the output), so it shrinks, never runs
-    // off screen.
-    readonly property string cardSize: d.card_size === "tablet" || d.card_size === "wide" ? d.card_size : "phone"
-    readonly property int viewW: cardSize === "wide" ? 1024 : cardSize === "tablet" ? 768 : 412
-    readonly property int viewH: cardSize === "wide" ? 720 : cardSize === "tablet" ? 900 : 760
+    // 36 px navigation row. W74: the default (`dock`, absent in the document) is the edge card's own box, the well
+    // `geometry.width` × twice that (WebCard's phone size), so the page is that less the row. The card takes that width
+    // round the well (contract row 66: the card's outer width; its padding is the Stage's `pad + 4` on each side; the
+    // Stage clamps it to 360–1100 px and the output), so it shrinks, never runs off screen.
+    readonly property string cardSize: d.card_size === "phone" || d.card_size === "tablet" || d.card_size === "wide"
+        ? d.card_size : "dock"
+    readonly property int dockW: (d.geometry && d.geometry.width) || 412
+    readonly property int viewW: cardSize === "wide" ? 1024 : cardSize === "tablet" ? 768 : cardSize === "phone" ? 412 : dockW
+    readonly property int viewH: cardSize === "wide" ? 720 : cardSize === "tablet" ? 900 : cardSize === "phone" ? 760
+        : 2 * dockW - 36
     readonly property int cardWidth: viewW + 2 * (Theme.pad + 4)
+    // W74: the card's size key (docs/ux/webdock.md "The card's size"): the daemon steps the setting
+    // (`webdock.card_size`); a size the configuration forces (I91) leaves the key inert, with the reason.
+    readonly property var forced: d.forced || ({})
+    readonly property bool sizeForced: forced.card_size !== undefined && forced.card_size !== null
+    readonly property var sizeOrder: ["dock", "phone", "tablet", "wide"]
+    function sizeName(s) { return I18n.tr("mods.webdock.card_size." + s) }
+    readonly property string sizeTip: sizeForced
+        ? I18n.tr("webdock.dock.forced.tip").replace("{by}", String(forced.card_size))
+        : I18n.tr("webdock.card_size.next").replace("{size}", sizeName(cardSize))
+            .replace("{next}", sizeName(sizeOrder[(sizeOrder.indexOf(cardSize) + 1) % sizeOrder.length]))
 
     width: parent ? parent.width : 420
     // In the card the well is the viewport and its navigation row tall, at most the output less the bars and the card's
@@ -99,7 +113,16 @@ Item {
         else if (placement && placement.side === "left")
             console.log("webdock-panel here-side " + Math.round(placement.inset + c.x) + " " + Math.round(placement.top + c.y))
     }
-    onCardPlacementChanged: if (debugLog && shownElsewhere) hereLog.restart()
+    // (test only: where the size key is on the output while the card rests, and the size it names, test-card.sh)
+    function logSizeKey() {
+        var cp = cardPlacement
+        if (!debugLog || !inCard || !cp || cp.rest !== true) return
+        var c = sizeKey.mapToItem(panel, sizeKey.width / 2, sizeKey.height / 2)
+        console.log("webdock-panel sizekey " + Math.round(cp.x + c.x) + " " + Math.round(cp.y + c.y) + " " + cardSize
+            + (sizeForced ? " forced" : ""))
+    }
+    onCardPlacementChanged: { if (debugLog && shownElsewhere) hereLog.restart(); if (debugLog) keyLog.restart() }
+    Timer { id: keyLog; interval: 300; onTriggered: panel.logSizeKey() }
     onPlacementChanged: if (debugLog && shownElsewhere) hereLog.restart()
     // (test only: once the notice's column has laid out)
     Timer { id: hereLog; interval: 300; onTriggered: panel.logHere() }
@@ -194,7 +217,7 @@ Item {
     readonly property int tile: 40
     Flickable {
         id: row
-        width: panel.width - settingsKey.width - Theme.gap
+        width: panel.width - settingsKey.width - Theme.gap - (sizeKey.visible ? sizeKey.width + Theme.gap : 0)
         height: panel.tile + Theme.shadowDy
         contentWidth: pinRow.width
         contentHeight: height
@@ -221,6 +244,30 @@ Item {
                     }
                 }
             }
+        }
+    }
+    // W74: the card's size key, before the settings key (Tab: the pins, the size, the settings, then the page). A press
+    // steps to the next size (the daemon writes it: one undo step); forced, it stays a Tab stop so its reason is read.
+    IconButton {
+        id: sizeKey
+        visible: panel.inCard
+        anchors.right: settingsKey.left
+        anchors.rightMargin: Theme.gap
+        y: Math.round((panel.tile - height) / 2)
+        icon: "resize"
+        glyph: "⤢"
+        enabled: !panel.sizeForced
+        activeFocusOnTab: visible
+        a11y: I18n.tr("webdock.card_size.key").replace("{size}", panel.sizeName(panel.cardSize))
+        Accessible.description: panel.sizeTip
+        onClicked: Store.act("webdock.card_size", {})
+        HoverHandler { id: sizeHover }
+        // (above the key: on screen from a top or a bottom bar, and clear of the page's window over the well)
+        Tip {
+            target: sizeKey
+            text: panel.sizeTip
+            shown: sizeKey.visible && (sizeHover.hovered || sizeKey.activeFocus)
+            edge: "bottom"
         }
     }
     IconButton {

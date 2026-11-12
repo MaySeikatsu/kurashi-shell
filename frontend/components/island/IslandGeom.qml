@@ -112,7 +112,12 @@ Singleton {
     // there, and the join).
     property real openL: 0
     property real openR: 0
-    function setOpening(l, r) {
+    // `soft`: the shape is inside a motion form's picture (a sheet form), so the bar fades its rule out under the box
+    // while the picture forms. A live shape draws the rule itself from its first frame: the bar cuts at once
+    // (`test-island-join`: a rule left under a morphing card is a double line).
+    property bool openSoft: false
+    function setOpening(l, r, soft) {
+        if (openSoft !== !!soft) openSoft = !!soft
         if (openL !== l) openL = l
         if (openR !== r) openR = r
     }

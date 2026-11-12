@@ -29,8 +29,32 @@ PanelWindow {
     // The one dock window: owned by the first screen's instance, made on the first reveal and kept (no destroy per reveal).
     readonly property bool anyOpen: mode !== "hidden"
     property bool everOpened: false
-    onAnyOpenChanged: if (anyOpen) everOpened = true
-    Component.onCompleted: if (anyOpen) everOpened = true
+    onAnyOpenChanged: {
+        if (!anyOpen) return
+        everOpened = true
+        // B117 (session 29): the dock came out while a card, the launcher or a tray menu is open — the click-away layer
+        // lies over the whole usable area then, the dock under it. What was open closes, as at a click elsewhere, and
+        // the dock is the one thing out.
+        var ui = Store.docs["runtime.ui"] || ({})
+        if (firstHere && ((ui.panel || "") !== "" || ui.launcher === true || (ui.tray || "") !== "")) Store.act("ui.close")
+    }
+    Watch { doc: "runtime.ui" }
+    // B117: the edge's hover zone stays reachable under the click-away layer while a hover reveal takes the page (the
+    // default, `hover_takes_page`); with that off, an open card keeps the edge from revealing on hover, so a brush of the
+    // edge neither moves the page nor closes the card.
+    readonly property bool clearEdge: d.hover === true && d.hover_takes_page !== false
+    readonly property string clearKey: outName + "/" + edge + "/" + clearEdge
+    property string clearedOut: ""
+    property string clearedEdge: ""
+    onClearKeyChanged: syncClear()
+    function syncClear() {
+        if (clearedOut !== "") EdgeStrips.setClear(clearedOut, clearedEdge, "webdock", false)
+        clearedOut = clearEdge ? outName : ""
+        clearedEdge = clearEdge ? edge : ""
+        if (clearedOut !== "") EdgeStrips.setClear(clearedOut, clearedEdge, "webdock", true)
+    }
+    Component.onDestruction: if (clearedOut !== "") EdgeStrips.setClear(clearedOut, clearedEdge, "webdock", false)
+    Component.onCompleted: { if (anyOpen) everOpened = true; syncClear() }
     readonly property string targetName: d.output !== undefined ? d.output : (Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "")
     readonly property var target: screenNamed(targetName)
 

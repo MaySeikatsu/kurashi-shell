@@ -141,6 +141,9 @@ Item {
             height: item ? Math.max(item.implicitHeight, pane.height) : 0
             provide: lc.tab && !lc.tab.core ? "panel:" + lc.tab.ref.panel : ""
             mod: lc.tab && !lc.tab.core ? lc.tab.ref.mod : ""
+            // (B102: unloaded while the sidebar is only kept after a close, ModSection)
+            readonly property var qsw: lc.Window.window ? lc.QsWindow.window : null
+            shown: !qsw || qsw.live !== false
         }
 
         // The height on offer, for a panel that can fill it (optional `fillHeight`, MODS.md "Panels"; row 238).

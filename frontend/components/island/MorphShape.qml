@@ -333,8 +333,10 @@ Shape {
     property bool opens: true
     readonly property real openL: ruledStrip && visible && opens && width > 8 ? -Math.floor(barCx) + 2 : 0
     readonly property real openR: ruledStrip && visible && opens && width > 8 ? Math.floor(width - barCx) - 2 : 0
-    onOpenLChanged: IslandGeom.setOpening(openL, openR)
-    onOpenRChanged: IslandGeom.setOpening(openL, openR)
+    // (the owner's word that a sheet form draws the shape just now: IslandGeom `openSoft`)
+    property bool opensSoft: false
+    onOpenLChanged: IslandGeom.setOpening(openL, openR, opensSoft)
+    onOpenRChanged: IslandGeom.setOpening(openL, openR, opensSoft)
     Component.onDestruction: IslandGeom.setOpening(0, 0)
 
     // The fill's own path (inside the outline and the ring): the Stage clips the island's relief to it (I168), so the
@@ -347,14 +349,12 @@ Shape {
     // right edge, so it meets the bar's own (pen) rule; the head's outline thins out as the card opens. The ring, the
     // fill and its relief mask (`fillPath`) are untouched.
     readonly property bool penOn: Theme.penOutline
-    function penPaths() {
-        if (!visible || !penOn) return []
+    // The outline's lines along their centre (the contours at half the outline's inset), as SVG: [{d, width, closed}].
+    // `pen`: with the rule the shape carries (the pen draws it as one line with the card's sides); without, the
+    // contour alone (the rule is `rulePath`'s band).
+    function lines(pen) {
         var c = ow / 2, out = []
-        function add(d, width, closed) {
-            var subs = Pen.svgPaths(Corner.squircled(d, Theme.squircle, Theme.joinCorner))
-            for (var i = 0; i < subs.length; i++)
-                out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
-        }
+        function add(d, width, closed) { out.push({ d: d, width: width, closed: closed }) }
         if (joined && headless) {
             if (budHn > 0) add("M " + f(neckCx + budHn + budFl) + " " + f(edgeY - c) + budContour(c, 0), ow, false)
             else add(budPath(c, 0, 0), ow)
@@ -364,10 +364,11 @@ Shape {
             if (hangs) add("M" + hangStartR(c, 0) + hangContour(c, 0, false), ow, false)
         } else if (!hangs) {
             add(stripPath(c, true, 0), ow)
-            if (ruledStrip) add("M 0 " + f(edgeY - c) + " L " + f(width) + " " + f(edgeY - c), ow, false)
+            if (pen && ruledStrip) add("M 0 " + f(edgeY - c) + " L " + f(width) + " " + f(edgeY - c), ow, false)
         } else {
             var E = edgeY - c
-            add("M " + f(width) + " " + f(E) + " L " + f(x1 + n) + " " + f(E) + hangContour(c, 0, false) + " L 0 " + f(E), ow, false)
+            if (pen) add("M " + f(width) + " " + f(E) + " L " + f(x1 + n) + " " + f(E) + hangContour(c, 0, false) + " L 0 " + f(E), ow, false)
+            else add("M" + hangStartR(c, 0) + hangContour(c, 0, false), ow, false)
             if (opened < 0.99) {
                 var X0 = x0 + c, X1 = x1 - c, Y0 = y0 + c, R = edgeY - ow, t = Math.max(0, rt - c)
                 if (R - Y0 > t + 0.5)
@@ -376,6 +377,31 @@ Shape {
             }
         }
         return out
+    }
+    function penPaths() {
+        if (!visible || !penOn) return []
+        var ls = lines(true), out = []
+        for (var j = 0; j < ls.length; j++) {
+            var subs = Pen.svgPaths(Corner.squircled(ls[j].d, Theme.squircle, Theme.joinCorner))
+            for (var i = 0; i < subs.length; i++)
+                out.push({ points: subs[i].pts, closed: ls[j].closed === undefined ? subs[i].closed : ls[j].closed, width: ls[j].width })
+        }
+        return out
+    }
+    // Session 29 (the user, with crops of a card's corner beside the frame's: "outline on corners still don't look as
+    // smooth as on the frame edges"): the outline is a stroke along its centre line, as the frame's and a box's are —
+    // not the band between two contours a line's width apart, which the curve renderer antialiases unevenly round a
+    // corner (SquircleRect found the same, W56). `strokeMain`: the lines of the outline's own width; `strokeHead`: the
+    // head's outline, which thins out as the card opens.
+    readonly property var strokes: {
+        if (!visible || penOn || ow <= 0) return { main: "", head: "", headW: 0 }
+        var ls = lines(false), main = "", head = "", hw = 0
+        for (var j = 0; j < ls.length; j++) {
+            var d = Corner.squircled(ls[j].d, Theme.squircle, Theme.joinCorner)
+            if (Math.abs(ls[j].width - ow) < 0.01) main += (main ? " " : "") + d
+            else { head += (head ? " " : "") + d; hw = ls[j].width }
+        }
+        return { main: main, head: head, headW: hw }
     }
     Loader {
         anchors.fill: parent
@@ -500,11 +526,20 @@ Shape {
         PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.rulePath(), Theme.squircle, Theme.joinCorner) : "" }
     }
     ShapePath {
-        strokeWidth: -1
-        strokeColor: "transparent"
-        fillRule: ShapePath.OddEvenFill
-        fillColor: sh.penOn ? "transparent" : sh.fa(sh.oc, sh.fade)
-        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.band(0, sh.ow), Theme.squircle, Theme.joinCorner) : "" }
+        strokeWidth: sh.strokes.main !== "" ? sh.ow : -1
+        strokeColor: sh.strokes.main !== "" ? sh.fa(sh.oc, sh.fade) : "transparent"
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.MiterJoin
+        PathSvg { path: sh.strokes.main }
+    }
+    ShapePath {
+        strokeWidth: sh.strokes.head !== "" && sh.strokes.headW > 0.01 ? sh.strokes.headW : -1
+        strokeColor: sh.strokes.head !== "" && sh.strokes.headW > 0.01 ? sh.fa(sh.oc, sh.fade) : "transparent"
+        fillColor: "transparent"
+        capStyle: ShapePath.FlatCap
+        joinStyle: ShapePath.MiterJoin
+        PathSvg { path: sh.strokes.headW > 0.01 ? sh.strokes.head : "" }
     }
     ShapePath {
         strokeWidth: -1

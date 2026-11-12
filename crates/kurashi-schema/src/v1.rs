@@ -441,8 +441,9 @@ pub struct Theme {
     /// Corner shape
     /// The shape of the sheet's corners, beside their radius: where joined surfaces meet (a card and its bar, the dock, a
     /// sidebar and the frame), the frame's inner corners, and the free corners of joined cards, the dock and the
-    /// sidebars. Rounded, cut straight across, stepped as pixels, a drop, or square. The screen's own corners stay as
-    /// set above; cards that float, toasts and the blocks inside a card keep their rounding.
+    /// sidebars; cards that float, toasts, and the keys, tiles and fields inside a card follow too. Rounded, cut
+    /// straight across, stepped as pixels, a drop, or square. The screen's own corners stay as set above; a pill
+    /// stays a pill.
     #[kurashi(default = JoinCorner::Round, section = "shape", since = 7)]
     pub join_corner: JoinCorner,
     /// Cards join their bar
@@ -2670,6 +2671,12 @@ pub struct Sidebar {
     /// buttons stay; put them in the bar or take them out below.
     #[kurashi(default = false, module = "quick")]
     pub from_bar: bool,
+    /// Keep a closed sidebar ready
+    /// A sidebar that has closed keeps its window and content for a minute, off screen, so it opens again at once. It
+    /// costs its memory for that minute, and what its sections watch stays watched. Off: a closed sidebar is gone at
+    /// once and is made again each time it opens.
+    #[kurashi(default = true, since = 7)]
+    pub keep_loaded: bool,
 }
 
 // --- the control centre (W70, I469, docs/ux/control-centre-modules.md) -----------------------------------------------

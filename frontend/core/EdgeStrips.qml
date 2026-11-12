@@ -31,6 +31,22 @@ QtObject {
         else n[k] = m
         claims = n
     }
+    // Edges that stay reachable under the click-away layer (session 29, B117): a surface whose hover zone at the usable
+    // area's edge must work while a card is open says so (`key`: who). { "<output>/<edge>": { "<key>": true } }.
+    property var clear: ({})
+    function setClear(output, edge, key, on) {
+        if (!output || !edge || !key) return
+        var k = stripKey(output, edge), c = clear[k]
+        if ((!!c && !!c[key]) === !!on) return
+        var n = Object.assign({}, clear), m = Object.assign({}, c || {})
+        if (on) m[key] = true
+        else delete m[key]
+        if (Object.keys(m).length === 0) delete n[k]
+        else n[k] = m
+        clear = n
+    }
+    function clearOn(output, edge) { var c = clear[stripKey(output, edge)]; return !!c && Object.keys(c).length > 0 }
+
     function wanted(output, edge) { var c = claims[stripKey(output, edge)]; return !!c && Object.keys(c).length > 0 }
 
     function setPos(output, edge, p) {

@@ -134,23 +134,53 @@ impl PageStyle {
     }
 }
 
-/// The bar card's size (`card_size`, W73; docs/ux/webdock.md "The card's size"): a phone's, a tablet's or a small
-/// laptop's viewport.
+/// The bar card's size (`card_size`, W73; docs/ux/webdock.md "The card's size"): the edge card's own box (`dock`,
+/// W74: `width` × twice that, the default), a phone's, a tablet's or a small laptop's viewport.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CardSize {
+    Dock,
     Phone,
     Tablet,
     Wide,
 }
 
 impl CardSize {
+    /// The order the card's size key steps through (W74), the default first.
+    const CYCLE: [Self; 4] = [Self::Dock, Self::Phone, Self::Tablet, Self::Wide];
+
     fn name(self) -> &'static str {
         match self {
+            Self::Dock => "dock",
             Self::Phone => "phone",
             Self::Tablet => "tablet",
             Self::Wide => "wide",
         }
     }
+
+    fn parse(name: &str) -> Option<Self> {
+        Self::CYCLE.into_iter().find(|s| s.name() == name)
+    }
+}
+
+/// The `card_size` a press of the bar card's size key writes (W74, `webdock.card_size {size?}`): the size asked for,
+/// else the one after the value in effect (an unknown value counts as the default). A value the configuration forces is
+/// not the user's to change: refused, as the key is inert (rule 2).
+pub fn card_size_step(
+    current: Option<&str>,
+    want: Option<&str>,
+    forced: bool,
+) -> Result<&'static str, DockError> {
+    if forced {
+        return Err(DockError::Forced);
+    }
+    if let Some(want) = want {
+        return CardSize::parse(want)
+            .map(CardSize::name)
+            .ok_or(DockError::CardSize);
+    }
+    let now = current.and_then(CardSize::parse).unwrap_or(CardSize::Dock);
+    let at = CardSize::CYCLE.iter().position(|s| *s == now).unwrap_or(0);
+    Ok(CardSize::CYCLE[(at + 1) % CardSize::CYCLE.len()].name())
 }
 
 /// The three places a pin's page can show in (W73, docs/ux/webdock.md "Which place shows the page").
@@ -258,6 +288,10 @@ pub enum DockError {
     Argument,
     /// An address that is not `https`, `http` or `file` (`add`, `retarget`).
     Address,
+    /// A `card_size` that is not one of the sizes (W74).
+    CardSize,
+    /// The configuration forces the setting a control would write (W74: the card's size key).
+    Forced,
 }
 
 impl DockError {
@@ -271,6 +305,8 @@ impl DockError {
             Self::Icon => "webdock.error.icon",
             Self::Argument => "webdock.error.argument",
             Self::Address => "webdock.error.address",
+            Self::CardSize => "webdock.error.card_size",
+            Self::Forced => "webdock.error.forced",
         }
     }
 }
@@ -289,6 +325,8 @@ pub struct Config {
     pub max_loaded: u32,
     /// A rest on an edge reveals the dock (`hover`).
     pub hover: bool,
+    /// A hover reveal counts as opening the edge, so it takes a page another place shows (`hover_takes_page`, W74).
+    pub hover_takes_page: bool,
     /// A reveal opens the card of the shown pin again (`reopen_last`).
     pub reopen_last: bool,
     /// The dock stays open: nothing hides it (`pinned`).
@@ -335,6 +373,7 @@ impl Config {
             unload_after: number("unload_after", 60),
             max_loaded: number("max_loaded", 4).max(1),
             hover: flag("hover", true),
+            hover_takes_page: flag("hover_takes_page", true),
             reopen_last: flag("reopen_last", true),
             pinned: flag("pinned", false),
             reserve: flag("reserve", false),
@@ -348,11 +387,12 @@ impl Config {
                 Some("plain") => PageStyle::Plain,
                 _ => PageStyle::Phone,
             },
-            card_size: match settings.get("card_size").as_ref().and_then(Value::as_str) {
-                Some("tablet") => CardSize::Tablet,
-                Some("wide") => CardSize::Wide,
-                _ => CardSize::Phone,
-            },
+            card_size: settings
+                .get("card_size")
+                .as_ref()
+                .and_then(Value::as_str)
+                .and_then(CardSize::parse)
+                .unwrap_or(CardSize::Dock),
         }
     }
 }
@@ -859,7 +899,14 @@ impl Dock {
                 match self.shown.clone().filter(|_| self.config.reopen_last) {
                     Some(shown) => {
                         self.mode = Mode::Extended;
-                        self.stamp(Spot::Edge);
+                        // W74 (docs/ux/webdock.md "Which place shows the page"): with `hover_takes_page` off a hover
+                        // reveal is no opening: the edge ranks below every open place (the stamp of an earlier
+                        // deliberate open must not carry over), so it shows the page only when no other place does.
+                        if self.config.hover_takes_page {
+                            self.stamp(Spot::Edge);
+                        } else {
+                            self.edge_at = 0;
+                        }
                         let web = self.is_web(&shown);
                         if web {
                             self.touch(&shown);
@@ -1080,10 +1127,14 @@ impl Dock {
         if self.config.page_style != PageStyle::Phone {
             doc["page_style"] = json!(self.config.page_style.name());
         }
-        // W73: the bar card's size, absent while the phone (the default); and the place that shows the edge card's page
-        // when that is another one (absent while the edge card shows it).
-        if self.config.card_size != CardSize::Phone {
+        // W73: the bar card's size, absent while the default (W74: `dock`, the edge card's size); and the place that
+        // shows the edge card's page when that is another one (absent while the edge card shows it).
+        if self.config.card_size != CardSize::Dock {
             doc["card_size"] = json!(self.config.card_size.name());
+        }
+        // B117: named only while off (the shell keeps the edge's hover zone reachable over an open card while it is on).
+        if !self.config.hover_takes_page {
+            doc["hover_takes_page"] = json!(false);
         }
         if let Some(at) = self.elsewhere(Spot::Edge) {
             doc["elsewhere"] = json!(at.name());
@@ -2649,17 +2700,166 @@ mod tests {
         assert!(doc.get("elsewhere").is_none() && doc["card"].get("elsewhere").is_none());
     }
 
-    /// W73: the bar card's size is published unless it is the phone (the default).
+    /// A rest on the edge of a hidden dock, until its reveal falls due.
+    fn hover_reveal(d: &mut Dock, t0: Instant) {
+        d.hide();
+        d.hover(Part::Edge, true, "DP-1", false, t0);
+        d.tick(t0 + REVEAL);
+        assert_eq!(d.doc()["mode"], "extended", "the reveal reopens the card");
+    }
+
+    /// W74 (A, the default): a hover reveal of the edge counts as opening it, so it takes the page the bar card shows.
     #[test]
-    fn the_card_size_is_published_unless_it_is_the_phone() {
+    fn a_hover_reveal_takes_the_page_by_default() {
+        let t0 = Instant::now();
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        d.hide();
+        d.card_place(Some(card_place()), true);
+        assert!(
+            d.doc()["card"].get("elsewhere").is_none(),
+            "the card shows mail"
+        );
+        hover_reveal(&mut d, t0);
+        let doc = d.doc();
+        assert_eq!(doc["card"]["elsewhere"], "edge", "the reveal took the page");
+        assert!(doc.get("elsewhere").is_none());
+    }
+
+    /// W74 (B, `hover_takes_page = false`): only a deliberate open takes the page; a hover-revealed edge ranks below every
+    /// open place — also after an earlier deliberate open of the edge — and shows the page when no other place does.
+    #[test]
+    fn with_hover_takes_page_off_a_hover_reveal_takes_nothing() {
+        let t0 = Instant::now();
+        let mut d = dock(&[("hover_takes_page", json!(false))]);
+        d.set_host(HostState::Ready);
+
+        // No other place: the hover-revealed edge shows the page.
+        d.open("mail", Some("DP-1")).unwrap();
+        hover_reveal(&mut d, t0);
+        assert!(d.doc().get("elsewhere").is_none(), "alone, it shows it");
+
+        // The card opens on mail: it shows the page. A hover reveal leaves it there, the edge says where.
+        d.hide();
+        d.card_place(Some(card_place()), true);
+        hover_reveal(&mut d, t0);
+        let doc = d.doc();
+        assert_eq!(doc["elsewhere"], "card", "the edge says it is in the card");
+        assert!(doc["card"].get("elsewhere").is_none(), "the card keeps it");
+
+        // An old stamp does not carry over: the edge opened on purpose (it takes the page), hidden, then hover-revealed.
+        d.open("mail", Some("DP-1")).unwrap();
+        assert_eq!(
+            d.doc()["card"]["elsewhere"],
+            "edge",
+            "a deliberate open takes it"
+        );
+        hover_reveal(&mut d, t0);
+        assert_eq!(
+            d.doc()["elsewhere"],
+            "card",
+            "the hover reveal after a deliberate open steals nothing"
+        );
+
+        // "Show here" at the edge (webdock.open) takes it.
+        d.open("mail", Some("DP-1")).unwrap();
+        assert_eq!(d.doc()["card"]["elsewhere"], "edge");
+        // The dock's key (webdock.toggle) is deliberate too.
+        d.toggle(None);
+        d.card_select("mail").unwrap();
+        assert_eq!(
+            d.doc()["card"].get("elsewhere"),
+            None,
+            "hidden: the card has it"
+        );
+        d.toggle(None);
+        assert_eq!(d.doc()["card"]["elsewhere"], "edge", "the key takes it");
+        // A click on a pin of the strip too: another pin, then mail again.
+        d.hide();
+        d.card_select("mail").unwrap();
+        hover_reveal(&mut d, t0);
+        assert_eq!(d.doc()["elsewhere"], "card");
+        d.select("chat", None).unwrap();
+        d.select("mail", None).unwrap();
+        assert_eq!(
+            d.doc()["card"]["elsewhere"],
+            "edge",
+            "a click on the pin takes it"
+        );
+
+        // The card closes while a hover-revealed edge is open: the page comes to the edge.
+        d.hide();
+        d.card_select("mail").unwrap();
+        hover_reveal(&mut d, t0);
+        assert_eq!(d.doc()["elsewhere"], "card");
+        d.card_place(None, false);
+        assert!(
+            d.doc().get("elsewhere").is_none(),
+            "the edge is the only place left"
+        );
+    }
+
+    /// W74: the setting carries its provenance like every mod setting.
+    #[test]
+    fn a_forced_hover_takes_page_is_published_with_its_source() {
+        let mut forced = BTreeMap::new();
+        forced.insert("hover_takes_page".to_string(), "nix".to_string());
+        let d = dock(&[("hover_takes_page", json!(false))]).with_forced(forced);
+        assert_eq!(d.doc()["forced"]["hover_takes_page"], "nix");
+    }
+
+    /// B117: the document names `hover_takes_page` only while it is off.
+    #[test]
+    fn hover_takes_page_is_published_only_while_off() {
+        assert!(dock(&[]).doc().get("hover_takes_page").is_none());
+        assert_eq!(
+            dock(&[("hover_takes_page", json!(false))]).doc()["hover_takes_page"],
+            false
+        );
+    }
+
+    /// W73, W74: the bar card's size is published unless it is the default (`dock`, the edge card's size).
+    #[test]
+    fn the_card_size_is_published_unless_it_is_the_dock() {
         assert!(dock(&[]).doc().get("card_size").is_none());
+        assert!(
+            dock(&[("card_size", json!("dock"))])
+                .doc()
+                .get("card_size")
+                .is_none()
+        );
+        for size in ["phone", "tablet", "wide"] {
+            assert_eq!(dock(&[("card_size", json!(size))]).doc()["card_size"], size);
+        }
+    }
+
+    /// W74: the card's size key steps dock → phone → tablet → wide → dock, takes a named size, refuses a bad one, and is
+    /// refused while the configuration forces the setting.
+    #[test]
+    fn the_size_key_steps_through_the_sizes_and_is_inert_when_forced() {
+        assert_eq!(card_size_step(None, None, false), Ok("phone"));
+        assert_eq!(card_size_step(Some("dock"), None, false), Ok("phone"));
+        assert_eq!(card_size_step(Some("phone"), None, false), Ok("tablet"));
+        assert_eq!(card_size_step(Some("tablet"), None, false), Ok("wide"));
+        assert_eq!(card_size_step(Some("wide"), None, false), Ok("dock"));
         assert_eq!(
-            dock(&[("card_size", json!("tablet"))]).doc()["card_size"],
-            "tablet"
+            card_size_step(Some("nonsense"), None, false),
+            Ok("phone"),
+            "an unknown value counts as the default"
         );
         assert_eq!(
-            dock(&[("card_size", json!("wide"))]).doc()["card_size"],
-            "wide"
+            card_size_step(Some("phone"), Some("wide"), false),
+            Ok("wide")
         );
+        assert_eq!(
+            card_size_step(None, Some("huge"), false),
+            Err(DockError::CardSize)
+        );
+        assert_eq!(
+            card_size_step(Some("phone"), None, true),
+            Err(DockError::Forced)
+        );
+        assert_eq!(DockError::Forced.key(), "webdock.error.forced");
     }
 }

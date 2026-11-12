@@ -48,7 +48,7 @@ let
   # The web dock's settings are the mod's own keys (K38, K40; mods/webdock/mod.toml), written as `mods.webdock.<key>`
   # into the Nix layer. A null option writes nothing and leaves the mod's default in place.
   webdockSettingKeys = [
-    "default_view" "width" "large" "edge" "unload_after" "max_loaded" "hover" "reopen_last"
+    "default_view" "width" "large" "edge" "unload_after" "max_loaded" "hover" "hover_takes_page" "reopen_last"
     "pinned" "reserve" "indicator" "strip" "new_tabs" "card_size"
   ];
   webdockSetting = type: description: lib.mkOption {
@@ -317,12 +317,13 @@ in
 
       default_view = webdockSetting (lib.types.enum [ "mobile" "desktop" ]) "The view of a pin that says `default`: mobile (phone width, mobile user agent) or desktop (mod default: mobile).";
       width = webdockSetting (lib.types.ints.between 360 720) "Phone width in pixels (mod default: 412).";
-      card_size = webdockSetting (lib.types.enum [ "phone" "tablet" "wide" ]) "The page's size in the bar module's card, one for all pins (mod default: phone).";
+      card_size = webdockSetting (lib.types.enum [ "dock" "phone" "tablet" "wide" ]) "The page's size in the bar module's card, one for all pins: `dock` is the edge card's size (`width` wide, twice that tall), the others a phone's, a tablet's or a small laptop's screen (mod default: dock).";
       large = webdockSetting (lib.types.ints.between 50 95) "The large size, as a percentage of the output's width (mod default: 90).";
       edge = webdockSetting (lib.types.enum [ "right" "left" "top" "bottom" ]) "The screen edge the dock sits at (mod default: right).";
       unload_after = webdockSetting (lib.types.ints.between 0 1440) "Minutes without a shown site before the web engine stops; 0 keeps it running while the dock is on (mod default: 60).";
       max_loaded = webdockSetting (lib.types.ints.between 1 12) "Sites kept loaded at once, the shown one included (mod default: 4).";
       hover = webdockSetting lib.types.bool "Reveal the dock when the pointer rests on its edge; off, only the keybind and the bar button show it (mod default: true).";
+      hover_takes_page = webdockSetting lib.types.bool "A hover reveal of the edge dock takes a pin's page from the bar's card or the sidebar; off, only a click, the dock's key or Show here moves it (mod default: true).";
       reopen_last = webdockSetting lib.types.bool "A reveal opens the page that was open; clicking its icon puts it away (mod default: true).";
       pinned = webdockSetting lib.types.bool "The strip stays while the pointer is elsewhere (mod default: false).";
       reserve = webdockSetting lib.types.bool "Windows make room for the strip while the dock is kept open; the page card always floats over them (mod default: false).";
