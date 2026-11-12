@@ -28,6 +28,9 @@ Rectangle {
     property bool start: false          // the label starts at the left edge (menu items)
     property bool keyed: false          // a glyph button as a block of the chrome (see the header)
     property bool enabled: true
+    // W76: a toggle that is on (the card's keep-open pin): the selected fill, the glyph filled; checkable for a11y.
+    property bool lit: false
+    property bool checkable: false
     property var tipFn: null
     readonly property string tip: a11y !== "" ? a11y : label
     signal clicked()
@@ -48,6 +51,7 @@ Rectangle {
     radius: texted ? Theme.rSm : Math.min(height / 2, Theme.rFull)
     color: texted
         ? (primary ? Theme.accent : (flat ? (hover.hovered && enabled ? Theme.containerHigh : "transparent") : Theme.containerHigh))
+        : lit ? Theme.selected
         : (block && down && !casts && Theme.pressScale >= 1 ? Qt.alpha(Theme.fg, 0.16)
             : (hover.hovered && enabled ? Theme.containerHigh : (block && lifted ? Theme.container : "transparent")))
     border.width: block ? Theme.outlineW : 0
@@ -86,6 +90,8 @@ Rectangle {
     Keys.onSpacePressed: b.press()
     Accessible.role: Accessible.Button
     Accessible.name: b.tip
+    Accessible.checkable: b.checkable
+    Accessible.checked: b.lit
     onActiveFocusChanged: if (b.tipFn) b.tipFn(b, activeFocus)
 
     Text {
@@ -94,10 +100,10 @@ Rectangle {
         y: Math.round((b.height - height) / 2)
         visible: b.shape === ""
         text: b.texted ? b.label : (b.symbols ? b.icon : b.glyph)
-        color: b.texted && b.primary ? Theme.fgOnAccent : Theme.fg
+        color: b.texted && b.primary ? Theme.fgOnAccent : (b.lit ? Theme.color("color.on_selected", Theme.fg) : Theme.fg)
         font.pixelSize: b.texted ? Theme.fsLabel : (b.symbols ? 18 : Theme.fs + 2)
         font.family: b.symbols ? Theme.iconFamily : Theme.fam(text, Theme.families)
-        font.variableAxes: b.symbols ? { "FILL": Theme.iconFill > 0 ? 1 : 0, "wght": Theme.iconWeight, "opsz": 20 } : ({})
+        font.variableAxes: b.symbols ? { "FILL": Theme.iconFill > 0 || b.lit ? 1 : 0, "wght": Theme.iconWeight, "opsz": 20 } : ({})
         renderType: Text.QtRendering
     }
 

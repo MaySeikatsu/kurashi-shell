@@ -496,16 +496,11 @@ phase_intents() {
   press tab return
   docq "[p['id'] for p in d['pins']]==['mail']" && r=1 || r=0
   check "$r" "menu: Tab skips the disabled move and Return removes the pin (the mock drops it)"
+  # W76 (docs/ux/webdock.md "Round three"): "+" opens a temporary page in the card, its address field in the title (the
+  # host's; the mock has no `webdock.browse`, row 744); the add form stays behind the empty dock's "Add a site".
   click 2531 754
-  shot add
-  check "$([ "$(changed "$W/dock-add.ppm" "$W/icompact.ppm" 2000 560 2500 900)" -gt 1000 ] && echo 1 || echo 0)" \
-    "add: the add form takes the card's place beside the strip"
-  click 2350 659
-  press h t t p s colon slash slash e x a m p l e period t e s t slash return
-  seen "i['action']=='webdock.add' and i['args']['url']=='https://example.test/'" && r=1 || r=0
-  check "$r" "add: the typed address goes to webdock.add"
-  docq "[p['id'] for p in d['pins']]==['mail','example-test']" && r=1 || r=0
-  check "$r" "add: the mock adds the pin, and the form closes with the keyboard back on the add control"
+  seen "i['action']=='webdock.browse' and i['args'].get('place')=='edge'" && r=1 || r=0
+  check "$r" "add: + asks the daemon for a temporary page at the edge (webdock.browse)"
   click 2256 17   # W23: the keyboard layout chip sits right of the widget (was 2338); K58: the sidebar button too (was 2304)
   # (I482, session 28: a click opens the dock's card; the dock at the edge is a middle click. The click's fixed x is I403's.)
   seen "i['action']=='mod.panel.open' and i['args'].get('id')=='webdock'" && r=1 || r=0

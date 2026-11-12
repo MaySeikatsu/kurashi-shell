@@ -19,10 +19,15 @@ Item {
     property bool sizable: true
     property string style: "phone"
     property string edge: "right"
+    // W76 (docs/ux/webdock.md "Round three", keep open): the dock's `pinned`, lit on the key; a forced value leaves it
+    // inert with its source in the description (I91).
+    property bool pinned: false
+    property string pinForcedBy: ""
     default property alias body: bodySlot.data
     signal sizeChosen(string size)
     signal collapse()
     signal escaped()
+    signal pinToggled()
 
     readonly property bool isNotebook: style === "notebook"
     readonly property bool isPlain: style === "plain"
@@ -127,6 +132,20 @@ Item {
             anchors.rightMargin: 4
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
+            IconButton {
+                id: pinBtn
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "push_pin"
+                glyph: "⊙"
+                lit: card.pinned
+                enabled: card.pinForcedBy === ""
+                a11y: I18n.tr(card.pinned ? "webdock.pin.undock" : "webdock.pin.dock")
+                Accessible.checkable: true
+                Accessible.checked: card.pinned
+                Accessible.description: card.pinForcedBy !== ""
+                    ? I18n.tr("webdock.dock.forced.tip").replace("{by}", card.pinForcedBy) : ""
+                onClicked: card.pinToggled()
+            }
             Button {
                 id: sizeBtn
                 visible: card.sizable
