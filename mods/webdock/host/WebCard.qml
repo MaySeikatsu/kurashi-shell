@@ -343,7 +343,7 @@ PanelWindow {
         })
     }
     // The written box arrives: the live size lets go (the box is the same, so nothing moves).
-    onBoxChanged: { liveW = -1; liveH = -1 }
+    onBoxChanged: { liveW = -1; liveH = -1; if (debugLog) Qt.callLater(gripLog) }
     // Ctrl and an arrow, 10 px a press, on the card's own chrome (never in the page: a text field's word jumps); written
     // after a short pause, so a run of presses is one undo step (the sidebar's rule).
     function nudge(key) {
@@ -631,6 +631,9 @@ PanelWindow {
     // click; inert while the configuration forces `sizes`.
     Item {
         id: grips
+        // (inside the hover area: a grip under the pointer is still the card for its hover report — a sibling took the
+        // hover from it, and the dock hid while a grip was held)
+        parent: area
         anchors.fill: parent
         z: 101
         visible: card.resizable

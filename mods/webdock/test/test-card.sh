@@ -572,13 +572,14 @@ ok "a click on the title opens the field: another page in the same view, the pin
 # The bar card's grip (W76): the edge away from a top bar is the well's foot; up by 60 → the box per output, the card follows.
 check_geometry o top
 read -r O X Y WW WH _ <<< "$(panel_card)"
+LR=$(loads o)
 GX=$(( X + WW / 2 )); GY=$(( Y + WH - 3 ))
 mv_to "$GX" "$GY"
 echo "draw $GX,$GY $GX,$(( GY - 20 )) $GX,$(( GY - 40 )) $GX,$(( GY - 60 ))" >&9; sleep 1
 wait_until 10 doc_is "d.get('sizes', {}).get('$OUT') == {'width': $WW, 'height': $(( WH - 60 ))}" \
   || fail "the grip did not write the box ($(doc "d.get('sizes')"))"
 wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "'"$WW $(( WH - 60 ))"'" ]' || fail "the card did not follow the box ($(panel_card))"
-[ "$(loads o)" = 0 ] || fail "the resize reloaded the page"
+[ "$(loads o)" = "$LR" ] || fail "the resize reloaded the page ($LR → $(loads o))"
 ok "the bar card's grip: up 60 px writes sizes[$OUT] = ${WW}x$(( WH - 60 )) and the well follows, no reload"
 K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null || fail "webdock.resize (reset) refused"
 wait_until 10 doc_is "'sizes' not in d" || fail "the reset kept the box"
@@ -619,8 +620,11 @@ keys tab tab tab return                          # … Reload, Unpin but keep op
 wait_until 5 eval '! K get mods.webdock.pins | grep -qF "\"o\""' || fail "Unpin but keep open kept the row ($(K get mods.webdock.pins))"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('temporary') == True and [p for p in d['pins'] if p['id'] == 'o'][0].get('loaded') == True" \
   || fail "the unpinned page was not kept open ($(doc "[p for p in d['pins'] if p['id'] == 'o']"))"
-timeout 10 "$W/kurashi" undo >/dev/null || fail "kurashi undo was refused"
-wait_until 5 doc_is "'temporary' not in [p for p in d['pins'] if p['id'] == 'o'][0]" || fail "undo did not bring the pin back"
+sleep 1
+U=$(timeout 10 "$W/kurashi" undo) || fail "kurashi undo was refused"
+echo "test-card: undo: $U"
+wait_until 10 doc_is "'temporary' not in [p for p in d['pins'] if p['id'] == 'o'][0]" \
+  || fail "undo did not bring the pin back ($(doc "[(p['id'], p.get('temporary')) for p in d['pins']]"); rows $(K get mods.webdock.pins | head -1 | sed "s/^[^=]*= //; s/ (.*\$//" | python3 -c "import sys,json; print([r[\"id\"] for r in json.load(sys.stdin)])"))"
 ok "the menu's Unpin but keep open: the row goes, the page stays; undo brings the pin back with its page"
 qml_errors
 

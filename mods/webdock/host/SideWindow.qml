@@ -256,6 +256,7 @@ PanelWindow {
         // W72: the card's window reports the pointer and the keyboard in it (handlers on top of the page, passive: the page
         // gets every event). Its keyboard focus gained is the page's.
         Item {
+            id: hoverLayer
             anchors.fill: parent
             z: 100
             HoverHandler {
@@ -302,6 +303,8 @@ PanelWindow {
         // screen edge. The window grows with the pointer (the page follows 1:1); on release the size is written and the
         // card follows it (the Stage lays it out again, the page re-rests there).
         Item {
+            // (inside the hover layer: the pointer on a grip is still in the page's window for its hover report)
+            parent: hoverLayer
             anchors.fill: parent
             z: 101
             visible: side.canResize
@@ -462,7 +465,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     HostButton {
-                        visible: !!side.page && !side.page.atTarget
+                        visible: !!side.page && !side.page.atTarget && !side.blank
                         glyph: "⌂"
                         icon: "home"
                         a11y: I18n.tr("webdock.nav.home")

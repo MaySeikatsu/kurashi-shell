@@ -79,6 +79,7 @@ for scheme in ${SCHEMES:-light dark}; do
   K act webdock.resize '{"output":"winit","width":480,"height":760}' > /dev/null
   wait_doc "d.get('sizes', {}).get('winit') == {'width': 480, 'height': 760}" 10 || fail "the box was not written ($scheme)"
   sleep 2
+  for _ in $(seq 20); do [ "$(last 'webdock-debug grips winit ' | awk '{print $3}')" = 480 ] && break; sleep 0.5; done
   read -r gx gy gw gh aw ah <<< "$(last 'webdock-debug grips winit ')"
   [ -n "${aw:-}" ] || fail "the edge card logged no grips ($scheme)"
   wx=$(( 1920 - 56 - aw ))

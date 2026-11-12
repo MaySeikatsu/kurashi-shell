@@ -57,15 +57,16 @@ PanelWindow {
 
     // ---- the pins and the card's subject ----
     readonly property var pins: d.pins || []
-    // W76: the pins the strip lists: a temporary page (from "+", or unpinned but kept open) is shown, never listed.
-    readonly property var listed: pins.filter(function (p) { return p.temporary !== true })
+    // W76: the pins the strip lists: a temporary page (from "+", or unpinned but kept open) is shown, never listed. Made
+    // in refreshRows, and replaced only when the rows change (a binding made a new list on every patch of the document).
+    property var listed: []
     readonly property string shownId: d.shown || ""
     readonly property var shownPin: pinOf(shownId)
     readonly property string hostState: (d.host && d.host.state) || "off"
     readonly property string hostReason: (d.host && d.host.reason) || ""
     readonly property var view: viewOf(shownPin && shownPin.kind === "view" ? String(shownPin.target) : "")
     property var rowList: []
-    onListedChanged: refreshRows()
+    onPinsChanged: refreshRows()
 
     function pinOf(id) {
         for (var i = 0; i < pins.length; i++)
@@ -89,14 +90,16 @@ PanelWindow {
     // The strip's rows: the pins in order with a divider where the kind changes, then the dock's controls. The list is
     // replaced only when its content changes, so the strip's tiles (and the focus on them) survive other patches.
     function refreshRows() {
-        var out = [], ps = listed
+        var out = [], ps = []
+        for (var k = 0; k < pins.length; k++)
+            if (pins[k].temporary !== true) ps.push(pins[k])
         for (var i = 0; i < ps.length; i++) {
             if (i > 0 && ps[i].kind !== ps[i - 1].kind) out.push({ kind: "divider" })
             out.push({ kind: "pin", pin: ps[i] })
         }
         if (ps.length > 0) out.push({ kind: "divider" })
         out.push({ kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" }, { kind: "ctl", ctl: "settings" })
-        if (JSON.stringify(out) !== JSON.stringify(rowList)) rowList = out
+        if (JSON.stringify(out) !== JSON.stringify(rowList)) { rowList = out; listed = ps }
     }
     Component.onCompleted: { refreshRows(); Qt.callLater(function () { dock.born = true }) }
 
@@ -117,7 +120,7 @@ PanelWindow {
     // The content held while a panel slides out (it stays until the slide ends, then unloads: Ma).
     property string held: ""
     onKindNowChanged: if (kindNow !== "") held = kindNow
-    onOpenChanged: { if (!open) side = ""; else pulseSpent = false }
+    onOpenChanged: { if (!open) side = ""; else pulseSpent = false; if (open && debugLog) stripLog.restart() }
     // (W64: a panel that closes while the strip stays keeps its content until its form or slide has put it away)
     readonly property string kind: !open ? held : kindNow !== "" ? kindNow : (cardReveal > 0.001 ? held : "")
 
@@ -140,11 +143,9 @@ PanelWindow {
     onCardHChanged: logGeometry()
     // (test only, W76: where each listed pin's tile is in the window once the strip is in, and the window's size —
     // test-card.sh right-clicks a tile for its menu)
-    readonly property bool stripLanded: open && reveal >= 0.999
-    onStripLandedChanged: if (debugLog && stripLanded) stripLog.restart()
     Timer {
         id: stripLog
-        interval: 300
+        interval: 800
         onTriggered: {
             for (var i = 0; i < dock.listed.length; i++) {
                 var t = stripItem.tileOf(String(dock.listed[i].id))

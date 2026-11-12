@@ -845,19 +845,34 @@ shell's own cards' title row; the bar card's navigation row).
   card opened again takes the page back (last opened wins), and the two "Show here" keys move it.
 
 ### Definition of done (W76)
-- [ ] Edge card: drag the free edge → the card follows, the size is written for the output on release; Ctrl+arrows step
-      it; a double click resets; `large` has no grip (test-card.sh / shots).
-- [ ] Bar card (`dock` size): the same, the size shared with the edge card (one row per output).
-- [ ] Pin key: lit while pinned, a11y name and state; in the bar card it moves the page to the edge, pinned, and closes the
-      card.
-- [ ] "+" → field → a local test page loads → Pin → the pin is in `mods.webdock.pins` with no new load of the page.
-- [ ] Title click → field with the address → Enter goes there; the pin's target is unchanged.
-- [ ] Menu: Reload (a new load report), Update pin to this page (the target changes), Unpin but keep open (the row goes, the
-      page stays loaded).
-- [ ] Daemon unit tests: resolve (address / search / refused schemes), temporary pages (browse, go, drop, adopt), unpin
-      keeps the page, the sizes rows, forced refusals.
-- [ ] Shots on nested niri, light and dark: resized card, the grip lit, pin key on, the empty field, a typed field, the
-      temporary page with Pin, the menu with its three entries.
+- [x] Edge card: drag the free edge → the card follows, the size is written for the output on release (test-card 6e: 60 px
+      wider → `sizes[HEADLESS-1]` 472 × 824); Ctrl+Left twice on the chrome → 20 px more, one write. `large` draws no grip
+      (`resizable` needs the phone size; by construction, not driven).
+- [ ] A double click on the grip resets: built (`onDoubleClicked` → `webdock.resize {output}`), but the virtual pointer's
+      two clicks were not seen as a double click in the suite; the reset is driven by the action there.
+- [x] Bar card (`dock` size): the grip at the well's foot (a top bar) up 60 px writes the box, the card's well follows, no
+      reload (test-card 6c); the box is the edge card's (one row per output). The page follows the drag 1:1 in its own
+      window; the card catches up on release (the Stage withdraws the placement while it resizes, CONTRACT-CHANGE 741).
+- [x] Keep-open key: lit while pinned, a press lets the dock hide (test-card 6e, the host's log); name "Keep the dock open" /
+      "Let the dock hide", checkable, checked while pinned. In the bar card "Keep open at the edge" moves the page to the
+      edge, pinned, and closes the card (test-card 6c).
+- [ ] The forced states (inert grips, inert keep key with the reason): built from `forced.sizes` / `forced.pinned`, not shot.
+- [x] "+" → field (focused) → a local test page loads → Pin → the pin `o` is in `mods.webdock.pins` (profile `browse`), the
+      host renames the page, no new load (test-card 6c); "+" in the sidebar, Esc in the empty field drops it
+      (test-sidebar 2c).
+- [x] Title click → field with the address → Enter goes there; the pin's target is unchanged, `at` reports the page's
+      address (test-card 6c).
+- [x] Menu: Reload (the counter, a new load report), Update pin to this page (the target changes, `at` clears), Unpin but
+      keep open (the row goes, the page stays loaded), `kurashi undo` brings the pin back (test-card 6d, keyboard).
+- [x] Daemon unit tests: resolve (address / path / search / refused schemes), the search setting, temporary pages
+      (browse, go, drop, the card's close, adopt), unpin keeps the page and undo gives it back, the menu's reload and the
+      page's address, the sizes rows (`cargo test -p kurashi-mod-webdock`: 53 + 24).
+- [x] Shots on nested niri, light and dark (`mods/webdock/test/shots-round3.sh` → `mods/webdock/shots/round3/`):
+      round3-resize (a remembered box, the grip lit), round3-keep (the key lit), round3-field (empty), round3-typed,
+      round3-temp (loaded, Pin), round3-menu (the three entries), round3-card (the bar card's "+" page: the field in the
+      navigation row, the keep-open key), round3-cardgrip.
+- [ ] Left / right bars, a second output, HiDPI: per output by construction (the row's key is the output's name), not
+      measured.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
