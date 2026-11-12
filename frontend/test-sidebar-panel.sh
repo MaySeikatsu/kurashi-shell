@@ -396,6 +396,8 @@ p.settle()
 PY
 drag() { stop_pointer; timeout 20 python3 -I "$W/drag.py" "$ROOT/tools/bench" "$@" >> "$W/ptr.log" 2>&1 || fail "drag failed"; start_pointer; }
 cfgv() { K sub config --count 0 --json | jq -c ".data.values[\"$1\"] | {value, kind: .source.kind}"; }
+# Session 30 (I500): a sidebar's width is per output — the value the output's own layer holds, else the global one.
+cfgvo() { K sub config --count 0 --json | jq -c --arg o "$2" "(.data.outputs[\$o][\"$1\"] // .data.values[\"$1\"]) | {value, kind: .source.kind}"; }
 
 if want 8; then
   LOUT=$OUT/layout
@@ -543,21 +545,21 @@ if want R; then  # 11. resize
   start_frontend
   open_side right
   drag $(( SW - 420 )) $(( SH / 2 )) $(( SW - 520 )) $(( SH / 2 ))
-  for _ in $(seq 30); do [ "$(cfgv sidebar.right.width)" = '{"value":520,"kind":"user"}' ] && break; sleep 0.2; done
-  [ "$(cfgv sidebar.right.width)" = '{"value":520,"kind":"user"}' ] || fail "resize: a drag of 100 px wrote $(cfgv sidebar.right.width)"
+  for _ in $(seq 30); do [ "$(cfgvo sidebar.right.width HEADLESS-1)" = '{"value":520,"kind":"user"}' ] && break; sleep 0.2; done
+  [ "$(cfgvo sidebar.right.width HEADLESS-1)" = '{"value":520,"kind":"user"}' ] || fail "resize: a drag of 100 px wrote $(cfgvo sidebar.right.width HEADLESS-1)"
   for _ in $(seq 30); do side_geom right | grep -q ",520,$(( SH - 32 )) " && break; sleep 0.2; done
   side_geom right | grep -q "frame $(( SW - 520 ))," || fail "resize: the column is not 520 px wide ($(side_geom right))"
   timeout 20 grim -g "$(( SW - 700 )),0 700x300" "$OUT/layout/resized.png"
   echo "ok: resize: the drag wrote sidebar.right.width = 520 on release"
   drag $(( SW - 520 )) $(( SH / 2 )) $(( SW - 520 )) $(( SH / 2 )) double
-  for _ in $(seq 30); do cfgv sidebar.right.width | grep -q '"kind":"default"' && break; sleep 0.2; done
-  cfgv sidebar.right.width | grep -q '"value":420,"kind":"default"' || fail "resize: a double click did not reset ($(cfgv sidebar.right.width))"
+  for _ in $(seq 30); do cfgvo sidebar.right.width HEADLESS-1 | grep -q '"kind":"default"' && break; sleep 0.2; done
+  cfgvo sidebar.right.width HEADLESS-1 | grep -q '"value":420,"kind":"default"' || fail "resize: a double click did not reset ($(cfgvo sidebar.right.width HEADLESS-1))"
   echo "ok: resize: a double click resets it to the default"
   ptr click $(( SW - 410 )) $(( SH / 2 )) left
   sleep 0.5
   keys ctrl+left ctrl+left ctrl+left
-  for _ in $(seq 30); do [ "$(cfgv sidebar.right.width)" = '{"value":450,"kind":"user"}' ] && break; sleep 0.2; done
-  [ "$(cfgv sidebar.right.width)" = '{"value":450,"kind":"user"}' ] || fail "resize: Ctrl+Left ×3 wrote $(cfgv sidebar.right.width)"
+  for _ in $(seq 30); do [ "$(cfgvo sidebar.right.width HEADLESS-1)" = '{"value":450,"kind":"user"}' ] && break; sleep 0.2; done
+  [ "$(cfgvo sidebar.right.width HEADLESS-1)" = '{"value":450,"kind":"user"}' ] || fail "resize: Ctrl+Left ×3 wrote $(cfgvo sidebar.right.width HEADLESS-1)"
   echo "ok: resize: Ctrl+Left by 10 px a press (one write: 450)"
   qml_errors
   stop_phase

@@ -1521,7 +1521,7 @@ PanelWindow {
     // chrome (the quick settings phone, a fixed size), are not limited.
     // (and a panel that maps another process's surface over itself — the web dock's page — keeps its own size: its place
     // must hold still, and the web dock sizes its card itself)
-    readonly property bool mapsSurface: modPanel !== null && modPanel.placement !== undefined
+    readonly property bool mapsSurface: modPanel !== null && (modPanel.cardPlacement !== undefined || modPanel.placement !== undefined)
     readonly property bool limited: viewing && !full && !ownChrome && !mapsSurface
     readonly property real maxCardH: screen ? Math.max(160, Math.round(screen.height * Number(bars.valueOf("bar.card_max_height", 50)) / 100)) : 100000
     readonly property real maxCardW: screen ? Math.max(400, Math.round(screen.width * Number(bars.valueOf("bar.card_max_width", 33)) / 100)) : 100000
