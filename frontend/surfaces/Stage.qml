@@ -1505,7 +1505,9 @@ PanelWindow {
             run.reset()
             // I493 (session 30, `bar.card_keep_loaded`; as the sidebars, K139): the view a card showed stays made for a
             // minute after it closed — the window keeps it, unseen — so the same card opens again at once, at its size.
-            if (keepOn && viewing && view.status === Loader.Ready) { kept = true; keepTimer.restart() }
+            // (not a panel that maps another process's page: the web dock keeps its pages itself, and its panel reports
+            // where the page is shown from its own opening — "last opened wins")
+            if (keepOn && viewing && view.status === Loader.Ready && !mapsSurface) { kept = true; keepTimer.restart() }
         } else { kept = false; keepTimer.stop() }
     }
     readonly property bool keepOn: bars.valueOf("bar.card_keep_loaded", true) === true

@@ -77,6 +77,23 @@ Singleton {
         step()
         clock.restart()
     }
+    // Session 30 (the user's choice, K142): what stands inside a scrolling view whose edges blend (ScrollEdge, drawn through
+    // a layer) keeps its still colours — a layer draws every change of its content twice, and the flow would change it
+    // at every step. The view's own frame, the bars and the frame flow on. `under(item)`: is it inside such a view.
+    property var stillViews: []
+    property int stillGen: 0
+    function holdStill(view, on) {
+        var i = stillViews.indexOf(view)
+        if (on && i < 0) stillViews.push(view)
+        else if (!on && i >= 0) stillViews.splice(i, 1)
+        else return
+        stillGen++
+    }
+    function under(item) {
+        if (stillGen === 0 && stillViews.length === 0) return false
+        for (var p = item; p; p = p.parent) if (stillViews.indexOf(p) >= 0) return true
+        return false
+    }
     // The gradient's pattern for wash.frag (0 = still).
     readonly property int patternIndex: !gradientOn ? 0 : pattern === "breathe" ? 2 : pattern === "cycle" ? 3 : pattern === "chase" ? 4 : 1
 

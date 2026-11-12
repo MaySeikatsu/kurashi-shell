@@ -47,7 +47,7 @@ ShaderEffect {
     // W75 (B118): only while the wash is seen. A uniform that changes dirties its window even under a hidden parent, so a
     // window kept mapped with a hidden card in it (the closed launcher) drew every step of the flow for nothing; shown
     // again, the binding takes the clock's phase at once.
-    readonly property real flowPhase: visible && ColorFlow.patternIndex > 0 ? ColorFlow.phase : 0
+    readonly property real flowPhase: visible && ColorFlow.patternIndex > 0 && !ColorFlow.under(wash) ? ColorFlow.phase : 0
     readonly property vector4d uSize: Qt.vector4d(width, height, strength, flowPhase)
     readonly property vector4d uRadii: Qt.vector4d(topLeftRadius < 0 ? radius : topLeftRadius,
         topRightRadius < 0 ? radius : topRightRadius, bottomRightRadius < 0 ? radius : bottomRightRadius,
