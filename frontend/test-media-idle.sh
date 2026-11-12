@@ -14,7 +14,7 @@
 #   bars, which are what this suite is about. Nothing opens or closes in the window, so no surface's form runs.
 #
 #   KURASHI_BIN_DIR=<dir with kurashid, kurashi, examples/fake_mpris_art> timeout 900 nix develop -c frontend/test-media-idle.sh
-#   MEDIA_IDLE_OFF="flow art lyrics spectrum outline fx desk island sidebars" turns parts off (bisecting; no budget check then);
+#   MEDIA_IDLE_OFF="flow gradient line art lyrics spectrum outline fx desk island sidebars" turns parts off (bisecting; no budget check then);
 #   MEDIA_IDLE_CPU=1 also measures the CPU with no debug log (the frontend restarted without it).
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -36,17 +36,21 @@ PIDS=()
 cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; "$SB" stop >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
-# Budgets, commits a second per window while music plays and nothing is open (what changes visibly, at the rate the eye
-# needs; W75):
-#   bars   a window with the level bars in it (the island's media face in its edge group, the desk's media card; the
-#          bar's own window, under it): the bars at 15 a second, the flow's steps at 7.5 (speed 0.25), a lyric line
-#   flow   a window that shows the colour flow and nothing else that moves (the frame's strips, the dock, the other edge
-#          groups): its 7.5 steps a second and a lyric line's frame
-#   still  a window that shows nothing that moves (the closed launcher and Stage, the corners, the edge strips)
-BUDGET_BARS=${MEDIA_IDLE_BUDGET_BARS:-24}
+# Budgets while music plays and nothing is open (what changes visibly, at the rate the eye needs; W75). Measured on
+# origin/main before W75: 30 a second for the bars' windows, 15 for every flowing one (the closed launcher too), a frame
+# of every window at each lyric line, 170–230 in all.
+#   bars   commits a second of a window with the level bars in it (the bar's window with the island's media face, the
+#          desk's with its media card): the bars at 15 a second with the flow's 7.5 steps taken in the same frames, a
+#          lyric line's move and spawn
+#   flow   a window that shows the colour flow and nothing else that moves (the frame's strips, the dock, the pinned
+#          sidebars): its 7.5 steps a second (speed 0.25)
+#   still  commits in the whole window of a surface that shows nothing that moves (the closed launcher and Stage, the
+#          screen corners, the edge strips): none — one is let through for a minute's turn of a clock
+#   total  commits a second of all of them
+BUDGET_BARS=${MEDIA_IDLE_BUDGET_BARS:-22}
 BUDGET_FLOW=${MEDIA_IDLE_BUDGET_FLOW:-9}
 BUDGET_STILL=${MEDIA_IDLE_BUDGET_STILL:-1}
-BUDGET_TOTAL=${MEDIA_IDLE_BUDGET_TOTAL:-130}
+BUDGET_TOTAL=${MEDIA_IDLE_BUDGET_TOTAL:-100}
 
 rm -rf "$OUT"; mkdir -p "$OUT/cava"
 # ---- a stand-in cava (stdin: its config; stdout: 16 levels 30 times a second, never silent) ----
@@ -67,6 +71,8 @@ off spectrum && rm -f "$OUT/cava/cava"
 # ---- the user's profile (red-wood-splatting with the user's config over it), what the suite needs of it ----
 CFG=$OUT/config.toml
 FLOW_ON=true; off flow && FLOW_ON=false
+FLOW_GRAD=true; off gradient && FLOW_GRAD=false
+FLOW_LINE=true; off line && FLOW_LINE=false
 ART=true; off art && ART=false
 STROKE=sketch; off outline && STROKE=pen
 SPAWN=kana; off fx && SPAWN=none
@@ -195,7 +201,8 @@ when = "media"
 speed = 0.25
 pattern = "drift"
 colours = "tones"
-gradient = true
+gradient = $FLOW_GRAD
+outline = $FLOW_LINE
 
 [theme.colors.gradient]
 on = true
@@ -317,7 +324,9 @@ while read -r n sid; do
   case "$ns" in
     # (the bar's window has no namespace of its own: "quickshell")
     quickshell|kurashi-desktop|kurashi-edge-module) b=$BUDGET_BARS ;;
-    kurashi-launcher|kurashi-stage|kurashi-corners|kurashi-edge|kurashi-webdock-edge) b=$BUDGET_STILL ;;
+    kurashi-launcher|kurashi-stage|kurashi-corners|kurashi-edge|kurashi-webdock-edge)
+      [ "$n" -le "$BUDGET_STILL" ] || fail "$ns ($sid): $n commits in $SECS s, and it shows nothing that moves (budget $BUDGET_STILL)"
+      continue ;;
     *) b=$BUDGET_FLOW ;;
   esac
   awk -v r="$rate" -v b="$b" 'BEGIN {exit !(r > b)}' && fail "$ns ($sid): $rate commits/s (budget $b)"
