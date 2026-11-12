@@ -43,8 +43,12 @@ Singleton {
     // slow speeds (under 2 levels of 255 a step, a pixel of the gradient's drift), the display's rate only at speed 2
     // and up. A Timer alone does not run the animation driver (Qt parks a lone pause on a single shot), so between steps
     // nothing wakes.
+    // W75 (B118, measured on nested niri with the user's profile while music played: ten windows at 15 steps a second
+    // were half the frontend's CPU): the rate follows the speed down as well, so every step moves the colours by the same
+    // amount at every speed — 1/360 of a round, what speed 1 at 30 a second always stepped — and the slowest flow (0.25,
+    // one round in 48 s) steps 7.5 times a second, not 15 (half of every flowing window's frames, nothing the eye sees).
     property real phase: 0
-    readonly property int stepMs: Math.round(1000 / Math.min(60, Math.max(15, 30 * speed)))
+    readonly property int stepMs: Math.round(1000 / Math.min(60, 30 * speed))
     // A surface in motion (a card, a sidebar, the launcher opening or closing: components/motion/SurfaceForm.qml) has
     // the frame budget to itself: the clock rests for that moment and goes on from where it stood. A count, with a
     // watch that clears it should a surface go without giving its rest back.

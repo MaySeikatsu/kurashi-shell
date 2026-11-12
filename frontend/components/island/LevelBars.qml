@@ -6,8 +6,8 @@ import "../../core"
 // `bars` groups, low frequencies on the left. Shōjiki: without the document (no cava, or cava stopped) the bars are a
 // still "playing" mark, never a fake animation; while nothing plays they rest as short stubs.
 // Ma: the document is watched only while `running` (the caller passes playing && on screen) and the item is visible and
-// motion is on, so the daemon runs cava only then; the bars move only when a patch arrives (at most 30 a second, none
-// while silent). No timer and no animation of their own.
+// motion is on, so the daemon runs cava only then; the bars move only when a patch arrives (at most 15 a second: every
+// other of cava's 30, W75; none while silent). No timer and no animation of their own.
 Row {
     id: lb
     property bool running: false
@@ -17,8 +17,19 @@ Row {
     property real barW: 3
     readonly property bool watching: running && visible && Theme.springOn
     Watch { doc: "svc.audio.spectrum"; active: lb.watching }
-    readonly property var spec: watching ? (Store.docs["svc.audio.spectrum"] || ({})) : ({})
-    readonly property var levels: spec.available === true && Array.isArray(spec.bars) ? spec.bars : []
+    // W75 (B118): `Store.current`, so the document can be one of the Store's quiet ones (a patch 30 times a second that
+    // re-evaluated every binding on `Store.docs` in the shell); it reads `docs` until it is.
+    readonly property var spec: watching ? (Store.current("svc.audio.spectrum") || ({})) : ({})
+    readonly property var levelsIn: spec.available === true && Array.isArray(spec.bars) ? spec.bars : []
+    // The bars take every other of cava's frames: 15 a second (each one is a whole frame of the window they are in, and of
+    // the compositor's blur under it), smooth enough for a meter a few pixels tall. The first frame, the last (empty) and
+    // any after a pause are taken at once.
+    property var levels: []
+    property real takenAt: 0
+    onLevelsInChanged: {
+        var now = Date.now()
+        if (levelsIn.length === 0 || levels.length === 0 || now - takenAt >= 50) { levels = levelsIn; takenAt = now }
+    }
     readonly property bool live: watching && levels.length > 0
     // The still mark: a short staircase that reads as "playing" at a glance (the ▂▅▃▆ of a paused meter).
     readonly property var still: [0.45, 0.85, 0.6, 1.0, 0.7, 0.9]

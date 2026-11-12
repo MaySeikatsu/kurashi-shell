@@ -101,7 +101,8 @@ Item {
         // The colour's alpha is the canvas's: the ink is laid opaque, so overlapping caps never bead.
         opacity: po.ink.a
         layer.enabled: po.flows
-        layer.effect: MultiEffect { colorization: 1; colorizationColor: Theme.frameOutlineColor }
+        // (W75: the moving colour only while the line is seen — a hidden one would dirty its window every step)
+        layer.effect: MultiEffect { colorization: 1; colorizationColor: po.visible ? Theme.frameOutlineColor : Theme.frameOutlineStill }
         onPaint: po.paint(getContext("2d"))
     }
 }
