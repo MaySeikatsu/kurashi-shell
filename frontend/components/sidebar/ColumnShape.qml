@@ -57,7 +57,10 @@ Shape {
     // One that floats (`chrome`) is a surface by itself: the chrome's outline, or the hairline the frame's outline gives
     // (Theme.surfaceLineW). Joined and not ruled — the frame's outline is off — it has no line at all.
     readonly property real ow: ruled ? Theme.frameOutlineW : (chrome ? Theme.surfaceLineW : 0)
-    readonly property color oc: ruled ? Theme.frameOutlineColor : Theme.surfaceLineColor
+    // (W75, B118: the still ink while hidden — a kept sidebar's or the closed launcher's window stays mapped, and a moving
+    // ink would draw it at every step of the colour flow)
+    readonly property color oc: !visible && Theme.frameOutline ? Theme.frameOutlineStill
+        : ruled ? Theme.frameOutlineColor : Theme.surfaceLineColor
     readonly property real gw: chrome ? Theme.ringW * 0.5 : 0
     // The hard shadow's vector (K67; `Theme.shadowDy` straight down by default), in the canonical frame.
     readonly property real sdx: chrome ? (flipX ? -1 : 1) * Theme.sinkX : 0
