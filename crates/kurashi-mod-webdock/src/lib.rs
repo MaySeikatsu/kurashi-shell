@@ -410,7 +410,15 @@ impl Shared {
         };
         // W73: `fresh` marks the card's first rest since it opened ("last opened wins").
         let fresh = opt_bool(args, "fresh")?.unwrap_or(false);
-        if self.with_dock(|d| Ok(d.card_place(place, fresh)))? {
+        // W76: `closed` — the card closed (not a move): a "+" page it showed goes.
+        let closed = opt_bool(args, "closed")?.unwrap_or(false);
+        if self.with_dock(|d| {
+            let starts = d.card_place(place, fresh);
+            if closed {
+                d.card_closed();
+            }
+            Ok(starts)
+        })? {
             self.host.start();
         }
         Ok(None)

@@ -278,33 +278,49 @@ wait_px "$CX" "$CY" '#2b3a55' 15
 ok "the pin keys switch the card's page and back, with no reload"
 
 # ---- 4. the same pin at the edge: last opened wins (W73, I488 (4)) ----
-# The edge card opens on the card's pin after the card: the edge shows the page, the card says where it is with "Show here";
-# that key brings it back to the card; closing the card hands it to the edge again. No move reloads the page.
+# B117 (session 29, the lead's 73a3bce2): the edge dock coming out closes an open card, as a click elsewhere does. So the
+# edge opened while the card shows the page takes it and the card closes; the card opened again (the place opened last)
+# takes it back and the edge card says where it is; its "Show here" brings it to the edge, the card's "Show here" back to
+# the card; closing the card hands it to the edge. No move reloads the page.
 hid0=$(count 'webdock-debug card hidden' "$HOSTLOG")
-shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
-n0=$(count "webdock-panel notice This page is shown at the screen's edge" "$R/qs.log")
 K act webdock.pin '{"on":true}' >/dev/null || fail "webdock.pin refused"   # (the edge card stays while the pointer is away)
 K act webdock.open '{"pin":"site"}' >/dev/null
 wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'site'" || fail "the edge card did not open"
-wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
-  || fail "the daemon does not give the page to the edge opened last ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 5 panel_closed || fail "the edge dock coming out did not close the bar card (B117)"
+wait_until 5 doc_is "'elsewhere' not in d" || fail "the edge does not show the page ($(doc "d.get('elsewhere')"))"
 wait_until 10 eval '[ "$(count "webdock-debug card hidden" "$HOSTLOG")" -gt '"$hid0"' ]' || fail "the card's window kept the page"
+wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
+ok "the edge opened while the card shows the page: the card closes (B117), the edge shows the page"
+shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
+e0=$(count "webdock-debug edge notice This page is shown in the bar's card" "$HOSTLOG")
+here0=$(count 'webdock-debug edge here ' "$HOSTLOG")
+K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
+wait_until 5 panel_open || fail "the card did not open beside the edge"
+wait_until 5 doc_is "d.get('elsewhere') == 'card' and 'elsewhere' not in d['card']" \
+  || fail "the card opened last did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
+wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' || fail "the card's window did not take the page"
+wait_px "$CX" "$CY" '#2b3a55' 15
+wait_until 5 eval '[ "$(count "webdock-debug edge notice This page is shown in the bar'"'"'s card" "$HOSTLOG")" -gt '"$e0"' ]' \
+  || fail "the edge card does not say the page is in the bar's card"
+ok "the card opened after the edge takes the page; the edge card says it is in the bar's card"
+# The edge card's "Show here" (its middle in the window; the window ends at the strip, under the top bar).
+wait_until 5 eval '[ "$(count "webdock-debug edge here " "$HOSTLOG")" -gt '"$here0"' ]' || fail "the edge card logged no Show here key"
+read -r EHX EHY EAW EAH <<< "$({ grep -F 'webdock-debug edge here ' "$HOSTLOG" || true; } | tail -1 | sed 's/.*webdock-debug edge here //')"
+n0=$(count "webdock-panel notice This page is shown at the screen's edge" "$R/qs.log")
+K act webdock.open '{"pin":"site"}' >/dev/null      # (Show here at the edge is `webdock.open`; the click-away layer covers it)
+wait_until 5 doc_is "d['card'].get('elsewhere') == 'edge' and 'elsewhere' not in d" \
+  || fail "Show here at the edge did not take the page ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
 wait_until 5 eval '[ "$(count "webdock-panel notice This page is shown at the screen'"'"'s edge" "$R/qs.log")" -gt '"$n0"' ]' \
   || fail "the card does not say its pin is shown at the edge"
-wait_px $(( W_OUT - 56 - 206 )) $(( H_OUT * 2 / 3 + 40 )) '#2b3a55' 15
-ok "the edge opened after the card shows the page; the card says so"
-# "Show here" in the card's well (the panel logs where its key is on the output).
 wait_until 5 grep -qF 'webdock-panel here ' "$R/qs.log" || fail "the card's notice has no Show here key"
 read -r HX HY <<< "$({ grep -F 'webdock-panel here ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel here //')"
-e0=$(count "webdock-debug edge notice This page is shown in the bar's card" "$HOSTLOG")
+shown0=$(count 'webdock-debug card shown' "$HOSTLOG")
 mv_to "$HX" "$HY"
 ptr "$HX" "$HY"
 wait_until 5 doc_is "d.get('elsewhere') == 'card' and 'elsewhere' not in d['card']" || fail "Show here did not bring the page to the card ($(doc "(d.get('elsewhere'), d['card'].get('elsewhere'))"))"
 wait_until 10 eval '[ "$(count "webdock-debug card shown" "$HOSTLOG")" -gt '"$shown0"' ]' || fail "the card's window did not take the page back"
 wait_px "$CX" "$CY" '#2b3a55' 15
-wait_until 5 eval '[ "$(count "webdock-debug edge notice This page is shown in the bar'"'"'s card" "$HOSTLOG")" -gt '"$e0"' ]' \
-  || fail "the edge card does not say the page is in the bar's card"
-ok "Show here in the card brings the page back; the edge card says it is in the bar's card"
+ok "Show here at the edge takes the page; the card says so, and its Show here brings it back"
 K act ui.close >/dev/null
 wait_until 5 panel_closed || fail "the card did not close"
 wait_until 5 doc_is "'elsewhere' not in d" || fail "the edge did not get the page back when the card closed"
@@ -586,20 +602,20 @@ TX=$(( W_OUT - SWW + SX )); TY=$(( H_OUT - SWH + SY ))
 menu() { mv_to "$TX" "$TY"; ptr "$TX" "$TY" right; sleep 0.6; }
 r0=$(loads o)
 menu
-keys return                                      # Reload: the menu's first key has the keyboard
+keys tab tab return                              # Move up has the keyboard (Move down is off for the last pin); Remove; Reload
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('reload') == 1" || fail "Reload in the menu did not ask the page ($(pin_of o reload))"
 K act webdock.open '{"pin":"o"}' >/dev/null
 wait_until 20 eval '[ "$(loads o)" -gt '"$r0"' ]' || fail "the page did not reload ($r0 → $(loads o))"
 ok "the menu's Reload reloads the pin's page"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('at') == 'file://$R/s.html'" || fail "the page's address went ($(pin_of o at))"
 menu
-keys tab return                                  # Update pin to this page (live: the page is not at home)
+keys tab tab tab return                          # … Reload, Update pin to this page (live: the page is not at home)
 wait_until 5 eval 'K get mods.webdock.pins | grep -qF "file://$R/s.html"' || fail "Update pin to this page did not move the pin ($(K get mods.webdock.pins))"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('target') == 'file://$R/s.html' and 'at' not in [p for p in d['pins'] if p['id'] == 'o'][0]" \
   || fail "the pin's address is not the page's ($(pin_of o target), at $(pin_of o at))"
 ok "the menu's Update pin to this page: the pin's address is where its page is"
 menu
-keys tab return                                  # Unpin but keep open (Update is inert now: the page is at home)
+keys tab tab tab return                          # … Reload, Unpin but keep open (Update is inert now: the page is at home)
 wait_until 5 eval '! K get mods.webdock.pins | grep -qF "\"o\""' || fail "Unpin but keep open kept the row ($(K get mods.webdock.pins))"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('temporary') == True and [p for p in d['pins'] if p['id'] == 'o'][0].get('loaded') == True" \
   || fail "the unpinned page was not kept open ($(doc "[p for p in d['pins'] if p['id'] == 'o']"))"

@@ -628,7 +628,10 @@ impl Dock {
         // A pin moved to where its page is ("Update pin to this page"): the page is at home now.
         for p in &self.pins {
             if let Some(st) = self.states.get_mut(&p.id)
-                && st.at.as_deref().is_some_and(|at| bare(at) == bare(&p.target))
+                && st
+                    .at
+                    .as_deref()
+                    .is_some_and(|at| bare(at) == bare(&p.target))
             {
                 st.at = None;
             }
@@ -761,14 +764,19 @@ impl Dock {
     pub fn card_close(&mut self) {
         if self.card.place.is_some() {
             self.card.close = self.card.close.wrapping_add(1);
-            // W76: closing the card drops the "+" page it showed.
-            if let Some(id) = self.card.pin.clone()
-                && self
-                    .temp_of(&id)
-                    .is_some_and(|t| t.temp == Some(Temp::Browse))
-            {
-                self.forget_temp(&id);
-            }
+            self.card_closed();
+        }
+    }
+
+    /// W76: the bar card closed (its Esc, or the shell saw it close: `webdock.card {closed}`): the "+" page it showed goes,
+    /// and the card shows its first pin when it opens again.
+    pub fn card_closed(&mut self) {
+        if let Some(id) = self.card.pin.clone()
+            && self
+                .temp_of(&id)
+                .is_some_and(|t| t.temp == Some(Temp::Browse))
+        {
+            self.forget_temp(&id);
         }
     }
 
@@ -3515,6 +3523,13 @@ mod tests {
         d.drop_temp(&s).unwrap();
         assert!(d.temp_of(&s).is_none());
         assert_eq!(d.drop_temp("mail"), Err(DockError::UnknownPin));
+        // The shell saw the card close (`webdock.card {on: false, closed: true}`): the same.
+        let c4 = d.browse(Spot::Card, None);
+        d.card_place(None, false);
+        assert!(d.temp_of(&c4).is_some(), "a move keeps it");
+        d.card_closed();
+        assert!(d.temp_of(&c4).is_none(), "a close drops it");
+        d.card_place(Some(card_place()), false);
         // The bar card's Esc (card_close) drops its "+" page and shows the first pin again.
         let c3 = d.browse(Spot::Card, None);
         d.card_close();

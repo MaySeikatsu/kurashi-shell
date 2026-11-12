@@ -241,6 +241,16 @@ Item {
         Store.act("webdock.card", args)
     }
     onCardWellPlaceChanged: reportCard()
+    // W76: the card closed (I493 keeps the panel made for a minute after, so its next rest would not read as an opening):
+    // the daemon hears it (`closed`: a "+" page the card showed goes) and the next rest is `fresh` again ("last opened
+    // wins"). Read from `runtime.ui`, the panel the Stage shows; a move or a resize of the open card is not a close.
+    Watch { doc: "runtime.ui"; active: panel.inCard }
+    readonly property bool cardShown: inCard && (Store.docs["runtime.ui"] || ({})).panel === "mod:webdock:webdock"
+    onCardShownChanged: {
+        if (cardShown || cardSent === "") return
+        Store.act("webdock.card", { on: false, closed: true })
+        cardSent = ""
+    }
     // The pointer in the host's window over the well holds the card as the card itself does; a press there (or the
     // keyboard asked for the page) makes it the user's. Esc in the page's window, or "Show at the edge", asks the card to
     // close: the counter's value when the panel first sees the document is the baseline (an earlier close is not this

@@ -763,8 +763,8 @@ shell's own cards' title row; the bar card's navigation row).
   (the edge then follows the forced value).
 
 **3. Add and edit sites (3e).**
-- **"+"** at the end of the pins (the strip's existing add control — the old add form is reached by its menu key; the
-  sidebar's and the bar card's row gain a "+" key before the settings key) opens a *temporary page* in that place
+- **"+"** at the end of the pins (the strip's existing add control — the old add form stays behind the empty dock's "Add
+  a site"; the sidebar's and the bar card's row gain a "+" key before the size and settings keys) opens a *temporary page* in that place
   (`webdock.browse {place}`): the card shows it with the address field where the title is, focused and empty, the page
   area saying "Type an address or search". Enter: text that is an address loads it (`https`, `http`, `file`; a bare
   `example.com` or `localhost:8080` gets `https://` / `http://`), any other text searches with `mods.webdock.search` (a
@@ -783,7 +783,7 @@ shell's own cards' title row; the bar card's navigation row).
   sidebar's navigation row) turns it into the same field holding the page's address, selected; Enter goes there in the
   same page (`webdock.go`): the pin stays at its address — its *home* (W20's home key returns there; after it unloads it
   opens there again). Esc or a click elsewhere puts the title back.
-- **The pin's menu** (`PinMenu.qml`, the strip's right click / menu key) gains, above what it had (move up, move down,
+- **The pin's menu** (`PinMenu.qml`, the strip's right click / menu key) gains, after what it had (move up, move down,
   remove, close): **Reload** (`webdock.reload {pin}`: the loaded page reloads; inert while not loaded), **Update pin to
   this page** (`webdock.retarget {pin}` with the page's current address, which the host reports as `at` on the pin while
   it differs from the target; inert while the page is at home or not loaded), **Unpin but keep open**
@@ -803,8 +803,9 @@ shell's own cards' title row; the bar card's navigation row).
 
 ### Keyboard and a11y
 - "+" is a Tab stop in the strip and the rows (Enter, Space); the field takes the keyboard when it opens (the host's window
-  asks for it once, the I98 pulse); Enter goes, Esc cancels (and drops an empty temporary page). Ctrl+L focuses the field
-  in the edge card (it entered the header before; the header is one Tab away from it).
+  holds it while the field is empty — on niri a relaxed pulse handed the keys back to the strip "+" was clicked on);
+  Enter goes, Esc cancels (and drops an empty temporary page). Alt+D (a browser's own key for its address) opens the field
+  in the edge card; Ctrl+L still enters the header (test-host's walk).
 - The grips: role Grip, name "Resize the card", description the size and the keys (or the forced reason); the keys
   work on the card's chrome. The pin key: role button, checkable, checked while pinned. The field: role EditableText,
   name "Address or search". The Pin key: "Pin this page".
@@ -816,6 +817,32 @@ shell's own cards' title row; the bar card's navigation row).
   default. HiDPI: logical px.
 - Ma: nothing runs at rest — the grips are hover handlers; a drag writes once; the host reports a page's address only
   when it changes (`webdock.host.url`); a temporary page costs what a pin's page costs and unloads by the same rules.
+
+### As built (W76)
+- **Temporary pages are pins the daemon serves** (`temps`, appended to the rows' pins; a row of the same id wins, so
+  `kurashi undo` of an unpin gives the page back to its pin). A "+" page is `browse-<n>`, profile `browse`, target "" until
+  Enter; the host starts its engine at `about:blank` (an engine never given an address did not load the first one given
+  later, measured on niri), so Back after the first page reaches a blank page (known, cosmetic).
+- **Pin keeps the page:** `webdock.add {from}` writes the row with the temporary page's profile, applies it and adopts:
+  the places, the loaded state and the shown order move to the new id and the pin says `was`; the host renames the page
+  (`ListModel.setProperty`) and, until then, resolves the old id to the new pin (`pinById`), so the page's address and
+  view never flicker through "none" (a view flicker reloaded the page: measured, fixed).
+- **The keyboard for the empty field:** the host's window holds the keyboard exclusively while the field is empty (edge
+  card and sidebar/bar card windows); on Enter it relaxes to on demand.
+- **A typed path** (`/home/…/x.html`) is a local file (`file://`), as in a browser's address bar; the test types paths
+  (the virtual keyboard's `:` did not reach the host's field).
+- **The pin's menu over a site's card:** the menu opened under the host's card window (both on the Top layer, the host's
+  mapped later); the card closes first now (`webdock.collapse`), the page stays loaded.
+- **The bar card's resize** follows the pointer in the page's window 1:1 (the window grows on its free sides), and the
+  size is written on release; the Stage then lays the card out at the new size and the page re-rests there (the page is
+  cut for the Stage's 160 ms settle — the Stage withdraws the placement while the card resizes, CONTRACT-CHANGE 741). The
+  Stage's limit (`bar.card_max_*`) bounds it: a box larger than the card holds is remembered and shown clamped.
+- **The Stage's card limit (I504)** put the default 824 px well in a scroll view, where no page can show (the placement is
+  withdrawn while a scroll view clips the panel): on this branch `test-card.sh` failed at step 1 before W76. The panel
+  now asks for no more than the card holds (`stageRoom`, a stand-in: CONTRACT-CHANGE 741); test-card's step 1b reads the
+  limited well (412 × 638 on 2560 × 1440 in washi).
+- **B117** (the dock coming out closes an open card) changed test-card's step 4: the card closes when the edge opens; the
+  card opened again takes the page back (last opened wins), and the two "Show here" keys move it.
 
 ### Definition of done (W76)
 - [ ] Edge card: drag the free edge → the card follows, the size is written for the output on release; Ctrl+arrows step
