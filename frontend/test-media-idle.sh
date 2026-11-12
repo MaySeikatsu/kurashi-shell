@@ -327,7 +327,8 @@ pct=$(awk -v a="$c0" -v b="$c1" -v t="$SECS" -v k="$TICK" 'BEGIN {printf "%.0f",
 say "off: [${MEDIA_IDLE_OFF:-none}] total $TOTAL commits in $SECS s ($trate/s); frontend CPU ${pct}% (with the debug log)"
 [ -z "${MEDIA_IDLE_OFF:-}" ] && awk -v r="$trate" -v b="$BUDGET_TOTAL" 'BEGIN {exit !(r > b)}' && fail "all windows: $trate commits/s (budget $BUDGET_TOTAL)"
 if [ -n "${MEDIA_IDLE_CPU:-}" ]; then
-  restart_qs "$R/qs.log"
+  # shellcheck disable=SC2086
+  restart_qs "$R/qs.log" ${MEDIA_IDLE_QS_ENV:-}
   sleep "${MEDIA_IDLE_SETTLE:-12}"
   # (and by thread name: the GUI thread, the render threads, the rest — top -H's view)
   threads() { for t in /proc/"$QS"/task/*; do echo "$(cat "$t/comm" 2>/dev/null)|$(awk '{print $14 + $15}' "$t/stat" 2>/dev/null)"; done; }

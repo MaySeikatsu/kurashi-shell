@@ -30,8 +30,12 @@ Row {
     property real takenAt: 0
     onLevelsInChanged: {
         var now = Date.now()
-        if (levelsIn.length === 0 || levels.length === 0 || now - takenAt >= 50) { levels = levelsIn; takenAt = now }
-        else settle.restart()
+        if (levelsIn.length === 0 || levels.length === 0 || now - takenAt >= 50) {
+            levels = levelsIn
+            takenAt = now
+            // (the colour flow's step, when one is nearly due, in this same frame: core/ColorFlow.qml `along`)
+            if (live) ColorFlow.along()
+        } else settle.restart()
     }
     Timer { id: settle; interval: 80; onTriggered: if (lb.levels !== lb.levelsIn) { lb.levels = lb.levelsIn; lb.takenAt = Date.now() } }
     readonly property bool live: watching && levels.length > 0

@@ -57,11 +57,25 @@ Singleton {
     property int rests: 0
     function rest(d) { rests = Math.max(0, rests + d) }
     property Timer restWatch: Timer { interval: 4000; running: cf.rests > 0; onTriggered: cf.rests = 0 }
+    property real steppedAt: 0
+    function step() {
+        var p = cf.phase + cf.stepMs * cf.speed / 12000
+        cf.phase = p - Math.floor(p)
+        cf.steppedAt = Date.now()
+    }
     property Timer clock: Timer {
         interval: cf.stepMs
         repeat: true
         running: cf.running && cf.rests === 0
-        onTriggered: { var p = cf.phase + cf.stepMs * cf.speed / 12000; cf.phase = p - Math.floor(p) }
+        onTriggered: cf.step()
+    }
+    // W75: a window that draws a frame anyway (the level bars take a frame of the spectrum, LevelBars.qml) takes the flow's
+    // step with it when one is nearly due, so the two land in one frame there instead of two: the bar's and the desk's
+    // windows drew 22.5 frames a second for the bars' 15 and the flow's 7.5. The clock starts its wait again from there.
+    function along() {
+        if (!clock.running || Date.now() - steppedAt < stepMs - 45) return
+        step()
+        clock.restart()
     }
     // The gradient's pattern for wash.frag (0 = still).
     readonly property int patternIndex: !gradientOn ? 0 : pattern === "breathe" ? 2 : pattern === "cycle" ? 3 : pattern === "chase" ? 4 : 1
