@@ -35,7 +35,6 @@ Item {
     }
     property bool grabbing: false
     readonly property bool iconOwed: iconDir !== "" && String(web.icon) !== "" && String(web.icon) !== savedIcon
-    onActiveChanged: if (active) Qt.callLater(saveIcon)
     Connections {
         target: page.iconOwed && favicon.Window.window ? favicon.Window.window : null
         function onVisibleChanged() { Qt.callLater(page.saveIcon) }
@@ -116,7 +115,11 @@ Item {
     property Item home: null
     property Item sideHost: null
     // Test only (KURASHI_WEBDOCK_DEBUG=1): the page drawn or frozen.
-    onActiveChanged: if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
+    onActiveChanged: {
+        if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
+        // (I495: a page shown again tries its icon)
+        if (active) Qt.callLater(saveIcon)
+    }
     property bool debugLog: false
     // (W73: the engine's state names: Active, Frozen, Discarded)
     function lifeLog(what) {
