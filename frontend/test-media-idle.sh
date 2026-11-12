@@ -31,6 +31,9 @@ say() { echo "test-media-idle: $*"; }
 fail() { echo "test-media-idle: FAIL $*" >&2; FAILS=$((FAILS + 1)); }
 die() { echo "test-media-idle: $*" >&2; exit 1; }
 off() { [[ "$OFF" == *" $1 "* ]]; }
+# (the fake player is an example: tools/test-suites.sh builds only the binaries, so it is built here when missing)
+[ -x "$BIN/examples/fake_mpris_art" ] || [ "$BIN" != "${CARGO_TARGET_DIR:-$ROOT/target}/debug" ] \
+  || (cd "$ROOT" && cargo build -q -p kurashi-mock --example fake_mpris_art) || die "the fake player did not build"
 for b in kurashid kurashi examples/fake_mpris_art; do [ -x "$BIN/$b" ] || die "no $b in $BIN (KURASHI_BIN_DIR)"; done
 PIDS=()
 cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; "$SB" stop >/dev/null 2>&1 || true; }
