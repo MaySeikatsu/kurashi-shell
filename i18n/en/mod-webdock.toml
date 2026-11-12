@@ -198,3 +198,5 @@
 "webdock.menu.at_home" = "The page is at the pin's address"
 "webdock.resize.grip" = "Resize the card"
 "webdock.resize.hint" = "{w} × {h}. Drag the edge, or Ctrl and the arrow keys; double-click for the default size."
+"webdock.keep.card" = "Keep this card open"
+"webdock.keep.card_off" = "Let this card close again"

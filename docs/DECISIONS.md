@@ -1556,3 +1556,15 @@ automatic blocks already frame each zone's stretch as one (the user: "like it wo
 **Why.** The user's points 12 and 4e, their answer "named groups", Noctalia v5's capsule groups as the model
 (https://docs.noctalia.dev/noctalia/v5.4.0/bar/). Comma-separated members keep the records editor usable at once; the
 drag and drop of the brief (docs/ux/groups.md) is the next step.
+
+## K147 — Session 31's live fixes: a card can be kept open; a card opens where its bar was pressed; the desktop's bars stand still
+**Decision.** (1) `ui.keep {on}` and runtime.ui `kept` (PROTOCOL §5): the web dock's bar card has a keep-open key in its
+row of pins; kept, a click elsewhere passes through and the card stays (no space reserved); Esc, its module and
+`ui.close` still close it. The W76 reading ("Keep open at the edge") is replaced for the bar card. (2) The Stage's
+screen is picked from the bar that was pressed (IslandGeom's last press, 1.5 s) before the focused output, mod cards
+count as cards, and a card asked for on another screen while one is open moves there (B126). (3)
+`desktop.media_bars` (off): the desktop's now-playing card shows the still "playing" mark (B125).
+**Why.** The user, live on two monitors (session 31): "the bar card stays open" (their choice), "cards only open on one
+monitor … even when clicked there"; measured read-only on their session with music playing: the frontend at ~115 % of a
+core, ~6 % with the desktop's media card hidden — its bars redrew the full-screen desktop on both outputs at 15 frames a
+second (the colour flow, off, changed it by a few percent only).
