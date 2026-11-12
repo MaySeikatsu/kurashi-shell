@@ -17,6 +17,54 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-12 — session 30 (machine A): the user's twelve refinements, the CPU while music plays, web dock round three, groups
+**Asked for.** Twelve points with ten screenshots (BACKLOG B118, I493–I505): cards kept and opened at their size; content
+blending out at a scroll edge; web dock (site images, a resizable card, keep open, "+" and a pin menu, WhatsApp, Local mode,
+desktop apps as an experiment, what plays in the bar); sidebars (width per monitor, one tab row, "+", any module, groups);
+text spawn on all text; the opening's face blending into the final one; card maximum size; notifications and OSD in the
+style; the launcher at the edge; even floating margins; no Reset that changes nothing; groups on the bar. The user's answers:
+named groups (Noctalia v5's capsule groups), the bar's automatic grouping as today, cards at most ½ × ⅓ of the screen, the
+full Settings docked in a sidebar, and later "still sections" for scroll edges under the colour flow. One subagent at a time.
+**Built** (one branch for everything, `feat/s30-groups`, worktree `../kurashi-wt-s30g`; it contains `feat/s30-refine`
+(`../kurashi-wt-s30`), `feat/s30-webdock` (`../kurashi-wt-s30w`), W75 and W76; K142–K145):
+1. K142 scroll edges (`theme.material.scroll_edges`, `components/ScrollEdge.qml`): sidebars, tab row, notification centre,
+   launcher, cards; what stands under a blending edge keeps its still colours (`ColorFlow.under`; a layer drew each flow
+   step twice).
+2. K143 cards: `bar.card_max_height`/`_width` and a scrolling view, `bar.card_keep_loaded`, one even gap when floating (8 px
+   read in pixels); page-mapping panels exempt from both.
+3. K144 the landing blend (FormHost `landing`); the launcher at the edge (JoinedCard's mask lost its mirror: a box on
+   bottom bars); text spawn on all text (`TextSpawnAll`); sidebar width per output; one tab row with the pin; Settings hides
+   a Reset that changes nothing.
+4. W75 (B118): the frontend's frames while music plays halved on nested niri (169 → 81.5 commits/s, 64 → 41 % CPU):
+   flow by speed, hidden washes and lines still, lyrics stepped, bars at 15 a second, the spectrum a quiet document.
+5. Web dock: sites' own images (the host saves favicons), `bar_site`, `bar_playing`, a user agent without QtWebEngine
+   (WhatsApp); W76: grips (edge and bar card, `sizes` per output), keep-open key, "+" with the address field in the title,
+   Pin without reload, the pin menu's Reload / Update pin / Unpin but keep open (CONTRACT-CHANGE 740–743 decided).
+6. K145 named groups (`[[layout.groups]]`, core records keys in the schema): a bar group a block of its own that can fold,
+   a sidebar group one tab or one stack; a sidebar's "+" (`SectionPicker`); the launcher's search and mods' desk cards
+   (notes, lyrics) as sidebar sections.
+**Verified.** See the PR's Verification section (the merge set and `just check` on the combined branch; the web dock's
+four suites green on `feat/s30-webdock` after W76; `media-idle` 7.5/s per pinned sidebar). Seen on nested niri with the
+user's profile: launcher at the edge, quick card at its limit with scrolling, floating gaps, tab row and its wheel, splat
+opening, bar groups and the fold, the group tab, the "+" picker, the launcher section. Not seen: two real monitors, the
+user's own eyes on anything, WhatsApp (offline sandbox), the OSD (no audio in the sandbox), Settings' Reset in a shot.
+**Not done, said plainly.** W77 (the full Settings docked in a sidebar: card written, contract change) and W78 (the web
+dock's Local mode and desktop apps as an experiment: card written). Groups have no drag and drop in Settings yet (the
+records editor, comma-separated members). The live session's CPU was not read again (it runs the installed build).
+B119–B123, I506 filed.
+**Open decisions for the user.** I506: the colour flow while music plays (a slower step, flow on the chrome only, still
+bars on the desk). The bar card's keep-open key moves the page to the edge, pinned (W76's reading): keep?
+**Next steps (ordered).** (1) The user rebuilds; read the frontend's CPU with music (`top -b -H -p <frontend pid>`), then
+sit with the user over this session's points on both monitors. (2) W77, then W78 (one subagent at a time). (3) Groups'
+drag and drop in Settings and the module menu's "Group with…" (docs/ux/groups.md). (4) B119 (animations that wake every
+window), B120 (a sidebar frame's cost). (5) B112, B100, B114's rest; I483's rest; B92.
+**Learned.** Any layer (ShaderEffectSource or `layer.enabled`) over content that changes draws its window twice per
+change: keep what changes out of layered views. A ShaderEffectSource ignores its source item's own transform: put the
+transform on a child. GLSL 1.20 (one of the qsb targets) has no constant arrays. `kurashi-mock` takes config through
+`mock.doc`, not `set`. A `Behavior`/animation started at idle wakes every window (W75).
+
+---
+
 ## 2026-11-11 — session 29, second part (machine A): the user's answers after #54 — keep loaded, outlines as strokes, blocks follow, the web dock's hover and size
 **Asked for (after #54 was merged by the user).** A comparison per look of blocks with the corner shape, then "make them all follow", floating cards and toasts too; a closed sidebar kept loaded, with a toggle; the web dock's hover reveal as it is by default with a setting for the other way; the edge card's size as the bar card's default with a key to switch; and two findings on #54: the outline "stays until the full surface has been built … not belonging", and a card's corner outline is rougher than the frame's.
 **Built** (branch `feat/s29-outline-blocks`, worktree `../kurashi-wt-s29b`; it contains `feat/s29-keep-loaded` and `feat/s29-webdock-w74`; K139 to K141):
