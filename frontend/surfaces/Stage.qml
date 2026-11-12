@@ -1516,6 +1516,9 @@ PanelWindow {
     // (a kept view is made anew after any change of the settings: a view may read one only when it is made)
     readonly property var cfgDoc: Store.docs["config"]
     onCfgDocChanged: if (!shown) kept = false
+    // (and after a change of the theme: a look's own frame for a view — the quick card's flyout — is read when it is made)
+    readonly property var themeTokens: Theme.tokens
+    onThemeTokensChanged: if (!shown) kept = false
     Timer { id: keepTimer; interval: 60000; onTriggered: stage.kept = false }
     // I504 (session 30, `bar.card_max_height`, `bar.card_max_width`; the user: at most ½ the screen's height and ⅓ its
     // width by default): a card stands at most that size and its view scrolls beyond it (`viewFlick`). The width never goes
