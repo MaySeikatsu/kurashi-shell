@@ -62,6 +62,24 @@
 #   since schema v7
 # popups_follow = true
 #
+# Card height at most — The tallest a card grows, as a share of its screen's height; what
+# it holds beyond that scrolls inside it.
+#   range: 20..=100, step 5 (%) · since schema v7
+# card_max_height = 50
+#
+# Card width at most — The widest a card grows, as a share of its screen's width; a card
+# never gets narrower than its content needs to stay usable, so on a narrow screen this can
+# be exceeded.
+#   range: 20..=100, step 1 (%) · since schema v7
+# card_max_width = 33
+#
+# Keep a closed card ready — A card that has closed keeps what it showed for a minute, off
+# screen, so it opens again at once and at its size. It costs its memory for that minute,
+# and what it watches stays watched. Off: a closed card is gone at once and is made again
+# each time it opens.
+#   since schema v7
+# card_keep_loaded = true
+#
 # On hover — What resting the pointer on a bar module opens: its small preview, its card
 # (a module without a card shows its preview), or its menu, as a right click does. What a
 # hover opened closes when the pointer has left the module and what it opened; what a click
@@ -761,6 +779,13 @@
 #   only while theme.material.elevation == "follow" · forced to false while
 #   a11y.reduce_motion is on · since schema v7
 # elevation_pointer = false
+#
+# Scroll edges — Where a list or a page is cut by the edge of its card or sidebar: Blur
+# fades the text out and blurs it toward the edge, as glass does; Fade only fades it; Cut
+# shows it cut. Only an edge with something cut beyond it is drawn so, and nothing is
+# redrawn while nothing scrolls.
+#   choices: "blur" | "fade" | "cut" · since schema v7
+# scroll_edges = "blur"
 
 # [theme.motion]
 #
@@ -1072,7 +1097,8 @@
 # spawn = "none"
 #
 # Applies to — Headings alone (card and page titles, the bar's clock, notifications,
-# desktop widgets), or every label that can take it.
+# desktop widgets), or all text a surface shows as it opens — every label, row and value
+# in it.
 #   choices: "titles" | "all" · since schema v7
 # scope = "titles"
 #
@@ -1645,8 +1671,8 @@
 #   choices: "stack" | "pages" · since schema v5
 # mode = "stack"
 #
-# Width — Drag the sidebar's inner edge to change it.
-#   range: 320..=640, step 10 (px) · since schema v3
+# Width — Drag the sidebar's inner edge to change it: each monitor keeps its own width.
+#   range: 320..=640, step 10 (px) · per-output · since schema v3
 # width = 420
 #
 # Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On
@@ -1686,8 +1712,8 @@
 #   choices: "stack" | "pages" · since schema v5
 # mode = "pages"
 #
-# Width — Drag the sidebar's inner edge to change it.
-#   range: 320..=640, step 10 (px) · since schema v3
+# Width — Drag the sidebar's inner edge to change it: each monitor keeps its own width.
+#   range: 320..=640, step 10 (px) · per-output · since schema v3
 # width = 420
 #
 # Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On

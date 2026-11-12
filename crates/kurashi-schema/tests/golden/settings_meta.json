@@ -122,6 +122,53 @@
             },
             {
               "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 50,
+              "help": "config.bar.card_max_height.help",
+              "key": "bar.card_max_height",
+              "label": "config.bar.card_max_height.label",
+              "max": 100,
+              "min": 20,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 5,
+              "type": "int",
+              "unit": "%"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 33,
+              "help": "config.bar.card_max_width.help",
+              "key": "bar.card_max_width",
+              "label": "config.bar.card_max_width.label",
+              "max": 100,
+              "min": 20,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 1,
+              "type": "int",
+              "unit": "%"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.bar.card_keep_loaded.help",
+              "key": "bar.card_keep_loaded",
+              "label": "config.bar.card_keep_loaded.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.bar_hover.preview",
@@ -3649,6 +3696,33 @@
               "restart": false,
               "since": 7,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.scroll_edges.blur",
+                  "value": "blur"
+                },
+                {
+                  "label": "config.choice.scroll_edges.fade",
+                  "value": "fade"
+                },
+                {
+                  "label": "config.choice.scroll_edges.cut",
+                  "value": "cut"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "blur",
+              "help": "config.theme.material.scroll_edges.help",
+              "key": "theme.material.scroll_edges",
+              "label": "config.theme.material.scroll_edges.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         },
@@ -8320,7 +8394,7 @@
               "label": "config.sidebar.right.width.label",
               "max": 640,
               "min": 320,
-              "per_output": false,
+              "per_output": true,
               "restart": false,
               "since": 3,
               "step": 10,
@@ -8505,7 +8579,7 @@
               "label": "config.sidebar.left.width.label",
               "max": 640,
               "min": 320,
-              "per_output": false,
+              "per_output": true,
               "restart": false,
               "since": 3,
               "step": 10,

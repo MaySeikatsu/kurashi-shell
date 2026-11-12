@@ -123,6 +123,8 @@ PanelWindow {
         RoundBox {
             id: card
             sheet: true
+            // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
+            TextSpawnAll { root: card; shown: win.shown }
             // 400 px, wider (up to 480) when the title and its two buttons need it (a monospaced or wide face).
             width: Math.min(480, Math.max(400, titleText.implicitWidth + dnd.width + clear.width + 2 * Theme.gap + 2 * Theme.pad + 2))
             height: Math.min(win.maxH, head.height + (win.items.length > 0 ? list.contentHeight : empty.height) + 3 * Theme.pad)
@@ -245,6 +247,8 @@ PanelWindow {
                 y: list.y
                 stepPx: 40
             }
+            // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+            ScrollEdge { view: list }
             Flickable {
                 id: list
                 KineticWheel { view: list }

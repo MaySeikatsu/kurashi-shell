@@ -83,17 +83,23 @@ Item {
     // I460: the wash needs the same mask.
     readonly property bool washed: visible && Theme.washOn && shape.shown
     readonly property bool masked: textured || washed
-    Shape {
+    // (Session 30, I505: the copy is taken of an item round the mirrored shape — a ShaderEffectSource draws its source
+    // without the source's own transform, so a mask that carried the mirror itself came out unmirrored: on a bottom bar
+    // the wash covered the card's whole box, its rounded corner and fillets lost — the user's launcher at the edge.)
+    Item {
         id: maskShape
         visible: jc.masked
         anchors.fill: parent
-        transform: jc.scaling
-        preferredRendererType: Shape.CurveRenderer
-        ShapePath {
-            strokeWidth: -1
-            strokeColor: "transparent"
-            fillColor: "white"
-            PathSvg { path: jc.masked ? shape.fillPath : "" }
+        Shape {
+            anchors.fill: parent
+            transform: jc.scaling
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                fillColor: "white"
+                PathSvg { path: jc.masked ? shape.fillPath : "" }
+            }
         }
     }
     StillCopy {

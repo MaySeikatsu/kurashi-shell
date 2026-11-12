@@ -304,6 +304,9 @@ Singleton {
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
     readonly property string joinKind: String(tok("join.kind", "auto"))
     readonly property string joinCorner: String(tok("join.corner", "round"))
+    // Session 30 (I494, `theme.material.scroll_edges`): how content cut by a scrolling view's edge is drawn — blur, fade
+    // or cut (components/ScrollEdge.qml).
+    readonly property string scrollEdges: String(tok("scroll.edges", "blur"))
     // I489 (session 29): a window's blur region has round corners only. Under a corner shape that cuts inside the
     // round one (a cut, steps, an outward quarter's notch) a region rounded as the surface used to be showed the blurred
     // desk past the shaped corner, as a ghost of the old rounding; so the region's corner is the round one that lies

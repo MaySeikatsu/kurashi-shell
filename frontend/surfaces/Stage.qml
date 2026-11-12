@@ -1742,6 +1742,8 @@ PanelWindow {
     }
     RoundBox {
         id: card
+        // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
+        TextSpawnAll { root: card; shown: stage.shown && stage.open }
         // (a sheet of its own where no shape draws it: its corners take the sheet's corner shape, I489)
         sheet: true
         visible: stage.shown

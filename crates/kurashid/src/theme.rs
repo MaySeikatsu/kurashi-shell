@@ -791,6 +791,7 @@ pub fn document_with(
                 ("flow.colours", "theme.colors.flow.colours"),
                 ("text.effect", "theme.typography.fx.effect"),
                 ("text.scope", "theme.typography.fx.scope"),
+                ("scroll.edges", "theme.material.scroll_edges"),
             ] {
                 tokens.insert(token.into(), json!(s(store, key)));
             }

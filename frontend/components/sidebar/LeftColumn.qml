@@ -88,15 +88,40 @@ Item {
         else if (event.key === Qt.Key_PageUp) { step(-1); event.accepted = true }
     }
 
-    // The tab bar: one key per tab, the current one tonal, wrapping onto a second line when they do not fit (I283: the
-    // right side's five sections). Hidden with a single tab (nothing to switch).
-    Flow {
+    // The tab bar (session 30, I500; the user: "don't stack sidebar tabs like that, just keep one clean row"): one row of
+    // keys, the current one tonal; the pin at the row's outer end (the screen's side) when this column carries it. Tabs
+    // that do not fit scroll sideways (wheel or drag), their cut end blending out as any scroll edge does, and the current
+    // tab is always brought into view. Hidden with a single tab and no pin (nothing to switch).
+    property string pinSide: ""
+    Item {
         id: bar
-        visible: lc.shownTabs.length > 1
+        visible: lc.shownTabs.length > 1 || lc.pinSide !== ""
         width: lc.width
-        height: visible ? implicitHeight : 0
-        spacing: Theme.gap
-        Repeater {
+        height: visible ? 30 : 0
+        SidebarPin {
+            id: tabPin
+            visible: lc.pinSide !== ""
+            sidebarSide: lc.pinSide !== "" ? lc.pinSide : "left"
+            outName: lc.outName
+            anchors.verticalCenter: parent.verticalCenter
+            x: lc.pinSide === "right" ? parent.width - width : 0
+        }
+        ScrollEdge { view: tabRow; horizontal: true }
+        ListView {
+            id: tabRow
+            KineticWheel { view: tabRow; horizontal: true }
+            orientation: ListView.Horizontal
+            visible: lc.shownTabs.length > 1
+            x: tabPin.visible && lc.pinSide !== "right" ? tabPin.width + Theme.gap : 0
+            width: parent.width - (tabPin.visible ? tabPin.width + Theme.gap : 0)
+            height: parent.height
+            spacing: Theme.gap
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentWidth > width + 1
+            currentIndex: lc.cur
+            highlightFollowsCurrentItem: false
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
             model: lc.shownTabs
             delegate: KeyButton {
                 id: tabKey
@@ -123,6 +148,8 @@ Item {
         stepPx: 40
     }
     // The tab's panel.
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: pane; on: panel.item === null || panel.item.placement === undefined }
     Flickable {
         id: pane
         KineticWheel { view: pane }
@@ -182,6 +209,7 @@ Item {
     // Nothing to show: which tabs are missing, and why.
     Column {
         visible: lc.tab === null
+        y: bar.height + (bar.visible ? Theme.pad : 0)
         width: lc.width
         spacing: Theme.gap
         Text {

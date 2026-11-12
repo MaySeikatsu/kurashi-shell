@@ -69,6 +69,8 @@ Item {
     }
     clip: !flyouts
 
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: flick }
     Flickable {
         id: flick
         KineticWheel { view: flick }
@@ -181,6 +183,8 @@ Item {
         stepPx: 40
     }
     // The page: the quick card's page component, made while it is shown; a long list scrolls.
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: pageFlick }
     Flickable {
         id: pageFlick
         KineticWheel { view: pageFlick }

@@ -18,6 +18,8 @@ import "../core"
 // text is on screen; glow, CRT and rainbow are still.
 Item {
     id: fx
+    // (TextSpawnAll finds a Text's own by this name)
+    objectName: "textfx"
     property bool title: false
     property bool onChange: false
     readonly property var target: parent

@@ -9,6 +9,9 @@ import "../core"
 WheelHandler {
     id: kw
     property Flickable view: null
+    // A row that scrolls sideways (the sidebar's tabs, session 30): the wheel's notches move it along x (a touchpad's
+    // sideways swipe too).
+    property bool horizontal: false
     // Pixels per second a notch adds (one notch glides ~155 px on this deceleration, a quick run ~1000 px), and how close in
     // time notches must come to build on each other.
     property real notchVelocity: 950
@@ -17,13 +20,18 @@ WheelHandler {
     property double last: 0
     target: null
     // A view with nothing to scroll leaves the wheel to what lies under it.
-    enabled: !!view && view.contentHeight > view.height + 1
+    enabled: !!view && (horizontal ? view.contentWidth > view.width + 1 : view.contentHeight > view.height + 1)
     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
     Component.onCompleted: {
         if (!view) return
         view.flickDeceleration = 2900
         view.maximumFlickVelocity = 7000
         view.boundsBehavior = Flickable.StopAtBounds
+    }
+    function clampX(x) {
+        var start = view.originX - view.leftMargin
+        var end = view.originX + view.contentWidth + view.rightMargin - view.width
+        return Math.max(start, Math.min(x, Math.max(start, end)))
     }
     function clampY(y) {
         var top = view.originY - view.topMargin
@@ -35,6 +43,15 @@ WheelHandler {
         if (!f) return
         // A touchpad scrolls in phases. A wheel has none, and since Qt 6.12 it reports a pixelDelta too (B42), so that delta
         // alone cannot tell them apart.
+        if (kw.horizontal) {
+            // (a wheel's notch, or a touchpad's swipe either way, moves the row along x)
+            var px = ev.pixelDelta.x !== 0 ? ev.pixelDelta.x : ev.pixelDelta.y
+            if (ev.phase !== Qt.NoScrollPhase) { f.cancelFlick(); f.contentX = kw.clampX(f.contentX - px); return }
+            var n = (ev.angleDelta.x !== 0 ? ev.angleDelta.x : ev.angleDelta.y) / 120
+            if (n === 0) return
+            f.contentX = kw.clampX(f.contentX - n * 60)
+            return
+        }
         if (ev.phase !== Qt.NoScrollPhase) {
             if (ev.pixelDelta.y === 0) return
             f.cancelFlick()
