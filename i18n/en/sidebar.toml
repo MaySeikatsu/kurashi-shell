@@ -38,3 +38,7 @@
 "sidebar.unpin" = "Unpin: back to how it opens"
 "sidebar.in_bar.right" = "Right sidebar button in the bar"
 "sidebar.in_bar.left" = "Left sidebar button in the bar"
+"sidebar.sections.add" = "Add or remove"
+"sidebar.sections.title" = "What this sidebar shows"
+"sidebar.sections.close" = "Done"
+"sidebar.sections.forced" = "Set by {by}: change it there"

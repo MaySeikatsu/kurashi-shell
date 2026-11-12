@@ -306,6 +306,59 @@
           ]
         },
         {
+          "id": "groups",
+          "label": "settings.section.groups",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "records",
+              "couplings": [],
+              "default": [],
+              "help": "config.layout.groups.help",
+              "key": "layout.groups",
+              "label": "config.layout.groups.label",
+              "per_output": false,
+              "record": {
+                "fields": [
+                  {
+                    "key": "id",
+                    "label": "config.layout.groups.field.id",
+                    "pattern": "slug",
+                    "required": true,
+                    "type": "string"
+                  },
+                  {
+                    "default": "",
+                    "key": "name",
+                    "label": "config.layout.groups.field.name",
+                    "required": false,
+                    "type": "string"
+                  },
+                  {
+                    "default": "",
+                    "key": "members",
+                    "label": "config.layout.groups.field.members",
+                    "required": false,
+                    "type": "string"
+                  },
+                  {
+                    "default": false,
+                    "key": "accordion",
+                    "label": "config.layout.groups.field.accordion",
+                    "required": false,
+                    "type": "bool"
+                  }
+                ],
+                "item_label": "name",
+                "unique": "id"
+              },
+              "restart": false,
+              "since": 7,
+              "type": "records"
+            }
+          ]
+        },
+        {
           "id": "top_edge",
           "label": "settings.section.top_edge",
           "rows": [

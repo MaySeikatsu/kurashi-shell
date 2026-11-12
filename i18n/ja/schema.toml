@@ -1057,3 +1057,6 @@
 "config.choice.scroll_edges.blur" = "ぼかし"
 "config.choice.scroll_edges.fade" = "フェード"
 "config.choice.scroll_edges.cut" = "カット"
+"settings.section.groups" = "グループ"
+"config.layout.groups.label" = "グループ"
+"config.layout.groups.help" = "一緒に並ぶモジュールやセクション。バーではひとつの枠、1列のサイドバーではひとつのカード、ページ表示ではひとつのタブになります。バーのゾーンやサイドバーのリストでは `group:<id>` としてグループを指定し、メンバーはそのIDを順に並べます。アコーディオン：バーではポインターかキーボードが来るまで最初のメンバーだけを表示します。"

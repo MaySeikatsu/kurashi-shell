@@ -193,6 +193,7 @@ Scope {
                 id: stackC
                 RightColumn {
                     sections: sb.sections
+                    side: sb.side
                     pinSide: sb.side
                     outName: col.out
                     fromTop: cfg.atTop && !cfg.atBottom

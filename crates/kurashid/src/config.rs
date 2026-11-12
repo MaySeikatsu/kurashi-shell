@@ -2103,6 +2103,28 @@ impl ConfigStore {
             )
         };
         let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets, &mod_desks);
+        // Session 30 (I502, `layout.groups`): each named group is something a bar zone and a sidebar can list, as
+        // `group:<id>`, named by its name (or its id).
+        let groups = {
+            let cfg = self.cfg.lock().expect("config lock");
+            cfg.resolve("layout.groups", None).map(|p| p.value)
+        };
+        let group_offers: Vec<Offer> = groups
+            .as_ref()
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|g| {
+                let id = g["id"].as_str().filter(|s| !s.is_empty())?;
+                let name = g["name"].as_str().filter(|s| !s.is_empty()).unwrap_or(id);
+                Some(Offer::on(&format!("group:{id}"), name.to_string()))
+            })
+            .collect();
+        for source in ["modules", "sidebar.sections", "sidebar.tabs"] {
+            if let Some(list) = offers.get_mut(source) {
+                list.extend(group_offers.iter().cloned());
+            }
+        }
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers

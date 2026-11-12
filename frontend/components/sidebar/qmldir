@@ -11,3 +11,4 @@ ColumnShape 1.0 ColumnShape.qml
 singleton SidebarGeom 1.0 SidebarGeom.qml
 SidebarPin 1.0 SidebarPin.qml
 CardJoin 1.0 CardJoin.qml
+SectionPicker 1.0 SectionPicker.qml

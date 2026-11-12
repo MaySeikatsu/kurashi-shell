@@ -50,6 +50,7 @@ pub fn leaf<T: KurashiLeaf>(
     }
     m.constraints.choices = T::choices();
     m.constraints.type_bounds = T::type_bounds();
+    m.constraints.record = T::record();
     m.help = help.map(|_| format!("config.{}.help", m.key));
     m.text = Text {
         label: label.to_owned(),

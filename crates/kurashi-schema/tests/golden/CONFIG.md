@@ -135,6 +135,15 @@ Windows tile inside the frame. Off: the frame is drawn over the windows' edges.
 - only while `layout.frame.enabled == true`
 - since schema v3
 
+### Groups
+
+#### `layout.groups` — Groups
+
+Modules and sections that stand together: on a bar one framed block, in a one-column sidebar one card, with pages one tab. A bar zone or a sidebar names a group as `group:<id>` in its list; its members are the ids it holds, in order. Accordion: on a bar the group shows its first member until the pointer or the keyboard comes to it.
+
+- type: `records` · default: `[]`
+- since schema v7
+
 ### Top edge
 
 #### `edges.top.bar` — Bar

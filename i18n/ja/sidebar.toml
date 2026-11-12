@@ -37,3 +37,7 @@
 "sidebar.unpin" = "ピンを外す：元の開き方に戻す"
 "sidebar.in_bar.right" = "右サイドバーのボタンをバーに"
 "sidebar.in_bar.left" = "左サイドバーのボタンをバーに"
+"sidebar.sections.add" = "追加・削除"
+"sidebar.sections.title" = "このサイドバーに表示するもの"
+"sidebar.sections.close" = "完了"
+"sidebar.sections.forced" = "{by} で設定されています。そちらで変更してください"

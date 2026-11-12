@@ -245,7 +245,29 @@ pub struct OutputConfig {
     pub sidebar_left: SidebarConfig,
     /// `island.main.draw`.
     pub island_draw: DrawSetting,
+    /// `layout.groups` (session 30, I502): the named groups a zone may list as `group:<id>`.
+    pub groups: Vec<GroupConfig>,
 }
+
+/// One named group (`layout.groups`, I502): its members are module ids (or sidebar sections), in order.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GroupConfig {
+    pub id: String,
+    pub name: String,
+    pub members: Vec<String>,
+    pub accordion: bool,
+}
+
+/// A named group as the layout document carries it, by id (I502): its name and whether it folds.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GroupInfo {
+    pub name: String,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub accordion: bool,
+}
+
+/// The prefix a zone's list names a group by (I502).
+pub const GROUP_PREFIX: &str = "group:";
 
 /// A mod as the layout sees it: whether it is on and the widgets (`widget:<name>`) its manifest provides, in
 /// manifest order. Mods come in mod order (the registry's).
@@ -314,6 +336,9 @@ pub struct OutputLayout {
     pub island: Option<Island>,
     pub unplaced: Vec<Unplaced>,
     pub problems: Vec<Problem>,
+    /// The named groups the zones use, by id (I502); absent while none.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub groups: BTreeMap<String, GroupInfo>,
 }
 
 impl OutputLayout {
@@ -453,6 +478,9 @@ pub struct Module {
     pub mod_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provide: Option<String>,
+    /// The named group the entry stands in (I502): its members are consecutive in the zone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 impl Module {
@@ -462,6 +490,7 @@ impl Module {
             kind: Kind::Core,
             mod_id: None,
             provide: None,
+            group: None,
         }
     }
 
@@ -471,6 +500,7 @@ impl Module {
             kind: Kind::Mod,
             mod_id: Some(mod_id.into()),
             provide: Some(format!("widget:{name}")),
+            group: None,
         }
     }
 }
@@ -896,6 +926,24 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
         island,
         unplaced,
         problems,
+        groups: cfg
+            .groups
+            .iter()
+            .map(|x| {
+                let name = if x.name.is_empty() {
+                    x.id.clone()
+                } else {
+                    x.name.clone()
+                };
+                (
+                    x.id.clone(),
+                    GroupInfo {
+                        name,
+                        accordion: x.accordion,
+                    },
+                )
+            })
+            .collect(),
     }
 }
 
@@ -916,11 +964,19 @@ fn resolve_zones(
     mods: &[ModWidgets],
     cfg: &OutputConfig,
 ) -> ([Zones; 4], Vec<Unplaced>, Vec<Problem>) {
+    let group = |id: &str| {
+        id.strip_prefix(GROUP_PREFIX)
+            .and_then(|g| cfg.groups.iter().find(|x| x.id == g))
+    };
+    // (a group's members count as named where the group is listed)
     let named: Vec<&str> = cfg
         .edges
         .iter()
         .flat_map(|e| e.zones.iter().flatten())
-        .map(String::as_str)
+        .flat_map(|id| match group(id) {
+            Some(g) => g.members.iter().map(String::as_str).collect::<Vec<_>>(),
+            None => vec![id.as_str()],
+        })
         .collect();
     let holds_mods = named.contains(&MODS);
     let mut expanded = false;
@@ -942,6 +998,34 @@ fn resolve_zones(
                                     target.push(Module::widget(&m.id, w));
                                 }
                             }
+                        }
+                    }
+                    continue;
+                }
+                if id.starts_with(GROUP_PREFIX) {
+                    let Some(g) = group(id) else {
+                        problems.push(Problem {
+                            id: id.clone(),
+                            zone: zone.clone(),
+                            reason: REASON_UNKNOWN,
+                        });
+                        continue;
+                    };
+                    for member in g
+                        .members
+                        .iter()
+                        .filter(|m| *m != MODS && !m.starts_with(GROUP_PREFIX))
+                    {
+                        match entry(mods, member) {
+                            Ok(mut m) => {
+                                m.group = Some(g.id.clone());
+                                target.push(m);
+                            }
+                            Err(reason) => problems.push(Problem {
+                                id: member.clone(),
+                                zone: zone.clone(),
+                                reason,
+                            }),
                         }
                     }
                     continue;

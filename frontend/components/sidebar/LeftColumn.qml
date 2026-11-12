@@ -30,6 +30,13 @@ Item {
     readonly property var rows: {
         var out = []
         for (var i = 0; i < tabs.length; i++) {
+            // Session 30 (I502): a named group is one tab, its page its members stacked (the one-column layout's own way).
+            var g = Groups.of(tabs[i])
+            if (g !== null) {
+                out.push({ value: tabs[i], ref: null, core: true, state: g.members.length > 0 ? "ok" : "unknown",
+                           name: g.name, members: g.members })
+                continue
+            }
             if (String(tabs[i]).indexOf("mod:") !== 0) {
                 out.push({ value: tabs[i], ref: null, core: true, state: "ok",
                            name: I18n.tr("config.choice.sidebar_section." + tabs[i]) })
@@ -104,7 +111,7 @@ Item {
     property string pinSide: ""
     Item {
         id: bar
-        visible: lc.shownTabs.length > 1 || lc.pinSide !== ""
+        visible: true
         width: lc.width
         height: visible ? 30 : 0
         SidebarPin {
@@ -115,6 +122,18 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             x: lc.pinSide === "right" ? parent.width - width : 0
         }
+        // Session 30 (I500 c): "+" — what this sidebar shows, chosen in place (SectionPicker).
+        KeyButton {
+            id: addKey
+            side: 30
+            icon: "add"
+            glyph: "+"
+            a11y: I18n.tr("sidebar.sections.add")
+            primary: picker.open
+            anchors.verticalCenter: parent.verticalCenter
+            x: lc.pinSide === "right" ? tabPin.x - width - Theme.gap : parent.width - width
+            onClicked: picker.open = !picker.open
+        }
         ScrollEdge { view: tabRow; horizontal: true }
         ListView {
             id: tabRow
@@ -122,7 +141,7 @@ Item {
             orientation: ListView.Horizontal
             visible: lc.shownTabs.length > 1
             x: tabPin.visible && lc.pinSide !== "right" ? tabPin.width + Theme.gap : 0
-            width: parent.width - (tabPin.visible ? tabPin.width + Theme.gap : 0)
+            width: parent.width - (tabPin.visible ? tabPin.width + Theme.gap : 0) - addKey.width - Theme.gap
             height: parent.height
             spacing: Theme.gap
             clip: true
@@ -216,7 +235,16 @@ Item {
         width: lc.width
         height: lc.height - pane.y
         active: lc.tab !== null && lc.tab.core === true
-        sourceComponent: RightColumn { anchors.fill: parent; sections: [lc.tab.value]; outName: lc.outName }
+        sourceComponent: RightColumn { anchors.fill: parent; sections: lc.tab.members || [lc.tab.value]; outName: lc.outName }
+    }
+    SectionPicker {
+        id: picker
+        z: 10
+        side: lc.side
+        y: bar.height + Theme.gap
+        width: lc.width
+        height: Math.min(lc.height - y, 460)
+        onClosed: addKey.forceActiveFocus()
     }
     // Nothing to show: which tabs are missing, and why.
     Column {

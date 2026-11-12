@@ -3078,7 +3078,30 @@ pub fn layout_config(val: &dyn Fn(&str) -> Value) -> kurashi_layout::OutputConfi
         reserve: res(&format!("sidebar.{side}.reserve")),
         draw: draw(&format!("sidebar.{side}.draw")),
     };
+    // I502 (session 30): the named groups, `[[layout.groups]]` rows with their members comma-separated.
+    let groups = val("layout.groups")
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|g| {
+            let id = g["id"].as_str().filter(|s| !s.is_empty())?.to_owned();
+            Some(kurashi_layout::GroupConfig {
+                id,
+                name: g["name"].as_str().unwrap_or_default().to_owned(),
+                members: g["members"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|m| !m.is_empty())
+                    .map(str::to_owned)
+                    .collect(),
+                accordion: g["accordion"].as_bool().unwrap_or(false),
+            })
+        })
+        .collect();
     OutputConfig {
+        groups,
         bar_size: num("bar.height", 32),
         frame: FrameConfig {
             enabled: flag("layout.frame.enabled", false),

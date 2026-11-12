@@ -106,6 +106,9 @@ Scope {
     // A zone as runs, each run one group block (chromes with groups): the island stands alone (its pill is its block), the
     // window list is a group of its own, every other stretch one group; a run's pieces are one module each, or a stretch of
     // tight ones. `key`: the group's origin key (Stage reads these three).
+    // Session 30 (I502, `layout.groups`): a named group's members (the daemon tags them, `group`) are a run of their own,
+    // so a zone can hold several blocks; `named` is the group's id, `accordion` whether it folds to its first member.
+    readonly property var groupsDoc: (ShellLayout.of(bar.outName) || {}).groups || ({})
     function runsOf(zone, list) {
         var runs = [], cur = null, rightUsed = false
         function close() { if (cur) runs.push(cur); cur = null }
@@ -116,7 +119,11 @@ Scope {
                 runs.push({ kind: e.id, key: e.id === "windows" ? "group:tasks" : "", pieces: [[e]] })
                 continue
             }
-            if (!cur) cur = { kind: "group", key: "", pieces: [] }
+            var g = e.group || ""
+            if (cur && (cur.named || "") !== g) close()
+            if (!cur) cur = { kind: "group", key: "", pieces: [], named: g,
+                              accordion: g !== "" && !!(bar.groupsDoc[g] && bar.groupsDoc[g].accordion),
+                              title: g !== "" && bar.groupsDoc[g] ? String(bar.groupsDoc[g].name || g) : "" }
             var tight = tightIds.indexOf(e.id) >= 0
             var last = cur.pieces.length > 0 ? cur.pieces[cur.pieces.length - 1] : null
             if (tight && last && last.tight) last.push(e)

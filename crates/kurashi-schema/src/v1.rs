@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{Color, FontFamilies, KurashiSchema, MotionCurve, Registry, strings};
+use crate::{Color, FontFamilies, KurashiSchema, ModuleGroups, MotionCurve, Registry, strings};
 
 pub const VERSION: u32 = 7;
 
@@ -225,6 +225,12 @@ pub struct Layout {
     pub reveal_delay: u32,
     #[kurashi(nested, section = "frame")]
     pub frame: Frame,
+    /// Groups
+    /// Modules and sections that stand together: on a bar one framed block, in a one-column sidebar one card, with pages
+    /// one tab. A bar zone or a sidebar names a group as `group:<id>` in its list; its members are the ids it holds, in
+    /// order. Accordion: on a bar the group shows its first member until the pointer or the keyboard comes to it.
+    #[kurashi(default = ModuleGroups::default(), section = "groups", since = 7)]
+    pub groups: ModuleGroups,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
