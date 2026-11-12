@@ -644,7 +644,8 @@ PanelWindow {
                 anchors.fill: parent
                 radius: Theme.rLg
                 fill: Theme.panel
-                flatBorder: Theme.surfaceHair
+                // (W75, B118: the still ink while hidden — the closed launcher's window stays mapped)
+                flatBorder: visible ? Theme.surfaceHair : (Theme.frameOutline ? Theme.frameOutlineStill : "transparent")
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).
                 penSeed: 0x1A0C
             }

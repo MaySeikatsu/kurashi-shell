@@ -93,7 +93,10 @@ Shape {
     // cover its body, below)
     function fa(c, a) { return Theme.painted ? Qt.rgba(c.r, c.g, c.b, 0) : Qt.rgba(c.r, c.g, c.b, c.a * a) }
     readonly property real ow: Theme.surfaceLineW
-    readonly property color oc: Theme.surfaceLineColor
+    // (W75, B118: the flowing line only while the shape is seen — a hidden shape in a window kept mapped, the closed
+    // launcher's, redrew that window at every step of the colour flow; the still ink meanwhile, the moving one at once
+    // when it shows)
+    readonly property color oc: visible || !Theme.frameOutline ? Theme.surfaceLineColor : Theme.frameOutlineStill
     readonly property real gw: Theme.ringW * ringScale
     // The hard shadow's vector (K67): `sd` down the path (mirrored with the frame), `Theme.sinkX` across by moving its layer.
     readonly property real sd: (flip ? -1 : 1) * Theme.sinkY

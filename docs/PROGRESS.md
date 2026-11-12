@@ -390,4 +390,11 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S29.8 | A closed sidebar is kept for a minute, `sidebar.keep_loaded` (K139, B102) | ✅ functional · 🟡 UX (timed on nested niri; not on the user's session) | feat/s29-keep-loaded |
 | S29.9 | Outlines as strokes, blocks and toasts take the corner shape, the rule fades at a join (K140; B116, I492, B109) | ✅ functional · 🟡 UX (pixels and bursts on nested niri; the user's report, not yet their eyes) | feat/s29-outline-blocks |
 | S29.10 | Web dock: `hover_takes_page`, the edge card's size as the bar card's default, a key to switch (card W74, K141) | ✅ functional (`test-card` 1b and 4c, unit tests) · 🟡 UX (shot on niri; B117) | feat/s29-webdock-w74 |
+| S30.1 | Scroll edges: cut content blurs and fades toward a view's edge, `theme.material.scroll_edges` (K142, I494) | ✅ functional · 🟡 UX (launcher, quick card, sidebar tabs seen on nested niri with the user's profile; the user has not seen it) | feat/s30-refine |
+| S30.2 | Sidebars: width per output, tabs in one row with the pin (I500 a, b) | ✅ functional · 🟡 UX (tab row and its wheel seen on niri; two real monitors not) | feat/s30-refine |
+| S30.3 | Cards: at most ½ × ⅓ of the screen and scrolling, kept a minute, one even gap when floating (K143; I493, I504) | ✅ functional (gaps read in pixels: 8 px to bar and frame) · 🟡 UX (quick card on niri; PSS of a kept card not measured) | feat/s30-refine |
+| S30.4 | The launcher at the edge has its corner and fillets: the joined sheet's mask keeps its mirror (I505, item 9) | ✅ functional · 🟡 UX (bottom bar on niri; top and side bars not shot) | feat/s30-refine |
+| S30.5 | An opening sheet form blends into the surface at its landing (K144, I503 item 6) | ✅ functional (no error, splat seen in bursts) · 🟡 UX (a blend of 220 ms is below what grim's bursts resolve; the user judges) | feat/s30-refine |
+| S30.6 | Fresh text on all text, Settings hides a Reset that changes nothing (I503 item 5, I505 item 11) | ✅ functional · 🟡 UX (quick card's labels in kana on niri; Settings not shot) | feat/s30-refine |
+| S30.7 | Web dock: the sites' own images, the open site and what plays in the bar, a user agent without QtWebEngine (I495, I498) | 🟡 functional (unit tests; not seen on screen; WhatsApp needs the user's network) · 🟡 UX | feat/s30-webdock |
 

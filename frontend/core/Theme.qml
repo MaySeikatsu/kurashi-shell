@@ -292,6 +292,8 @@ Singleton {
     // moved through the colour flow): one line round the screen and everything that stands on it.
     readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
     readonly property color surfaceLineColor: frameOutline ? frameOutlineColor : (outlineW > 0 ? outlineColor : "transparent")
+    // (the same line without the colour flow: what stands inside a scrolling view whose edges blend, ColorFlow.under)
+    readonly property color surfaceLineStill: frameOutline ? frameOutlineStill : (outlineW > 0 ? outlineColor : "transparent")
     // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
     // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
     readonly property string textEffect: String(tok("text.effect", "none"))

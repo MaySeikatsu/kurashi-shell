@@ -922,11 +922,13 @@ if want_part pages; then
   pin_click() {
     ptr click $(( $(frame_at 1) + $(pad) + 16 )) $(( $(pin_y) + 16 )) left
   }
+  # (session 30, I500: the tabs are one row with the pin at its outer end — on the left, first — so a key's x is taken
+  # relative to the pin's, which stands at the frame's left edge plus the pad)
+  pin_x() { pin_line | awk '{ print $3 }'; }
   tab_click() { # tab_click <index>: the middle of the key
-    local k=$1 x0 y0 w0 h0 x y w h
-    read -r x0 y0 w0 h0 <<< "$(tab_key 0)"
+    local k=$1 x y w h
     read -r x y w h <<< "$(tab_key "$k")"
-    ptr click $(( $(frame_at 1) + $(pad) + (x - x0) + w / 2 )) $(( y + h / 2 )) left
+    ptr click $(( $(frame_at 1) + $(pad) + (x - $(pin_x)) + w / 2 )) $(( y + h / 2 )) left
   }
 
   # (a) the page memory.

@@ -67,6 +67,15 @@ Item {
     // Test only (KURASHI_SIDEBAR_GEOMETRY=1, frontend/test-sidebars.sh pages part): where a tab's key is in the window, so the
     // test can click it on its output (the column's window sits at the output's origin on the left).
     readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
+    // (a list's keys keep their x while the row and the column move: their places are logged again once the column has
+    // its place — Qt.callLater after a move — so a click aimed by the log lands on the key)
+    function logAll() {
+        if (!geometryLog) return
+        for (var i = 0; i < shownTabs.length; i++) { var k = tabRow.itemAtIndex(i); if (k) logTab(i, k) }
+    }
+    onXChanged: if (geometryLog) Qt.callLater(logAll)
+    onYChanged: if (geometryLog) Qt.callLater(logAll)
+    onWidthChanged: if (geometryLog) Qt.callLater(logAll)
     function logTab(i, key) {
         if (!geometryLog || i >= shownTabs.length) return
         var p = key.mapToItem(null, 0, 0)
@@ -122,6 +131,9 @@ Item {
             currentIndex: lc.cur
             highlightFollowsCurrentItem: false
             onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+            onContentXChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
+            onXChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
+            onCountChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
             model: lc.shownTabs
             delegate: KeyButton {
                 id: tabKey
@@ -134,7 +146,7 @@ Item {
                 onClicked: lc.choose(index)
                 onXChanged: lc.logTab(index, tabKey)
                 onYChanged: lc.logTab(index, tabKey)
-                Component.onCompleted: lc.logTab(index, tabKey)
+                Component.onCompleted: Qt.callLater(function () { lc.logTab(index, tabKey) })
             }
         }
     }

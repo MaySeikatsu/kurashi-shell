@@ -21,7 +21,7 @@ RoundBox {
     color: bare ? "transparent" : Theme.container
     // K62: with a pen in effect the pen draws the outline instead of the straight border.
     border.width: pen.active || bare || frame.drawsOutline ? 0 : Theme.surfaceLineW
-    border.color: Theme.surfaceLineColor
+    border.color: ColorFlow.lineOn && ColorFlow.under(card) ? Theme.surfaceLineStill : Theme.surfaceLineColor
     Loader {
         id: pen
         z: 1

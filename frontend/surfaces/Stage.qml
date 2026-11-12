@@ -1505,18 +1505,26 @@ PanelWindow {
             run.reset()
             // I493 (session 30, `bar.card_keep_loaded`; as the sidebars, K139): the view a card showed stays made for a
             // minute after it closed — the window keeps it, unseen — so the same card opens again at once, at its size.
-            if (keepOn && viewing && view.status === Loader.Ready) { kept = true; keepTimer.restart() }
+            // (not a panel that maps another process's page: the web dock keeps its pages itself, and its panel reports
+            // where the page is shown from its own opening — "last opened wins")
+            if (keepOn && viewing && view.status === Loader.Ready && !mapsSurface) { kept = true; keepTimer.restart() }
         } else { kept = false; keepTimer.stop() }
     }
     readonly property bool keepOn: bars.valueOf("bar.card_keep_loaded", true) === true
     property bool kept: false
     onKeepOnChanged: if (!keepOn) kept = false
+    // (a kept view is made anew after any change of the settings: a view may read one only when it is made)
+    readonly property var cfgDoc: Store.docs["config"]
+    onCfgDocChanged: if (!shown) kept = false
     Timer { id: keepTimer; interval: 60000; onTriggered: stage.kept = false }
     // I504 (session 30, `bar.card_max_height`, `bar.card_max_width`; the user: at most ½ the screen's height and ⅓ its
     // width by default): a card stands at most that size and its view scrolls beyond it (`viewFlick`). The width never goes
     // below what a card's content needs (400 px, the wide cards' floor); a card made full screen, and a view with its own
     // chrome (the quick settings phone, a fixed size), are not limited.
-    readonly property bool limited: viewing && !full && !ownChrome
+    // (and a panel that maps another process's surface over itself — the web dock's page — keeps its own size: its place
+    // must hold still, and the web dock sizes its card itself)
+    readonly property bool mapsSurface: modPanel !== null && (modPanel.cardPlacement !== undefined || modPanel.placement !== undefined)
+    readonly property bool limited: viewing && !full && !ownChrome && !mapsSurface
     readonly property real maxCardH: screen ? Math.max(160, Math.round(screen.height * Number(bars.valueOf("bar.card_max_height", 50)) / 100)) : 100000
     readonly property real maxCardW: screen ? Math.max(400, Math.round(screen.width * Number(bars.valueOf("bar.card_max_width", 33)) / 100)) : 100000
     // A view with its own chrome: the shape dissolves into it (all of it but the bar's rule copy, I161).
