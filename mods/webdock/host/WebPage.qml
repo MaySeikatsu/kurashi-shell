@@ -16,10 +16,16 @@ Item {
     // reported with the load, so the shell — another process, without the engine's favicon provider — can show it.
     property string iconDir: ""
     property string savedIcon: ""
+    // (session 31: a grab draws the item in its window, so it works only while that window is shown — the page often
+    // loads in a hidden one, and the one try on load failed without a word; the user saw no icon at all. It is tried
+    // again whenever the page is shown, and every few seconds while it is shown and has none saved.)
     function saveIcon() {
         if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
+        var w = favicon.Window.window
+        if (!w || !w.visible || grabbing) return
         var at = String(web.icon)
-        favicon.grabToImage(function (res) {
+        grabbing = favicon.grabToImage(function (res) {
+            page.grabbing = false
             var path = page.iconDir + "/" + page.pinId.replace(/[^A-Za-z0-9_.-]/g, "_") + ".png"
             if (res.saveToFile(path)) {
                 page.savedIcon = at
@@ -27,6 +33,14 @@ Item {
             }
         }, Qt.size(64, 64))
     }
+    property bool grabbing: false
+    readonly property bool iconOwed: iconDir !== "" && String(web.icon) !== "" && String(web.icon) !== savedIcon
+    onActiveChanged: if (active) Qt.callLater(saveIcon)
+    Connections {
+        target: page.iconOwed && favicon.Window.window ? favicon.Window.window : null
+        function onVisibleChanged() { Qt.callLater(page.saveIcon) }
+    }
+    Timer { interval: 3000; repeat: true; running: page.iconOwed && page.active; onTriggered: page.saveIcon() }
     // (drawn, at an opacity the eye cannot see, so it can be grabbed; only while it holds an icon)
     Image {
         id: favicon
