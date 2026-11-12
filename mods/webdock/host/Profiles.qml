@@ -27,7 +27,10 @@ Item {
         .replace("Safari/", "Mobile Safari/")
     Component.onCompleted: {
         var d = engineDefaults.instance()
-        desktopUA = d.httpUserAgent
+        // (session 30, I498: sites that check the browser — WhatsApp Web among them — refuse a user agent that names
+        // QtWebEngine beside its Chrome version; the engine is Chromium's own, so the string says Chrome alone, as
+        // qutebrowser's quirk for those sites does)
+        desktopUA = d.httpUserAgent.replace(/\s*QtWebEngine\/\S+/, "")
         desktopPlatform = d.clientHints.platform
         console.log("webdock: the engine's user agent is " + desktopUA)
     }

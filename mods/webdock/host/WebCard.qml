@@ -29,6 +29,7 @@ PanelWindow {
 
     // Set by shell.qml from `mod.webdock` and the host's objects.
     property var pins: []
+    property string iconDir: ""
     property var keepWeb: []           // ids of the web pins the host keeps loaded, most recent first
     property string shownId: ""
     property bool open: false          // mode extended and the shown pin a web pin
@@ -39,6 +40,13 @@ PanelWindow {
     readonly property Component roundBox: Component { RoundBox {} }
     property int strip: 56             // geometry.strip: the dock's strip, the card's margin from the edge
     property int phoneWidth: 412       // geometry.width
+    // W76 (docs/ux/webdock.md "Round three"): the box the user dragged on this output (`sizes[output]`), the dock's
+    // `pinned` (the keep-open key), and who forces either (I91).
+    property var sizes: ({})
+    readonly property var box: sizes[screenObj ? String(screenObj.name) : output] || null
+    property bool pinned: false
+    property string pinForcedBy: ""
+    property string sizesForcedBy: ""
     property int largePct: 90          // geometry.large
     property int grace: 24             // geometry.grace: the hover margin on the sides away from the strip
     property string newTabs: "dock"    // new_tabs: dock (a link loads in the pin's view) | browser (the default browser)
@@ -47,7 +55,14 @@ PanelWindow {
     // then relaxes to on-demand; the rule and its reasons are in DockWindow.
     property bool winActive: false
     property bool pulseSpent: false
-    readonly property bool asksKeys: open && engaged && !winActive && !pulseSpent
+    // (W76: an empty "+" page asks too: its address field must take the first keystroke)
+    readonly property bool asksKeys: open && (engaged || blankShown) && !winActive && !pulseSpent
+    readonly property bool blankShown: !!shownPin && shownPin.temporary === true && String(shownPin.target || "") === ""
+    onBlankShownChanged: if (blankShown) { pulseSpent = false; holdSpent = false; holdTimer.restart() }
+    // The hold is bounded: 15 s without a keystroke in the field lets the keyboard go (a pinned dock never hides, and a
+    // click into another window must reach it then).
+    property bool holdSpent: false
+    Timer { id: holdTimer; interval: 15000; onTriggered: card.holdSpent = true }
     onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
     Timer { id: pulseTimer; interval: 1000; onTriggered: card.pulseSpent = true }
     property string output: ""
@@ -112,14 +127,23 @@ PanelWindow {
     // The size at rest at its end: the window has the card's size then; while it moves the window holds the larger end
     // (a layer surface is not resized every frame) and the page keeps its pixels (`pageBox`).
     readonly property bool wideRest: holdWide < 0 && (isLarge ? wide >= 0.9995 : wide <= 0.0005)
-    readonly property int phoneW: phoneWidth
-    readonly property int phoneH: Math.max(0, Math.round(Math.min(2 * phoneWidth, basisH - 2 * gap)))
+    // W76: the card's own size is the user's box on this output (else `width` × twice that), live while it is dragged
+    // (`liveW`, `liveH`), within the usable area less the strip and a gap at each end.
+    property int liveW: -1
+    property int liveH: -1
+    readonly property int maxBoxW: Math.max(300, Math.round((sideways ? screenW - strip : availW) - 2 * gap - grace))
+    readonly property int maxBoxH: Math.max(300, Math.round(basisH - 2 * gap))
+    readonly property int boxW: liveW >= 0 ? liveW : (box ? box.width : phoneWidth)
+    readonly property int boxH: liveH >= 0 ? liveH : (box ? box.height : 2 * phoneWidth)
+    readonly property int phoneW: Math.min(boxW, maxBoxW)
+    readonly property int phoneH: Math.max(0, Math.round(Math.min(boxH, basisH - 2 * gap)))
     readonly property int largeW: Math.round((sideways ? screenW : availW) * largePct / 100)
     readonly property int largeH: Math.max(0, Math.round(basisH - 2 * gap))
     readonly property int cardW: wideRest ? (isLarge ? largeW : phoneW) : Math.round(phoneW + (largeW - phoneW) * wide)
     readonly property int cardH: wideRest ? (isLarge ? largeH : phoneH) : Math.round(phoneH + (largeH - phoneH) * wide)
-    readonly property int winW: wideRest ? cardW : Math.max(phoneW, largeW)
-    readonly property int winH: wideRest ? cardH : Math.max(phoneH, largeH)
+    // (W76: while the card is dragged the window holds the largest box, so the surface is not resized every frame)
+    readonly property int winW: dragging ? (sideways ? maxBoxW : cardW) : wideRest ? cardW : Math.max(phoneW, largeW)
+    readonly property int winH: dragging ? (sideways ? cardH : maxBoxH) : wideRest ? cardH : Math.max(phoneH, largeH)
     // The phone's own chrome (the title pill, the bottom bar) while the device is a phone; the tablet, the notebook and
     // the plain card have the header on top.
     readonly property bool phoneLook: isPhone && wide < 0.5
@@ -244,18 +268,26 @@ PanelWindow {
     function pinById(id) {
         for (var i = 0; i < pins.length; i++)
             if (pins[i].id === id) return pins[i]
+        // W76: a temporary page a new pin took over ("Pin") is that pin until the page is renamed (syncViews), so its
+        // address and its view do not flicker through "none" — a view change would reload the page.
+        for (var j = 0; j < pins.length; j++)
+            if (pins[j].was === id) return pins[j]
         return null
     }
     function pageFor(id, n) {
         for (var i = 0; i < rep.count; i++) {
             var page = rep.itemAt(i)
-            if (page && page.pinId === id) return page
+            if (page && (page.pinId === id || page.lid === id)) return page
         }
         return null
     }
     function targetOf(id) {
         var p = pinById(id)
         return p && p.target ? p.target : ""
+    }
+    function reloadOf(id) {
+        var p = pinById(id)
+        return p && p.reload ? p.reload : 0
     }
     function modeOf(id) {
         var p = pinById(id)
@@ -275,6 +307,8 @@ PanelWindow {
         if (shownPin && report) report("webdock.view", { pin: shownId, view: shownView === "mobile" ? "desktop" : "mobile" })
     }
     function focusPage() {
+        // (W76: an empty "+" page: its address field has the keys)
+        if (blankShown) { (phoneLook ? phoneTitle : titleText).focusField(); return }
         if (activePage) activePage.engine.forceActiveFocus()
     }
     // Ctrl+L: the keyboard path into the header (I78). Back takes it, or Reload when Back is off; Tab walks on.
@@ -285,6 +319,78 @@ PanelWindow {
     }
     function focusMenu() {
         openItem.forceActiveFocus()
+    }
+
+    // ---- W76: resize (the card's own size only: not large, not while the size moves) ----
+    readonly property bool resizable: open && mapped && !isLarge && wideRest && slideNow === 0
+    readonly property bool sizeInert: sizesForcedBy !== ""
+    property bool dragging: false
+    function clampW(w) { return Math.max(300, Math.min(maxBoxW, Math.round(w))) }
+    function clampH(h) { return Math.max(300, Math.min(maxBoxH, Math.round(h))) }
+    function outName() { return screenObj ? String(screenObj.name) : output }
+    function writeBox() {
+        if (sizeInert || (liveW < 0 && liveH < 0)) return
+        // (only what was dragged: the other side keeps the box, not the size it is clamped to on this output)
+        var w = liveW >= 0 ? liveW : (box ? box.width : phoneWidth), h = liveH >= 0 ? liveH : (box ? box.height : 2 * phoneWidth)
+        if (box && box.width === w && box.height === h) { liveW = -1; liveH = -1; return }
+        if (debugLog) console.log("webdock-debug resize " + outName() + " " + w + " " + h)
+        Store.act("webdock.resize", { output: outName(), width: w, height: h }, function (m, err) {
+            if (err) { console.warn("webdock: webdock.resize refused: " + err.kind + " " + err.msg); card.liveW = -1; card.liveH = -1 }
+        })
+    }
+    function resetBox() {
+        liveW = -1
+        liveH = -1
+        if (sizeInert) return
+        if (debugLog) console.log("webdock-debug resize " + outName() + " reset")
+        Store.act("webdock.resize", { output: outName() }, function (m, err) {
+            if (err) console.warn("webdock: webdock.resize refused: " + err.kind + " " + err.msg)
+        })
+    }
+    // The written box arrives: the live size lets go (the box is the same, so nothing moves).
+    onBoxChanged: { liveW = -1; liveH = -1; if (debugLog) Qt.callLater(gripLog) }
+    // Ctrl and an arrow, 10 px a press, on the card's own chrome (never in the page: a text field's word jumps); written
+    // after a short pause, so a run of presses is one undo step (the sidebar's rule).
+    function nudge(key) {
+        if (!resizable || sizeInert) return false
+        var w = phoneW, h = phoneH
+        var grow = 10
+        if (key === Qt.Key_Left || key === Qt.Key_Right) {
+            // the free edge moves the arrow's way: away from a right strip is left, else right
+            var wider = edge === "right" ? key === Qt.Key_Left : key === Qt.Key_Right
+            liveW = clampW(w + (wider ? grow : -grow))
+        } else {
+            var taller = edge === "bottom" ? key === Qt.Key_Up : key === Qt.Key_Down
+            liveH = clampH(h + (taller ? grow : -grow))
+        }
+        keyWrite.restart()
+        return true
+    }
+    Timer { id: keyWrite; interval: 450; onTriggered: card.writeBox() }
+    readonly property string resizeHint: sizeInert ? I18n.tr("webdock.dock.forced.tip").replace("{by}", sizesForcedBy)
+        : I18n.tr("webdock.resize.hint").replace("{w}", phoneW).replace("{h}", phoneH)
+    // (test only: where a grip is on the window, for test-card.sh: <name> <x> <y> in the window)
+    function gripLog() {
+        if (!debugLog || !resizable) return
+        console.log("webdock-debug grips " + outName() + " " + Math.round(cardX) + " " + Math.round(cardY) + " " + cardW + " "
+            + cardH + " " + availW + " " + availH)
+        var k = keepKey.mapToItem(null, keepKey.width / 2, keepKey.height / 2)
+        console.log("webdock-debug keep " + Math.round(k.x) + " " + Math.round(k.y) + " " + availW + " " + availH
+            + (pinned ? " on" : " off"))
+    }
+    onResizableChanged: gripLog()
+    onPinnedChanged: if (debugLog) Qt.callLater(gripLog)
+
+    // ---- W76: "Pin" (a temporary page becomes a pin where the user is now; the host renames its page, no reload) ----
+    readonly property bool shownTemp: !!shownPin && shownPin.temporary === true
+    function pinPage() {
+        if (!shownTemp || !activePage) return
+        var url = currentUrl()
+        if (url === "" || url === "about:blank") return
+        var t = String(activePage.engine.title || "")
+        var args = { url: url, from: shownId }
+        if (t !== "") args.title = t
+        if (report) report("webdock.add", args)
     }
     // The window's keyboard focus (K40): a report when it is gained and when it is lost. A loss without a gain before it
     // (the window's first activation state, as Qt reports it on a new surface) is no change of the focus, so none is sent:
@@ -317,6 +423,22 @@ PanelWindow {
         }
     }
     function syncViews() {
+        // W76: a pin made from a temporary page ("Pin") takes that page: the document says `was` on it; the page is
+        // renamed, not made again (no reload).
+        for (var a = 0; a < keepWeb.length; a++) {
+            var np = pinById(keepWeb[a])
+            if (!np || !np.was) continue
+            var known = false
+            for (var b = 0; b < viewModel.count; b++) if (viewModel.get(b).pid === keepWeb[a]) known = true
+            if (known) continue
+            for (var c = 0; c < viewModel.count; c++) {
+                if (viewModel.get(c).pid === String(np.was) && keepWeb.indexOf(String(np.was)) < 0) {
+                    if (debugLog) console.log("webdock-debug rename " + np.was + " " + keepWeb[a])
+                    viewModel.setProperty(c, "pid", keepWeb[a])
+                    break
+                }
+            }
+        }
         for (var i = viewModel.count - 1; i >= 0; i--)
             if (keepWeb.indexOf(viewModel.get(i).pid) < 0) viewModel.remove(i)
         for (var j = 0; j < keepWeb.length; j++) {
@@ -366,7 +488,9 @@ PanelWindow {
 
     screen: screenObj
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+    // (W76: an empty "+" page holds the keyboard for its field until an address is typed or Esc drops it: on niri the
+    // keyboard went back to the strip the "+" was clicked on once the pulse relaxed, and the typed text with it)
+    WlrLayershell.keyboardFocus: asksKeys || (open && blankShown && !holdSpent) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
     // The window spans the usable area of the output: anchored to all four sides, so the compositor stretches it between
     // the bars, along a side edge's length and, on a top or bottom edge, across the usable width and height (I100).
@@ -501,14 +625,102 @@ PanelWindow {
             card.winActive = Window.active
             if (Window.active) card.pulseSpent = true
             card.reportEngage(Window.active)
-            if (Window.active && card.engaged && card.open) card.focusPage()
+            if (Window.active && (card.engaged || card.blankShown) && card.open) card.focusPage()
         }
     }
+    // W76 (docs/ux/webdock.md "Round three", resize): an 8 px grip along each free edge of the card in its own size — the
+    // edge away from the strip (the card's thickness) and both ends along it (the card is centred there: both ends follow
+    // the pointer). Live while dragged (the window holds the largest box meanwhile), written on release, reset by a double
+    // click; inert while the configuration forces `sizes`.
+    Item {
+        id: grips
+        // (inside the hover area: a grip under the pointer is still the card for its hover report — a sibling took the
+        // hover from it, and the dock hid while a grip was held)
+        parent: area
+        anchors.fill: parent
+        z: 101
+        visible: card.resizable
+        // across: the edge away from the strip; a, b: the ends along it
+        Repeater {
+            model: ["across", "a", "b"]
+            delegate: Item {
+                id: grip
+                required property string modelData
+                readonly property bool across: modelData === "across"
+                // (true: this grip changes the width)
+                readonly property bool horiz: across ? card.sideways : !card.sideways
+                readonly property real cx: card.cardX
+                readonly property real cy: card.cardY
+                x: horiz ? (across ? (card.edge === "right" ? cx - 4 : cx + card.cardW - 4) : (modelData === "a" ? cx - 4 : cx + card.cardW - 4)) : cx
+                y: horiz ? cy : (across ? (card.edge === "bottom" ? cy - 4 : cy + card.cardH - 4) : (modelData === "a" ? cy - 4 : cy + card.cardH - 4))
+                width: horiz ? 8 : card.cardW
+                height: horiz ? card.cardH : 8
+                Accessible.role: Accessible.Grip
+                Accessible.name: I18n.tr("webdock.resize.grip")
+                Accessible.description: card.resizeHint
+                Rectangle {
+                    visible: !card.sizeInert && (gHover.hovered || gDrag.pressed)
+                    x: grip.horiz ? 3 : 0
+                    y: grip.horiz ? 0 : 3
+                    width: grip.horiz ? 2 : parent.width
+                    height: grip.horiz ? parent.height : 2
+                    radius: 1
+                    color: Theme.accent
+                    opacity: gDrag.pressed ? 0.9 : 0.55
+                }
+                HoverHandler { id: gHover }
+                MouseArea {
+                    id: gDrag
+                    anchors.fill: parent
+                    enabled: !card.sizeInert
+                    cursorShape: grip.horiz ? Qt.SplitHCursor : Qt.SplitVCursor
+                    preventStealing: true
+                    property real start: 0
+                    property int startW: 0
+                    property int startH: 0
+                    property bool moved: false
+                    // (which way the pointer grows the card: the free edge's outward direction; an end along the strip
+                    // moves both ends, so twice the pointer's way)
+                    readonly property real sign: grip.across
+                        ? ((card.edge === "right" || card.edge === "bottom") ? -1 : 1)
+                        : (grip.modelData === "a" ? -2 : 2)
+                    function at(ev) { var p = mapToItem(null, ev.x, ev.y); return grip.horiz ? p.x : p.y }
+                    onPressed: ev => {
+                        start = at(ev)
+                        startW = card.phoneW
+                        startH = card.phoneH
+                        moved = false
+                    }
+                    onPositionChanged: ev => {
+                        if (!pressed) return
+                        var d = at(ev) - start
+                        if (!moved && Math.abs(d) < 2) return
+                        if (!moved) { moved = true; card.dragging = true }
+                        if (grip.horiz) card.liveW = card.clampW(startW + sign * d)
+                        else card.liveH = card.clampH(startH + sign * d)
+                    }
+                    onReleased: {
+                        card.dragging = false
+                        if (moved) card.writeBox()
+                        moved = false
+                    }
+                    onDoubleClicked: card.resetBox()
+                }
+            }
+        }
+    }
+
     // Ctrl+L enters the header; the page is not told (it may take Ctrl+L for itself, but the card is the chrome's key).
     Shortcut {
         sequence: "Ctrl+L"
         enabled: card.open
         onActivated: card.focusHeader()
+    }
+    // W76: Alt+D (a browser's own key for its address) opens the title's address field.
+    Shortcut {
+        sequence: "Alt+D"
+        enabled: card.open && !!card.shownPin
+        onActivated: card.phoneLook ? phoneTitle.begin() : titleText.begin()
     }
 
     // The pages, one per web pin in `keep`: created when a pin is first kept, destroyed when it leaves `keep`.
@@ -670,21 +882,37 @@ PanelWindow {
                                 border.width: Theme.outlineW
                                 border.color: Theme.outlineColor
                                 clip: true
-                                Text {
+                                // W76: the pill's title is the address field too; "Pin" at its end on a temporary page.
+                                TitleField {
                                     id: phoneTitle
-                                    anchors.fill: parent
+                                    anchors.left: parent.left
+                                    anchors.right: phonePin.visible ? phonePin.left : parent.right
                                     anchors.leftMargin: 14
-                                    anchors.rightMargin: 14
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                    elide: Text.ElideRight
-                                    text: header.title
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.fsLabel
-                                    font.weight: Theme.wBold
-                                    font.family: Theme.fam(text, Theme.families)
+                                    anchors.rightMargin: phonePin.visible ? 4 : 14
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 26
+                                    centred: true
+                                    bold: true
+                                    title: header.title
+                                    pin: card.shownPin
+                                    page: card.activePage
+                                    onTyped: holdTimer.restart()
+                                    report: card.report
                                     onWidthChanged: if (card.phoneLook && card.report && card.debugLog)
                                         console.log("webdock-debug title width", Math.round(width))
+                                }
+                                HostButton {
+                                    id: phonePin
+                                    visible: card.phoneLook && card.shownTemp && String(card.shownPin.target || "") !== ""
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 3
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: 26
+                                    label: I18n.tr("webdock.pin.page.short")
+                                    a11y: I18n.tr("webdock.pin.page")
+                                    primary: true
+                                    tipFn: card.tipFor
+                                    onClicked: card.pinPage()
                                 }
                                 Rectangle {
                                     anchors.bottom: parent.bottom
@@ -710,18 +938,24 @@ PanelWindow {
                             height: card.phoneLook ? 40 : 36
                             opacity: card.chromeK
                             // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
-                            readonly property int count: 7 + (card.homeShown ? 1 : 0)
+                            readonly property int count: 8 + (card.homeShown ? 1 : 0)
                             readonly property real spread: card.phoneLook
                                 ? Math.max(0, (width - 2 * 12 - count * 32) / (count - 1)) : 0
 
                             readonly property var page: card.activePage
                             readonly property string title: (page && page.engine.title) ? page.engine.title
-                                : (card.shownPin ? card.shownPin.title : "")
+                                : (card.shownPin ? (card.shownPin.title || (card.shownTemp ? I18n.tr("webdock.browse") : "")) : "")
 
                             // Escape steps back on the chrome (MODS.md "Shell side"): extended to compact, compact to hidden.
                             Keys.onEscapePressed: (event) => {
                                 if (card.report) card.report("webdock.back", {})
                                 event.accepted = true
+                            }
+                            // W76: Ctrl and an arrow resize the card while its chrome has the keyboard.
+                            Keys.onPressed: (event) => {
+                                if ((event.modifiers & Qt.ControlModifier) && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up,
+                                        Qt.Key_Down].indexOf(event.key) >= 0)
+                                    event.accepted = card.nudge(event.key)
                             }
 
                             // Navigation: back and forward follow the engine's history.
@@ -753,21 +987,35 @@ PanelWindow {
                                 }
                             }
                             // The title comes first: it keeps what the controls leave (at 360 px, 120 px at least; I78).
-                            Text {
+                            // W76: the title is the address field (a click, Alt+D); "Pin" beside it on a temporary page.
+                            TitleField {
                                 id: titleText
                                 visible: !card.phoneLook
                                 anchors.left: nav.right
                                 anchors.leftMargin: 6
-                                anchors.right: tools.left
+                                anchors.right: pinPageKey.visible ? pinPageKey.left : tools.left
                                 anchors.rightMargin: 6
                                 anchors.verticalCenter: parent.verticalCenter
-                                elide: Text.ElideRight
-                                text: header.title
-                                color: Theme.fg
-                                font.pixelSize: Theme.fsLabel
-                                font.family: Theme.fam(text, Theme.families)
+                                height: 28
+                                title: header.title
+                                pin: card.shownPin
+                                page: card.activePage
+                                onTyped: holdTimer.restart()
+                                report: card.report
                                 onWidthChanged: if (!card.phoneLook && card.report && card.debugLog)
                                     console.log("webdock-debug title width", Math.round(width))
+                            }
+                            HostButton {
+                                id: pinPageKey
+                                visible: !card.phoneLook && card.shownTemp && String(card.shownPin.target || "") !== ""
+                                anchors.right: tools.left
+                                anchors.rightMargin: 4
+                                anchors.verticalCenter: parent.verticalCenter
+                                label: I18n.tr("webdock.pin.page.short")
+                                a11y: I18n.tr("webdock.pin.page")
+                                primary: true
+                                tipFn: card.tipFor
+                                onClicked: card.pinPage()
                             }
                             Row {
                                 id: tools
@@ -821,6 +1069,21 @@ PanelWindow {
                                     a11y: I18n.tr("webdock.nav.more")
                                     tipFn: card.tipFor
                                     onClicked: card.menuOpen = !card.menuOpen
+                                }
+                                // W76: keep the dock open while focus is elsewhere (`pinned`; nothing is reserved).
+                                HostButton {
+                                    keyed: card.phoneLook
+                                    id: keepKey
+                                    glyph: "⊙"
+                                    icon: "push_pin"
+                                    lit: card.pinned
+                                    checkable: true
+                                    enabled: card.pinForcedBy === ""
+                                    a11y: I18n.tr(card.pinned ? "webdock.pin.undock" : "webdock.pin.dock")
+                                    Accessible.description: card.pinForcedBy !== ""
+                                        ? I18n.tr("webdock.dock.forced.tip").replace("{by}", card.pinForcedBy) : ""
+                                    tipFn: card.tipFor
+                                    onClicked: if (card.report) card.report("webdock.pin", { on: !card.pinned })
                                 }
                                 HostButton {
                                     keyed: card.phoneLook
@@ -892,17 +1155,21 @@ PanelWindow {
                                     required property var prof
                                     pinId: pid
                                     target: card.targetOf(pid)
+                                    reloadAsks: card.reloadOf(pid)
                                     profile: prof
                                     report: card.report
+                                    iconDir: card.iconDir
                                     mode: card.modeOf(pid)
-                                    readonly property bool inSide: card.sideLive && pid === card.sidePin && card.sideSlot !== null
+                                    // (W76: the pin this page is, a renamed one included: see pinById)
+                                    readonly property string lid: { var p = card.pinById(pid); return p ? String(p.id) : pid }
+                                    readonly property bool inSide: card.sideLive && lid === card.sidePin && card.sideSlot !== null
                                     // W72: the bar card's page, unless the sidebar shows the same pin
-                                    readonly property bool inCard: !inSide && card.cardLive && pid === card.cardPin
+                                    readonly property bool inCard: !inSide && card.cardLive && lid === card.cardPin
                                         && card.cardSlot !== null
                                     home: pageBox
                                     sideHost: inSide ? card.sideSlot : (inCard ? card.cardSlot : null)
                                     debugLog: card.debugLog
-                                    active: inSide || inCard || (card.open && pid === card.shownId)
+                                    active: inSide || inCard || (card.open && lid === card.shownId)
                                     awake: card.awakeOf(pid)
                                     newTabsInDock: card.newTabs !== "browser"
                                 }
@@ -1024,6 +1291,24 @@ PanelWindow {
                                                 + " " + card.availW + " " + card.availH)
                                         }
                                     }
+                                }
+                            }
+
+                            // W76: an empty "+" page: what to do, until an address is typed.
+                            Rectangle {
+                                anchors.fill: parent
+                                z: 3
+                                visible: card.open && card.blankShown
+                                color: Theme.containerHigh
+                                Text {
+                                    anchors.centerIn: parent
+                                    width: parent.width - 2 * Theme.pad
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.Wrap
+                                    text: I18n.tr("webdock.browse.hint")
+                                    color: Theme.dim
+                                    font.pixelSize: Theme.fs
+                                    font.family: Theme.fam(text, Theme.families)
                                 }
                             }
 

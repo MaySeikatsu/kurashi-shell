@@ -43,6 +43,7 @@ Item {
         refreshOffers()
         if (r.wantsPreviews) Store.watch("theme.previews")
         if (Store.readsLayout(r.rowKey)) Store.watch("runtime.layout")
+        if (r.userSet && r.layersBelow === undefined) Store.explain(r.row.key, r.out)
     }
     // The block layout of the Appearance page (W29): the row's name is the card's title, so the left column gives way to
     // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
@@ -90,7 +91,25 @@ Item {
     readonly property bool dropdown: !cards && row.control === "select" && !!(row.choices_from || (row.choices ?? []).length > 4)
     readonly property bool switchChoice: row.control === "select" && !dropdown && (row.choices ?? []).length === 2
     readonly property string error: Store.rowErrors[row.key] || ""
-    readonly property bool canReset: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
+    readonly property bool userSet: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
+    // I505 (session 30, the user: no Reset where the option already is what it would reset to). What a reset gives is
+    // the layer under the user's (profile, style or default: cfg.why's layers, lowest first), not the schema's default.
+    // Asked only for rows the user set (the cache is cleared on every config change); until the answer is there, Reset
+    // shows as before. The provenance chip still names the user's layer: the override stays until it is reset.
+    readonly property var layersBelow: userSet ? Store.explained[row.key + "|" + out] : undefined
+    onLayersBelowChanged: if (userSet && layersBelow === undefined) Store.explain(row.key, out)
+    onUserSetChanged: if (userSet && layersBelow === undefined) Store.explain(row.key, out)
+    readonly property bool resetChangesNothing: {
+        var ls = layersBelow
+        if (!Array.isArray(ls) || prov === undefined) return false
+        var below = null
+        for (var i = 0; i < ls.length; i++) {
+            if (ls[i].source && ls[i].source.kind === "user") break
+            below = ls[i]
+        }
+        return below !== null && JSON.stringify(below.value) === JSON.stringify(prov.value)
+    }
+    readonly property bool canReset: userSet && !resetChangesNothing
     readonly property real labelW: Math.min(300, Math.max(180, width * 0.36))
     readonly property bool wide: row.control === "slider" || row.control === "pick_list" || row.control === "list"
         || row.control === "font" || row.control === "action_binding" || row.control === "text" || row.control === "number"

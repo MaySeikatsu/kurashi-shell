@@ -107,3 +107,4 @@
 "fonts.hand.off" = "手書きモッドで、自分のフォントを一文字ずつ描けます。"
 "fonts.hand.open" = "フォントを描く"
 "fonts.hand.enable" = "オンにする"
+"frontend.bar.group" = "グループ {name}（{n} 個のモジュール）"

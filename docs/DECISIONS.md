@@ -1516,3 +1516,43 @@ file, renamed `ks_base`, run at the transformed coordinate.
 **Why.** The user, asked: "A as default, B as setting", and "I prefer the previous webdock card default size that it had in the edge, so make this the default, other a setting/button to switch". B117: over an open bar card the rule cannot be met on screen today (the click-away layer covers the edge).
 **Amended the same day (B117; the user: the edge "should" reveal on hover while a bar card is open).** The click-away layer keeps the outer 2 px of an edge out of its input where a surface asks for it (`EdgeStrips.setClear`: a registry, no mod named in the shell); the web dock asks while a hover reveal takes the page. When the dock comes out while a card, the launcher or a tray menu is open, that closes, as at a click elsewhere: the dock lies under the click-away layer and could not be used beside it. With `hover_takes_page` off the dock does not ask, so an open card keeps the edge from revealing on hover: a brush of the edge neither moves the page nor closes the card.
 
+
+## K142 — Scroll edges blend out instead of cutting (session 30, I494)
+**Decision.** `theme.material.scroll_edges` (Blur, the default; Fade; Cut). A scrolling view is drawn through one layer while
+it can scroll at all; a short zone along each edge (at most 28 px, 14 % of the view) blurs with a radius that grows to
+6 px at the edge and fades to 6 % opacity there, eased in by how much is cut beyond that edge (`components/ScrollEdge.qml`,
+`shaders/scroll_edge.frag`, one pass, taps written out for GLSL 1.20).
+**Why.** The user (session 30, with a screenshot of the sidebar's month cut at the column's edge and Instagram's comment
+sheet on iOS 26 as the reference): "a smooth blur easing out effect … the closer they are to the edge". iOS 26's scroll edge
+effect and GNOME's undershoot shade are the references; a layer that is on whether or not something is cut keeps the
+text's rendering from switching as the view reaches an end.
+
+## K143 — Cards have a maximum size, are kept a minute, and float one gap off what they stand next to (session 30)
+**Decision.** `bar.card_max_height` (50 %) and `bar.card_max_width` (33 %, never below 400 px) of the card's output; beyond
+that the view scrolls (`Stage.viewFlick`). Not limited: a card made full screen, a view with its own chrome, a panel that
+maps another process's surface (the web dock's page). `bar.card_keep_loaded` (on): the view stays made a minute after the
+card closed (as K139 for sidebars); any settings change drops a kept view. A floating card (`theme.join = float`) keeps
+`Theme.gap` to the bar's edge, the frame's inner edge or the screen's edge (`FG.holeSide`).
+**Why.** The user's points 1, 7 and 10 of session 30 and their answer (½ height, ⅓ width). Measured before: 17 px to the bar,
+5 px to the frame.
+
+## K144 — An opening sheet form hands over by a blend (session 30, I503)
+**Decision.** FormHost copies the sheet form's picture over the last fifth of an opening; at the landing that copy stays
+over the surface and fades out in at most 220 ms (`landing`, `landP`), the surface drawn at rest under it (SheetRest and
+the form's solid fill end at the landing). Closings and motion off have none.
+**Why.** The user: the opening's face "pops towards the actual background … this shouldn't be a stiff pop but rather
+ease/blend over". B111 removed one cause (the launcher); the blend covers every remaining difference between a form's
+picture and the surface at rest, whatever its cause, at the cost of one extra pass for a few frames.
+
+## K145 — Named groups, one model for bars and sidebars; core keys can be records (session 30, I502)
+**Decision.** `[[layout.groups]]` rows `{id, name, members, accordion}` (members comma-separated ids), the schema's
+records type now open to core keys (`KurashiLeaf::record`, `ModuleGroups`). A bar zone or a sidebar lists a group as
+`group:<id>`; the daemon offers every group to both lists, expands a zone's group into its members tagged `group` in
+`runtime.layout` (and lists `groups: {id: {name, accordion}}` per output; both absent while unused, so the existing
+fixtures stand), and the shell draws a tagged run as one block (a folding one shows its first member until the pointer
+or the keyboard is in it). In a sidebar the shell expands a group itself: one tab whose page stacks the members, or the
+members under the group's name in one column. A `bar.grouping` choice was built and dropped the same day: today's
+automatic blocks already frame each zone's stretch as one (the user: "like it works today"), so it would add nothing.
+**Why.** The user's points 12 and 4e, their answer "named groups", Noctalia v5's capsule groups as the model
+(https://docs.noctalia.dev/noctalia/v5.4.0/bar/). Comma-separated members keep the records editor usable at once; the
+drag and drop of the brief (docs/ux/groups.md) is the next step.

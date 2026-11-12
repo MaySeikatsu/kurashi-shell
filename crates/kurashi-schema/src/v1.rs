@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{Color, FontFamilies, KurashiSchema, MotionCurve, Registry, strings};
+use crate::{Color, FontFamilies, KurashiSchema, ModuleGroups, MotionCurve, Registry, strings};
 
 pub const VERSION: u32 = 7;
 
@@ -225,6 +225,12 @@ pub struct Layout {
     pub reveal_delay: u32,
     #[kurashi(nested, section = "frame")]
     pub frame: Frame,
+    /// Groups
+    /// Modules and sections that stand together: on a bar one framed block, in a one-column sidebar one card, with pages
+    /// one tab. A bar zone or a sidebar names a group as `group:<id>` in its list; its members are the ids it holds, in
+    /// order. Accordion: on a bar the group shows its first member until the pointer or the keyboard comes to it.
+    #[kurashi(default = ModuleGroups::default(), section = "groups", since = 7)]
+    pub groups: ModuleGroups,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -266,6 +272,21 @@ pub struct Bar {
     /// sidebars stay on their screen.
     #[kurashi(default = true, since = 7)]
     pub popups_follow: bool,
+    /// Card height at most
+    /// The tallest a card grows, as a share of its screen's height; what it holds beyond that scrolls inside it.
+    #[kurashi(default = 50, range = 20..=100, step = 5, unit = "%", since = 7)]
+    pub card_max_height: u32,
+    /// Card width at most
+    /// The widest a card grows, as a share of its screen's width; a card never gets narrower than its content needs to
+    /// stay usable, so on a narrow screen this can be exceeded.
+    #[kurashi(default = 33, range = 20..=100, step = 1, unit = "%", since = 7)]
+    pub card_max_width: u32,
+    /// Keep a closed card ready
+    /// A card that has closed keeps what it showed for a minute, off screen, so it opens again at once and at its
+    /// size. It costs its memory for that minute, and what it watches stays watched. Off: a closed card is gone at once
+    /// and is made again each time it opens.
+    #[kurashi(default = true, since = 7)]
+    pub card_keep_loaded: bool,
     /// On hover
     /// What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its
     /// preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module
@@ -1688,6 +1709,24 @@ pub struct Material {
         overridden_by = "a11y.reduce_motion => false"
     )]
     pub elevation_pointer: bool,
+    /// Scroll edges
+    /// Where a list or a page is cut by the edge of its card or sidebar: Blur fades the text out and blurs it toward
+    /// the edge, as glass does; Fade only fades it; Cut shows it cut. Only an edge with something cut beyond it is
+    /// drawn so, and nothing is redrawn while nothing scrolls.
+    #[kurashi(default = ScrollEdges::Blur, since = 7)]
+    pub scroll_edges: ScrollEdges,
+}
+
+/// Session 30 (I494): how content cut by a scrolling view's edge is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "scroll_edges")]
+pub enum ScrollEdges {
+    /// Blur
+    Blur,
+    /// Fade
+    Fade,
+    /// Cut
+    Cut,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -2010,8 +2049,8 @@ pub struct TextFx {
     #[kurashi(default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
     pub spawn: TextSpawn,
     /// Applies to
-    /// Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or every label that
-    /// can take it.
+    /// Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or all text a surface
+    /// shows as it opens — every label, row and value in it.
     #[kurashi(default = TextFxScope::Titles, since = 7)]
     pub scope: TextFxScope,
     /// Speed of fresh text
@@ -2061,7 +2100,7 @@ pub enum TextSpawn {
 pub enum TextFxScope {
     /// Headings
     Titles,
-    /// Every label
+    /// All text
     All,
 }
 
@@ -2608,8 +2647,8 @@ macro_rules! sidebar_side {
             #[kurashi(default = $mode, module = $module, since = 5)]
             pub mode: SidebarMode,
             /// Width
-            /// Drag the sidebar's inner edge to change it.
-            #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px", since = 3)]
+            /// Drag the sidebar's inner edge to change it: each monitor keeps its own width.
+            #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px", per_output, since = 3)]
             pub width: u32,
             /// Visibility
             /// Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: rest the pointer on the

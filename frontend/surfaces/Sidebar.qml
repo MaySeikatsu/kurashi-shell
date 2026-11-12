@@ -181,6 +181,8 @@ Scope {
                 LeftColumn {
                     tabs: sb.sections; side: sb.side
                     outName: col.out
+                    // Session 30: the pin sits in the tab row's outer end (one row, I500).
+                    pinSide: sb.side
                     // B46: the page this output's column showed last (the Loader makes the column again each time the sidebar
                     // opens, so the memory lives on the Sidebar; per output: the key).
                     pageId: sb.pageOf(col.out)
@@ -191,6 +193,7 @@ Scope {
                 id: stackC
                 RightColumn {
                     sections: sb.sections
+                    side: sb.side
                     pinSide: sb.side
                     outName: col.out
                     fromTop: cfg.atTop && !cfg.atBottom
@@ -402,7 +405,10 @@ Scope {
                 liveW = v
                 if (v === docW) { liveW = -1; return }
                 pendingW = v
-                Store.apply([{ set: sb.widthKey, value: v }], function (errors) {
+                // I500 (session 30): the width is per output — a resize on one monitor leaves the others.
+                var op = { set: sb.widthKey, value: v }
+                if (col.out !== "") op.output = col.out
+                Store.apply([op], function (errors) {
                     if (!errors) return
                     col.pendingW = -1
                     col.liveW = -1
@@ -413,7 +419,9 @@ Scope {
             function resetWidth() {
                 liveW = -1
                 pendingW = -1
-                Store.apply([{ reset: sb.widthKey }], function (errors) {
+                var op = { reset: sb.widthKey }
+                if (col.out !== "") op.output = col.out
+                Store.apply([op], function (errors) {
                     if (errors && sb.geometryLog) console.log("sidebar-width reset refused " + JSON.stringify(errors))
                 })
                 if (sb.geometryLog) console.log("sidebar-width " + sb.side + " reset")
@@ -925,6 +933,8 @@ Scope {
                             // page first, then closes (a toggled column) or lets go (a hover one).
                             FocusScope {
                                 id: content
+                                // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
+                                TextSpawnAll { root: content; shown: col.wanted }
                                 z: 1
                                 x: shapeRect.x + Theme.pad
                                 y: shapeRect.y + Theme.pad
@@ -954,10 +964,10 @@ Scope {
                                 Accessible.role: Accessible.Pane
                                 Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
 
-                                // The pin (K84): in the header's row when the header tops a one-column sidebar, else in a row
-                                // of its own at the top, in the outer corner.
-                                readonly property bool pinInHeader: sb.mode !== "pages" && sb.sections.length > 0
-                                    && sb.sections[0] === "header"
+                                // The pin (K84): in the header's row when the header tops a one-column sidebar, in the tab row
+                                // with pages (session 30, I500), else in a row of its own at the top, in the outer corner.
+                                readonly property bool pinInHeader: sb.mode === "pages"
+                                    || sb.sections.length > 0 && sb.sections[0] === "header"
                                 SidebarPin {
                                     id: pinBtn
                                     visible: !content.pinInHeader

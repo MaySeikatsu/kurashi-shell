@@ -6,6 +6,7 @@ import "../../core/mods.js" as Mods
 import ".."
 import "../expanded"
 import "../decor" as Decor
+import "../island"
 
 // The right sidebar's column (docs/ux/sidebar.md): `sidebar.right.sections`, its sections, top to bottom — `header`, `toggles`,
 // `sliders`, `notifications`, `calendar` (ClockView: the month grid and the agenda slot), `media` (MediaView, while
@@ -17,6 +18,22 @@ import "../decor" as Decor
 Item {
     id: rc
     property var sections: []
+    // Session 30 (I500 c): the side whose `sections` the "+" under the last section edits; "" (a page of the pages
+    // layout) shows no "+".
+    property string side: ""
+    // Session 30 (I502): a named group in the list stands for its members, under the group's name (`heading:<name>`); a
+    // group that is not there (removed, misspelt) is skipped.
+    readonly property var shownSections: {
+        var out = []
+        for (var i = 0; i < sections.length; i++) {
+            var g = Groups.of(sections[i])
+            if (g === null) { if (String(sections[i]).indexOf("group:") !== 0) out.push(sections[i]); continue }
+            if (g.members.length === 0) continue
+            if (sections.length > 1) out.push("heading:" + g.name)
+            out = out.concat(g.members)
+        }
+        return out
+    }
     // K84: the sidebar whose pin the header carries, when the header tops the column ("" = no pin there).
     property string pinSide: ""
     property string outName: ""
@@ -69,6 +86,8 @@ Item {
     }
     clip: !flyouts
 
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: flick }
     Flickable {
         id: flick
         KineticWheel { view: flick }
@@ -89,7 +108,7 @@ Item {
             Item { Layout.fillHeight: true; visible: rc.flyouts && !rc.fromTop }
             Repeater {
                 id: secRep
-                model: rc.sections
+                model: rc.shownSections
                 onItemAdded: Qt.callLater(rc.noteFly)
                 onItemRemoved: Qt.callLater(rc.noteFly)
                 delegate: Loader {
@@ -125,15 +144,32 @@ Item {
                     Layout.minimumHeight: fills && item ? item.minHeight : 0
                     // A section that shows nothing (nothing plays, its mod is off) takes no space and no spacing.
                     visible: status === Loader.Ready && item !== null && item.shown !== false
-                    sourceComponent: sid === "header" ? headerC
+                    sourceComponent: sid.indexOf("heading:") === 0 ? headingC
+                        : sid === "header" ? headerC
                         : sid === "toggles" ? togglesC
                         : sid === "sliders" ? slidersC
                         : sid === "notifications" ? notesC
                         : sid === "calendar" ? calendarC
                         : sid === "media" ? mediaC
+                        : sid === "launcher" ? launcherC
                         : modRef !== null ? modC : null
-                    onLoaded: if (item && modRef !== null) { item.mod = modRef.mod; item.panel = modRef.panel }
+                    onLoaded: {
+                        if (item && modRef !== null) { item.mod = modRef.mod; item.panel = modRef.panel }
+                        if (item && sid.indexOf("heading:") === 0) item.text = sid.substring(8)
+                    }
                 }
+            }
+            // "+": what this sidebar shows, chosen in place (SectionPicker over the column).
+            KeyButton {
+                visible: rc.side !== "" && !rc.flyouts
+                Layout.alignment: Qt.AlignHCenter
+                side: 30
+                icon: "add"
+                glyph: "+"
+                label: I18n.tr("sidebar.sections.add")
+                a11y: I18n.tr("sidebar.sections.add")
+                primary: rcPicker.open
+                onClicked: rcPicker.open = !rcPicker.open
             }
             // Without a section that fills (notifications), the room left over stays below the sections, not between them.
             Item { Layout.fillHeight: true; visible: (rc.sections.indexOf("notifications") < 0 && !rc.flyouts) || (rc.flyouts && rc.fromTop) }
@@ -145,6 +181,31 @@ Item {
         TogglesSection { onPageRequested: (c, from) => rc.openPage(c, from) }
     }
     Component { id: slidersC; SlidersSection {} }
+    Component { id: launcherC; LauncherSection {} }
+    SectionPicker {
+        id: rcPicker
+        z: 10
+        side: rc.side !== "" ? rc.side : "right"
+        width: rc.width
+        height: Math.min(rc.height, 460)
+        y: rc.height - height
+    }
+    // A group's name over its members (I502).
+    Component {
+        id: headingC
+        Text {
+            readonly property bool shown: true
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            color: Theme.dim
+            font.pixelSize: Theme.fsCaption
+            font.weight: Theme.wBold
+            font.family: Theme.fam(text, Theme.families)
+            elide: Text.ElideRight
+            Accessible.role: Accessible.Heading
+            Accessible.name: text
+            TextFx { title: true }
+        }
+    }
     Component { id: notesC; NotificationsSection {} }
     Component {
         id: calendarC
@@ -181,6 +242,8 @@ Item {
         stepPx: 40
     }
     // The page: the quick card's page component, made while it is shown; a long list scrolls.
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: pageFlick }
     Flickable {
         id: pageFlick
         KineticWheel { view: pageFlick }

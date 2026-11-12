@@ -51,6 +51,9 @@ Singleton {
     property int seq: 0
     // cfg.why answers by "key|output" (PROTOCOL §5): the daemon's layers, kept until the config changes.
     property var explained: ({})
+    // Keys asked and not answered yet, by the cache's generation (a config change starts a new one).
+    property var explaining: ({})
+    property int explainGen: 0
     // The user value a forced layer holds back, by "key|output" (I64 (3)): {value}, or null when the key has none. Asked
     // for every forced key on each config and schema change. Kept apart from `explained`, which a config change clears:
     // the Changed view's rows must not come and go with every change.
@@ -502,6 +505,9 @@ Singleton {
     function explain(key, output, cb) {
         var k = key + "|" + (output || "")
         if (explained[k] !== undefined) { if (cb) cb(explained[k]); return }
+        // (one question in flight per key: rows ask again whenever the cache is cleared)
+        if (!cb && explaining[k] === explainGen) return
+        explaining[k] = explainGen
         var m = { t: "cfg.explain", key: key }
         if (output) m.output = output
         request(m, function (r) {
@@ -626,7 +632,7 @@ Singleton {
         var v = JSON.parse(JSON.stringify(data[doc]))
         switch (doc) {
         case "theme": theme = v; break
-        case "config": config = v; explained = ({}); break
+        case "config": config = v; explainGen++; explained = ({}); break
         case "schema.settings": schema = v; break
         case "i18n": i18n = v; break
         case "svc.workspaces": workspaces = v; break

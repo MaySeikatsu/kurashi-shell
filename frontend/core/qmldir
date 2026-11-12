@@ -13,3 +13,4 @@ singleton EdgeStrips 1.0 EdgeStrips.qml
 EdgeReveal 1.0 EdgeReveal.qml
 Glide 1.0 Glide.qml
 ColorBlend 1.0 ColorBlend.qml
+singleton Groups 1.0 Groups.qml

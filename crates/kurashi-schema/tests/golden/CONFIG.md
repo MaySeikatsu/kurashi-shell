@@ -55,6 +55,29 @@ A card that a click, a key or the command line opened moves to the screen the po
 - type: `bool` · default: `true`
 - since schema v7
 
+#### `bar.card_max_height` — Card height at most
+
+The tallest a card grows, as a share of its screen's height; what it holds beyond that scrolls inside it.
+
+- type: `int` · default: `50`
+- range: `20..=100`, step `5` (%)
+- since schema v7
+
+#### `bar.card_max_width` — Card width at most
+
+The widest a card grows, as a share of its screen's width; a card never gets narrower than its content needs to stay usable, so on a narrow screen this can be exceeded.
+
+- type: `int` · default: `33`
+- range: `20..=100`, step `1` (%)
+- since schema v7
+
+#### `bar.card_keep_loaded` — Keep a closed card ready
+
+A card that has closed keeps what it showed for a minute, off screen, so it opens again at once and at its size. It costs its memory for that minute, and what it watches stays watched. Off: a closed card is gone at once and is made again each time it opens.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 #### `bar.hover` — On hover
 
 What resting the pointer on a bar module opens: its small preview, its card (a module without a card shows its preview), or its menu, as a right click does. What a hover opened closes when the pointer has left the module and what it opened; what a click opened stays.
@@ -111,6 +134,15 @@ Windows tile inside the frame. Off: the frame is drawn over the windows' edges.
 - type: `bool` · default: `true`
 - only while `layout.frame.enabled == true`
 - since schema v3
+
+### Groups
+
+#### `layout.groups` — Groups
+
+Modules and sections that stand together: on a bar one framed block, in a one-column sidebar one card, with pages one tab. A bar zone or a sidebar names a group as `group:<id>` in its list; its members are the ids it holds, in order. Accordion: on a bar the group shows its first member until the pointer or the keyboard comes to it.
+
+- type: `records` · default: `[]`
+- since schema v7
 
 ### Top edge
 
@@ -1194,6 +1226,14 @@ While the light follows the pointer or the spotlight aims at it, the surfaces' s
 - forced to `false` while `a11y.reduce_motion` is on
 - since schema v7
 
+#### `theme.material.scroll_edges` — Scroll edges
+
+Where a list or a page is cut by the edge of its card or sidebar: Blur fades the text out and blurs it toward the edge, as glass does; Fade only fades it; Cut shows it cut. Only an edge with something cut beyond it is drawn so, and nothing is redrawn while nothing scrolls.
+
+- type: `choice` · default: `"blur"`
+- choices: `"blur"` | `"fade"` | `"cut"`
+- since schema v7
+
 ### Controls
 
 #### `theme.slider` — Sliders
@@ -2078,7 +2118,7 @@ How text appears when its surface opens or its words change. Typed: letter by le
 
 #### `theme.typography.fx.scope` — Applies to
 
-Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or every label that can take it.
+Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or all text a surface shows as it opens — every label, row and value in it.
 
 - type: `choice` · default: `"titles"`
 - choices: `"titles"` | `"all"`
@@ -2634,10 +2674,11 @@ One column: every section stacked, scrolled together. Pages with tabs: one secti
 
 #### `sidebar.right.width` — Width
 
-Drag the sidebar's inner edge to change it.
+Drag the sidebar's inner edge to change it: each monitor keeps its own width.
 
 - type: `int` · default: `420`
 - range: `320..=640`, step `10` (px)
+- per-output
 - since schema v3
 
 #### `sidebar.right.visibility` — Visibility
@@ -2693,10 +2734,11 @@ One column: every section stacked, scrolled together. Pages with tabs: one secti
 
 #### `sidebar.left.width` — Width
 
-Drag the sidebar's inner edge to change it.
+Drag the sidebar's inner edge to change it: each monitor keeps its own width.
 
 - type: `int` · default: `420`
 - range: `320..=640`, step `10` (px)
+- per-output
 - since schema v3
 
 #### `sidebar.left.visibility` — Visibility

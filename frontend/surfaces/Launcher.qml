@@ -601,6 +601,8 @@ PanelWindow {
         Item {
             id: card
             width: lp.skin ? lp.skinW + lp.skinBand : 600
+            // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
+            TextSpawnAll { root: card; shown: lp.shown }
             // I458: a launcher a hover opened stays while the pointer is on it, and is the user's once they press in it.
             HoverHandler { onHoveredChanged: hovered ? Peeks.hoverHold() : Peeks.hoverLeave() }
             PointHandler { acceptedButtons: Qt.AllButtons; onActiveChanged: if (active) Peeks.hoverKeep() }
@@ -642,7 +644,8 @@ PanelWindow {
                 anchors.fill: parent
                 radius: Theme.rLg
                 fill: Theme.panel
-                flatBorder: Theme.surfaceHair
+                // (W75, B118: the still ink while hidden — the closed launcher's window stays mapped)
+                flatBorder: visible ? Theme.surfaceHair : (Theme.frameOutline ? Theme.frameOutlineStill : "transparent")
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).
                 penSeed: 0x1A0C
             }
@@ -851,6 +854,8 @@ PanelWindow {
                 y: list.y
                 stepPx: lp.rowH
             }
+            // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+            ScrollEdge { view: list }
             ListView {
                 id: list
                 KineticWheel { view: list }
@@ -1330,6 +1335,8 @@ PanelWindow {
             }
 
             // The emoji grid (`:`): 8 a row, the selected cell a tonal block; its name under the grid.
+            // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+            ScrollEdge { view: grid }
             GridView {
                 id: grid
                 KineticWheel { view: grid }

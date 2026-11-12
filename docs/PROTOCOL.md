@@ -76,8 +76,11 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   `reserve` (this edge's whole exclusive zone, px) + `reserve_source` (+ `reserve_reason`, an i18n key, when the
   reserve is inert), `holder` (`frame | bar | dock | sidebar | module | none`: the one surface that sets the exclusive
   zone; every other surface on the edge uses `ExclusionMode.Ignore`), `zones.<start|center|end>` (ordered module
-  entries `{id, kind: core|mod, mod?, provide?}`; the pseudo id `mods` is already expanded), `span.start` / `span.end`
+  entries `{id, kind: core|mod, mod?, provide?, group?}`; the pseudo id `mods` is already expanded, and so is a named group
+  `group:<id>` — its members, each with `group: <id>`, K145), `span.start` / `span.end`
   (only on a left or right bar: its free length along its edge, px from the top and bottom — row 511).
+- `groups` (K145, absent while `layout.groups` is empty): `{<id>: {name, accordion?}}` — every named group, its name (the
+  id where it has none) and `accordion: true` where it folds to its first member.
 - `dock`: `on`, `edge`, `draw` + `draw_source`, `visibility`, `inset`, `reserve` + `reserve_source`, `joins`
   (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet and the joined dock's corners: for
   dynamic `join_radius` (K96), 0 for connected).

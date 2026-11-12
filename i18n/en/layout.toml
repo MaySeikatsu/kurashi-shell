@@ -21,3 +21,9 @@
 "layout.error.edge_taken" = "That edge has a bar already."
 "action.layout.toggle" = "Show or hide a part of the layout"
 "action.layout.bar.move" = "Move a bar to another edge"
+
+# Session 30 (I502): named groups.
+"config.layout.groups.field.id" = "Id"
+"config.layout.groups.field.name" = "Name"
+"config.layout.groups.field.members" = "Members (ids, comma-separated)"
+"config.layout.groups.field.accordion" = "Folds to its first member"

@@ -49,8 +49,13 @@ Item {
     readonly property string family: form === "" || form === "none" ? "none" : (meta ? meta.family : "unknown")
     readonly property var params: Theme.formParams(form)
     onBusyChanged: {
-        if (busy) { latchedDir = nextDir; latchedForm = Theme.motionForm(surface, latchedDir) }
-        else { lastRest = progress >= 1 ? 1 : 0; Qt.callLater(unlatch) }
+        if (busy) { landing = false; landAnim.stop(); latchedDir = nextDir; latchedForm = Theme.motionForm(surface, latchedDir) }
+        else {
+            // (an opening sheet form that lands hands over to the surface by a blend, below)
+            if (progress >= 1 && latchedDir === "open" && sheet.item && lastFace.sourceItem) { landing = true; landP = 1; landAnim.restart() }
+            lastRest = progress >= 1 ? 1 : 0
+            Qt.callLater(unlatch)
+        }
     }
     // (I392: after the sheet Loader's `active` has dropped: in the same turn the Loader would make and drop the other
     // direction's form.)
@@ -144,10 +149,36 @@ Item {
     // `sheetShadow` (out over the first 10 % of a close, in over the last 10 % of an open; the shadow stays OUTSIDE
     // `source`), the join's fillets × `sheetFillets` (in over the last 15 %), a translucent fill drawn solid (the sheet
     // composites it itself) and no compositor blur region while `sheetBlurOff`. 1 / false at rest and for other forms.
-    readonly property real sheetShadow: sheet.item && sheet.item.shadowK !== undefined ? sheet.item.shadowK : 1
-    readonly property real sheetFillets: sheet.item && sheet.item.filletK !== undefined ? sheet.item.filletK : 1
-    readonly property bool sheetSolid: !!sheet.item
-    readonly property bool sheetBlurOff: !!sheet.item
+    readonly property real sheetShadow: sheet.item && !landing && sheet.item.shadowK !== undefined ? sheet.item.shadowK : 1
+    readonly property real sheetFillets: sheet.item && !landing && sheet.item.filletK !== undefined ? sheet.item.filletK : 1
+    readonly property bool sheetSolid: !!sheet.item && !landing
+    readonly property bool sheetBlurOff: !!sheet.item && !landing
+
+    // The landing blend (session 30, I503, docs/ux/session-30.md §6; the user: a surface "usually has a different
+    // background on spawn and then pops towards the actual background … this shouldn't be a stiff pop but rather ease/blend
+    // over"): over the last fifth of an opening the sheet form's picture is also copied, and when it lands that last
+    // picture stays over the surface and fades out (`landP`, at most 220 ms) instead of being swapped for it in one frame —
+    // whatever differs between the form's picture and the surface at rest (its wash, material, pattern or fill) blends.
+    // A close, or motion off, has no blend. Ma: the copy exists only for those frames.
+    property bool landing: false
+    property real landP: 0
+    NumberAnimation {
+        id: landAnim
+        target: host; property: "landP"; from: 1; to: 0
+        duration: Math.min(220, Math.max(120, Theme.stdMs))
+        easing.type: Easing.InOutQuad
+        onFinished: host.landing = false
+    }
+    ShaderEffectSource {
+        id: lastFace
+        z: 2
+        anchors.fill: parent
+        sourceItem: sheet.item && (host.landing || (host.busy && host.dir === "open" && host.progress > 0.8)) ? sheet.item : null
+        live: !host.landing
+        hideSource: false
+        visible: host.landing
+        opacity: host.landP
+    }
     function pascal(n) {
         return n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
     }
@@ -181,12 +212,13 @@ Item {
         anchors.fill: parent
         // (`run.busy`: from the moment the travel is started, a frame before the progress leaves its rest — the form
         // the wait made is the one that runs)
-        active: host.sheetOk && (host.busy || host.warming)
-        opacity: host.progress <= 0 ? 0.002 : 1
+        active: host.sheetOk && (host.busy || host.warming || host.landing)
+        // (landing: the copy above shows its last picture; the form itself is drawn no more)
+        opacity: host.landing ? 0 : host.progress <= 0 ? 0.002 : 1
         source: active ? Qt.resolvedUrl("forms/" + host.pascal(host.form) + ".qml") : ""
         // (live, without a Binding object per property at rest: set once the sheet exists)
         onLoaded: {
-            item.source = Qt.binding(function () { return host.source })
+            item.source = Qt.binding(function () { return host.landing ? null : host.source })
             item.progress = Qt.binding(function () { return host.progress })
             item.edge = Qt.binding(function () { return host.edge })
             item.origin = Qt.binding(function () { return host.origin })

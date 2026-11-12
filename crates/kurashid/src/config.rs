@@ -536,13 +536,15 @@ fn put(t: &mut dyn toml_edit::TableLike, path: &[&str], item: toml_edit::Item) {
     }
 }
 /// The right sidebar's core sections (W29, docs/ux/sidebar.md), offered before the mods' panels.
-const SIDEBAR_SECTIONS: [&str; 6] = [
+const SIDEBAR_SECTIONS: [&str; 7] = [
     "header",
     "toggles",
     "sliders",
     "notifications",
     "calendar",
     "media",
+    // Session 30 (I501): the launcher's search as a section.
+    "launcher",
 ];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
@@ -829,6 +831,14 @@ fn offers_now(
             .iter()
             .map(|s| Offer::on(s, format!("config.choice.sidebar_section.{s}")))
             .chain(mod_panels.iter().cloned())
+            // Session 30 (I501, "every module hosted by any surface"): a mod's desk card is a section too where the mod
+            // has no panel of that name (notes, lyrics); the shell loads the card in the sidebar's card.
+            .chain(
+                mod_desks
+                    .iter()
+                    .filter(|d| !mod_panels.iter().any(|p| p.value == d.value))
+                    .cloned(),
+            )
             .collect(),
     );
     // Both sidebars offer every section (session 20); `sidebar.tabs` stays, the same list, for configs that name it.
@@ -2103,6 +2113,28 @@ impl ConfigStore {
             )
         };
         let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets, &mod_desks);
+        // Session 30 (I502, `layout.groups`): each named group is something a bar zone and a sidebar can list, as
+        // `group:<id>`, named by its name (or its id).
+        let groups = {
+            let cfg = self.cfg.lock().expect("config lock");
+            cfg.resolve("layout.groups", None).map(|p| p.value)
+        };
+        let group_offers: Vec<Offer> = groups
+            .as_ref()
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|g| {
+                let id = g["id"].as_str().filter(|s| !s.is_empty())?;
+                let name = g["name"].as_str().filter(|s| !s.is_empty()).unwrap_or(id);
+                Some(Offer::on(&format!("group:{id}"), name.to_string()))
+            })
+            .collect();
+        for source in ["modules", "sidebar.sections", "sidebar.tabs"] {
+            if let Some(list) = offers.get_mut(source) {
+                list.extend(group_offers.iter().cloned());
+            }
+        }
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers
@@ -2940,6 +2972,7 @@ mod tests {
                 "notifications",
                 "calendar",
                 "media",
+                "launcher",
                 "mod:ai:ai",
                 "mod:tasks:tasks"
             ]
@@ -2958,7 +2991,7 @@ mod tests {
             Some(true)
         );
         assert_eq!(
-            offers["sidebar.tabs"][7].json()["reason"],
+            offers["sidebar.tabs"][8].json()["reason"],
             REASON_MOD_DISABLED
         );
     }

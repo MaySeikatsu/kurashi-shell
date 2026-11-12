@@ -30,6 +30,13 @@ Item {
     readonly property var rows: {
         var out = []
         for (var i = 0; i < tabs.length; i++) {
+            // Session 30 (I502): a named group is one tab, its page its members stacked (the one-column layout's own way).
+            var g = Groups.of(tabs[i])
+            if (g !== null) {
+                out.push({ value: tabs[i], ref: null, core: true, state: g.members.length > 0 ? "ok" : "unknown",
+                           name: g.name, members: g.members })
+                continue
+            }
             if (String(tabs[i]).indexOf("mod:") !== 0) {
                 out.push({ value: tabs[i], ref: null, core: true, state: "ok",
                            name: I18n.tr("config.choice.sidebar_section." + tabs[i]) })
@@ -40,7 +47,8 @@ Item {
             var state = ref === null ? "unknown"
                 : e === null || e.state === "detected" ? "not_loaded"
                 : e.state !== "enabled" ? "off"
-                : Mods.qmlOf(modsDoc, "panel:" + ref.panel, ref.mod) === "" ? "no_panel" : "ok"
+                : Mods.qmlOf(modsDoc, "panel:" + ref.panel, ref.mod) === ""
+                    && Mods.qmlOf(modsDoc, "desk:" + ref.panel, ref.mod) === "" ? "no_panel" : "ok"
             out.push({ value: tabs[i], ref: ref, state: state,
                        name: e && e.name ? I18n.tr(String(e.name)) : (ref ? ref.mod : String(tabs[i])) })
         }
@@ -67,6 +75,15 @@ Item {
     // Test only (KURASHI_SIDEBAR_GEOMETRY=1, frontend/test-sidebars.sh pages part): where a tab's key is in the window, so the
     // test can click it on its output (the column's window sits at the output's origin on the left).
     readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
+    // (a list's keys keep their x while the row and the column move: their places are logged again once the column has
+    // its place — Qt.callLater after a move — so a click aimed by the log lands on the key)
+    function logAll() {
+        if (!geometryLog) return
+        for (var i = 0; i < shownTabs.length; i++) { var k = tabRow.itemAtIndex(i); if (k) logTab(i, k) }
+    }
+    onXChanged: if (geometryLog) Qt.callLater(logAll)
+    onYChanged: if (geometryLog) Qt.callLater(logAll)
+    onWidthChanged: if (geometryLog) Qt.callLater(logAll)
     function logTab(i, key) {
         if (!geometryLog || i >= shownTabs.length) return
         var p = key.mapToItem(null, 0, 0)
@@ -88,15 +105,55 @@ Item {
         else if (event.key === Qt.Key_PageUp) { step(-1); event.accepted = true }
     }
 
-    // The tab bar: one key per tab, the current one tonal, wrapping onto a second line when they do not fit (I283: the
-    // right side's five sections). Hidden with a single tab (nothing to switch).
-    Flow {
+    // The tab bar (session 30, I500; the user: "don't stack sidebar tabs like that, just keep one clean row"): one row of
+    // keys, the current one tonal; the pin at the row's outer end (the screen's side) when this column carries it. Tabs
+    // that do not fit scroll sideways (wheel or drag), their cut end blending out as any scroll edge does, and the current
+    // tab is always brought into view. Hidden with a single tab and no pin (nothing to switch).
+    property string pinSide: ""
+    Item {
         id: bar
-        visible: lc.shownTabs.length > 1
+        visible: true
         width: lc.width
-        height: visible ? implicitHeight : 0
-        spacing: Theme.gap
-        Repeater {
+        height: visible ? 30 : 0
+        SidebarPin {
+            id: tabPin
+            visible: lc.pinSide !== ""
+            sidebarSide: lc.pinSide !== "" ? lc.pinSide : "left"
+            outName: lc.outName
+            anchors.verticalCenter: parent.verticalCenter
+            x: lc.pinSide === "right" ? parent.width - width : 0
+        }
+        // Session 30 (I500 c): "+" — what this sidebar shows, chosen in place (SectionPicker).
+        KeyButton {
+            id: addKey
+            side: 30
+            icon: "add"
+            glyph: "+"
+            a11y: I18n.tr("sidebar.sections.add")
+            primary: picker.open
+            anchors.verticalCenter: parent.verticalCenter
+            x: lc.pinSide === "right" ? tabPin.x - width - Theme.gap : parent.width - width
+            onClicked: picker.open = !picker.open
+        }
+        ScrollEdge { view: tabRow; horizontal: true }
+        ListView {
+            id: tabRow
+            KineticWheel { view: tabRow; horizontal: true }
+            orientation: ListView.Horizontal
+            visible: lc.shownTabs.length > 1
+            x: tabPin.visible && lc.pinSide !== "right" ? tabPin.width + Theme.gap : 0
+            width: parent.width - (tabPin.visible ? tabPin.width + Theme.gap : 0) - addKey.width - Theme.gap
+            height: parent.height
+            spacing: Theme.gap
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentWidth > width + 1
+            currentIndex: lc.cur
+            highlightFollowsCurrentItem: false
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+            onContentXChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
+            onXChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
+            onCountChanged: if (lc.geometryLog) Qt.callLater(lc.logAll)
             model: lc.shownTabs
             delegate: KeyButton {
                 id: tabKey
@@ -109,7 +166,7 @@ Item {
                 onClicked: lc.choose(index)
                 onXChanged: lc.logTab(index, tabKey)
                 onYChanged: lc.logTab(index, tabKey)
-                Component.onCompleted: lc.logTab(index, tabKey)
+                Component.onCompleted: Qt.callLater(function () { lc.logTab(index, tabKey) })
             }
         }
     }
@@ -123,6 +180,8 @@ Item {
         stepPx: 40
     }
     // The tab's panel.
+    // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
+    ScrollEdge { view: pane; on: panel.item === null || panel.item.placement === undefined }
     Flickable {
         id: pane
         KineticWheel { view: pane }
@@ -139,7 +198,9 @@ Item {
             id: panel
             width: pane.width
             height: item ? Math.max(item.implicitHeight, pane.height) : 0
-            provide: lc.tab && !lc.tab.core ? "panel:" + lc.tab.ref.panel : ""
+            // (a mod's desk card where it has no panel of that name, I501)
+            provide: !lc.tab || lc.tab.core ? ""
+                : (Mods.qmlOf(lc.modsDoc, "panel:" + lc.tab.ref.panel, lc.tab.ref.mod) === "" ? "desk:" : "panel:") + lc.tab.ref.panel
             mod: lc.tab && !lc.tab.core ? lc.tab.ref.mod : ""
             // (B102: unloaded while the sidebar is only kept after a close, ModSection)
             readonly property var qsw: lc.Window.window ? lc.QsWindow.window : null
@@ -177,11 +238,21 @@ Item {
         width: lc.width
         height: lc.height - pane.y
         active: lc.tab !== null && lc.tab.core === true
-        sourceComponent: RightColumn { anchors.fill: parent; sections: [lc.tab.value]; outName: lc.outName }
+        sourceComponent: RightColumn { anchors.fill: parent; sections: lc.tab.members || [lc.tab.value]; outName: lc.outName }
+    }
+    SectionPicker {
+        id: picker
+        z: 10
+        side: lc.side
+        y: bar.height + Theme.gap
+        width: lc.width
+        height: Math.min(lc.height - y, 460)
+        onClosed: addKey.forceActiveFocus()
     }
     // Nothing to show: which tabs are missing, and why.
     Column {
         visible: lc.tab === null
+        y: bar.height + (bar.visible ? Theme.pad : 0)
         width: lc.width
         spacing: Theme.gap
         Text {

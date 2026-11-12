@@ -26,7 +26,9 @@ Singleton {
     property var docs: ({})
     // A document that changes while nothing shows it, kept out of `docs`: reassigning `docs` re-evaluates every binding on it,
     // and the shell's surfaces each draw a frame. `svc.previews` patches after every focus change (K92), for a peek nobody may open.
-    readonly property var quietDocs: ({ "svc.previews": true })
+    // (W75, B118: the spectrum's 30 patches a second re-evaluated every binding on `docs`; its one reader, LevelBars,
+    // reads it through `current`)
+    readonly property var quietDocs: ({ "svc.previews": true, "svc.audio.spectrum": true })
     property var quiet: ({})
     function current(doc) { return quietDocs[doc] ? quiet[doc] : docs[doc] }
 

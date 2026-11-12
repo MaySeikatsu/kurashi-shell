@@ -39,6 +39,7 @@ LoadingText 1.0 LoadingText.qml
 FieldLine 1.0 FieldLine.qml
 Caret 1.0 Caret.qml
 KineticWheel 1.0 KineticWheel.qml
+ScrollEdge 1.0 ScrollEdge.qml
 JoinedCard 1.0 JoinedCard.qml
 Wash 1.0 Wash.qml
 IconTint 1.0 IconTint.qml
@@ -48,3 +49,4 @@ PaintBands 1.0 PaintBands.qml
 PostMark 1.0 PostMark.qml
 ColorFade 1.0 ColorFade.qml
 TextFx 1.0 TextFx.qml
+TextSpawnAll 1.0 TextSpawnAll.qml

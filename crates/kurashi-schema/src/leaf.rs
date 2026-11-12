@@ -3,6 +3,7 @@
 use serde_json::Value;
 
 use crate::meta::{Choice, KeyMeta, Ty};
+use crate::records::{FieldType, RecordField, RecordSpec};
 
 /// A single config value type (one key). Implemented for primitives, `String`, `Vec<String>`,
 /// [`Color`], [`FontFamilies`], [`ActionId`], and by `#[derive(KurashiSchema)]` on unit enums.
@@ -14,6 +15,10 @@ pub trait KurashiLeaf {
     }
     /// Implicit bounds of the Rust type, validated even without `range`.
     fn type_bounds() -> Option<(Value, Value)> {
+        None
+    }
+    /// The rows' fields of a [`Ty::Records`] key (K38) — a core key's, as a mod's manifest declares its own.
+    fn record() -> Option<RecordSpec> {
         None
     }
 }
@@ -137,6 +142,50 @@ impl KurashiLeaf for Vec<String> {
     }
     fn to_value(&self) -> Value {
         Value::from(self.clone())
+    }
+}
+
+/// Session 30 (I502, `docs/ux/groups.md`): the named groups of bar modules and sidebar sections — `[[layout.groups]]`
+/// rows `{id, name, members, accordion}`, `members` the ids in order, comma-separated. A zone's or a sidebar's list names a
+/// group as `group:<id>`.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ModuleGroups(pub Vec<Value>);
+
+impl KurashiLeaf for ModuleGroups {
+    fn ty() -> Ty {
+        Ty::Records
+    }
+    fn to_value(&self) -> Value {
+        Value::from(self.0.clone())
+    }
+    fn record() -> Option<RecordSpec> {
+        let field =
+            |key: &str, ty: FieldType, required: bool, default: Option<Value>| RecordField {
+                key: key.to_owned(),
+                ty,
+                required,
+                default,
+                label: Some(format!("config.layout.groups.field.{key}")),
+                pattern: (key == "id").then(|| "slug".to_owned()),
+                schemes: Vec::new(),
+                choices: Vec::new(),
+                range: None,
+            };
+        Some(RecordSpec {
+            fields: vec![
+                field("id", FieldType::String, true, None),
+                field("name", FieldType::String, false, Some(Value::from(""))),
+                field("members", FieldType::String, false, Some(Value::from(""))),
+                field(
+                    "accordion",
+                    FieldType::Bool,
+                    false,
+                    Some(Value::Bool(false)),
+                ),
+            ],
+            unique: Some("id".to_owned()),
+            item_label: Some("name".to_owned()),
+        })
     }
 }
 

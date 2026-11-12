@@ -64,6 +64,29 @@ Row {
             visible: presentN > 0
             width: inner.width
             height: zr.height
+            // Session 30 (I502, `layout.groups`): a named group is a block of its own; one that folds (`accordion`) shows
+            // its first member until the pointer rests on it or the keyboard is in it, then opens in place (a short delay
+            // before it folds again, so the pointer can cross a gap). Its name for assistive technology.
+            readonly property bool named: (modelData.named || "") !== ""
+            readonly property bool folds: modelData.accordion === true && pieceRep.count > 1
+            property bool focusIn: false
+            property bool held: false
+            readonly property bool hot: runHover.hovered || focusIn || held
+            readonly property bool folded: folds && !hot
+            HoverHandler { id: runHover; onHoveredChanged: if (!hovered && run.folds) { run.held = true; foldHold.restart() } }
+            onFocusInChanged: if (!focusIn && folds) { held = true; foldHold.restart() }
+            Timer { id: foldHold; interval: 450; onTriggered: run.held = false }
+            Connections {
+                target: run.folds ? run.Window.window : null
+                function onActiveFocusItemChanged() {
+                    var f = run.Window.activeFocusItem
+                    while (f && f !== run) f = f.parent
+                    run.focusIn = f === run
+                }
+            }
+            Accessible.role: named ? Accessible.Grouping : Accessible.NoRole
+            Accessible.name: named ? I18n.tr("frontend.bar.group").replace("{name}", String(modelData.title || modelData.named))
+                .replace("{n}", String(presentN)) : ""
             BarGroup {
                 id: grp
                 around: inner
@@ -101,6 +124,7 @@ Row {
                     delegate: Row {
                         id: piece
                         required property var modelData
+                        required property int index
                         property int presentN: 0
                         property alias hostRepeater: hostRep
                         function recount() {
@@ -108,7 +132,11 @@ Row {
                             for (var i = 0; i < hostRep.count; i++) { var h = hostRep.itemAt(i); if (h && h.shown) n++ }
                             if (n !== presentN) { presentN = n; run.recount() }
                         }
-                        visible: presentN > 0
+                        // (folded: only the first member stands; the rest come in fading as the group opens)
+                        visible: presentN > 0 && (index === 0 || !run.folded)
+                        opacity: visible ? 1 : 0
+                        Behavior on opacity { enabled: Theme.springOn; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+                        onVisibleChanged: zr.owner.requestFit()
                         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
                         spacing: modelData.tight ? zr.owner.tightSpacing : (zr.barGap >= 0 ? zr.barGap : Theme.pad)
                         Repeater {

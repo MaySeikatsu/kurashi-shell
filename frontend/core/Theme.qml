@@ -292,6 +292,8 @@ Singleton {
     // moved through the colour flow): one line round the screen and everything that stands on it.
     readonly property int surfaceLineW: outlineW > 0 ? outlineW : (frameOutline ? 1 : 0)
     readonly property color surfaceLineColor: frameOutline ? frameOutlineColor : (outlineW > 0 ? outlineColor : "transparent")
+    // (the same line without the colour flow: what stands inside a scrolling view whose edges blend, ColorFlow.under)
+    readonly property color surfaceLineStill: frameOutline ? frameOutlineStill : (outlineW > 0 ? outlineColor : "transparent")
     // I473 (session 28, `theme.typography.fx.*`; components/TextFx.qml): how text is lit, how fresh text appears, what
     // takes part ("titles" | "all") and how fast it is written. The daemon sends `text.spawn = none` where nothing moves.
     readonly property string textEffect: String(tok("text.effect", "none"))
@@ -304,6 +306,9 @@ Singleton {
     // `squircled`'s `join`: round, chamfer, steps, bulge, square).
     readonly property string joinKind: String(tok("join.kind", "auto"))
     readonly property string joinCorner: String(tok("join.corner", "round"))
+    // Session 30 (I494, `theme.material.scroll_edges`): how content cut by a scrolling view's edge is drawn — blur, fade
+    // or cut (components/ScrollEdge.qml).
+    readonly property string scrollEdges: String(tok("scroll.edges", "blur"))
     // I489 (session 29): a window's blur region has round corners only. Under a corner shape that cuts inside the
     // round one (a cut, steps, an outward quarter's notch) a region rounded as the surface used to be showed the blurred
     // desk past the shaped corner, as a ghost of the old rounding; so the region's corner is the round one that lies

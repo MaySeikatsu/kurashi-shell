@@ -388,8 +388,14 @@ PanelWindow {
     // Session 28 (`theme.join = float`): a card of its own still opens where it was asked for — under the module that
     // was clicked (`bar.popups`), kept on the screen — and stands a gap off the bar.
     readonly property bool floatUnder: !morphMode && !placed && !peekLayout && restsUnder && !aligned && besideAt === null
-    readonly property real floatX: Math.round(Math.max(Theme.pad, Math.min(outW - card.width - Theme.pad, originCx - card.width / 2)))
-    readonly property int floatGap: Theme.joinKind === "float" && !hangs ? Theme.gap : 0
+    // I504 (session 30, the user: floating cards "spawn with different margins up/down/left/right", one even gap wanted):
+    // a card of its own keeps one gap, `Theme.gap`, to whatever it stands next to — the bar's edge, the frame's inner
+    // edge, the screen's edge — measured from where that surface ends (FG.holeSide: the frame's band and the bar).
+    readonly property bool floats: Theme.joinKind === "float" && !hangs
+    function holeOf(e) { return FG.holeSide(ShellLayout.of(outName), e, Theme.barH) }
+    readonly property real sideL: floats ? holeOf("left") + Theme.gap : Theme.pad
+    readonly property real sideR: floats ? holeOf("right") + Theme.gap : Theme.pad
+    readonly property real floatX: Math.round(Math.max(sideL, Math.min(outW - card.width - sideR, originCx - card.width / 2)))
     anchors {
         top: placed || (peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null))
         bottom: !placed && (peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null)))
@@ -400,13 +406,13 @@ PanelWindow {
         top: placed ? placedY - placedRoom : peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
             : (morphLayout ? 0 : (besideAt !== null
                 ? Math.round(Math.max(Theme.pad, Math.min((stage.screen ? stage.screen.height : 1080) - card.height - Theme.pad, besideAt.y + besideAt.h / 2 - card.height / 2)))
-                : bars.topInset - (hangs ? 4 : 0) + floatGap))
+                : floats ? holeOf("top") + Theme.gap : bars.topInset - (hangs ? 4 : 0)))
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
-            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0) + floatGap))
+            : (morphLayout ? 0 : (menuBeside ? Theme.pad : floats ? holeOf("bottom") + Theme.gap : bars.bottomInset - (hangs ? 4 : 0)))
         left: placed ? placedX - placedRoom : peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
             : (morphLayout ? boxL : (floatUnder ? floatX : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0)))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
-            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : Theme.pad) : 0))
+            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : sideR) : 0))
     }
     implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width + 2 * placedRoom)
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height + 2 * placedRoom)
@@ -476,6 +482,8 @@ PanelWindow {
             pendingKind = ""
             var k = kindNow()
             contentKind = k === "" ? "island" : k
+            // (a kept view opens at its top, as a fresh one does: I493)
+            viewFlick.contentY = 0
             pillGeom = IslandGeom.pillOf(outName)
             Qt.callLater(function () { card.forceActiveFocus() })
             handBack.stop()
@@ -1492,7 +1500,36 @@ PanelWindow {
         enabled: stage.shown && Theme.quickMs > 0 && !run.formed
         NumberAnimation { duration: stage.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
-    onShownChanged: if (!shown) run.reset()
+    onShownChanged: {
+        if (!shown) {
+            run.reset()
+            // I493 (session 30, `bar.card_keep_loaded`; as the sidebars, K139): the view a card showed stays made for a
+            // minute after it closed — the window keeps it, unseen — so the same card opens again at once, at its size.
+            // (not a panel that maps another process's page: the web dock keeps its pages itself, and its panel reports
+            // where the page is shown from its own opening — "last opened wins")
+            if (keepOn && viewing && view.status === Loader.Ready && !mapsSurface) { kept = true; keepTimer.restart() }
+        } else { kept = false; keepTimer.stop() }
+    }
+    readonly property bool keepOn: bars.valueOf("bar.card_keep_loaded", true) === true
+    property bool kept: false
+    onKeepOnChanged: if (!keepOn) kept = false
+    // (a kept view is made anew after any change of the settings: a view may read one only when it is made)
+    readonly property var cfgDoc: Store.docs["config"]
+    onCfgDocChanged: if (!shown) kept = false
+    // (and after a change of the theme: a look's own frame for a view — the quick card's flyout — is read when it is made)
+    readonly property var themeTokens: Theme.tokens
+    onThemeTokensChanged: if (!shown) kept = false
+    Timer { id: keepTimer; interval: 60000; onTriggered: stage.kept = false }
+    // I504 (session 30, `bar.card_max_height`, `bar.card_max_width`; the user: at most ½ the screen's height and ⅓ its
+    // width by default): a card stands at most that size and its view scrolls beyond it (`viewFlick`). The width never goes
+    // below what a card's content needs (400 px, the wide cards' floor); a card made full screen, and a view with its own
+    // chrome (the quick settings phone, a fixed size), are not limited.
+    // (and a panel that maps another process's surface over itself — the web dock's page — keeps its own size: its place
+    // must hold still, and the web dock sizes its card itself)
+    readonly property bool mapsSurface: modPanel !== null && (modPanel.cardPlacement !== undefined || modPanel.placement !== undefined)
+    readonly property bool limited: viewing && !full && !ownChrome && !mapsSurface
+    readonly property real maxCardH: screen ? Math.max(160, Math.round(screen.height * Number(bars.valueOf("bar.card_max_height", 50)) / 100)) : 100000
+    readonly property real maxCardW: screen ? Math.max(400, Math.round(screen.width * Number(bars.valueOf("bar.card_max_width", 33)) / 100)) : 100000
     // A view with its own chrome: the shape dissolves into it (all of it but the bar's rule copy, I161).
     readonly property real shapeFade: ownChrome ? 1 - contentP : 1
 
@@ -1742,6 +1779,8 @@ PanelWindow {
     }
     RoundBox {
         id: card
+        // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
+        TextSpawnAll { root: card; shown: stage.shown && stage.open }
         // (a sheet of its own where no shape draws it: its corners take the sheet's corner shape, I489)
         sheet: true
         visible: stage.shown
@@ -1751,12 +1790,14 @@ PanelWindow {
         readonly property bool fromCache: !stage.viewReady && stage.cachedSize !== null
         // W53.0b: a card made full screen by its title bar takes the room its output has (the title bar's own size).
         // (W53.5: a view may ask for more with `cardWant` — the calendar's grid in a wide pixel face.)
-        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0
+        readonly property real naturalW: ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0
             ? Math.max(400, Math.min(stage.viewWant, stage.fullW))
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
-        height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
+        readonly property real naturalH: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH + 2 * stage.frameW
+        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : stage.limited ? Math.min(naturalW, stage.maxCardW) : naturalW
+        height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : stage.limited ? Math.min(naturalH, stage.maxCardH) : naturalH
         onWidthChanged: stage.recordSize()
         onHeightChanged: stage.recordSize()
         // I458: what a hover opened stays while the pointer is on it, and is the user's once they press in it.
@@ -1969,23 +2010,60 @@ PanelWindow {
             }
         }
 
+        // I504: the view scrolls once the card stands at its largest (`stage.maxCardH`); its cut edges blend out (I494),
+        // the look's scroll bar over its end edge, and the keyboard's focus moving below the fold scrolls it into view.
+        ScrollEdge { view: viewFlick }
+        Flickable {
+            id: viewFlick
+            visible: stage.viewing
+            KineticWheel { view: viewFlick }
+            x: stage.cardPad + stage.frameW
+            y: stage.cardPad + stage.titleH + stage.frameW
+            width: parent.width - 2 * (stage.cardPad + stage.frameW)
+            height: Math.max(0, parent.height - y - stage.cardPad - stage.frameW)
+            contentWidth: width
+            contentHeight: col.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentHeight > height + 1
+            clip: interactive
+            onInteractiveChanged: if (!interactive) contentY = 0
+            function reveal(it) {
+                if (!interactive || !it) return
+                for (var q = it; q && q !== col; q = q.parent) {}
+                if (!q) return
+                var r = it.mapToItem(col, 0, 0)
+                var top = r.y - Theme.gap, end = r.y + it.height + Theme.gap
+                if (top < contentY) contentY = Math.max(0, top)
+                else if (end > contentY + height) contentY = Math.min(contentHeight - height, end - height)
+            }
+            Connections {
+                target: viewFlick.interactive ? card.Window.window : null
+                function onActiveFocusItemChanged() { viewFlick.reveal(card.Window.activeFocusItem) }
+            }
         Column {
             id: col
-            visible: stage.viewing
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.cardPad + stage.frameW }
-            anchors.topMargin: stage.cardPad + stage.titleH + stage.frameW
+            width: viewFlick.width
             spacing: Theme.pad
             // Its height is the view's implicit one (an explicit binding to it loops in Qt).
             Loader {
                 id: view
                 width: col.width
-                active: stage.shown && stage.viewing
+                active: (stage.shown || stage.kept) && stage.viewing
                 asynchronous: true
                 // Test only: one line per view made (an open must make one view, I192).
                 onLoaded: if (stage.debugLog) console.log("stage-view made " + stage.contentKind + " t=" + Date.now())
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
             // No Close button (I279): Esc or a click elsewhere (ClickAway) closes the island and quick cards.
+        }
+        }
+        ScrollHost {
+            z: 1
+            flick: viewFlick
+            visible: shown && viewFlick.visible && viewFlick.interactive
+            x: viewFlick.x + viewFlick.width - width
+            y: viewFlick.y
+            stepPx: 40
         }
 
         SessionMenu {

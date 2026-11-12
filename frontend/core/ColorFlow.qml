@@ -31,8 +31,10 @@ Singleton {
     // Music: the media document, watched only while the flow waits for it.
     readonly property bool wantsMedia: on && when === "media"
     readonly property var media: wantsMedia && Store.docs ? Store.docs["svc.media"] : null
+    // (W75: `!!` — without an `active` player the expression was `undefined`, which a bool refuses: the property kept its
+    // last value, so a pause could leave the flow running)
     readonly property bool playing: !!media && (media.status === "playing" || media.playing === true
-        || (media.active && media.active.status === "playing"))
+        || !!(media.active && media.active.status === "playing"))
     readonly property bool running: on && (when === "always" || (when === "active" && busy) || (when === "media" && playing))
 
     // The clock: 0 … 1, one round in 12 s at speed 1.
@@ -43,19 +45,54 @@ Singleton {
     // slow speeds (under 2 levels of 255 a step, a pixel of the gradient's drift), the display's rate only at speed 2
     // and up. A Timer alone does not run the animation driver (Qt parks a lone pause on a single shot), so between steps
     // nothing wakes.
+    // W75 (B118, measured on nested niri with the user's profile while music played: ten windows at 15 steps a second
+    // were half the frontend's CPU): the rate follows the speed down as well, so every step moves the colours by the same
+    // amount at every speed — 1/360 of a round, what speed 1 at 30 a second always stepped — and the slowest flow (0.25,
+    // one round in 48 s) steps 7.5 times a second, not 15 (half of every flowing window's frames, nothing the eye sees).
     property real phase: 0
-    readonly property int stepMs: Math.round(1000 / Math.min(60, Math.max(15, 30 * speed)))
+    readonly property int stepMs: Math.round(1000 / Math.min(60, 30 * speed))
     // A surface in motion (a card, a sidebar, the launcher opening or closing: components/motion/SurfaceForm.qml) has
     // the frame budget to itself: the clock rests for that moment and goes on from where it stood. A count, with a
     // watch that clears it should a surface go without giving its rest back.
     property int rests: 0
     function rest(d) { rests = Math.max(0, rests + d) }
     property Timer restWatch: Timer { interval: 4000; running: cf.rests > 0; onTriggered: cf.rests = 0 }
+    property real steppedAt: 0
+    function step() {
+        var p = cf.phase + cf.stepMs * cf.speed / 12000
+        cf.phase = p - Math.floor(p)
+        cf.steppedAt = Date.now()
+    }
     property Timer clock: Timer {
         interval: cf.stepMs
         repeat: true
         running: cf.running && cf.rests === 0
-        onTriggered: { var p = cf.phase + cf.stepMs * cf.speed / 12000; cf.phase = p - Math.floor(p) }
+        onTriggered: cf.step()
+    }
+    // W75: a window that draws a frame anyway (the level bars take a frame of the spectrum, LevelBars.qml) takes the flow's
+    // step with it when one is nearly due, so the two land in one frame there instead of two: the bar's and the desk's
+    // windows drew 22.5 frames a second for the bars' 15 and the flow's 7.5. The clock starts its wait again from there.
+    function along() {
+        if (!clock.running || Date.now() - steppedAt < stepMs - 45) return
+        step()
+        clock.restart()
+    }
+    // Session 30 (the user's choice, K142): what stands inside a scrolling view whose edges blend (ScrollEdge, drawn through
+    // a layer) keeps its still colours — a layer draws every change of its content twice, and the flow would change it
+    // at every step. The view's own frame, the bars and the frame flow on. `under(item)`: is it inside such a view.
+    property var stillViews: []
+    property int stillGen: 0
+    function holdStill(view, on) {
+        var i = stillViews.indexOf(view)
+        if (on && i < 0) stillViews.push(view)
+        else if (!on && i >= 0) stillViews.splice(i, 1)
+        else return
+        stillGen++
+    }
+    function under(item) {
+        if (stillGen === 0 && stillViews.length === 0) return false
+        for (var p = item; p; p = p.parent) if (stillViews.indexOf(p) >= 0) return true
+        return false
     }
     // The gradient's pattern for wash.frag (0 = still).
     readonly property int patternIndex: !gradientOn ? 0 : pattern === "breathe" ? 2 : pattern === "cycle" ? 3 : pattern === "chase" ? 4 : 1

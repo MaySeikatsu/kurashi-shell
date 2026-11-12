@@ -21,3 +21,9 @@
 "layout.error.edge_taken" = "その辺にはもうバーがあります。"
 "action.layout.toggle" = "レイアウトの部品を出す・しまう"
 "action.layout.bar.move" = "バーを別の辺へ動かす"
+
+# Session 30 (I502)
+"config.layout.groups.field.id" = "ID"
+"config.layout.groups.field.name" = "名前"
+"config.layout.groups.field.members" = "メンバー（ID、カンマ区切り）"
+"config.layout.groups.field.accordion" = "最初のメンバーだけに畳む"

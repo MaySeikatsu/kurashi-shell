@@ -42,6 +42,7 @@ fn defaults() -> OutputConfig {
     top.bar = true;
     top.zones = top_zones(&TOP_END);
     OutputConfig {
+        groups: Vec::new(),
         bar_size: 32,
         frame: FrameConfig {
             enabled: false,
@@ -836,4 +837,38 @@ fn screen_corners_follow_the_radius() {
     assert_eq!(doc(&g).screen_radius, 16);
     g.screen_follow = false;
     assert_eq!(doc(&g).screen_radius, 24);
+}
+
+/// I502 (session 30): a zone's `group:<id>` stands for the group's members, each tagged with the group; an unknown group
+/// is a problem; the document names every group with its name (the id where it has none) and whether it folds.
+#[test]
+fn a_named_group_expands_to_its_tagged_members() {
+    let mut cfg = defaults();
+    cfg.edges[0].zones = top_zones(&["group:status", "clock", "group:nope"]);
+    cfg.groups = vec![GroupConfig {
+        id: "status".into(),
+        name: String::new(),
+        members: strings(&["audio", "mod:weather:weather", "quick"]),
+        accordion: true,
+    }];
+    let l = lay(&cfg, &[widget_mod("weather", true, &["weather"])]);
+    let end = &l.edges.top.zones.end;
+    assert_eq!(ids(end), ["audio", "mod:weather:weather", "quick", "clock"]);
+    assert_eq!(end[0].group.as_deref(), Some("status"));
+    assert_eq!(end[2].group.as_deref(), Some("status"));
+    assert_eq!(end[3].group, None);
+    assert!(l.problems.iter().any(|p| p.id == "group:nope"));
+    assert_eq!(
+        l.groups["status"],
+        GroupInfo {
+            name: "status".into(),
+            accordion: true
+        }
+    );
+    assert!(
+        !l.unplaced
+            .iter()
+            .any(|u| u.module.id == "mod:weather:weather"),
+        "a member is placed"
+    );
 }

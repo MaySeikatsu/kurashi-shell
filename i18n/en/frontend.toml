@@ -107,3 +107,4 @@
 "fonts.hand.off" = "The Handwriting mod lets you draw your own font, letter by letter."
 "fonts.hand.open" = "Draw a font"
 "fonts.hand.enable" = "Turn it on"
+"frontend.bar.group" = "Group {name}, {n} modules"
