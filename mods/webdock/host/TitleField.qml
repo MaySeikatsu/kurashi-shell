@@ -32,6 +32,7 @@ Item {
         input.text = blank ? "" : (page && page.engine ? String(page.engine.url) : String(pin.target || ""))
         input.selectAll()
         input.forceActiveFocus()
+        if (debugLog) console.log("webdock-debug field " + pin.id + " edit")
     }
     function end() {
         editing = false
@@ -61,8 +62,15 @@ Item {
         if (page && page.engine) page.engine.forceActiveFocus()
     }
     // The empty temporary page takes the keyboard into its field as it appears (the window asks for it: WebCard's pulse).
-    function focusField() { if (open && visible) input.forceActiveFocus() }
-    onBlankChanged: if (blank) Qt.callLater(focusField)
+    function focusField() {
+        if (!open || !visible) return
+        input.forceActiveFocus()
+        if (debugLog) console.log("webdock-debug field " + (pin ? pin.id : "-") + " open")
+    }
+    onBlankChanged: if (blank) { input.text = ""; error = ""; Qt.callLater(focusField) }
+    // (another page: whatever was typed for the last one goes)
+    readonly property string pinKey: pin ? String(pin.id) : ""
+    onPinKeyChanged: { editing = false; error = ""; input.text = "" }
     onVisibleChanged: if (visible && blank) Qt.callLater(focusField)
     Component.onCompleted: if (blank) Qt.callLater(focusField)
 

@@ -36,10 +36,15 @@ Item {
     // Stage clamps it to 360–1100 px and the output), so it shrinks, never runs off screen.
     readonly property string cardSize: d.card_size === "phone" || d.card_size === "tablet" || d.card_size === "wide"
         ? d.card_size : "dock"
-    readonly property int dockW: (d.geometry && d.geometry.width) || 412
+    // W76 (docs/ux/webdock.md "Round three"): in `dock` the well is the box the user dragged on this output (`sizes`),
+    // shared with the edge card; else `width` × twice that.
+    readonly property string outName: cardPlacement && cardPlacement.output ? String(cardPlacement.output)
+        : (placement && placement.output ? String(placement.output) : String(Screen.name || ""))
+    readonly property var box: cardSize === "dock" && d.sizes && d.sizes[outName] ? d.sizes[outName] : null
+    readonly property int dockW: box ? box.width : ((d.geometry && d.geometry.width) || 412)
     readonly property int viewW: cardSize === "wide" ? 1024 : cardSize === "tablet" ? 768 : cardSize === "phone" ? 412 : dockW
     readonly property int viewH: cardSize === "wide" ? 720 : cardSize === "tablet" ? 900 : cardSize === "phone" ? 760
-        : 2 * dockW - 36
+        : (box ? box.height : 2 * dockW) - 36
     readonly property int cardWidth: viewW + 2 * (Theme.pad + 4)
     // W74: the card's size key (docs/ux/webdock.md "The card's size"): the daemon steps the setting
     // (`webdock.card_size`); a size the configuration forces (I91) leaves the key inert, with the reason.
@@ -57,13 +62,44 @@ Item {
     // margins (W72's clamp), at least 240 px.
     implicitHeight: fillHeight > 0 ? fillHeight : (inCard
         ? Math.max(240 + tile + Theme.gap, Math.min(viewH + 36 + tile + Theme.gap,
-            (Screen.height > 0 ? Screen.height : 1080) - 2 * Theme.barH - 10 * Theme.pad))
+            (Screen.height > 0 ? Screen.height : 1080) - 2 * Theme.barH - 10 * Theme.pad, stageRoom))
         : 560)
+    // I504 (session 30): the Stage stands a card at most `bar.card_max_height` % of the screen tall and scrolls its view
+    // beyond — a page window cannot follow a scrolled well (the placement is withdrawn while a scroll view clips it), so
+    // the panel asks for no more than the card holds: that height less the card's padding (`pad + 4` each side). A local
+    // stand-in for a limit the Stage could hand its panels (CONTRACT-CHANGE row 741).
+    readonly property real stageRoom: {
+        var pct = Number(cfgValue("bar.card_max_height", 50))
+        var h = Screen.height > 0 ? Screen.height : 1080
+        return Math.max(160, Math.round(h * pct / 100)) - 2 * (Theme.pad + 4) - 2
+    }
+    Watch { doc: "config"; active: panel.inCard }
+    property var cfg: ({})
+    property var cfgSeen: undefined
+    // (copied on the next turn, as BarConfig does: a binding on the document re-entered itself there)
+    function copyCfg() {
+        var c = Store.docs["config"]
+        if (c === cfgSeen) return
+        cfgSeen = c
+        cfg = c || ({})
+    }
+    Connections {
+        target: panel.inCard ? Store : null
+        function onDocsChanged() { if (Store.docs["config"] !== panel.cfgSeen) Qt.callLater(panel.copyCfg) }
+    }
+    function cfgValue(key, dflt) {
+        var c = cfg, o = String(Screen.name || "")
+        var p = o !== "" && c.outputs && c.outputs[o] && c.outputs[o][key] !== undefined ? c.outputs[o][key]
+            : (c.values ? c.values[key] : undefined)
+        return p && p.value !== undefined ? p.value : dflt
+    }
 
     Watch { doc: "mod.webdock" }
     readonly property var d: Store.docs["mod.webdock"] || ({})
     readonly property bool hasDoc: Store.docs["mod.webdock"] !== undefined
     readonly property var pins: d.pins || []
+    // W76: the row lists the pins; a temporary page (from "+", or unpinned but kept open) is shown, never listed.
+    readonly property var listed: pins.filter(function (p) { return p.temporary !== true })
     readonly property var sideDoc: d.sidebar || ({})
     readonly property var cardDoc: d.card || ({})
     readonly property string hostState: (d.host && d.host.state) || "off"
@@ -71,7 +107,7 @@ Item {
     // The pin shown here: the daemon's sidebar pin (the card's own in a card), else the first (the daemon picks the same
     // once the panel rests).
     readonly property var ownDoc: inCard ? cardDoc : sideDoc
-    readonly property string selId: ownDoc.pin !== undefined ? String(ownDoc.pin) : (pins.length > 0 ? String(pins[0].id) : "")
+    readonly property string selId: ownDoc.pin !== undefined ? String(ownDoc.pin) : (listed.length > 0 ? String(listed[0].id) : "")
     readonly property var sel: pinOf(selId)
     readonly property bool selWeb: sel !== null && sel.kind === "web"
     readonly property var view: sel !== null && sel.kind === "view" ? viewOf(String(sel.target)) : null
@@ -120,10 +156,23 @@ Item {
         var c = sizeKey.mapToItem(panel, sizeKey.width / 2, sizeKey.height / 2)
         console.log("webdock-panel sizekey " + Math.round(cp.x + c.x) + " " + Math.round(cp.y + c.y) + " " + cardSize
             + (sizeForced ? " forced" : ""))
+        var a = addKey.mapToItem(panel, addKey.width / 2, addKey.height / 2)
+        console.log("webdock-panel addkey " + Math.round(cp.x + a.x) + " " + Math.round(cp.y + a.y))
     }
     onCardPlacementChanged: { if (debugLog && shownElsewhere) hereLog.restart(); if (debugLog) keyLog.restart() }
     Timer { id: keyLog; interval: 300; onTriggered: panel.logSizeKey() }
-    onPlacementChanged: if (debugLog && shownElsewhere) hereLog.restart()
+    onPlacementChanged: { if (debugLog && shownElsewhere) hereLog.restart(); if (debugLog && placement) addLog.restart() }
+    // (test only, W76: where "+" is in a left sidebar — x on the output, y from the usable area's top; test-sidebar.sh)
+    Timer {
+        id: addLog
+        interval: 300
+        onTriggered: {
+            var pl = panel.placement
+            if (!pl || pl.side !== "left") return
+            var a = addKey.mapToItem(panel, addKey.width / 2, addKey.height / 2)
+            console.log("webdock-panel addkey-side " + Math.round(pl.inset + a.x) + " " + Math.round(pl.top + a.y))
+        }
+    }
     // (test only: once the notice's column has laid out)
     Timer { id: hereLog; interval: 300; onTriggered: panel.logHere() }
     function choose(id) {
@@ -218,6 +267,7 @@ Item {
     Flickable {
         id: row
         width: panel.width - settingsKey.width - Theme.gap - (sizeKey.visible ? sizeKey.width + Theme.gap : 0)
+            - addKey.width - Theme.gap
         height: panel.tile + Theme.shadowDy
         contentWidth: pinRow.width
         contentHeight: height
@@ -225,12 +275,12 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         interactive: contentWidth > width + 1
         clip: true
-        visible: panel.pins.length > 0
+        visible: panel.listed.length > 0
         Row {
             id: pinRow
             spacing: Theme.gap
             Repeater {
-                model: panel.pins
+                model: panel.listed
                 delegate: PinTile {
                     required property var modelData
                     pin: modelData
@@ -245,6 +295,21 @@ Item {
                 }
             }
         }
+    }
+    // W76: "+" after the pins: a new temporary page here, its address field where the title is (the host's window).
+    IconButton {
+        id: addKey
+        anchors.right: sizeKey.visible ? sizeKey.left : settingsKey.left
+        anchors.rightMargin: Theme.gap
+        y: Math.round((panel.tile - height) / 2)
+        icon: "add"
+        glyph: "+"
+        lit: panel.sel !== null && panel.sel.temporary === true && String(panel.sel.target || "") === ""
+        activeFocusOnTab: true
+        a11y: I18n.tr("webdock.browse")
+        enabled: panel.hasDoc
+        onClicked: Store.act("webdock.browse", { place: panel.inCard ? "card" : (panel.placement ? "sidebar" : "edge"),
+            output: panel.outName })
     }
     // W74: the card's size key, before the settings key (Tab: the pins, the size, the settings, then the page). A press
     // steps to the next size (the daemon writes it: one undo step); forced, it stays a Tab stop so its reason is read.
@@ -292,7 +357,7 @@ Item {
         id: well
         Component.onCompleted: Light.addPicture(well, Window.window)
         Component.onDestruction: Light.removePicture(well)
-        y: panel.pins.length > 0 ? row.height + Theme.gap : settingsKey.height + Theme.gap
+        y: panel.listed.length > 0 ? row.height + Theme.gap : settingsKey.height + Theme.gap
         width: panel.width
         height: Math.max(0, panel.height - y)
         radius: Theme.rLg
@@ -327,7 +392,7 @@ Item {
             // (test only: where "Show here" is on the output while the card rests, test-card.sh)
             onActionLabelChanged: if (panel.debugLog) hereLog.restart()
             text: !panel.hasDoc ? I18n.tr("webdock.dock.unavailable")
-                : panel.pins.length === 0 ? I18n.tr("webdock.empty")
+                : panel.listed.length === 0 && panel.sel === null ? I18n.tr("webdock.empty")
                 : panel.sel !== null && panel.sel.kind === "view" ? (viewBody.item === null ? I18n.tr("webdock.view.gone") : "")
                 : !panel.selWeb ? ""
                 : panel.hostState === "missing" ? I18n.tr("webdock.host.missing")
@@ -341,12 +406,12 @@ Item {
                 : !panel.placement ? I18n.tr("webdock.side.unplaced")
                 : panel.hostState === "ready" ? I18n.tr("webdock.loading")
                 : I18n.tr("webdock.host.starting")
-            actionLabel: panel.pins.length === 0 ? I18n.tr("webdock.dock.empty.add")
+            actionLabel: panel.listed.length === 0 && panel.sel === null ? I18n.tr("webdock.dock.empty.add")
                 : panel.shownElsewhere && panel.hasDoc && panel.hostState !== "missing" && panel.hostState !== "failed"
                     ? I18n.tr("webdock.elsewhere.here")
                 : (panel.selWeb && !panel.placement && !panel.inCard && panel.hasDoc ? I18n.tr("webdock.side.at_edge") : "")
             onActionPressed: {
-                if (panel.pins.length === 0) Store.act("settings.open", { key: "mods.webdock.pins" })
+                if (panel.listed.length === 0 && panel.sel === null) Store.act("settings.open", { key: "mods.webdock.pins" })
                 // W73: "Show here" picks the pin in this place again, which makes it the place opened last.
                 else if (panel.shownElsewhere) panel.choose(panel.selId)
                 else Store.act("webdock.open", { pin: panel.selId })

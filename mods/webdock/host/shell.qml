@@ -26,6 +26,10 @@ ShellRoot {
     // geometry.grace (24): the hover margin on the card's sides away from the strip; the mock's document has none.
     readonly property int grace: geo.grace !== undefined ? geo.grace : 24
     readonly property bool engaged: doc.engaged === true
+    // W76 (docs/ux/webdock.md "Round three"): the boxes the user dragged (per output), `pinned`, and who forces what.
+    readonly property var sizes: doc.sizes || ({})
+    readonly property var forced: doc.forced || ({})
+    function forcedBy(key) { return forced[key] !== undefined && forced[key] !== null ? String(forced[key]) : "" }
     // Test-only switch (test-host.sh): the intents and the card's state are logged.
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
 
@@ -89,6 +93,10 @@ ShellRoot {
         style: root.doc.page_style || "phone"
         strip: root.geo.strip || 56
         phoneWidth: root.geo.width || 412
+        sizes: root.sizes
+        pinned: root.doc.pinned === true
+        pinForcedBy: root.forcedBy("pinned")
+        sizesForcedBy: root.forcedBy("sizes")
         largePct: root.geo.large || 90
         output: root.doc.output || ""
         grace: root.grace
@@ -127,6 +135,10 @@ ShellRoot {
         report: root.report
         dockEdge: root.doc.edge || "right"
         focusAsks: root.barCardDoc.focus || 0
+        pinForcedBy: root.forcedBy("pinned")
+        // (the bar card resizes in its `dock` size only, the default: `card_size` absent)
+        resizable: root.doc.card_size === undefined
+        sizesForcedBy: root.forcedBy("sizes")
     }
 
     // W30: the sidebar's page, where the sidebar panel's page area rests (`sidebar.place`), while it shows a site.

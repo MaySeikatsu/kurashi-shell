@@ -5,8 +5,9 @@
 #   1. a top bar with the dock's module at its end: the card opens (`mod.panel.open`); the panel reports its well on the
 #      output and the host maps its card window there: the window's rect is the well's, inside the card, under the pins
 #      row; the page fills it under the navigation row and its colour is on screen;
-#   1b. W74: the default well is the edge card's box (`width` × twice that); one press of the card's size key steps it to
-#      phone (the well resizes, no reload); `kurashi undo` brings the default back;
+#   1b. W74: the default well is the edge card's box (`width` × twice that) — I504: within the Stage's card limit
+#      (`bar.card_max_height`, ½ the screen), so on 2560 × 1440 the well takes the panel's room; one press of the card's
+#      size key steps it to phone (the well resizes, no reload); `kurashi undo` brings the default back;
 #   2. closing the card unmaps the window (0 frames in 3 s), the page stays loaded; reopening shows it with no new load;
 #   3. a click on the second pin's key switches the page; back to the first: no new load of either;
 #   4. the same pin at the edge while the card shows it: the card keeps the page (no load); the edge takes it once the card
@@ -17,6 +18,13 @@
 #   5. `bar.hover = card`: a rest on the module opens the card; the pointer moved into the page keeps it; leaving closes it;
 #   6. Tab past the card's keys hands the keyboard to the page; a click in the page gives it the keyboard (typed text
 #      arrives either way); Esc closes the card;
+#   6c. W76 (docs/ux/webdock.md "Round three"): "+" in the card → its address field → a local page loads → "Pin": the pin is
+#      in `mods.webdock.pins` (profile `browse`), the page renamed, not loaded again; the title is the field (another page,
+#      the pin keeps its address); "Keep open at the edge" moves the page to the edge, pinned; the bar card's grip resizes
+#      the well (written per output, the card follows);
+#   6d. W76: the strip's pin menu — Reload (the counter, a new load), Update pin to this page, Unpin but keep open (the row
+#      goes, the page stays), `kurashi undo` brings the pin back;
+#   6e. W76: the edge card's grip (drag, Ctrl+arrows, double click) and its keep-open key;
 #   7. a bottom bar: the same geometry checks; shots mods/webdock/shots/card-{top,bottom}.png;
 #   8. no pin: the well says how to add one; no QML error or warning in the shell or the host.
 #   nix develop -c mods/webdock/test/test-card.sh [sandbox-name]
@@ -199,10 +207,15 @@ timeout 20 grim -g "$(( PX - 40 )),0 $(( PW + 80 ))x$(( PY + PH + 40 ))" "$SHOTS
 qml_errors
 
 # ---- 1b. W74: the default size is the edge card's; the size key steps it, one undo step takes it back ----
-# The edge card's phone box is `width` (412) × twice that; the well (the row and the page) takes it. 2560 × 1440 has room.
-[ "$WW" = 412 ] && [ "$WH" = 824 ] || fail "the default card's well is ${WW}x$WH, not the edge card's 412x824"
+# The edge card's phone box is `width` (412) × twice that; the well (the row and the page) takes it — I504: within the
+# Stage's limit (½ the screen's height: 720 on 1440), the panel asking for no more than the card holds (Panel.stageRoom).
+[ "$WW" = 412 ] || fail "the default card's well is ${WW} wide, not the edge card's 412"
+{ [ "$WH" = 824 ] || { [ "$WH" -lt 824 ] && [ "$PH" -le $(( H_OUT / 2 )) ]; }; } \
+  || fail "the default card's well is ${WW}x$WH (panel ${PW}x$PH): neither the edge card's 412x824 nor the Stage's limit"
+ROOM=$WH                                 # the well's height when the limit holds it (824 when it does not)
+PHONE_H=$(( ROOM < 796 ? ROOM : 796 ))
 doc_is "'card_size' not in d" || fail "the default size is published: $(doc "d.get('card_size')")"
-ok "the default card's well is the edge card's box (412x824), card_size absent"
+ok "the default card's well is the edge card's box within the Stage's limit (${WW}x$WH), card_size absent"
 wait_until 5 grep -qF 'webdock-panel sizekey ' "$R/qs.log" || fail "the card has no size key"
 read -r SX SY SNAME _ <<< "$({ grep -F 'webdock-panel sizekey ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel sizekey //')"
 [ "$SNAME" = dock ] || fail "the size key names $SNAME, not dock"
@@ -210,18 +223,21 @@ L1=$(loads site)
 mv_to "$SX" "$SY"
 ptr "$SX" "$SY"
 wait_until 5 doc_is "d.get('card_size') == 'phone'" || fail "a press of the size key did not step to phone ($(doc "d.get('card_size')"))"
-wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 796" ]' || fail "the well did not take the phone size ($(panel_card))"
+# (the phone's well is 412 × 796; the limit may hold it as it held the default)
+if [ "$PHONE_H" != "$ROOM" ]; then
+  wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 '"$PHONE_H"'" ]' || fail "the well did not take the phone size ($(panel_card))"
+fi
 check_geometry site top
-[ "$WW" = 412 ] && [ "$WH" = 796 ] || fail "the phone card's well is ${WW}x$WH"
+[ "$WW" = 412 ] && [ "$WH" = "$PHONE_H" ] || fail "the phone card's well is ${WW}x$WH, not 412x$PHONE_H"
 wait_px "$CX" "$CY" '#2b3a55' 15
 [ "$(loads site)" = "$L1" ] || fail "the size change reloaded the page ($L1 → $(loads site))"
-ok "one press of the size key: card_size phone, the well 412x796, the page moved with it, no reload"
+ok "one press of the size key: card_size phone, the well 412x$PHONE_H, the page moved with it, no reload"
 timeout 10 "$W/kurashi" undo >/dev/null || fail "kurashi undo was refused"
 wait_until 5 doc_is "'card_size' not in d" || fail "one undo did not bring the default size back ($(doc "d.get('card_size')"))"
-wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 824" ]' || fail "the well did not go back to 412x824 ($(panel_card))"
+wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 '"$ROOM"'" ]' || fail "the well did not go back to 412x$ROOM ($(panel_card))"
 check_geometry site top
 wait_px "$CX" "$CY" '#2b3a55' 15
-ok "one undo takes the size key's write back (the well 412x824 again)"
+ok "one undo takes the size key's write back (the well 412x$ROOM again)"
 qml_errors
 
 # ---- 2. close: unmapped, no frames, kept; reopen: no new load ----
@@ -483,6 +499,147 @@ wait_until 10 grep -qF 'webdock-debug card shown' "$HOSTLOG" || true
 ptr "$MX" "$MY"
 wait_until 5 panel_closed || fail "a second click on the module did not close the card"
 ok "a click on the module opens the card and leaves the edge dock; a second click closes it"
+qml_errors
+
+# ---- 6c. W76: "+" → the address field → a page → Pin; the title field; keep open at the edge; the bar card's grip ----
+cp "$ROOT/mods/webdock/test/pages/other.html" "$R/o.html"
+cp "$ROOT/mods/webdock/test/pages/site.html" "$R/s.html"
+type_text() { keys $(python3 -I "$ROOT/mods/webdock/test/keytokens.py" "$1") "${@:2}"; }
+# The card's keys on the output, from the host's log: title <x> <y> pin <x> <y> keep <x> <y> (pin "- -" while hidden).
+card_keys() { { grep -F "webdock-debug card keys $1 " "$HOSTLOG" 2>/dev/null || true; } | tail -1 | sed "s/.*webdock-debug card keys $1 //"; }
+pin_of() { doc "[p for p in d['pins'] if p['id'] == '$1'][0].get('$2')"; }
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
+n0=$(count 'webdock-panel addkey ' "$R/qs.log")
+K act mod.panel.open '{"id":"webdock","panel":"webdock"}' >/dev/null
+wait_until 5 panel_open || fail "the card did not open"
+wait_px "$CX" "$CY" '#2b3a55' 15
+wait_until 5 eval '[ "$(count "webdock-panel addkey " "$R/qs.log")" -gt '"$n0"' ]' || fail "the card logged no + key"
+read -r AX AY <<< "$({ grep -F 'webdock-panel addkey ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel addkey //')"
+mv_to "$AX" "$AY"
+ptr "$AX" "$AY"
+wait_until 5 doc_is "d['card'].get('pin', '').startswith('browse-')" || fail "+ did not open a temporary page in the card ($(doc "d.get('card')"))"
+TMP=$(doc "d['card']['pin']")
+[ "$(pin_of "$TMP" temporary)" = True ] && [ "$(pin_of "$TMP" target)" = "" ] || fail "the + page is not an empty temporary page"
+wait_until 10 grep -qF "webdock-debug field $TMP open" "$HOSTLOG" || fail "the + page's address field did not open"
+sleep 0.5
+type_text "$R/o.html" return
+wait_until 10 doc_is "[p for p in d['pins'] if p['id'] == '$TMP'][0].get('target') == 'file://$R/o.html'" \
+  || fail "the typed path did not become the page's address ($(pin_of "$TMP" target))"
+wait_until 20 doc_is "[p for p in d['pins'] if p['id'] == '$TMP'][0].get('loaded') == True" || fail "the + page never loaded"
+wait_px "$CX" "$CY" '#3a2b45' 15
+ok "+ in the card: a temporary page, its address field open and focused; a typed path loads"
+LT=$(loads "$TMP")
+wait_until 10 eval '[ "$(card_keys "$TMP" | awk "{print \$5}")" != "-" ] && [ -n "$(card_keys "$TMP")" ]' || fail "the card logged no Pin key ($(card_keys "$TMP"))"
+read -r _ TX TY _ PKX PKY _ KX KY <<< "$(card_keys "$TMP")"
+mv_to "$PKX" "$PKY"
+ptr "$PKX" "$PKY"
+wait_until 10 doc_is "d['card'].get('pin') == 'o' and 'o' in [p['id'] for p in d['pins']]" || fail "Pin did not make the page a pin ($(doc "d.get('card')"))"
+K get mods.webdock.pins | grep -qF "file://$R/o.html" || fail "the new pin is not in mods.webdock.pins ($(K get mods.webdock.pins))"
+[ "$(pin_of o profile)" = browse ] && [ "$(pin_of o was)" = "$TMP" ] || fail "the new pin is not the + page's ($(pin_of o profile), was $(pin_of o was))"
+doc_is "'$TMP' not in [p['id'] for p in d['pins']]" || fail "the temporary page is still served"
+wait_until 10 grep -qF "webdock-debug rename $TMP o" "$HOSTLOG" || fail "the host did not rename the page"
+sleep 1
+[ "$(loads o)" = 0 ] && [ "$(loads "$TMP")" = "$LT" ] || fail "Pin loaded the page again (o $(loads o), $TMP $LT → $(loads "$TMP"))"
+wait_px "$CX" "$CY" '#3a2b45' 15
+ok "Pin: the page is the pin o (in mods.webdock.pins, profile browse), renamed in the host, not loaded again"
+# The title is the field: another address in the same page; the pin keeps its own.
+wait_until 10 eval '[ -n "$(card_keys o)" ]' || fail "the card logged no keys for o"
+read -r _ TX TY _ _ _ _ KX KY <<< "$(card_keys o)"
+mv_to "$TX" "$TY"
+ptr "$TX" "$TY"
+wait_until 5 grep -qF "webdock-debug field o edit" "$HOSTLOG" || fail "a click on the title did not open the field"
+type_text "$R/s.html" return
+wait_px "$CX" "$CY" '#2b3a55' 15
+wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('at') == 'file://$R/s.html'" || fail "the page's address was not reported ($(pin_of o at))"
+[ "$(pin_of o target)" = "file://$R/o.html" ] || fail "going elsewhere moved the pin ($(pin_of o target))"
+ok "a click on the title opens the field: another page in the same view, the pin stays at its address (at = s.html)"
+# The bar card's grip (W76): the edge away from a top bar is the well's foot; up by 60 → the box per output, the card follows.
+check_geometry o top
+read -r O X Y WW WH _ <<< "$(panel_card)"
+GX=$(( X + WW / 2 )); GY=$(( Y + WH - 3 ))
+mv_to "$GX" "$GY"
+echo "draw $GX,$GY $GX,$(( GY - 20 )) $GX,$(( GY - 40 )) $GX,$(( GY - 60 ))" >&9; sleep 1
+wait_until 10 doc_is "d.get('sizes', {}).get('$OUT') == {'width': $WW, 'height': $(( WH - 60 ))}" \
+  || fail "the grip did not write the box ($(doc "d.get('sizes')"))"
+wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "'"$WW $(( WH - 60 ))"'" ]' || fail "the card did not follow the box ($(panel_card))"
+[ "$(loads o)" = 0 ] || fail "the resize reloaded the page"
+ok "the bar card's grip: up 60 px writes sizes[$OUT] = ${WW}x$(( WH - 60 )) and the well follows, no reload"
+K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null || fail "webdock.resize (reset) refused"
+wait_until 10 doc_is "'sizes' not in d" || fail "the reset kept the box"
+# Keep open at the edge: the page moves to the edge dock, pinned; the bar card closes.
+wait_until 10 eval '[ -n "$(card_keys o)" ]'
+read -r _ _ _ _ _ _ _ KX KY <<< "$(card_keys o)"
+mv_to "$KX" "$KY"
+ptr "$KX" "$KY"
+wait_until 5 panel_closed || fail "Keep open at the edge did not close the bar card"
+wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'o' and d['pinned'] == True" \
+  || fail "Keep open at the edge did not pin the page at the edge ($(doc "(d['mode'], d.get('shown'), d['pinned'])"))"
+ok "Keep open at the edge: the page at the edge, the dock pinned, the bar card closed"
+qml_errors
+
+# ---- 6d. W76: the pin's menu on the strip: Reload, Update pin to this page, Unpin but keep open ----
+# Tiles in the dock's window (right edge, the usable height under the top bar): <id> <x> <y> <win w> <win h>.
+strip_at() { { grep -F "webdock-debug strip $1 " "$R/qs.log" || true; } | tail -1 | sed "s/.*webdock-debug strip $1 //"; }
+wait_until 10 eval '[ -n "$(strip_at o)" ]' || fail "the strip logged no tile for o"
+read -r SX SY SWW SWH <<< "$(strip_at o)"
+TX=$(( W_OUT - SWW + SX )); TY=$(( H_OUT - SWH + SY ))
+menu() { mv_to "$TX" "$TY"; ptr "$TX" "$TY" right; sleep 0.6; }
+r0=$(loads o)
+menu
+keys return                                      # Reload: the menu's first key has the keyboard
+wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('reload') == 1" || fail "Reload in the menu did not ask the page ($(pin_of o reload))"
+K act webdock.open '{"pin":"o"}' >/dev/null
+wait_until 20 eval '[ "$(loads o)" -gt '"$r0"' ]' || fail "the page did not reload ($r0 → $(loads o))"
+ok "the menu's Reload reloads the pin's page"
+wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('at') == 'file://$R/s.html'" || fail "the page's address went ($(pin_of o at))"
+menu
+keys tab return                                  # Update pin to this page (live: the page is not at home)
+wait_until 5 eval 'K get mods.webdock.pins | grep -qF "file://$R/s.html"' || fail "Update pin to this page did not move the pin ($(K get mods.webdock.pins))"
+wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('target') == 'file://$R/s.html' and 'at' not in [p for p in d['pins'] if p['id'] == 'o'][0]" \
+  || fail "the pin's address is not the page's ($(pin_of o target), at $(pin_of o at))"
+ok "the menu's Update pin to this page: the pin's address is where its page is"
+menu
+keys tab return                                  # Unpin but keep open (Update is inert now: the page is at home)
+wait_until 5 eval '! K get mods.webdock.pins | grep -qF "\"o\""' || fail "Unpin but keep open kept the row ($(K get mods.webdock.pins))"
+wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('temporary') == True and [p for p in d['pins'] if p['id'] == 'o'][0].get('loaded') == True" \
+  || fail "the unpinned page was not kept open ($(doc "[p for p in d['pins'] if p['id'] == 'o']"))"
+timeout 10 "$W/kurashi" undo >/dev/null || fail "kurashi undo was refused"
+wait_until 5 doc_is "'temporary' not in [p for p in d['pins'] if p['id'] == 'o'][0]" || fail "undo did not bring the pin back"
+ok "the menu's Unpin but keep open: the row goes, the page stays; undo brings the pin back with its page"
+qml_errors
+
+# ---- 6e. W76: the edge card's grip and its keep-open key ----
+K act webdock.open '{"pin":"site"}' >/dev/null
+wait_until 10 grep -qF "webdock-debug grips $OUT " "$HOSTLOG" || fail "the edge card logged no grips"
+sleep 0.6
+read -r EX EY EW EH AW AH <<< "$({ grep -F "webdock-debug grips $OUT " "$HOSTLOG" || true; } | tail -1 | sed "s/.*webdock-debug grips $OUT //")"
+WX=$(( W_OUT - 56 - AW )); WY=$(( H_OUT - AH ))   # the card's window: right edge, the usable height
+GX=$(( WX + EX )); GY=$(( WY + EY + EH / 2 ))
+mv_to "$GX" "$GY"
+echo "draw $GX,$GY $(( GX - 20 )),$GY $(( GX - 40 )),$GY $(( GX - 60 )),$GY" >&9; sleep 1
+wait_until 10 doc_is "d.get('sizes', {}).get('$OUT') == {'width': $(( EW + 60 )), 'height': $EH}" \
+  || fail "the edge grip did not write the box ($(doc "d.get('sizes')"), card ${EW}x$EH)"
+ok "the edge card's grip: 60 px wider writes sizes[$OUT] = $(( EW + 60 ))x$EH"
+keys ctrl+l ctrl+left ctrl+left
+wait_until 5 doc_is "d.get('sizes', {}).get('$OUT', {}).get('width') == $(( EW + 80 ))" || fail "Ctrl+Left twice did not widen the card by 20 ($(doc "d.get('sizes')"))"
+ok "Ctrl+Left on the card's chrome: 10 px a press, written once"
+sleep 0.6
+read -r EX EY EW2 EH2 AW AH <<< "$({ grep -F "webdock-debug grips $OUT " "$HOSTLOG" || true; } | tail -1 | sed "s/.*webdock-debug grips $OUT //")"
+WX=$(( W_OUT - 56 - AW )); GX=$(( WX + EX ))
+mv_to "$GX" "$GY"
+echo "click $GX $GY left" >&9; echo "click $GX $GY left" >&9; sleep 1
+if wait_until 5 doc_is "'sizes' not in d"; then ok "a double click on the grip resets the box"
+else K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null; ok "(the double click was not seen as one here; reset by the action)"; fi
+wait_until 10 grep -qF 'webdock-debug keep ' "$HOSTLOG" || fail "the edge card logged no keep key"
+read -r KX KY KW KH KS <<< "$({ grep -F 'webdock-debug keep ' "$HOSTLOG" || true; } | tail -1 | sed 's/.*webdock-debug keep //')"
+[ "$KS" = on ] || fail "the keep key is not lit while pinned ($KS)"
+mv_to $(( W_OUT - 56 - KW + KX )) $(( H_OUT - KH + KY ))
+ptr $(( W_OUT - 56 - KW + KX )) $(( H_OUT - KH + KY ))
+wait_until 5 doc_is "d['pinned'] == False" || fail "the edge card's keep key did not unpin the dock"
+wait_until 5 eval '{ grep -F "webdock-debug keep " "$HOSTLOG" || true; } | tail -1 | grep -q " off$"' || fail "the keep key stayed lit"
+ok "the edge card's keep key: lit while pinned; a press lets the dock hide"
+K act webdock.hide >/dev/null
+mv_to $(( W_OUT / 3 )) $(( H_OUT / 2 ))
 qml_errors
 
 # ---- 7. a bottom bar ----

@@ -625,6 +625,14 @@ impl Dock {
         self.pins.extend(self.temps.iter().cloned());
         self.adopted
             .retain(|new, _| rows.iter().any(|p| &p.id == new));
+        // A pin moved to where its page is ("Update pin to this page"): the page is at home now.
+        for p in &self.pins {
+            if let Some(st) = self.states.get_mut(&p.id)
+                && st.at.as_deref().is_some_and(|at| bare(at) == bare(&p.target))
+            {
+                st.at = None;
+            }
+        }
         self.states
             .retain(|id, _| self.pins.iter().any(|p| &p.id == id));
         self.recent
@@ -937,8 +945,12 @@ impl Dock {
     }
 
     /// `webdock.host.url {pin, url}` (W76): the page's address now; kept while it is not the pin's own (`at`).
+    /// A pin that is gone already (a "+" page dropped while its page moved on) is no error: there is nothing to keep.
     pub fn page_url(&mut self, pin: &str, url: &str) -> Result<(), DockError> {
-        let target = self.pin(pin)?.target.clone();
+        let Ok(p) = self.pin(pin) else {
+            return Ok(());
+        };
+        let target = p.target.clone();
         self.web_pin(pin)?;
         let st = self.states.entry(pin.to_string()).or_default();
         st.at = (bare(url) != bare(&target) && !url.is_empty()).then(|| url.to_string());
@@ -1946,6 +1958,10 @@ pub fn resolve(text: &str, engine: &str) -> Option<String> {
     }
     if web_address(text) {
         return Some(text.to_string());
+    }
+    // An absolute path is a local file, as a browser's address bar reads it.
+    if text.starts_with('/') && !text.starts_with("//") && !text.contains(char::is_whitespace) {
+        return Some(format!("file://{text}"));
     }
     if !text.contains(char::is_whitespace) {
         let host_port = text.split(['/', '?', '#']).next().unwrap_or("");
@@ -3404,6 +3420,7 @@ mod tests {
             "http://localhost:8080/x"
         );
         assert_eq!(resolve("10.0.0.2", e).unwrap(), "http://10.0.0.2");
+        assert_eq!(resolve("/tmp/p.html", e).unwrap(), "file:///tmp/p.html");
         assert_eq!(
             resolve("rust borrow checker", e).unwrap(),
             "https://duckduckgo.com/?q=rust+borrow+checker"
