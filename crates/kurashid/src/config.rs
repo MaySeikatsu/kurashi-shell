@@ -2745,9 +2745,8 @@ impl SettingsApp {
 /// The Settings runtime document (W77, K146): `dock` while a sidebar section shows Settings, absent otherwise.
 pub const SETTINGS_RUNTIME_DOC: &str = "runtime.settings";
 
-/// `settings.dock` args: `{}` (the dock goes) or the well's rect, `{output, side, inset, top, width, height, radius?}`
-/// in the sidebar window's frame (Placement: from the usable area's top and the sidebar's side). Anything else is
-/// `error.args.invalid`.
+/// `settings.dock` args: `{}` (the dock goes) or the well's rect on the output, `{output, x, y, width, height, radius?}`
+/// (logical px from the output's top-left corner, zones ignored). Anything else is `error.args.invalid`.
 fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
     let bad = || ActionError::Invalid(ARGS_INVALID.into());
     let Some(o) = v.as_object() else {
@@ -2761,11 +2760,6 @@ fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
         .ok_or_else(bad)?;
-    let side = o
-        .get("side")
-        .and_then(Value::as_str)
-        .filter(|s| *s == "left" || *s == "right")
-        .ok_or_else(bad)?;
     let int = |k: &str, lo: i64| {
         o.get(k)
             .and_then(Value::as_f64)
@@ -2773,10 +2767,9 @@ fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
             .map(|n| n as i64)
             .ok_or_else(bad)
     };
-    let (inset, top) = (int("inset", 0)?, int("top", 0)?);
+    let (x, y) = (int("x", 0)?, int("y", 0)?);
     let (width, height) = (int("width", 1)?, int("height", 1)?);
-    let mut dock = json!({"output": output, "side": side, "inset": inset, "top": top,
-                          "width": width, "height": height});
+    let mut dock = json!({"output": output, "x": x, "y": y, "width": width, "height": height});
     if !matches!(o.get("radius"), None | Some(Value::Null)) {
         dock["radius"] = json!(int("radius", 0)?);
     }

@@ -6,13 +6,14 @@ import "../expanded"
 
 // Settings as a sidebar section (W77, K146; docs/ux/settings.md "In a sidebar"; I501, the user's "Full Settings docked"):
 // a card that takes the column's free height with a well in it, and the real Settings app — its own process — over that
-// well, as the web dock's page shows over its panel. While the well rests this reports where it is (`settings.dock`, the
-// rect `Placement` measures: from the usable area's top and the sidebar's side) and the daemon has Settings map its dock
-// there; when it goes (the sidebar closes, slides, scrolls it, the "+" picker or a tile's page covers it) the dock is
-// withdrawn (`settings.dock {}`) and Settings unmaps (0 frames). The well itself says what is under it: "Opening
-// Settings…" until Settings covers it, the reason when Settings cannot open (Shōjiki), and "shown on <output>" with Show
-// here while another sidebar's section has it (the last one to rest wins). Ma: it watches `runtime.settings` only while
-// the section is made (the column, and its minute after a close); nothing runs at rest.
+// well, as the web dock's page shows over its panel. While the well rests (`Placement`: not moving, not clipped) this
+// reports where it is on its output (`settings.dock {output, x, y, width, height, radius}`: the window's origin on the
+// output, Light.originOf, plus the well's place in it — zones counted, so a pinned column that keeps a zone and a column
+// that ignores zones both land right) and the daemon has Settings map its dock there; when it goes (the sidebar closes,
+// slides, scrolls it, the "+" picker or a tile's page covers it) the dock is withdrawn (`settings.dock {}`) and Settings
+// unmaps (0 frames). The well itself says what is under it: "Opening Settings…" until Settings covers it, the reason when
+// Settings cannot open (Shōjiki), and "shown on <output>" with Show here while another sidebar's section has it (the last
+// one to rest wins). Ma: it watches `runtime.settings` while the section is made; nothing runs at rest.
 Card {
     id: ss
     // The least height Settings is usable in; the column gives it the rest of the output (as the notifications).
@@ -24,12 +25,12 @@ Card {
     readonly property var qsw: ss.Window.window ? ss.QsWindow.window : null
     // (B102: a sidebar kept after it closed is not shown: nothing is docked in it)
     readonly property bool live: !qsw || qsw.live !== false
-    readonly property string side: qsw && qsw.anchors && qsw.anchors.left && !qsw.anchors.right ? "left" : "right"
+    readonly property string outName: qsw && qsw.screen ? String(qsw.screen.name) : ""
 
     Watch { doc: "runtime.settings" }
     readonly property var dock: (Store.docs["runtime.settings"] || ({})).dock || null
-    readonly property bool ours: dock !== null && sentPlace !== null && String(dock.output) === sentPlace.output
-        && String(dock.side) === sentPlace.side
+    function same(d, p) { return !!d && !!p && String(d.output) === p.output && d.x === p.x && d.y === p.y }
+    readonly property bool ours: same(dock, sentPlace)
     property string err: ""
     Refusal { id: refusal }
 
@@ -49,7 +50,7 @@ Card {
             anchors.centerIn: parent
             width: parent.width - 2 * Theme.pad
             spacing: Theme.gap
-            visible: ss.err !== "" || ss.elsewhere || (ss.ours && pl.value !== null)
+            visible: ss.err !== "" || ss.elsewhere || (ss.ours && ss.place !== null)
             Icon {
                 anchors.horizontalCenter: parent.horizontalCenter
                 name: ss.err !== "" ? "error" : "settings"
@@ -86,15 +87,17 @@ Card {
         id: pl
         target: ss.live && !ss.covered ? well : null
         win: ss.Window.window
-        origin: ss.qsw && ss.qsw.placementOrigin !== undefined ? ss.qsw.placementOrigin : Qt.point(0, 0)
-        output: ss.Screen.name
-        side: ss.side
+        output: ss.outName
     }
-    readonly property var place: pl.value ? {
-        output: String(pl.value.output), side: String(pl.value.side), inset: Math.round(pl.value.inset),
-        top: Math.round(pl.value.top), width: Math.round(pl.value.width), height: Math.round(pl.value.height),
-        radius: Math.round(well.radius)
-    } : null
+    // (read when the placement is offered: the well keeps still then)
+    readonly property var place: {
+        if (!pl.value || !qsw) return null
+        var o = Light.originOf(qsw)
+        var p = well.mapToItem(null, 0, 0)
+        return { output: ss.outName !== "" ? ss.outName : String(pl.value.output), x: Math.round(o.x + p.x),
+                 y: Math.round(o.y + p.y), width: Math.round(well.width), height: Math.round(well.height),
+                 radius: Math.round(well.radius) }
+    }
     // At rest while another section has the dock (it rested after this one).
     readonly property bool elsewhere: place !== null && dock !== null && !ours && sentPlace !== null
     property var sentPlace: null
@@ -120,7 +123,7 @@ Card {
     function withdraw(was) {
         if (!was) return
         var d = (Store.docs["runtime.settings"] || ({})).dock
-        if (d && String(d.output) === was.output && String(d.side) === was.side) Store.act("settings.dock", {})
+        if (same(d, was)) Store.act("settings.dock", {})
     }
     onPlaceChanged: report(false)
     Component.onDestruction: withdraw(sentPlace)

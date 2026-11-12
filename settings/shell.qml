@@ -39,6 +39,14 @@ ShellRoot {
     // The dock's "Show here" while the window holds the content (the window's own "Show here" clears it).
     property bool preferDock: false
     readonly property var dock: Store.runtime && Store.runtime.dock ? Store.runtime.dock : null
+    // A dock that moves to another output is made anew there (a layer surface keeps the output it was mapped on).
+    readonly property string dockOutput: dock ? String(dock.output) : ""
+    property bool dockMoving: false
+    property string dockMadeOn: ""
+    onDockOutputChanged: if (dockOutput !== "" && dockHost && dockMadeOn !== dockOutput) {
+        dockMoving = true
+        Qt.callLater(function () { root.dockMoving = false })
+    }
     // Where the content is: the dock when only it is asked for (or it was asked to show here), else the user's host.
     readonly property string host: root.dock && (!root.userOpen || root.preferDock) ? "dock"
         : (root.userOpen ? root.userHost : "")
@@ -152,11 +160,11 @@ ShellRoot {
     }
     // W77 (K146): the dock over a sidebar section's well, while `runtime.settings.dock` is there.
     LazyLoader {
-        active: root.dock !== null
+        active: root.dock !== null && !root.dockMoving
         DockHost {
             id: dockWin
             place: root.dock
-            Component.onCompleted: { root.dockHost = dockWin; root.rehost() }
+            Component.onCompleted: { root.dockHost = dockWin; root.dockMadeOn = root.dockOutput; root.rehost() }
             Component.onDestruction: { if (root.dockHost === dockWin) root.dockHost = null; root.release(dockWin.slot) }
             // The window (or sheet) holds the content: the dock says so; "Show here" moves it (a sheet, modal over the
             // whole output, closes instead of staying empty).
@@ -342,11 +350,11 @@ ShellRoot {
             // Settings as a sheet (K63): the host in use — for the sheet its rectangle on the output, as
             // "sheet x,y WxH on <output> WxH" —, the page's scroll position, and the frames drawn so far (idle check).
             function host(): string {
-                // W77: the dock as "dock <side> <inset>,<top> WxH on <output>" (the window's size as mapped).
+                // W77: the dock as "dock <x>,<y> WxH on <output>" (the window's size as mapped).
                 const d = root.dockHost
                 if (root.host === "dock" && d) {
                     const p = d.place || {}
-                    return "dock " + p.side + " " + p.inset + "," + p.top + " " + Math.round(d.width) + "x"
+                    return "dock " + p.x + "," + p.y + " " + Math.round(d.width) + "x"
                         + Math.round(d.height) + " on " + (d.screen ? d.screen.name : "?")
                 }
                 const h = root.sheetHost
@@ -376,6 +384,7 @@ ShellRoot {
             function userOpen(): string { return root.userOpen ? "true" : "false" }
             function showHere(): void { if (root.host === "dock") root.preferDock = false; else if (root.dock) root.preferDock = true }
             function compact(): string { return win.compact ? (win.navShown ? "drawer" : "true") : "false" }
+            function drawer(on: bool): void { win.navShown = on && win.compact }
             function query(): string { return win.query }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
             function modLoad(id: string): void { modsPage.load(id) }
@@ -727,7 +736,7 @@ ShellRoot {
                 }
             }
 
-            Row {
+            Item {
                 id: bodyRow
                 width: parent.width
                 height: parent.height - header.height - (Store.outputNames().length > 0 ? 40 : 0)
@@ -1016,6 +1025,7 @@ ShellRoot {
 
                 // --- content -----------------------------------------------------------------
                 Item {
+                    x: win.compact ? 0 : 220
                     width: parent.width - (win.compact ? 0 : 220)
                     height: parent.height
                     SettingsPages {

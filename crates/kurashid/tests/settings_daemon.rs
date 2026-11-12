@@ -562,7 +562,7 @@ async fn settings_dock_writes_the_rect_and_starts_settings_once() {
     assert_eq!(first, json!({"docked": true, "opened": "launched"}));
     assert_eq!(doc(), fixture["data"]);
     // Rests while that process lives (a slide, a scroll, the other output) start nothing more.
-    let other = json!({"output": "HDMI-A-1", "side": "left", "inset": 0, "top": 0, "width": 320, "height": 600});
+    let other = json!({"output": "HDMI-A-1", "x": 0, "y": 0, "width": 320, "height": 600});
     let (a, b) = tokio::join!(
         fx.call("settings.dock", dock.clone()),
         fx.call("settings.dock", other)
@@ -571,7 +571,10 @@ async fn settings_dock_writes_the_rect_and_starts_settings_once() {
     assert_eq!(b.unwrap()["opened"], "running");
     assert!(doc()["dock"].get("output").is_some());
     let last = fx
-        .call("settings.dock", json!({"output": "HDMI-A-1", "side": "left", "inset": 0, "top": 0, "width": 320, "height": 600}))
+        .call(
+            "settings.dock",
+            json!({"output": "HDMI-A-1", "x": 0, "y": 0, "width": 320, "height": 600}),
+        )
         .await
         .unwrap();
     assert_eq!(last["opened"], "running");
@@ -608,13 +611,13 @@ async fn settings_dock_writes_the_rect_and_starts_settings_once() {
     assert_eq!(launches, "1\n1\n");
 
     for bad in [
-        json!({"output": "DP-1", "side": "top", "inset": 0, "top": 0, "width": 10, "height": 10}),
-        json!({"output": "", "side": "left", "inset": 0, "top": 0, "width": 10, "height": 10}),
-        json!({"output": "DP-1", "side": "left", "inset": 0, "top": 0, "width": 0, "height": 10}),
-        json!({"output": "DP-1", "side": "left", "inset": "4", "top": 0, "width": 10, "height": 10}),
-        json!({"output": "DP-1", "side": "left", "inset": 1.5, "top": 0, "width": 10, "height": 10}),
-        json!({"output": "DP-1", "side": "left", "top": 0, "width": 10, "height": 10}),
-        json!({"output": "DP-1", "side": "left", "inset": 0, "top": 0, "width": 10, "height": 10, "radius": -1}),
+        json!({"output": "DP-1", "x": -1, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "", "x": 0, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 0, "y": 0, "width": 0, "height": 10}),
+        json!({"output": "DP-1", "x": "4", "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 1.5, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 0, "y": 0, "width": 10, "height": 10, "radius": -1}),
         json!([1]),
     ] {
         let err = fx.call("settings.dock", bad.clone()).await.unwrap_err();
