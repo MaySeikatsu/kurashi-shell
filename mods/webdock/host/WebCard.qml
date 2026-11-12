@@ -30,6 +30,7 @@ PanelWindow {
     // Set by shell.qml from `mod.webdock` and the host's objects.
     property var pins: []
     property string iconDir: ""
+    property bool siteIcons: true
     property var keepWeb: []           // ids of the web pins the host keeps loaded, most recent first
     property string shownId: ""
     property bool open: false          // mode extended and the shown pin a web pin
@@ -1159,6 +1160,7 @@ PanelWindow {
                                     profile: prof
                                     report: card.report
                                     iconDir: card.iconDir
+                                    siteIcons: card.siteIcons
                                     mode: card.modeOf(pid)
                                     // (W76: the pin this page is, a renamed one included: see pinById)
                                     readonly property string lid: { var p = card.pinById(pid); return p ? String(p.id) : pid }

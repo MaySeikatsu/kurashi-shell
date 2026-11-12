@@ -192,6 +192,15 @@ help = "mods.webdock.hover_takes_page.help"
 
 # I495 (session 30; the user: "show the active site right next to the pinned bar module", "shows the active current site
 # playing music and their title"): the bar module's two views.
+# Session 31 (the user: the sites' own images, I495): a page's icon is a request the page itself did not make (K38's
+# privacy proof); on by default since the user asked for the images, off restores the letters and the strict proof.
+[[setting]]
+key = "site_icons"
+type = "bool"
+default = true
+label = "mods.webdock.site_icons"
+help = "mods.webdock.site_icons.help"
+
 [[setting]]
 key = "bar_site"
 type = "bool"

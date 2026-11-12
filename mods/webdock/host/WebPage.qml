@@ -15,19 +15,24 @@ Item {
     // the page's icon, saved once per icon to `iconDir/<pin>.png` (the daemon's icon cache: it accepts nothing else) and
     // reported with the load, so the shell — another process, without the engine's favicon provider — can show it.
     property string iconDir: ""
+    property bool siteIcons: true
     property string savedIcon: ""
     // (session 31: a grab draws the item in its window, so it works only while that window is shown — the page often
     // loads in a hidden one, and the one try on load failed without a word; the user saw no icon at all. It is tried
     // again whenever the page is shown, and every few seconds while it is shown and has none saved.)
     function saveIcon() {
-        if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
         var w = favicon.Window.window
+        if (debugLog) console.log("webdock-debug icon " + pinId + " dir=" + (iconDir !== "") + " icon=" + String(web.icon)
+            + " status=" + favicon.status + " win=" + (w ? w.visible : "none") + " grabbing=" + grabbing + " saved=" + savedIcon)
+        if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
         if (!w || !w.visible || grabbing) return
         var at = String(web.icon)
         grabbing = favicon.grabToImage(function (res) {
             page.grabbing = false
             var path = page.iconDir + "/" + page.pinId.replace(/[^A-Za-z0-9_.-]/g, "_") + ".png"
-            if (res.saveToFile(path)) {
+            var saved = res.saveToFile(path)
+            if (page.debugLog) console.log("webdock-debug icon saved " + page.pinId + " " + path + " " + saved)
+            if (saved) {
                 page.savedIcon = at
                 if (page.report) page.report("webdock.host.loaded", { pin: page.pinId, icon: path })
             }
@@ -144,6 +149,7 @@ Item {
         id: web
         anchors.fill: parent
         pinId: page.pinId
+        siteIcons: page.siteIcons
         report: page.report
         profile: page.profile
         newTabsInDock: page.newTabsInDock
