@@ -48,7 +48,9 @@ set (41 suites with W75's `media-idle`): 40 pass, `quick-modules` red as on `mai
 re-run after the last fix (a kept card dropped on a theme change) and pass. The web dock's `test-card`, `test-sidebar`,
 `test-host`, `test-background` pass on `feat/s30-webdock` after W76 (`test-dock` fails W76's two checks that fail on its
 base too, B123). `media-idle`: 7.5 commits a second per pinned sidebar. The disk filled up mid-session (B124): 154 GB of
-suite sandboxes and merged build dirs deleted at the user's word. Seen on nested niri with the
+suite sandboxes and merged build dirs deleted at the user's word. `nix build .#kurashi` green. **PR #56** (`feat/s30-refinements`, pushed from
+`feat/s30-groups`) is open, not merged (the user merges). Left on disk: worktrees `../kurashi-wt-s30`, `../kurashi-wt-s30w`,
+`../kurashi-wt-s30g`, W75's and W76's under `.claude/worktrees/`; build dirs `~/.cache/kurashi-agents-target/{i454,s30g}`. Seen on nested niri with the
 user's profile: launcher at the edge, quick card at its limit with scrolling, floating gaps, tab row and its wheel, splat
 opening, bar groups and the fold, the group tab, the "+" picker, the launcher section. Not seen: two real monitors, the
 user's own eyes on anything, WhatsApp (offline sandbox), the OSD (no audio in the sandbox), Settings' Reset in a shot.
