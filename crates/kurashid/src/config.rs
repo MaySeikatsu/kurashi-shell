@@ -3088,6 +3088,7 @@ mod tests {
                 "calendar",
                 "media",
                 "launcher",
+                "settings",
                 "mod:ai:ai",
                 "mod:tasks:tasks"
             ]
@@ -3106,7 +3107,7 @@ mod tests {
             Some(true)
         );
         assert_eq!(
-            offers["sidebar.tabs"][8].json()["reason"],
+            offers["sidebar.tabs"][9].json()["reason"],
             REASON_MOD_DISABLED
         );
     }

@@ -222,13 +222,13 @@ KDE's KCMs-in-another-host and the side panels' reflow, and both are what this d
 
 **Design.** One Settings process (K2), a third host besides window and sheet: `dock`.
 - The section is a card that takes the column's free height (as notifications do; with both, they share it). It reports
-  where its well rests (`Placement`, as the web dock's panel) with `settings.dock {output, side, inset, top, width,
-  height, radius}` while at rest, and `settings.dock {}` when it goes (closed, sliding, scrolled, under the "+" picker or a
-  tile's page). The daemon keeps that rect in `runtime.settings.dock` (absent while undocked) and starts Settings for it if
-  it does not run (never twice).
-- Settings maps a layer surface exactly over the well: anchored to the usable area's top and the sidebar's side as the
-  sidebar's own window (the web dock's sidebar window does the same), no backdrop, the well's radius, keyboard on demand
-  (a click in it gives it the keyboard). Its content is the same item the window and the sheet hold.
+  where its well rests (`Placement` says when it rests, as for the web dock's panel) with `settings.dock {output, x, y,
+  width, height, radius}` — the well on its output, from the output's corner — while at rest, and `settings.dock {}` when
+  it goes (closed, sliding, scrolled, under the "+" picker or a tile's page). The daemon keeps that rect in
+  `runtime.settings.dock` (absent while undocked) and starts Settings for it if it does not run (never twice).
+- Settings maps a layer surface exactly over the well (Overlay layer, zones ignored, top-left at x, y), no backdrop, the
+  well's radius, keyboard on demand (a click in it gives it the keyboard). Its content is the same item the window and the
+  sheet hold.
 - Narrow: under 720 px the chrome goes compact — the header is the search field across the width with a pages key
   (☰) before it and "Open in a window" after it, Undo, Redo and Advanced on a second row; the navigation is a drawer over
   the page (☰ or the pages key opens it, a page picked or Esc closes it). The pages reflow at the width, as in a narrow
