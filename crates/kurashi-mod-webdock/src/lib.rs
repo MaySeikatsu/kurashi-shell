@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use dock::{
-    CardPlace, Dock, DockError, Part, Place, Side, View, add_row, card_size_step, move_row,
-    remove_row, retarget_row, rows_of, view_rows,
+    CardPlace, Dock, DockError, Part, Place, Side, Spot, View, add_row_with, card_size_step,
+    move_row, records_of, remove_row, retarget_row, rows_of, sizes_rows, view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -192,6 +192,8 @@ impl Shared {
     /// The host's state as it is now, then the document as the dock builds it, published when it changed.
     fn refresh(&self, dock: &mut Dock) {
         dock.set_host(self.host.state().borrow().clone());
+        // W76: temporary pages nothing shows or keeps any more go before the document is built.
+        dock.sweep();
         let doc = dock.doc();
         self.doc.send_if_modified(|current| {
             if *current == doc {
@@ -491,16 +493,107 @@ impl Shared {
         Ok(None)
     }
 
-    /// `webdock.add {url, title?}` → `{pin}`: a new web pin at the end of the list (K40).
+    /// `webdock.add {url, title?, from?}` → `{pin}`: a new web pin at the end of the list (K40). W76: `from` a temporary
+    /// page ("Pin" in its toolbar): the new pin keeps that page's profile and takes its page (the places that showed
+    /// it, no reload: the host renames the page it has).
     async fn add(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
-        let (rows, id) =
-            add_row(&rows_of(&self.settings), url, str_arg(args, "title")).map_err(dock_error)?;
+        let from = str_arg(args, "from").map(str::to_owned);
+        let (taken, profile) = {
+            let dock = self.dock.lock().expect("dock lock");
+            let profile = from
+                .as_deref()
+                .and_then(|f| dock.temp_of(f))
+                .map(|t| t.profile.clone());
+            (dock.temp_ids(), profile)
+        };
+        let (rows, id) = add_row_with(
+            &rows_of(&self.settings),
+            url,
+            str_arg(args, "title"),
+            &taken,
+            profile.as_deref(),
+        )
+        .map_err(dock_error)?;
         self.writer
             .set("pins", Value::Array(rows))
             .await
             .map_err(settings_error)?;
+        if let Some(from) = from {
+            // The feed has the new row already (a write reaches it before it returns); the dock takes it now, so the
+            // page passes to the pin in one document.
+            let settings = self.settings.clone();
+            self.with_dock(|d| {
+                d.apply_settings(&settings, Instant::now());
+                d.adopt(&from, &id);
+                Ok(())
+            })?;
+        }
         Ok(Some(json!({"pin": id})))
+    }
+
+    /// `webdock.browse {place, output?}` → `{pin}` (W76, "+"): a temporary page in that place, its address field open.
+    fn browse(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let place = str_arg(args, "place")
+            .and_then(Spot::parse)
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let id = self.with_dock(|d| Ok(d.browse(place, str_arg(args, "output"))))?;
+        self.host.start();
+        Ok(Some(json!({"pin": id})))
+    }
+
+    /// `webdock.go {pin, text}` → `{url}` (W76, the address field): the address the text names or a search for it.
+    fn go(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let text = args["text"]
+            .as_str()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let url = self.with_dock(|d| d.go(pin, text).map_err(dock_error))?;
+        Ok(Some(json!({"url": url})))
+    }
+
+    /// `webdock.unpin {pin}` (W76, "Unpin but keep open"): the row goes (one undo step), the page stays as a temporary
+    /// page until the dock's rules unload it.
+    async fn unpin(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let rows = remove_row(&rows_of(&self.settings), pin).map_err(dock_error)?;
+        self.with_dock(|d| d.unpin_keep(pin).map_err(dock_error))?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.resize {output, width?, height?}` (W76): the card's box on that output, remembered in `sizes` (one undo
+    /// step); no size returns the output to the default. Refused while the configuration forces `sizes`.
+    async fn resize(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        if self.settings.forced_by("sizes").is_some() {
+            return Err(dock_error(DockError::Forced));
+        }
+        let output = str_arg(args, "output").ok_or_else(|| dock_error(DockError::Argument))?;
+        let side = |k: &str| -> Result<Option<u32>, ActionError> {
+            match args.get(k) {
+                None | Some(Value::Null) => Ok(None),
+                Some(v) => v
+                    .as_u64()
+                    .and_then(|n| u32::try_from(n).ok())
+                    .map(Some)
+                    .ok_or_else(|| dock_error(DockError::Argument)),
+            }
+        };
+        let size = match (side("width")?, side("height")?) {
+            (Some(w), Some(h)) => Some((w, h)),
+            (None, None) => None,
+            _ => return Err(dock_error(DockError::Argument)),
+        };
+        let rows =
+            sizes_rows(&records_of(&self.settings, "sizes"), output, size).map_err(dock_error)?;
+        self.writer
+            .set("sizes", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
     }
 
     /// `webdock.remove {pin}`: the pin's row goes; the card closes with it (the settings feed does that).
@@ -528,11 +621,20 @@ impl Shared {
         Ok(None)
     }
 
-    /// `webdock.retarget {pin, url}`: "replace the pin with this page" (a web pin's address; K40).
+    /// `webdock.retarget {pin, url?}`: "replace the pin with this page" (a web pin's address; K40). W76: without `url`,
+    /// the page's address the host reported (`at`; the pin's menu, "Update pin to this page").
     async fn retarget(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
-        let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
-        let rows = retarget_row(&rows_of(&self.settings), pin, url).map_err(dock_error)?;
+        let url = match str_arg(args, "url") {
+            Some(url) => url.to_string(),
+            None => self
+                .dock
+                .lock()
+                .expect("dock lock")
+                .at(pin)
+                .ok_or_else(|| dock_error(DockError::Argument))?,
+        };
+        let rows = retarget_row(&rows_of(&self.settings), pin, &url).map_err(dock_error)?;
         self.writer
             .set("pins", Value::Array(rows))
             .await
@@ -561,6 +663,16 @@ impl Shared {
     fn host_loaded(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
         self.with_dock(|d| d.loaded(pin, str_arg(args, "icon")).map_err(dock_error))?;
+        Ok(None)
+    }
+
+    /// `webdock.host.url {pin, url}` (W76): the page's address changed.
+    fn host_url(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let url = args["url"]
+            .as_str()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        self.with_dock(|d| d.page_url(pin, url).map_err(dock_error))?;
         Ok(None)
     }
 
@@ -612,8 +724,10 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 19] = [
+const SETTING_KEYS: [&str; 21] = [
     "pins",
+    "sizes",
+    "search",
     "bar_site",
     "bar_playing",
     "default_view",
@@ -726,6 +840,20 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.open_external", |s, a| {
         s.open_external_action(&a)
     })?;
+    // W76: "+", the address field, the menu's reload, the page's address.
+    sync_action(ctx, s, "webdock.browse", |s, a| s.browse(&a))?;
+    sync_action(ctx, s, "webdock.go", |s, a| s.go(&a))?;
+    sync_action(ctx, s, "webdock.drop", |s, a| {
+        let pin = pin_arg(&a)?;
+        s.with_dock(|d| d.drop_temp(pin).map_err(dock_error))?;
+        Ok(None)
+    })?;
+    sync_action(ctx, s, "webdock.reload", |s, a| {
+        let pin = pin_arg(&a)?;
+        s.with_dock(|d| d.reload(pin).map_err(dock_error))?;
+        Ok(None)
+    })?;
+    sync_action(ctx, s, "webdock.host.url", |s, a| s.host_url(&a))?;
     sync_action(ctx, s, "webdock.host.loaded", |s, a| s.host_loaded(&a))?;
     sync_action(ctx, s, "webdock.host.unloaded", |s, a| s.host_unloaded(&a))?;
     sync_action(ctx, s, "webdock.host.audible", |s, a| s.host_audible(&a))?;
@@ -754,6 +882,15 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     })?;
     write_action(ctx, s, "webdock.retarget", |s, a| async move {
         s.retarget(&a).await
+    })?;
+    write_action(
+        ctx,
+        s,
+        "webdock.unpin",
+        |s, a| async move { s.unpin(&a).await },
+    )?;
+    write_action(ctx, s, "webdock.resize", |s, a| async move {
+        s.resize(&a).await
     })?;
     Ok(())
 }

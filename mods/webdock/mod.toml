@@ -114,6 +114,42 @@ choices = ["dock", "phone", "tablet", "wide"]
 label = "mods.webdock.card_size"
 help = "mods.webdock.card_size.help"
 
+# W76 (I496; docs/ux/webdock.md "Round three"): the card's box the user dragged, one row per output, written by the daemon
+# (`webdock.resize`). The edge card in its own size and the bar card in `dock` take it; `width` × twice that otherwise.
+[[setting]]
+key = "sizes"
+type = "records"
+default = []
+unique = "output"
+item_label = "output"
+label = "mods.webdock.sizes"
+help = "mods.webdock.sizes.help"
+  [[setting.field]]
+  key = "output"
+  type = "string"
+  required = true
+  label = "mods.webdock.sizes.output"
+  [[setting.field]]
+  key = "width"
+  type = "int"
+  required = true
+  range = [300, 8192]
+  label = "mods.webdock.sizes.width"
+  [[setting.field]]
+  key = "height"
+  type = "int"
+  required = true
+  range = [300, 8192]
+  label = "mods.webdock.sizes.height"
+
+# W76 (I497): where words typed in the address field go (`{q}` the words; the daemon decides address or search).
+[[setting]]
+key = "search"
+type = "string"
+default = "https://duckduckgo.com/?q={q}"
+label = "mods.webdock.search"
+help = "mods.webdock.search.help"
+
 [[setting]]
 key = "edge"
 type = "enum"

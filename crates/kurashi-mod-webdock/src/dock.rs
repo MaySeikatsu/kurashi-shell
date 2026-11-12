@@ -192,6 +192,16 @@ pub enum Spot {
 }
 
 impl Spot {
+    /// The place an action names (`edge`, `sidebar` or `card`; W76 `webdock.browse`).
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "edge" => Some(Self::Edge),
+            "sidebar" => Some(Self::Sidebar),
+            "card" => Some(Self::Card),
+            _ => None,
+        }
+    }
+
     fn name(self) -> &'static str {
         match self {
             Self::Edge => "edge",
@@ -272,7 +282,26 @@ pub struct PinSpec {
     pub profile: String,
     /// "Keep running in the background" (W73): never frozen while loaded, never unloaded by the dock's rules.
     pub background: bool,
+    /// W76: a page the daemon serves that the settings do not hold (`temporary` in the document); `None` for a row.
+    pub temp: Option<Temp>,
 }
+
+/// A temporary page (W76, docs/ux/webdock.md "Round three"): what "+" opened (until it is pinned, its place leaves it, or
+/// Esc in its empty field), or a pin unpinned with "Unpin but keep open" (until the dock's rules unload it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Temp {
+    Browse,
+    Kept,
+}
+
+/// The profile every page opened from "+" shares (W76): a browser's default profile. A pin made from such a page keeps it.
+pub const BROWSE_PROFILE: &str = "browse";
+/// The search engine when `search` is unset or not an `http`/`https` URL (W76): DuckDuckGo; `{q}` is the words.
+pub const DEFAULT_SEARCH: &str = "https://duckduckgo.com/?q={q}";
+/// A remembered card box is at least this big on each side (W76, `sizes`).
+pub const MIN_BOX: u32 = 300;
+/// … and at most this (a sanity bound: the shell clamps to the output it is drawn on).
+pub const MAX_BOX: u32 = 8192;
 
 /// Why an action or a host report is refused (its i18n key is in [`DockError::key`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -341,6 +370,10 @@ pub struct Config {
     pub new_tabs: NewTabs,
     pub page_style: PageStyle,
     pub card_size: CardSize,
+    /// W76: the search engine "+" and the address field search with (`search`; `{q}` is the words).
+    pub search: String,
+    /// W76: the card's box the user dragged, per output (`sizes` rows: output → width × height).
+    pub sizes: BTreeMap<String, (u32, u32)>,
 }
 
 impl Config {
@@ -399,6 +432,14 @@ impl Config {
                 .and_then(Value::as_str)
                 .and_then(CardSize::parse)
                 .unwrap_or(CardSize::Dock),
+            search: settings
+                .get("search")
+                .as_ref()
+                .and_then(Value::as_str)
+                .filter(|s| s.starts_with("https://") || s.starts_with("http://"))
+                .unwrap_or(DEFAULT_SEARCH)
+                .to_string(),
+            sizes: sizes_of(&records_of(settings, "sizes")),
         }
     }
 }
@@ -417,6 +458,10 @@ struct PinState {
     grace: Option<Instant>,
     /// The page's title as the host last reported it with its sound (I495): what a player's page names.
     page_title: Option<String>,
+    /// W76: where the page is while that is not its pin's address (`webdock.host.url`; `at` in the document).
+    at: Option<String>,
+    /// W76: reloads asked for in the pin's menu (`webdock.reload`), a counter the host answers.
+    reload: u32,
 }
 
 /// The side of the sidebar window the dock's panel sits in (W30, `webdock.sidebar`).
@@ -515,6 +560,12 @@ pub struct Dock {
     icons: PathBuf,
     /// The settings the configuration forces, each with the source that forces it (I91: `forced` on `mod.webdock`).
     forced: BTreeMap<String, String>,
+    /// W76: the temporary pages (also in `pins`, after the rows); a row with the same id wins over one.
+    temps: Vec<PinSpec>,
+    /// W76: a pin made from a temporary page → that page's id, so the host renames the page instead of loading it again.
+    adopted: BTreeMap<String, String>,
+    /// W76: the last number a "+" page's id took (`browse-<n>`).
+    browse_seq: u32,
 }
 
 impl Dock {
@@ -543,6 +594,9 @@ impl Dock {
             profiles,
             icons,
             forced: BTreeMap::new(),
+            temps: Vec::new(),
+            adopted: BTreeMap::new(),
+            browse_seq: 0,
         };
         dock.apply_settings(settings, Instant::now());
         dock
@@ -565,6 +619,12 @@ impl Dock {
     pub fn apply_settings(&mut self, settings: &Settings, now: Instant) {
         self.config = Config::read(settings);
         self.pins = pins_of(&rows_of(settings));
+        // W76: the temporary pages stay after the rows; a row of the same id (an undone unpin) takes its page back.
+        let rows = self.pins.clone();
+        self.temps.retain(|t| !rows.iter().any(|p| p.id == t.id));
+        self.pins.extend(self.temps.iter().cloned());
+        self.adopted
+            .retain(|new, _| rows.iter().any(|p| &p.id == new));
         self.states
             .retain(|id, _| self.pins.iter().any(|p| &p.id == id));
         self.recent
@@ -639,7 +699,11 @@ impl Dock {
 
     fn default_side_pin(&mut self) {
         if self.place.is_some() && self.side_pin.is_none() {
-            self.side_pin = self.pins.first().map(|p| p.id.clone());
+            self.side_pin = self
+                .pins
+                .iter()
+                .find(|p| p.temp.is_none())
+                .map(|p| p.id.clone());
         }
     }
 
@@ -689,6 +753,14 @@ impl Dock {
     pub fn card_close(&mut self) {
         if self.card.place.is_some() {
             self.card.close = self.card.close.wrapping_add(1);
+            // W76: closing the card drops the "+" page it showed.
+            if let Some(id) = self.card.pin.clone()
+                && self
+                    .temp_of(&id)
+                    .is_some_and(|t| t.temp == Some(Temp::Browse))
+            {
+                self.forget_temp(&id);
+            }
         }
     }
 
@@ -702,7 +774,11 @@ impl Dock {
 
     fn default_card_pin(&mut self) {
         if self.card.place.is_some() && self.card.pin.is_none() {
-            self.card.pin = self.pins.first().map(|p| p.id.clone());
+            self.card.pin = self
+                .pins
+                .iter()
+                .find(|p| p.temp.is_none())
+                .map(|p| p.id.clone());
         }
     }
 
@@ -720,6 +796,199 @@ impl Dock {
     fn card_web(&self) -> Option<String> {
         self.card.place.as_ref()?;
         self.card.pin.clone().filter(|id| self.is_web(id))
+    }
+
+    // ---- W76: temporary pages, the address field, the menu's reload, the page's address ----
+
+    /// `webdock.browse {place, output?}` (W76, "+"): a new temporary page, empty, shown in `place` (the edge card opens
+    /// extended on it; the bar card and the sidebar pick it). A "+" page that place showed before is dropped. Returns its
+    /// id; the host starts (it draws the address field).
+    pub fn browse(&mut self, place: Spot, output: Option<&str>) -> String {
+        let id = loop {
+            self.browse_seq += 1;
+            let id = format!("browse-{}", self.browse_seq);
+            if !self.pins.iter().any(|p| p.id == id) {
+                break id;
+            }
+        };
+        let pin = PinSpec {
+            id: id.clone(),
+            title: String::new(),
+            target: String::new(),
+            kind: Kind::Web,
+            view: ViewSetting::Default,
+            profile: BROWSE_PROFILE.into(),
+            background: false,
+            temp: Some(Temp::Browse),
+        };
+        self.temps.push(pin.clone());
+        self.pins.push(pin);
+        match place {
+            Spot::Edge => {
+                self.mode = Mode::Extended;
+                self.shown = Some(id.clone());
+                if let Some(output) = output {
+                    self.output = Some(output.into());
+                }
+            }
+            Spot::Card => self.card.pin = Some(id.clone()),
+            Spot::Sidebar => self.side_pin = Some(id.clone()),
+        }
+        self.stamp(place);
+        self.touch(&id);
+        self.sweep();
+        self.sanitize();
+        id
+    }
+
+    /// `webdock.go {pin, text}` (W76, the address field): the address `text` names, or a search for it with the user's
+    /// engine. A temporary page's address follows (its home is where it went last); a pin stays at its own. Returns the
+    /// address the host loads.
+    pub fn go(&mut self, pin: &str, text: &str) -> Result<String, DockError> {
+        if !self.is_web(pin) {
+            return Err(DockError::NotASite);
+        }
+        let url = resolve(text, &self.config.search).ok_or(DockError::Argument)?;
+        let temp = self.pin(pin)?.temp.is_some();
+        if temp {
+            for p in self.pins.iter_mut().chain(self.temps.iter_mut()) {
+                if p.id == pin {
+                    p.target.clone_from(&url);
+                }
+            }
+        }
+        Ok(url)
+    }
+
+    /// `webdock.drop {pin}` (W76): Esc in a "+" page's empty field; the page goes. Not a pin of the settings.
+    pub fn drop_temp(&mut self, pin: &str) -> Result<(), DockError> {
+        if self.pin(pin)?.temp != Some(Temp::Browse) {
+            return Err(DockError::UnknownPin);
+        }
+        self.forget_temp(pin);
+        Ok(())
+    }
+
+    /// `webdock.unpin {pin}` (W76, "Unpin but keep open"): the pin becomes a temporary page of the same id (its page
+    /// and its profile stay); the caller removes its row. A page that is not loaded has nothing to keep and goes with it.
+    pub fn unpin_keep(&mut self, pin: &str) -> Result<(), DockError> {
+        let p = self.pin(pin)?;
+        if p.kind != Kind::Web {
+            return Err(DockError::NotASite);
+        }
+        if p.temp.is_some() {
+            return Err(DockError::UnknownPin);
+        }
+        let mut kept = p.clone();
+        kept.temp = Some(Temp::Kept);
+        self.temps.retain(|t| t.id != pin);
+        self.temps.push(kept.clone());
+        if let Some(slot) = self.pins.iter_mut().find(|p| p.id == pin) {
+            *slot = kept;
+        }
+        Ok(())
+    }
+
+    /// The temporary page `id`, if `pin` names one (W76: `webdock.add {from}`).
+    pub fn temp_of(&self, pin: &str) -> Option<&PinSpec> {
+        self.temps.iter().find(|t| t.id == pin)
+    }
+
+    /// The ids no new pin may take (W76): the temporary pages' (a pin of the same id would take its page).
+    pub fn temp_ids(&self) -> Vec<String> {
+        self.temps.iter().map(|t| t.id.clone()).collect()
+    }
+
+    /// W76 "Pin": the new pin `to` (its row is written and applied) takes the temporary page `from` — the places that
+    /// showed it, its loaded state, its place in the shown order — and the document says `was` on it, so the host renames
+    /// the page (no reload).
+    pub fn adopt(&mut self, from: &str, to: &str) {
+        if from == to || self.temp_of(from).is_none() || !self.pins.iter().any(|p| p.id == to) {
+            return;
+        }
+        for place in [&mut self.shown, &mut self.card.pin, &mut self.side_pin] {
+            if place.as_deref() == Some(from) {
+                *place = Some(to.to_string());
+            }
+        }
+        for r in &mut self.recent {
+            if r == from {
+                *r = to.to_string();
+            }
+        }
+        if let Some(mut st) = self.states.remove(from) {
+            st.at = None;
+            self.states.insert(to.to_string(), st);
+        }
+        self.temps.retain(|t| t.id != from);
+        self.pins.retain(|p| p.id != from);
+        self.adopted.insert(to.to_string(), from.to_string());
+    }
+
+    /// `webdock.reload {pin}` (W76, the pin's menu): the host reloads the loaded page (a counter it answers once).
+    pub fn reload(&mut self, pin: &str) -> Result<(), DockError> {
+        self.web_pin(pin)?;
+        let st = self.states.entry(pin.to_string()).or_default();
+        if !st.loaded {
+            return Err(DockError::Argument);
+        }
+        st.reload = st.reload.wrapping_add(1);
+        Ok(())
+    }
+
+    /// `webdock.host.url {pin, url}` (W76): the page's address now; kept while it is not the pin's own (`at`).
+    pub fn page_url(&mut self, pin: &str, url: &str) -> Result<(), DockError> {
+        let target = self.pin(pin)?.target.clone();
+        self.web_pin(pin)?;
+        let st = self.states.entry(pin.to_string()).or_default();
+        st.at = (bare(url) != bare(&target) && !url.is_empty()).then(|| url.to_string());
+        Ok(())
+    }
+
+    /// Where the page of `pin` is while that is not its address (W76: "Update pin to this page").
+    pub fn at(&self, pin: &str) -> Option<String> {
+        self.states.get(pin).and_then(|st| st.at.clone())
+    }
+
+    /// W76: the temporary pages that are no longer wanted go: a "+" page that no place shows any more (its card closed,
+    /// another pin picked; a hover hide keeps `shown`), a kept page the host no longer keeps (the dock's rules).
+    pub fn sweep(&mut self) {
+        let keep = self.keep();
+        let gone: Vec<String> = self
+            .temps
+            .iter()
+            .filter(|t| match t.temp {
+                Some(Temp::Browse) => ![&self.shown, &self.card.pin, &self.side_pin]
+                    .iter()
+                    .any(|p| p.as_deref() == Some(t.id.as_str())),
+                _ => !keep.contains(&t.id),
+            })
+            .map(|t| t.id.clone())
+            .collect();
+        for id in gone {
+            self.forget_temp(&id);
+        }
+    }
+
+    fn forget_temp(&mut self, id: &str) {
+        self.temps.retain(|t| t.id != id);
+        self.pins.retain(|p| p.id != id);
+        self.states.remove(id);
+        self.recent.retain(|r| r != id);
+        if self.shown.as_deref() == Some(id) {
+            self.shown = None;
+            if self.mode == Mode::Extended {
+                self.mode = Mode::Compact;
+            }
+        }
+        if self.card.pin.as_deref() == Some(id) {
+            self.card.pin = None;
+            self.default_card_pin();
+        }
+        if self.side_pin.as_deref() == Some(id) {
+            self.side_pin = None;
+            self.default_side_pin();
+        }
     }
 
     /// The host's state as the daemon reports it. Without a connected host nothing is loaded or audible (Shōjiki).
@@ -983,6 +1252,8 @@ impl Dock {
         st.loaded = false;
         st.audible = false;
         st.grace = None;
+        // W76: a page that unloads opens at its pin's address again ("home").
+        st.at = None;
         Ok(())
     }
 
@@ -1164,6 +1435,16 @@ impl Dock {
         if let Some(at) = self.elsewhere(Spot::Edge) {
             doc["elsewhere"] = json!(at.name());
         }
+        // W76: the card's box per output where the user dragged it (absent while none is).
+        if !self.config.sizes.is_empty() {
+            let sizes: Map<String, Value> = self
+                .config
+                .sizes
+                .iter()
+                .map(|(out, (w, h))| (out.clone(), json!({"width": w, "height": h})))
+                .collect();
+            doc["sizes"] = Value::Object(sizes);
+        }
         // I91: the settings the configuration forces and their sources; absent when nothing is forced (no nulls).
         if !self.forced.is_empty() {
             doc["forced"] = json!(self.forced);
@@ -1233,8 +1514,15 @@ impl Dock {
         };
         let mut out = json!({"id": p.id, "kind": kind, "title": p.title, "target": p.target});
         // I91: the pins are one setting (`pins`); a forced list names its source on each pin (the strip's menu reads it).
-        if let Some(source) = self.forced.get("pins") {
+        if let Some(source) = self.forced.get("pins").filter(|_| p.temp.is_none()) {
             out["forced_by"] = json!(source);
+        }
+        // W76: a temporary page (not a row of the settings), and the page a new pin took over (the host renames it).
+        if p.temp.is_some() {
+            out["temporary"] = json!(true);
+        }
+        if let Some(was) = self.adopted.get(&p.id) {
+            out["was"] = json!(was);
         }
         if p.kind == Kind::Web {
             let view = views
@@ -1271,6 +1559,13 @@ impl Dock {
             }
             if let Some(error) = st.error {
                 out["error"] = json!(error);
+            }
+            // W76: where the page is while that is not its address, and the menu's reloads.
+            if let Some(at) = st.at {
+                out["at"] = json!(at);
+            }
+            if st.reload > 0 {
+                out["reload"] = json!(st.reload);
             }
         }
         out
@@ -1460,7 +1755,12 @@ impl Dock {
 /// The rows of the `pins` setting as the settings feed carries them now. A write reaches the feed before it returns,
 /// so an action that follows a write reads the rows it wrote.
 pub fn rows_of(settings: &Settings) -> Vec<Map<String, Value>> {
-    match settings.get("pins") {
+    records_of(settings, "pins")
+}
+
+/// The rows of a records setting `key` as the feed carries them.
+pub fn records_of(settings: &Settings, key: &str) -> Vec<Map<String, Value>> {
+    match settings.get(key) {
         Some(Value::Array(items)) => items
             .into_iter()
             .filter_map(|v| match v {
@@ -1506,10 +1806,23 @@ pub fn view_rows(
 /// The `pins` rows after `webdock.add {url, title?}`, and the new pin's id (K40). A site's address (`https`, `http`
 /// or `file`) becomes a web pin: its id is the host without `www.` (a file's name), slugged and kept to 32 characters,
 /// with `-2`, `-3`… when taken; its name is the title, else the host.
+#[cfg(test)]
 pub fn add_row(
     rows: &[Map<String, Value>],
     url: &str,
     title: Option<&str>,
+) -> Result<(Vec<Value>, String), DockError> {
+    add_row_with(rows, url, title, &[], None)
+}
+
+/// `add_row`, with ids that are taken outside the rows (W76: the temporary pages') and the profile a pin made from a
+/// temporary page keeps (its storage: the page's cookies stay with it).
+pub fn add_row_with(
+    rows: &[Map<String, Value>],
+    url: &str,
+    title: Option<&str>,
+    also_taken: &[String],
+    profile: Option<&str>,
 ) -> Result<(Vec<Value>, String), DockError> {
     if !web_address(url) {
         return Err(DockError::Address);
@@ -1517,17 +1830,22 @@ pub fn add_row(
     let taken: Vec<&str> = rows
         .iter()
         .filter_map(|r| r.get("id").and_then(Value::as_str))
+        .chain(also_taken.iter().map(String::as_str))
         .collect();
     let id = unique_id(&slug_of(id_text(url)), &taken);
     let name = title
         .filter(|t| !t.is_empty())
         .map_or_else(|| host_of(url).unwrap_or(&id).to_string(), str::to_string);
     let mut out = rows.to_vec();
-    out.push(Map::from_iter([
+    let mut row = Map::from_iter([
         ("id".to_string(), json!(id)),
         ("title".to_string(), json!(name)),
         ("target".to_string(), json!(url)),
-    ]));
+    ]);
+    if let Some(profile) = profile.filter(|p| !p.is_empty() && *p != id) {
+        row.insert("profile".into(), json!(profile));
+    }
+    out.push(row);
     Ok((into_values(out), id))
 }
 
@@ -1571,6 +1889,120 @@ pub fn retarget_row(
     let mut out = rows.to_vec();
     out[index].insert("target".into(), json!(url));
     Ok(into_values(out))
+}
+
+/// The `sizes` rows (W76) after `webdock.resize {output, width?, height?}`: the output's row replaced by `size`, or
+/// removed when `size` is `None` (the default again). Each side must be within [`MIN_BOX`]..=[`MAX_BOX`].
+pub fn sizes_rows(
+    rows: &[Map<String, Value>],
+    output: &str,
+    size: Option<(u32, u32)>,
+) -> Result<Vec<Value>, DockError> {
+    if output.is_empty() {
+        return Err(DockError::Argument);
+    }
+    let mut out: Vec<Map<String, Value>> = rows
+        .iter()
+        .filter(|r| r.get("output").and_then(Value::as_str) != Some(output))
+        .cloned()
+        .collect();
+    if let Some((w, h)) = size {
+        if !(MIN_BOX..=MAX_BOX).contains(&w) || !(MIN_BOX..=MAX_BOX).contains(&h) {
+            return Err(DockError::Argument);
+        }
+        out.push(Map::from_iter([
+            ("output".to_string(), json!(output)),
+            ("width".to_string(), json!(w)),
+            ("height".to_string(), json!(h)),
+        ]));
+    }
+    Ok(into_values(out))
+}
+
+/// The remembered boxes the `sizes` rows name, output → (width, height); a row out of range is skipped.
+fn sizes_of(rows: &[Map<String, Value>]) -> BTreeMap<String, (u32, u32)> {
+    let side = |r: &Map<String, Value>, k: &str| {
+        r.get(k)
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .filter(|v| (MIN_BOX..=MAX_BOX).contains(v))
+    };
+    rows.iter()
+        .filter_map(|r| {
+            let out = r.get("output")?.as_str().filter(|o| !o.is_empty())?;
+            Some((out.to_string(), (side(r, "width")?, side(r, "height")?)))
+        })
+        .collect()
+}
+
+/// What the address field's text names (W76): an address (`https`, `http`, `file`) as it is; a bare host with a
+/// dot and a known shape (`example.com/a`, `localhost:8080`, `10.0.0.2`) with `https://` (`http://` for localhost and an
+/// IPv4 address); anything else — words, `javascript:`, `data:`, another scheme — a search with `engine`, `{q}` the
+/// words (appended when the engine has no `{q}`). `None` for an empty text.
+pub fn resolve(text: &str, engine: &str) -> Option<String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    if web_address(text) {
+        return Some(text.to_string());
+    }
+    if !text.contains(char::is_whitespace) {
+        let host_port = text.split(['/', '?', '#']).next().unwrap_or("");
+        let (host, port) = match host_port.rsplit_once(':') {
+            Some((h, p)) => (h, Some(p)),
+            None => (host_port, None),
+        };
+        let port_ok = port
+            .is_none_or(|p| !p.is_empty() && p.len() <= 5 && p.bytes().all(|b| b.is_ascii_digit()));
+        let ipv4 = host.split('.').count() == 4
+            && host
+                .split('.')
+                .all(|o| !o.is_empty() && o.len() <= 3 && o.bytes().all(|b| b.is_ascii_digit()));
+        let named = host.contains('.')
+            && host
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'.')
+            && host
+                .rsplit('.')
+                .next()
+                .is_some_and(|tld| tld.len() >= 2 && tld.bytes().all(|b| b.is_ascii_alphabetic()))
+            && !host.starts_with('.')
+            && !host.contains("..");
+        if port_ok && (host == "localhost" || ipv4) {
+            return Some(format!("http://{text}"));
+        }
+        if port_ok && named {
+            return Some(format!("https://{text}"));
+        }
+    }
+    let q = query_encode(text);
+    Some(if engine.contains("{q}") {
+        engine.replace("{q}", &q)
+    } else {
+        format!("{engine}{q}")
+    })
+}
+
+/// The words of a search as a query value: unreserved characters as they are, a space as `+`, the rest `%XX`.
+fn query_encode(text: &str) -> String {
+    let mut out = String::new();
+    for b in text.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(char::from(b))
+            }
+            b' ' => out.push('+'),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// An address without its fragment and its trailing slashes (the host's home rule, WebPage.bare).
+fn bare(url: &str) -> &str {
+    let url = url.split('#').next().unwrap_or("");
+    url.trim_end_matches('/')
 }
 
 fn row_index(rows: &[Map<String, Value>], pin: &str) -> Result<usize, DockError> {
@@ -1634,6 +2066,7 @@ fn parse_pin(row: &Map<String, Value>) -> Option<PinSpec> {
         view,
         profile,
         background: row.get("background").and_then(Value::as_bool) == Some(true),
+        temp: None,
     })
 }
 
@@ -2946,5 +3379,285 @@ mod tests {
         assert!(pins[1].get("icon").is_none(), "no file, no icon");
         assert_eq!(icon_name("a b/ç"), "a_b__");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // ---- W76 (docs/ux/webdock.md "Round three") ----
+
+    #[test]
+    fn the_address_field_loads_addresses_and_searches_everything_else() {
+        let e = DEFAULT_SEARCH;
+        assert_eq!(
+            resolve("https://a.example/x", e).unwrap(),
+            "https://a.example/x"
+        );
+        assert_eq!(
+            resolve("  file:///tmp/p.html ", e).unwrap(),
+            "file:///tmp/p.html"
+        );
+        assert_eq!(resolve("example.com", e).unwrap(), "https://example.com");
+        assert_eq!(
+            resolve("www.example.org/a?b=1", e).unwrap(),
+            "https://www.example.org/a?b=1"
+        );
+        assert_eq!(
+            resolve("localhost:8080/x", e).unwrap(),
+            "http://localhost:8080/x"
+        );
+        assert_eq!(resolve("10.0.0.2", e).unwrap(), "http://10.0.0.2");
+        assert_eq!(
+            resolve("rust borrow checker", e).unwrap(),
+            "https://duckduckgo.com/?q=rust+borrow+checker"
+        );
+        // Never loaded: another scheme is words.
+        assert_eq!(
+            resolve("javascript:alert(1)", e).unwrap(),
+            "https://duckduckgo.com/?q=javascript%3Aalert%281%29"
+        );
+        assert!(
+            resolve("data:text/html,x", e)
+                .unwrap()
+                .starts_with("https://duckduckgo.com/?q=data%3A")
+        );
+        assert!(
+            resolve("example", e)
+                .unwrap()
+                .starts_with("https://duckduckgo.com/"),
+            "no dot: a word"
+        );
+        assert!(
+            resolve("a..b.com", e)
+                .unwrap()
+                .starts_with("https://duckduckgo.com/")
+        );
+        assert!(resolve("   ", e).is_none());
+        assert_eq!(
+            resolve("x y", "https://s.example/search?q=").unwrap(),
+            "https://s.example/search?q=x+y"
+        );
+    }
+
+    #[test]
+    fn the_search_setting_must_be_a_web_address_else_duckduckgo() {
+        let d = dock(&[("search", json!("javascript:{q}"))]);
+        assert_eq!(d.config.search, DEFAULT_SEARCH);
+        let d = dock(&[("search", json!("https://s.example/?q={q}"))]);
+        assert_eq!(d.config.search, "https://s.example/?q={q}");
+    }
+
+    #[test]
+    fn plus_opens_a_temporary_page_the_strip_does_not_list_and_its_place_drops() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        let id = d.browse(Spot::Edge, Some("DP-1"));
+        let doc = d.doc();
+        assert_eq!(doc["mode"], "extended");
+        assert_eq!(doc["shown"], json!(id));
+        let p = pin_of(&doc, &id);
+        assert_eq!(p["temporary"], true);
+        assert_eq!(p["target"], "");
+        assert_eq!(p["profile"], BROWSE_PROFILE);
+        assert!(doc["keep"].as_array().unwrap().contains(&json!(id)));
+        // Enter: an address; the temporary page's address follows, a pin's stays.
+        assert_eq!(d.go(&id, "example.com").unwrap(), "https://example.com");
+        assert_eq!(pin_of(&d.doc(), &id)["target"], "https://example.com");
+        assert_eq!(
+            d.go("mail", "other.example").unwrap(),
+            "https://other.example"
+        );
+        assert_eq!(
+            pin_of(&d.doc(), "mail")["target"],
+            "https://mail.example.org/"
+        );
+        assert_eq!(d.go("weather", "x"), Err(DockError::NotASite));
+        // A hover hide keeps it (shown stays); the card's close drops it.
+        d.hide();
+        d.sweep();
+        assert!(d.temp_of(&id).is_some(), "a hide keeps the page");
+        d.toggle(None);
+        d.collapse();
+        d.sweep();
+        assert!(d.temp_of(&id).is_none(), "closing drops it");
+        assert!(
+            d.doc()["pins"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|p| p["id"] != json!(id))
+        );
+        // Another pin picked in the bar card drops its "+" page; a second "+" replaces the first.
+        d.card_place(Some(card_place()), true);
+        let c1 = d.browse(Spot::Card, None);
+        let c2 = d.browse(Spot::Card, None);
+        assert_ne!(c1, c2);
+        assert!(d.temp_of(&c1).is_none() && d.temp_of(&c2).is_some());
+        d.card_select("chat").unwrap();
+        d.sweep();
+        assert!(d.temp_of(&c2).is_none());
+        // Esc in the empty field drops it; a pin cannot be dropped that way.
+        let s = d.browse(Spot::Sidebar, None);
+        d.drop_temp(&s).unwrap();
+        assert!(d.temp_of(&s).is_none());
+        assert_eq!(d.drop_temp("mail"), Err(DockError::UnknownPin));
+        // The bar card's Esc (card_close) drops its "+" page and shows the first pin again.
+        let c3 = d.browse(Spot::Card, None);
+        d.card_close();
+        assert!(d.temp_of(&c3).is_none());
+        assert_eq!(d.doc()["card"]["pin"], "mail");
+    }
+
+    #[test]
+    fn a_settings_reload_keeps_the_temporary_pages() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        let id = d.browse(Spot::Edge, None);
+        d.apply_settings(
+            &settings_with(rows(), &[("width", json!(500))]),
+            Instant::now(),
+        );
+        assert!(d.temp_of(&id).is_some());
+        assert_eq!(d.doc()["shown"], json!(id));
+    }
+
+    #[test]
+    fn pin_takes_the_temporary_page_with_its_profile_and_no_reload() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        let id = d.browse(Spot::Edge, Some("DP-1"));
+        d.go(&id, "https://news.example/a").unwrap();
+        d.loaded(&id, None).unwrap();
+        let rows = rows_list(rows());
+        let (written, new) = add_row_with(
+            &rows,
+            "https://news.example/a",
+            Some("News"),
+            &d.temp_ids(),
+            d.temp_of(&id).map(|t| t.profile.as_str()),
+        )
+        .unwrap();
+        assert_eq!(new, "news-example");
+        assert_eq!(written[3]["profile"], BROWSE_PROFILE);
+        d.apply_settings(&settings_with(Value::Array(written), &[]), Instant::now());
+        d.adopt(&id, &new);
+        let doc = d.doc();
+        assert_eq!(doc["shown"], json!(new));
+        let p = pin_of(&doc, &new);
+        assert_eq!(p["was"], json!(id), "the host renames the page");
+        assert_eq!(p["loaded"], true, "the page passed over loaded");
+        assert!(p.get("temporary").is_none());
+        assert!(d.temp_of(&id).is_none());
+        assert!(doc["keep"].as_array().unwrap().contains(&json!(new)));
+        assert!(!doc["keep"].as_array().unwrap().contains(&json!(id)));
+    }
+
+    #[test]
+    fn a_new_pin_never_takes_a_temporary_pages_id() {
+        let (_, id) =
+            add_row_with(&[], "https://browse-1/", None, &["browse-1".into()], None).unwrap();
+        assert_eq!(id, "browse-1-2");
+    }
+
+    #[test]
+    fn unpin_but_keep_open_keeps_the_page_until_the_rules_unload_it_and_undo_brings_the_pin_back() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        d.loaded("mail", None).unwrap();
+        d.unpin_keep("mail").unwrap();
+        // The row goes (the caller writes it); the page stays a temporary page of the same id.
+        let without: Vec<Value> = rows().as_array().unwrap()[1..].to_vec();
+        d.apply_settings(
+            &settings_with(Value::Array(without.clone()), &[]),
+            Instant::now(),
+        );
+        d.sweep();
+        let doc = d.doc();
+        assert_eq!(pin_of(&doc, "mail")["temporary"], true);
+        assert_eq!(pin_of(&doc, "mail")["loaded"], true);
+        assert_eq!(doc["shown"], "mail");
+        // Undo: the row is back, the page is the pin's again (no new page).
+        d.apply_settings(&settings_with(rows(), &[]), Instant::now());
+        assert!(pin_of(&d.doc(), "mail").get("temporary").is_none());
+        assert!(d.temp_of("mail").is_none());
+        // Unpinned again, then shown pins push it past the cap: the rules unload it and it goes.
+        d.unpin_keep("mail").unwrap();
+        d.apply_settings(
+            &settings_with(Value::Array(without), &[("max_loaded", json!(1))]),
+            Instant::now(),
+        );
+        d.open("chat", None).unwrap();
+        d.sweep();
+        assert!(
+            d.temp_of("mail").is_none(),
+            "past the cap the kept page goes"
+        );
+        assert_eq!(d.unpin_keep("weather"), Err(DockError::NotASite));
+    }
+
+    #[test]
+    fn the_menus_reload_and_the_pages_address() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        assert_eq!(
+            d.reload("mail"),
+            Err(DockError::Argument),
+            "not loaded: nothing to reload"
+        );
+        d.loaded("mail", None).unwrap();
+        d.reload("mail").unwrap();
+        d.reload("mail").unwrap();
+        assert_eq!(pin_of(&d.doc(), "mail")["reload"], 2);
+        d.page_url("mail", "https://mail.example.org/#inbox")
+            .unwrap();
+        assert!(
+            pin_of(&d.doc(), "mail").get("at").is_none(),
+            "home, the fragment aside"
+        );
+        d.page_url("mail", "https://mail.example.org/thread/7")
+            .unwrap();
+        assert_eq!(
+            pin_of(&d.doc(), "mail")["at"],
+            "https://mail.example.org/thread/7"
+        );
+        assert_eq!(
+            d.at("mail").as_deref(),
+            Some("https://mail.example.org/thread/7")
+        );
+        d.unloaded("mail").unwrap();
+        assert!(d.at("mail").is_none(), "unloaded: it opens at home again");
+        assert_eq!(d.page_url("weather", "x"), Err(DockError::UnknownPin));
+    }
+
+    #[test]
+    fn the_card_sizes_are_rows_per_output_and_published_while_any() {
+        assert!(dock(&[]).doc().get("sizes").is_none());
+        let rows = sizes_rows(&[], "DP-1", Some((500, 900))).unwrap();
+        let rows = sizes_rows(&rows_list(Value::Array(rows)), "HDMI-1", Some((400, 400))).unwrap();
+        let rows = sizes_rows(&rows_list(Value::Array(rows)), "DP-1", Some((520, 880))).unwrap();
+        assert_eq!(rows.len(), 2);
+        let d = dock(&[("sizes", Value::Array(rows.clone()))]);
+        assert_eq!(
+            d.doc()["sizes"]["DP-1"],
+            json!({"width": 520, "height": 880})
+        );
+        assert_eq!(
+            d.doc()["sizes"]["HDMI-1"],
+            json!({"width": 400, "height": 400})
+        );
+        let reset = sizes_rows(&rows_list(Value::Array(rows)), "DP-1", None).unwrap();
+        assert_eq!(reset.len(), 1);
+        assert_eq!(
+            sizes_rows(&[], "DP-1", Some((100, 900))),
+            Err(DockError::Argument)
+        );
+        assert_eq!(
+            sizes_rows(&[], "", Some((500, 900))),
+            Err(DockError::Argument)
+        );
+        // A row out of range (edited by hand) is not read.
+        let d = dock(&[(
+            "sizes",
+            json!([{"output": "DP-1", "width": 10, "height": 900}]),
+        )]);
+        assert!(d.doc().get("sizes").is_none());
     }
 }
