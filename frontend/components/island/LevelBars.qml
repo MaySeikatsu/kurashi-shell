@@ -11,11 +11,14 @@ import "../../core"
 Row {
     id: lb
     property bool running: false
+    // Session 30 (B125): false draws the still "playing" mark while it plays — a caller whose window is large (the
+    // desktop) does not redraw it at the spectrum's rate.
+    property bool moving: true
     property color color: Theme.accent
     property int bars: 4
     property real maxH: 12
     property real barW: 3
-    readonly property bool watching: running && visible && Theme.springOn
+    readonly property bool watching: running && moving && visible && Theme.springOn
     Watch { doc: "svc.audio.spectrum"; active: lb.watching }
     // W75 (B118): `Store.current`, so the document can be one of the Store's quiet ones (a patch 30 times a second that
     // re-evaluated every binding on `Store.docs` in the shell); it reads `docs` until it is.

@@ -522,6 +522,8 @@ PanelWindow {
                     LevelBars {
                         anchors.verticalCenter: parent.verticalCenter
                         running: desk.visible && mediaCard.visible && desk.media.playing === true
+                        // (B125, `desktop.media_bars`: the still mark by default — every move redraws the whole desktop)
+                        moving: bars.valueOf("desktop.media_bars", false) === true
                         color: mediaCard.cover ? mediaCard.cover.accent : Theme.accent
                         bars: 6
                         maxH: Theme.fsCaption

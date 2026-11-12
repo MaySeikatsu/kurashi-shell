@@ -2444,6 +2444,14 @@ The song that plays, with its controls; hidden while nothing plays.
 - type: `bool` · default: `true`
 - only while `desktop.enabled == true`
 
+#### `desktop.media_bars` — Moving level bars
+
+The now-playing card's bars move with the sound. Each move redraws the whole desktop on every screen — on two large screens about a core's quarter each while music plays — so by default they stand as a still "playing" mark.
+
+- type: `bool` · default: `false`
+- only while `desktop.media == true`
+- since schema v7
+
 #### `desktop.weather` — Weather
 
 Today's weather, while the weather mod is on and has a place.
