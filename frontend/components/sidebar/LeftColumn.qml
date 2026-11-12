@@ -238,7 +238,7 @@ Item {
         width: lc.width
         height: lc.height - pane.y
         active: lc.tab !== null && lc.tab.core === true
-        sourceComponent: RightColumn { anchors.fill: parent; sections: lc.tab.members || [lc.tab.value]; outName: lc.outName }
+        sourceComponent: RightColumn { anchors.fill: parent; sections: lc.tab.members || [lc.tab.value]; outName: lc.outName; covered: picker.open }
     }
     SectionPicker {
         id: picker

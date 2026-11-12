@@ -19,6 +19,9 @@ Singleton {
     property var i18n: ({})
     property var workspaces: ({})
     property var mods: ({})
+    // W77 (K146): `runtime.settings` — `dock` while a sidebar section wants Settings over its well. `null` until it has
+    // arrived (a process started for the dock must not map a window first).
+    property var runtime: null
     property bool connected: false
     property bool live: false
     // key -> error text of the last rejected apply touching it (cleared by the next apply of it, and by any change
@@ -40,7 +43,7 @@ Singleton {
     signal changeApplied()
 
     // Only these documents are subscribed, and only while this process lives (Ma).
-    readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces", "mods"]
+    readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces", "mods", "runtime.settings"]
     // Documents a view asks for only while it shows them (watch/unwatch, refcounted; Ma): `docs[name]`. The theme export
     // status under its row is one (svc.theme_export, K49).
     property var docs: ({})
@@ -637,6 +640,7 @@ Singleton {
         case "i18n": i18n = v; break
         case "svc.workspaces": workspaces = v; break
         case "mods": mods = v; break
+        case "runtime.settings": runtime = v; break
         default:
             if (!wanted[doc]) return
             var d = Object.assign({}, docs)

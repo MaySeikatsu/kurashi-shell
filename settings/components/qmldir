@@ -61,3 +61,5 @@ PaintBands 1.0 PaintBands.qml
 PaintStroke 1.0 PaintStroke.qml
 EdgeWarp 1.0 EdgeWarp.qml
 ColorFade 1.0 ColorFade.qml
+DockHost 1.0 DockHost.qml
+ElsewhereNote 1.0 ElsewhereNote.qml

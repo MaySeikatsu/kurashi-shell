@@ -49,6 +49,9 @@ Item {
     // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
     // whole width under it.
     property bool stacked: false
+    // W77 (a sidebar's dock, a narrow window): too narrow for the label column beside the control — the label and help
+    // stay, the control goes under them across the whole width.
+    readonly property bool below: stacked || (width > 0 && width < 520)
     // A picker of the row's own (material cards, ink or light swatches; the page's `pickers`) takes the place of the generic
     // control: the provenance line, Reset and the reasons stay under it, and a jump's keyboard focus lands in it. It reads
     // and sets the value itself (it knows its key).
@@ -171,13 +174,13 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        implicitHeight: r.stacked ? labels.implicitHeight + Theme.gap + ctlCol.implicitHeight
+        implicitHeight: r.below ? labels.implicitHeight + Theme.gap + ctlCol.implicitHeight
                                   : Math.max(labels.implicitHeight, ctlCol.implicitHeight)
 
         // --- label, help, and the chips that say what the row is ---------------------------------
         Column {
             id: labels
-            width: r.stacked ? body.width : r.labelW
+            width: r.below ? body.width : r.labelW
             spacing: 2
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -227,8 +230,8 @@ Item {
         // --- control, then its provenance line and the reasons ------------------------------------
         Column {
             id: ctlCol
-            x: r.stacked ? 0 : r.labelW + Theme.pad
-            y: r.stacked ? labels.implicitHeight + Theme.gap : 0
+            x: r.below ? 0 : r.labelW + Theme.pad
+            y: r.below ? labels.implicitHeight + Theme.gap : 0
             width: body.width - x
             spacing: Theme.gap / 2
 

@@ -37,6 +37,8 @@ Item {
     // K84: the sidebar whose pin the header carries, when the header tops the column ("" = no pin there).
     property string pinSide: ""
     property string outName: ""
+    // W77: something of the host lies over the column (the left sidebar's "+" picker): a docked Settings withdraws.
+    property bool covered: false
     // W53.3 (`[decor] centre.form = flyouts`, while the column floats; the window says so): every section is a flyout of
     // its own — the panel's material in the look's radius with its hairline and elevation — 12 px apart and stacked at the
     // column's foot (11's notification centre over its calendar); the column itself draws nothing. `flyItems`: their
@@ -116,7 +118,8 @@ Item {
                     required property var modelData
                     readonly property string sid: String(modelData)
                     readonly property var modRef: Mods.panelOf(sid)
-                    readonly property bool fills: sid === "notifications" && !rc.flyouts
+                    // (W77: Settings takes the free height too; with the notifications they share it)
+                    readonly property bool fills: (sid === "notifications" || sid === "settings") && !rc.flyouts
                     // The flyout's plate, `Theme.pad` round the section (made only under flyouts).
                     property Item plate: plateLoader.item
                     onVisibleChanged: if (rc) Qt.callLater(rc.noteFly)
@@ -152,10 +155,13 @@ Item {
                         : sid === "calendar" ? calendarC
                         : sid === "media" ? mediaC
                         : sid === "launcher" ? launcherC
+                        : sid === "settings" ? settingsC
                         : modRef !== null ? modC : null
                     onLoaded: {
                         if (item && modRef !== null) { item.mod = modRef.mod; item.panel = modRef.panel }
                         if (item && sid.indexOf("heading:") === 0) item.text = sid.substring(8)
+                        // (W77: the docked Settings is withdrawn while something lies over its well)
+                        if (item && sid === "settings") item.covered = Qt.binding(function () { return rcPicker.open || rc.pageC !== null || rc.covered })
                     }
                 }
             }
@@ -172,7 +178,7 @@ Item {
                 onClicked: rcPicker.open = !rcPicker.open
             }
             // Without a section that fills (notifications), the room left over stays below the sections, not between them.
-            Item { Layout.fillHeight: true; visible: (rc.sections.indexOf("notifications") < 0 && !rc.flyouts) || (rc.flyouts && rc.fromTop) }
+            Item { Layout.fillHeight: true; visible: (rc.shownSections.indexOf("notifications") < 0 && rc.shownSections.indexOf("settings") < 0 && !rc.flyouts) || (rc.flyouts && rc.fromTop) }
         }
     }
     Component { id: headerC; HeaderSection { pinSide: rc.sections.length > 0 && rc.sections[0] === "header" ? rc.pinSide : "" } }
@@ -182,6 +188,7 @@ Item {
     }
     Component { id: slidersC; SlidersSection {} }
     Component { id: launcherC; LauncherSection {} }
+    Component { id: settingsC; SettingsSection {} }
     SectionPicker {
         id: rcPicker
         z: 10

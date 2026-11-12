@@ -1,0 +1,11 @@
+# Settings docked in a sidebar section (W77, K146, docs/ux/settings.md "In a sidebar").
+"settings.dock.in_window" = "Settings is open in its window"
+"settings.dock.in_sidebar" = "Settings is in the sidebar"
+"settings.dock.show_here" = "Show here"
+"settings.dock.pop_out" = "Open in a window"
+"settings.ui.pages" = "Pages"
+# The section in the sidebar (the shell draws these; Settings draws over the well once it is up).
+"sidebar.settings.starting" = "Opening Settings…"
+"sidebar.settings.elsewhere" = "Settings is shown on {output}"
+"sidebar.settings.show_here" = "Show here"
+"sidebar.settings.failed" = "Settings could not open here"

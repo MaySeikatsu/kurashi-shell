@@ -27,12 +27,48 @@ ShellRoot {
         running: !root.configIn && !root.waited
         onTriggered: root.waited = true
     }
-    // "" until the config is in (or the daemon did not answer in time); then the key's value, live.
-    readonly property string host: root.configIn ? (Store.valueOf("settings.window") === "sheet" ? "sheet" : "window")
+    // The user's own host: "" until the config is in (or the daemon did not answer in time); then the key's value, live.
+    readonly property string userHost: root.configIn ? (Store.valueOf("settings.window") === "sheet" ? "sheet" : "window")
         : (root.waited ? "window" : "")
+    // W77 (K146; docs/ux/settings.md "In a sidebar"): a third host, `dock`, over a sidebar section's well while
+    // `runtime.settings.dock` is there. A process the daemon started for the dock (`KURASHI_SETTINGS_DOCK=1`) has no window
+    // of its own until one is asked for (`settings.open`, the dock's "Open in a window"); it ends a minute after the dock
+    // went, so a slide or a scroll of the sidebar (each withdraws the dock for a moment) never restarts it.
+    readonly property bool forDock: Quickshell.env("KURASHI_SETTINGS_DOCK") === "1"
+    property bool userOpen: !forDock
+    // The dock's "Show here" while the window holds the content (the window's own "Show here" clears it).
+    property bool preferDock: false
+    readonly property var dock: Store.runtime && Store.runtime.dock ? Store.runtime.dock : null
+    // Where the content is: the dock when only it is asked for (or it was asked to show here), else the user's host.
+    readonly property string host: root.dock && (!root.userOpen || root.preferDock) ? "dock"
+        : (root.userOpen ? root.userHost : "")
+    onHostChanged: { if (host === "") Changes.putBack(); rehost() }
+    function showUser(): void { root.userOpen = true; root.preferDock = false }
+    // The user's window or sheet closed: the content goes to the dock when there is one, else the app ends.
+    function closeUser(): void {
+        if (root.dock) { root.userOpen = false; root.preferDock = false }
+        else root.quit()
+    }
+    Timer {
+        interval: 60000
+        running: !root.userOpen && !root.dock && (Store.runtime !== null || root.waited)
+        onTriggered: root.quit()
+    }
 
     // Closing ends an open preview: the value it started from comes back, as Esc would do.
     property var sheetHost: null
+    property var dockHost: null
+    property Item windowSlot: null
+    function slotFor(h: string): Item {
+        if (h === "window") return root.windowSlot
+        if (h === "sheet") return root.sheetHost ? root.sheetHost.slot : null
+        if (h === "dock") return root.dockHost ? root.dockHost.slot : null
+        return null
+    }
+    function rehost(): void {
+        const s = root.slotFor(root.host)
+        if (s && win.parent !== s) root.adopt(s)
+    }
     function quit(): void { Changes.putBack(); Qt.quit() }
     // A host takes the content: the item moves into it with its state; the keyboard focus goes where it was (else to the
     // list, where typing starts a search).
@@ -48,8 +84,9 @@ ShellRoot {
             else keys.forceActiveFocus()
         })
     }
-    // The sheet's corners, which the content draws itself (header, sidebar, ground); square in a window.
-    readonly property real cornerR: root.host === "sheet" && root.sheetHost ? root.sheetHost.radius : 0
+    // The sheet's (or the dock's) corners, which the content draws itself (header, sidebar, ground); square in a window.
+    readonly property real cornerR: root.host === "sheet" && root.sheetHost ? root.sheetHost.radius
+        : (root.host === "dock" && root.dockHost ? root.dockHost.radius : 0)
     function release(slot: Item): void { if (win.parent === slot) win.parent = null }
     function inside(item: Item): bool {
         for (var it = item; it; it = it.parent) if (it === win) return true
@@ -57,7 +94,7 @@ ShellRoot {
     }
 
     LazyLoader {
-        active: root.host === "window"
+        active: root.userOpen && root.userHost === "window"
         FloatingWindow {
             // (the change of colour as a cross-fade, as in the shell's windows: components/ColorFade.qml)
             ColorFade {}
@@ -83,25 +120,57 @@ ShellRoot {
                 sourceComponent: TileSheet {}
             }
             LightSense {}
-            Component.onCompleted: root.adopt(contentItem)
-            Component.onDestruction: root.release(contentItem)
+            Component.onCompleted: { root.windowSlot = contentItem; root.rehost() }
+            Component.onDestruction: { if (root.windowSlot === contentItem) root.windowSlot = null; root.release(contentItem) }
+            // W77: the content is in the sidebar's dock; the window says so and can take it back.
+            ElsewhereNote {
+                anchors.fill: parent
+                z: 10
+                visible: root.host === "dock"
+                text: I18n.tr("settings.dock.in_sidebar")
+                onShowHere: root.preferDock = false
+            }
             // The reveal starts on the first frame shown, as the sheet's opening (never half over before it is on screen).
             property bool revealGate: true
             Connections {
                 target: contentItem.Window.window
                 function onFrameSwapped() { if (revealGate) { revealGate = false; windowReveal.to = 1 } }
             }
-            // Closed by the compositor or the user; a re-host to the sheet (host changed first) does not end the app.
-            onVisibleChanged: if (!visible && root.host === "window") root.quit()
+            // Closed by the compositor or the user; a re-host to the sheet (the key changed first) does not end the app,
+            // and with a dock the content goes there (W77).
+            onVisibleChanged: if (!visible && root.userOpen && root.userHost === "window") root.closeUser()
         }
     }
     LazyLoader {
-        active: root.host === "sheet"
+        active: root.userOpen && root.userHost === "sheet"
         SheetHost {
             id: sheet
-            Component.onCompleted: { root.sheetHost = sheet; root.adopt(sheet.slot) }
+            Component.onCompleted: { root.sheetHost = sheet; root.rehost() }
             Component.onDestruction: { if (root.sheetHost === sheet) root.sheetHost = null; root.release(sheet.slot) }
-            onDismissed: root.quit()
+            onDismissed: root.closeUser()
+        }
+    }
+    // W77 (K146): the dock over a sidebar section's well, while `runtime.settings.dock` is there.
+    LazyLoader {
+        active: root.dock !== null
+        DockHost {
+            id: dockWin
+            place: root.dock
+            Component.onCompleted: { root.dockHost = dockWin; root.rehost() }
+            Component.onDestruction: { if (root.dockHost === dockWin) root.dockHost = null; root.release(dockWin.slot) }
+            // The window (or sheet) holds the content: the dock says so; "Show here" moves it (a sheet, modal over the
+            // whole output, closes instead of staying empty).
+            ElsewhereNote {
+                anchors.fill: parent
+                z: 10
+                radius: dockWin.radius
+                visible: root.host !== "dock" && root.host !== ""
+                text: I18n.tr("settings.dock.in_window")
+                onShowHere: {
+                    if (root.userHost === "sheet") root.userOpen = false
+                    else root.preferDock = true
+                }
+            }
         }
     }
 
@@ -118,22 +187,30 @@ ShellRoot {
         opacity: root.revealP
         transform: Translate { y: 12 * (1 - root.revealP) }
         readonly property bool sheet: root.host === "sheet"
+        readonly property bool docked: root.host === "dock"
+        // W77: narrow (a sidebar's dock, a narrow window): the search across the header, the pages in a drawer.
+        readonly property bool compact: width > 0 && width < 720
+        property bool navShown: false
+        onCompactChanged: navShown = false
         // Frames the host window has drawn (the settings test's idle check: none while open and still, Ma).
         property int frames: 0
         Connections {
             target: win.Window.window
             function onFrameSwapped() { win.frames++ }
         }
-        // Esc that no control took (a field, a dropdown, a preview's put back take theirs first) dismisses the sheet; the
-        // window is unchanged.
+        // Esc that no control took (a field, a dropdown, a preview's put back take theirs first): the pages' drawer closes
+        // first; then the sheet is dismissed, and a dock closes its sidebar (as the sidebar's own Esc); the window is
+        // unchanged.
         Keys.onEscapePressed: event => {
-            if (win.sheet) win.dismiss()
+            if (win.compact && win.navShown) { win.navShown = false; keys.forceActiveFocus() }
+            else if (win.sheet) win.dismiss()
+            else if (win.docked) { Changes.putBack(); Store.act("sidebar.close", {}) }
             else event.accepted = false
         }
         function dismiss(): void {
             Changes.putBack()
             if (root.sheetHost) root.sheetHost.close()
-            else root.quit()
+            else root.closeUser()
         }
 
         Shortcut {
@@ -265,6 +342,13 @@ ShellRoot {
             // Settings as a sheet (K63): the host in use — for the sheet its rectangle on the output, as
             // "sheet x,y WxH on <output> WxH" —, the page's scroll position, and the frames drawn so far (idle check).
             function host(): string {
+                // W77: the dock as "dock <side> <inset>,<top> WxH on <output>" (the window's size as mapped).
+                const d = root.dockHost
+                if (root.host === "dock" && d) {
+                    const p = d.place || {}
+                    return "dock " + p.side + " " + p.inset + "," + p.top + " " + Math.round(d.width) + "x"
+                        + Math.round(d.height) + " on " + (d.screen ? d.screen.name : "?")
+                }
                 const h = root.sheetHost
                 if (!h) return root.host
                 const f = h.frame
@@ -282,9 +366,17 @@ ShellRoot {
             }
             function advanced(on: bool): void { win.advanced = on }
             function preview(name: string): void { win.page = "@profiles"; profiles.select(name) }
-            function jump(key: string): void { win.openKey(key) }
+            // (the daemon's `settings.open` asks these of a running app: each shows the user's own host, W77 — a process
+            // that runs only for a sidebar's dock has none yet)
+            function jump(key: string): void { root.showUser(); win.openKey(key) }
             // A page link (I40): `keys`, `mod:<id>`; the daemon's `settings.open {page}` calls it on a running window.
-            function page(link: string): void { win.openPage(link) }
+            function page(link: string): void { root.showUser(); win.openPage(link) }
+            function open(): string { root.showUser(); return win.current }
+            // W77 tests: whether the user's host is open, the dock's "Show here" asked for, and the drawer of a narrow host.
+            function userOpen(): string { return root.userOpen ? "true" : "false" }
+            function showHere(): void { if (root.host === "dock") root.preferDock = false; else if (root.dock) root.preferDock = true }
+            function compact(): string { return win.compact ? (win.navShown ? "drawer" : "true") : "false" }
+            function query(): string { return win.query }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
             function modLoad(id: string): void { modsPage.load(id) }
             function modUnload(id: string): void { modsPage.unload(id) }
@@ -426,7 +518,8 @@ ShellRoot {
             Rectangle {
                 id: header
                 width: parent.width
-                height: 52
+                // (W77, narrow: a second row under the search for Undo, Redo, Advanced and the notice)
+                height: win.compact ? 52 + 40 : 52
                 color: Theme.container
                 topLeftRadius: root.cornerR
                 topRightRadius: root.cornerR
@@ -443,13 +536,34 @@ ShellRoot {
                 }
                 // The sheet has no title bar: its own close button sits at the header's end (UX brief: Esc, the backdrop
                 // or this button).
+                // W77: in the sidebar's dock, the key at the header's end opens Settings in its own window (the sidebar's
+                // close takes the dock away; Esc closes the sidebar).
+                Button {
+                    id: popOutButton
+                    objectName: "dock-pop-out"
+                    visible: win.docked
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.pad
+                    y: (52 - height) / 2
+                    width: height
+                    label: Theme.iconFamily !== "" ? "" : "⧉"
+                    accessibleName: I18n.tr("settings.dock.pop_out")
+                    onClicked: root.showUser()
+                    Icon {
+                        visible: Theme.iconFamily !== ""
+                        anchors.centerIn: parent
+                        name: "open_in_new"
+                        size: Theme.fs + 4
+                        color: Theme.fg
+                    }
+                }
                 Button {
                     id: closeButton
                     objectName: "sheet-close"
                     visible: win.sheet
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: (52 - height) / 2
                     width: height
                     label: Theme.iconFamily !== "" ? "" : "✕"
                     accessibleName: I18n.tr("settings.sheet.close")
@@ -467,11 +581,33 @@ ShellRoot {
                     }
                 }
                 Row {
-                    anchors.fill: parent
-                    anchors.margins: Theme.pad
-                    anchors.rightMargin: win.sheet ? closeButton.width + 2 * Theme.pad : Theme.pad
+                    id: headRow
+                    x: Theme.pad
+                    y: Theme.pad
+                    width: parent.width - Theme.pad - (win.sheet || win.docked ? closeButton.width + 2 * Theme.pad : Theme.pad)
+                    height: 52 - 2 * Theme.pad
                     spacing: Theme.gap
+                    // W77, narrow: the pages' drawer (the navigation is not beside the page there).
+                    Button {
+                        id: pagesButton
+                        objectName: "pages-drawer"
+                        visible: win.compact
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: height
+                        label: Theme.iconFamily !== "" ? "" : "☰"
+                        accessibleName: I18n.tr("settings.ui.pages")
+                        primary: win.navShown
+                        onClicked: win.navShown = !win.navShown
+                        Icon {
+                            visible: Theme.iconFamily !== ""
+                            anchors.centerIn: parent
+                            name: "menu"
+                            size: Theme.fs + 4
+                            color: win.navShown ? Theme.fgOnAccent : Theme.fg
+                        }
+                    }
                     Text {
+                        visible: !win.compact
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
                         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
@@ -484,7 +620,7 @@ ShellRoot {
                     TextField {
                         id: search
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 260
+                        width: win.compact ? Math.max(120, headRow.width - pagesButton.width - Theme.gap) : 260
                         label: I18n.tr("settings.ui.search")
                         value: win.query
                         placeholder: I18n.tr("settings.ui.search")
@@ -493,6 +629,15 @@ ShellRoot {
                         escapeTaken: win.query !== ""
                         onEscaped: { win.query = ""; keys.forceActiveFocus() }
                     }
+                }
+                    // Undo, Redo, Advanced and the notice: after the search, or on a second row under it when narrow.
+                    Row {
+                        id: tools
+                        x: win.compact ? Theme.pad : headRow.x + search.x + search.width + Theme.gap
+                        y: win.compact ? 52 - Theme.pad / 2 + (40 - height) / 2 : (52 - height) / 2
+                        width: Math.max(0, (win.compact ? header.width - Theme.pad : headRow.x + headRow.width) - x)
+                        height: Theme.controlH
+                        spacing: Theme.gap
                     // Undo and redo are on while the daemon's config.history says there is something to take back. Redo
                     // stays off after a preview was put back: its step is the cancelled preview (Changes).
                     Button {
@@ -544,7 +689,7 @@ ShellRoot {
                         font.family: Theme.fam(text, Theme.families)
                         text: !Store.live ? I18n.tr("settings.ui.disconnected") : Store.notice
                     }
-                }
+                    }
             }
 
             // --- output picker (per_output rows) -------------------------------------------
@@ -554,6 +699,8 @@ ShellRoot {
                 height: visible ? 40 : 0
                 // On the ground (its colour, its relief).
                 color: "transparent"
+                // (narrow: the outputs run off the end rather than over the page)
+                clip: win.compact
                 Row {
                     anchors.fill: parent
                     anchors.margins: Theme.gap
@@ -581,17 +728,28 @@ ShellRoot {
             }
 
             Row {
+                id: bodyRow
                 width: parent.width
-                height: parent.height - 52 - (Store.outputNames().length > 0 ? 40 : 0)
+                height: parent.height - header.height - (Store.outputNames().length > 0 ? 40 : 0)
 
                 // --- sidebar -----------------------------------------------------------------
                 // Framed as the section cards are (session 17, docs/ux/settings.md): inset by the gap, the card radius,
                 // the chrome's outline (a hairline where it has none) and its hard shadow along the shadow vector.
+                // W77, narrow: no room beside the page — the same block is a drawer over it (the pages key, Esc or a page
+                // picked closes it; a click beside it too).
                 Item {
-                    width: 220
+                    width: win.compact ? 0 : 220
                     height: parent.height
+                    z: 1
+                    MouseArea {
+                        visible: win.compact && win.navShown
+                        width: bodyRow.width
+                        height: parent.height
+                        onClicked: win.navShown = false
+                        Rectangle { anchors.fill: parent; color: Theme.scrim; opacity: 0.5 }
+                    }
                     RoundBox {
-                        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                        visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && navFace.visible
                         x: navFace.x + Theme.sinkX
                         y: navFace.y + Theme.sinkY
                         width: navFace.width
@@ -601,9 +759,12 @@ ShellRoot {
                     }
                     RoundBox {
                     id: navFace
+                    visible: !win.compact || win.navShown
                     x: Theme.gap
                     y: Theme.gap
-                    width: parent.width - 2 * Theme.gap
+                    width: win.compact ? Math.min(240, bodyRow.width - 3 * Theme.gap) : parent.width - 2 * Theme.gap
+                    // (a click on the drawer's free part never reaches the page under it)
+                    MouseArea { anchors.fill: parent; enabled: win.compact }
                     height: parent.height - 2 * Theme.gap - Theme.shadowDy
                     radius: Theme.rLg
                     color: Theme.container
@@ -680,7 +841,7 @@ ShellRoot {
                                     readonly property string shownName: isMod ? win.navName(navEntry.modelData)
                                         : navEntry.modelData.id === "@changed" ? I18n.fmt("settings.ui.changed_count", { n: win.changedCount })
                                         : I18n.pageTitle(navEntry.modelData.id, navEntry.modelData.label)
-                                    function open(): void { win.page = navEntry.modelData.id; win.query = ""; settingsPages.showSection("") }
+                                    function open(): void { win.page = navEntry.modelData.id; win.query = ""; settingsPages.showSection(""); win.navShown = false }
                                     width: parent.width
                                     height: Theme.controlH + 4
                                     // Concentric with the window's corner across the column's margin (I269: the user's
@@ -808,7 +969,7 @@ ShellRoot {
                                             activeFocusOnTab: true
                                             Accessible.role: Accessible.PageTab
                                             Accessible.name: modelData.title
-                                            function open(): void { settingsPages.showSection(modelData.id) }
+                                            function open(): void { settingsPages.showSection(modelData.id); win.navShown = false }
                                             onActiveFocusChanged: if (activeFocus) navFlick.reveal(sub)
                                             Keys.onReturnPressed: event => { sub.open(); event.accepted = true }
                                             Keys.onEnterPressed: event => { sub.open(); event.accepted = true }
@@ -855,7 +1016,7 @@ ShellRoot {
 
                 // --- content -----------------------------------------------------------------
                 Item {
-                    width: parent.width - 220
+                    width: parent.width - (win.compact ? 0 : 220)
                     height: parent.height
                     SettingsPages {
                         id: settingsPages
