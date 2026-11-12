@@ -770,13 +770,17 @@ impl Dock {
 
     /// W76: the bar card closed (its Esc, or the shell saw it close: `webdock.card {closed}`): the "+" page it showed goes,
     /// and the card shows its first pin when it opens again.
+    /// The card lets the page go; [`Dock::sweep`] drops it unless another place shows it now ("Show at the edge", "Keep open
+    /// at the edge" move a "+" page to the edge before the card closes).
     pub fn card_closed(&mut self) {
         if let Some(id) = self.card.pin.clone()
             && self
                 .temp_of(&id)
                 .is_some_and(|t| t.temp == Some(Temp::Browse))
         {
-            self.forget_temp(&id);
+            self.card.pin = None;
+            self.default_card_pin();
+            self.sweep();
         }
     }
 
@@ -903,6 +907,19 @@ impl Dock {
             *slot = kept;
         }
         Ok(())
+    }
+
+    /// A refused unpin (the write failed): the page is the pin's again.
+    pub fn unpin_undo(&mut self, pin: &str) {
+        if self
+            .temp_of(pin)
+            .is_some_and(|t| t.temp == Some(Temp::Kept))
+        {
+            self.temps.retain(|t| t.id != pin);
+            if let Some(p) = self.pins.iter_mut().find(|p| p.id == pin) {
+                p.temp = None;
+            }
+        }
     }
 
     /// The temporary page `id`, if `pin` names one (W76: `webdock.add {from}`).
@@ -3530,6 +3547,15 @@ mod tests {
         d.card_closed();
         assert!(d.temp_of(&c4).is_none(), "a close drops it");
         d.card_place(Some(card_place()), false);
+        // A "+" page the card moved to the edge ("Show at the edge", "Keep open at the edge") survives the card's close.
+        let c5 = d.browse(Spot::Card, None);
+        d.open(&c5, Some("DP-1")).unwrap();
+        d.card_closed();
+        assert!(d.temp_of(&c5).is_some(), "the edge shows it now");
+        assert_eq!(d.doc()["shown"], json!(c5));
+        d.collapse();
+        d.sweep();
+        assert!(d.temp_of(&c5).is_none(), "the edge closed: it goes");
         // The bar card's Esc (card_close) drops its "+" page and shows the first pin again.
         let c3 = d.browse(Spot::Card, None);
         d.card_close();
@@ -3623,6 +3649,12 @@ mod tests {
             "past the cap the kept page goes"
         );
         assert_eq!(d.unpin_keep("weather"), Err(DockError::NotASite));
+        // A refused write gives the page back to its pin.
+        d.open("chat", None).unwrap();
+        d.unpin_keep("chat").unwrap();
+        d.unpin_undo("chat");
+        assert!(d.temp_of("chat").is_none());
+        assert!(pin_of(&d.doc(), "chat").get("temporary").is_none());
     }
 
     #[test]

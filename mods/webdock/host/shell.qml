@@ -138,6 +138,8 @@ ShellRoot {
         pinForcedBy: root.forcedBy("pinned")
         // (the bar card resizes in its `dock` size only, the default: `card_size` absent)
         resizable: root.doc.card_size === undefined
+        box: root.barCardDoc.place ? (root.sizes[root.barCardDoc.place.output] || null) : null
+        dockWidth: root.geo.width || 412
         sizesForcedBy: root.forcedBy("sizes")
     }
 

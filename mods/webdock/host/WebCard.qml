@@ -58,7 +58,11 @@ PanelWindow {
     // (W76: an empty "+" page asks too: its address field must take the first keystroke)
     readonly property bool asksKeys: open && (engaged || blankShown) && !winActive && !pulseSpent
     readonly property bool blankShown: !!shownPin && shownPin.temporary === true && String(shownPin.target || "") === ""
-    onBlankShownChanged: if (blankShown) pulseSpent = false
+    onBlankShownChanged: if (blankShown) { pulseSpent = false; holdSpent = false; holdTimer.restart() }
+    // The hold is bounded: 15 s without a keystroke in the field lets the keyboard go (a pinned dock never hides, and a
+    // click into another window must reach it then).
+    property bool holdSpent: false
+    Timer { id: holdTimer; interval: 15000; onTriggered: card.holdSpent = true }
     onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
     Timer { id: pulseTimer; interval: 1000; onTriggered: card.pulseSpent = true }
     property string output: ""
@@ -325,8 +329,9 @@ PanelWindow {
     function clampH(h) { return Math.max(300, Math.min(maxBoxH, Math.round(h))) }
     function outName() { return screenObj ? String(screenObj.name) : output }
     function writeBox() {
-        if (sizeInert || liveW < 0) return
-        var w = liveW, h = liveH
+        if (sizeInert || (liveW < 0 && liveH < 0)) return
+        // (only what was dragged: the other side keeps the box, not the size it is clamped to on this output)
+        var w = liveW >= 0 ? liveW : (box ? box.width : phoneWidth), h = liveH >= 0 ? liveH : (box ? box.height : 2 * phoneWidth)
         if (box && box.width === w && box.height === h) { liveW = -1; liveH = -1; return }
         if (debugLog) console.log("webdock-debug resize " + outName() + " " + w + " " + h)
         Store.act("webdock.resize", { output: outName(), width: w, height: h }, function (m, err) {
@@ -353,13 +358,11 @@ PanelWindow {
         if (key === Qt.Key_Left || key === Qt.Key_Right) {
             // the free edge moves the arrow's way: away from a right strip is left, else right
             var wider = edge === "right" ? key === Qt.Key_Left : key === Qt.Key_Right
-            w += wider ? grow : -grow
+            liveW = clampW(w + (wider ? grow : -grow))
         } else {
             var taller = edge === "bottom" ? key === Qt.Key_Up : key === Qt.Key_Down
-            h += taller ? grow : -grow
+            liveH = clampH(h + (taller ? grow : -grow))
         }
-        liveW = clampW(w)
-        liveH = clampH(h)
         keyWrite.restart()
         return true
     }
@@ -487,7 +490,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     // (W76: an empty "+" page holds the keyboard for its field until an address is typed or Esc drops it: on niri the
     // keyboard went back to the strip the "+" was clicked on once the pulse relaxed, and the typed text with it)
-    WlrLayershell.keyboardFocus: asksKeys || (open && blankShown) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: asksKeys || (open && blankShown && !holdSpent) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
     // The window spans the usable area of the output: anchored to all four sides, so the compositor stretches it between
     // the bars, along a side edge's length and, on a top or bottom edge, across the usable width and height (I100).
@@ -692,7 +695,7 @@ PanelWindow {
                         if (!pressed) return
                         var d = at(ev) - start
                         if (!moved && Math.abs(d) < 2) return
-                        if (!moved) { moved = true; card.liveW = startW; card.liveH = startH; card.dragging = true }
+                        if (!moved) { moved = true; card.dragging = true }
                         if (grip.horiz) card.liveW = card.clampW(startW + sign * d)
                         else card.liveH = card.clampH(startH + sign * d)
                     }
@@ -893,6 +896,7 @@ PanelWindow {
                                     title: header.title
                                     pin: card.shownPin
                                     page: card.activePage
+                                    onTyped: holdTimer.restart()
                                     report: card.report
                                     onWidthChanged: if (card.phoneLook && card.report && card.debugLog)
                                         console.log("webdock-debug title width", Math.round(width))
@@ -996,6 +1000,7 @@ PanelWindow {
                                 title: header.title
                                 pin: card.shownPin
                                 page: card.activePage
+                                onTyped: holdTimer.restart()
                                 report: card.report
                                 onWidthChanged: if (!card.phoneLook && card.report && card.debugLog)
                                     console.log("webdock-debug title width", Math.round(width))

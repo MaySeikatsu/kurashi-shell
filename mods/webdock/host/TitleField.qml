@@ -24,6 +24,8 @@ Item {
     readonly property bool open: editing || blank
     readonly property bool inputFocus: input.activeFocus
     property string error: ""
+    // (each edit: the window that holds the keyboard for an empty field keeps holding it while the user types)
+    signal typed()
 
     function begin() {
         if (!pin) return
@@ -121,7 +123,7 @@ Item {
             Keys.onReturnPressed: tf.submit()
             Keys.onEnterPressed: tf.submit()
             Keys.onEscapePressed: event => { tf.cancel(); event.accepted = true }
-            onTextEdited: tf.error = ""
+            onTextEdited: { tf.error = ""; tf.typed() }
             // A click elsewhere puts the title back (an empty temporary page keeps its field).
             onActiveFocusChanged: if (!activeFocus && tf.editing && !tf.blank) tf.end()
         }

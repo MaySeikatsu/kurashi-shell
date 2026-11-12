@@ -583,6 +583,19 @@ wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "'"$WW $(( WH - 60 ))"
 ok "the bar card's grip: up 60 px writes sizes[$OUT] = ${WW}x$(( WH - 60 )) and the well follows, no reload"
 K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null || fail "webdock.resize (reset) refused"
 wait_until 10 doc_is "'sizes' not in d" || fail "the reset kept the box"
+# The side grip (the card stands at the screen's right: its left edge) 40 px left: only the width is written — the height
+# stays the box's (twice `width`: 824), not the well's height the Stage's limit holds it to (W76).
+wait_until 10 eval '[ "$(panel_card | cut -d" " -f4,5)" = "412 '"$ROOM"'" ]' || fail "the well did not go back to 412x$ROOM after the reset ($(panel_card))"
+check_geometry o top
+read -r O X Y WW WH _ <<< "$(panel_card)"
+GX=$(( X + 3 )); GY=$(( Y + WH / 2 ))
+mv_to "$GX" "$GY"
+echo "draw $GX,$GY $(( GX - 20 )),$GY $(( GX - 40 )),$GY" >&9; sleep 1
+wait_until 10 doc_is "d.get('sizes', {}).get('$OUT') == {'width': $(( WW + 40 )), 'height': 824}" \
+  || fail "the side grip did not write the width alone ($(doc "d.get('sizes')"), well ${WW}x$WH)"
+ok "the bar card's side grip: 40 px wider writes the width alone (${WW} → $(( WW + 40 )), height 824 kept, the well $WH)"
+K act webdock.resize "{\"output\":\"$OUT\"}" >/dev/null || fail "webdock.resize (reset) refused"
+wait_until 10 doc_is "'sizes' not in d" || fail "the reset kept the box"
 # Keep open at the edge: the page moves to the edge dock, pinned; the bar card closes.
 wait_until 10 eval '[ -n "$(card_keys o)" ]'
 read -r _ _ _ _ _ _ _ KX KY <<< "$(card_keys o)"

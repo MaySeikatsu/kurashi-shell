@@ -39,6 +39,9 @@ PanelWindow {
     property string pinForcedBy: ""
     property bool resizable: false
     property string sizesForcedBy: ""
+    // (the remembered box on this output, and `geometry.width`: the side not dragged keeps it, not the clamped well)
+    property var box: null
+    property int dockWidth: 412
     readonly property string tag: cardRole ? "card" : "side"
 
     readonly property bool onRight: !cardRole && !!place && place.side === "right"
@@ -57,7 +60,7 @@ PanelWindow {
     WlrLayershell.namespace: cardRole ? "kurashi-webdock-card" : "kurashi-webdock-side"
     // (W72: the card's window asks for the keyboard once when the page is asked for it; a click gives it on demand)
     // (W76: an empty "+" page holds the keyboard for its field, as the edge card does)
-    WlrLayershell.keyboardFocus: asksKeys || (visible && blank) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: asksKeys || (visible && blank && !holdSpent) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     anchors.top: true
     anchors.left: !onRight
     anchors.right: onRight
@@ -80,6 +83,9 @@ PanelWindow {
     onPlaceChanged: { dragW = 0; dragH = 0; if (debugLog) keysLog.restart() }
     function writeBox(w, h) {
         if (sizesForcedBy !== "" || !place) return
+        // (null: not dragged — the remembered box, or the default `width` × twice that)
+        if (w === null) w = box ? box.width : dockWidth
+        if (h === null) h = box ? box.height : 2 * dockWidth
         if (debugLog) console.log("webdock-debug card resize " + place.output + " " + w + " " + h)
         Store.act("webdock.resize", { output: String(place.output), width: w, height: h }, function (m, err) {
             if (err) { console.warn("webdock: webdock.resize refused: " + err.kind + " " + err.msg); side.dragW = 0; side.dragH = 0 }
@@ -105,7 +111,7 @@ PanelWindow {
         keyWrite.restart()
         return true
     }
-    Timer { id: keyWrite; interval: 450; onTriggered: side.writeBox(side.place.width + side.dragW, side.place.height + side.dragH) }
+    Timer { id: keyWrite; interval: 450; onTriggered: side.writeBox(side.dragW !== 0 ? side.place.width + side.dragW : null, side.dragH !== 0 ? side.place.height + side.dragH : null) }
 
     // Test only (KURASHI_WEBDOCK_DEBUG=1, mods/webdock/test/test-sidebar.sh, test-card.sh): the window, the page in it,
     // its frames. (A card's place reads `<output> <x> <y> <w> <h>`.)
@@ -208,7 +214,10 @@ PanelWindow {
     }
     // (an empty "+" page asks for the keyboard for its field, once, as the page does on Tab)
     readonly property bool blank: temp && String(pin.target || "") === ""
-    onBlankChanged: if (blank && visible) { pulseSpent = false; wantKeys = true }
+    onBlankChanged: if (blank && visible) { pulseSpent = false; wantKeys = true; holdSpent = false; holdTimer.restart() }
+    // (bounded as the edge card's: 15 s without a keystroke lets the keyboard go)
+    property bool holdSpent: false
+    Timer { id: holdTimer; interval: 15000; onTriggered: side.holdSpent = true }
     // The keyboard asked for the page (Tab past the card's keys): the window asks for it exclusively until it has it, at
     // most a second (WebCard's pulse), then on demand again.
     property bool winActive: false
@@ -362,7 +371,7 @@ PanelWindow {
                             else side.dragH = v
                         }
                         onReleased: {
-                            if (moved && side.place) side.writeBox(side.place.width + side.dragW, side.place.height + side.dragH)
+                            if (moved && side.place) side.writeBox(grip.horiz ? side.place.width + side.dragW : null, grip.horiz ? null : side.place.height + side.dragH)
                             moved = false
                         }
                         onDoubleClicked: side.resetBox()
@@ -445,6 +454,7 @@ PanelWindow {
                     pin: side.pin
                     page: side.page
                     report: side.report
+                    onTyped: holdTimer.restart()
                 }
                 HostButton {
                     id: navPin

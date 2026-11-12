@@ -776,15 +776,17 @@ shell's own cards' title row; the bar card's navigation row).
   (`webdock.add {url, title, from}`): the new pin takes that page — the same page, no reload (the host renames it; the
   document says `was` on the new pin) — and the profile `browse`; it appears at the end of the strip.
 - **Dropped** when Esc is pressed in its empty field, when its card closes (the edge card's ×, Esc on its chrome, the bar
-  card's Esc), when the place picks another pin, or when "+" opens another one; a hover hide keeps it (the next reveal
-  shows it again, as any shown pin). Where the shell cannot tell a close from a move (the bar card closed by a click
-  away, the sidebar closed) it stays that place's page until another pin is picked or the dock's rules unload it.
+  card closing in any way: its panel reads the Stage's `runtime.ui` and says `closed`), when the place picks another pin,
+  or when "+" opens another one — unless another place shows it then ("Show at the edge" and "Keep open at the edge"
+  move it to the edge first); a hover hide keeps it (the next reveal shows it again, as any shown pin). In the sidebar
+  it stays the sidebar's page until another pin is picked or the dock's rules unload it (the sidebar keeps its panel
+  loaded after it closes, K139, and the panel cannot tell that close from a slide).
 - **The title is the field:** a click on the card's title (the edge card's header and pill, the bar card's and the
   sidebar's navigation row) turns it into the same field holding the page's address, selected; Enter goes there in the
   same page (`webdock.go`): the pin stays at its address — its *home* (W20's home key returns there; after it unloads it
   opens there again). Esc or a click elsewhere puts the title back.
 - **The pin's menu** (`PinMenu.qml`, the strip's right click / menu key) gains, after what it had (move up, move down,
-  remove, close): **Reload** (`webdock.reload {pin}`: the loaded page reloads; inert while not loaded), **Update pin to
+  remove, close; the new entries before Close): **Reload** (`webdock.reload {pin}`: the loaded page reloads; inert while not loaded), **Update pin to
   this page** (`webdock.retarget {pin}` with the page's current address, which the host reports as `at` on the pin while
   it differs from the target; inert while the page is at home or not loaded), **Unpin but keep open**
   (`webdock.unpin {pin}`: the row goes at once — one undo step, and `kurashi undo` brings the pin back with its page — and
@@ -828,7 +830,8 @@ shell's own cards' title row; the bar card's navigation row).
   (`ListModel.setProperty`) and, until then, resolves the old id to the new pin (`pinById`), so the page's address and
   view never flicker through "none" (a view flicker reloaded the page: measured, fixed).
 - **The keyboard for the empty field:** the host's window holds the keyboard exclusively while the field is empty (edge
-  card and sidebar/bar card windows); on Enter it relaxes to on demand.
+  card and sidebar/bar card windows); on Enter it relaxes to on demand. The hold is bounded: 15 s without a keystroke
+  in the field lets the keyboard go (a pinned dock never hides, and a click into another window must reach it).
 - **A typed path** (`/home/…/x.html`) is a local file (`file://`), as in a browser's address bar; the test types paths
   (the virtual keyboard's `:` did not reach the host's field).
 - **The pin's menu over a site's card:** the menu opened under the host's card window (both on the Top layer, the host's
@@ -863,7 +866,9 @@ shell's own cards' title row; the bar card's navigation row).
 - [x] Title click → field with the address → Enter goes there; the pin's target is unchanged, `at` reports the page's
       address (test-card 6c).
 - [x] Menu: Reload (the counter, a new load report), Update pin to this page (the target changes, `at` clears), Unpin but
-      keep open (the row goes, the page stays loaded), `kurashi undo` brings the pin back (test-card 6d, keyboard).
+      keep open (the row goes, the page stays loaded), `kurashi undo` brings the pin back (test-card 6d, keyboard). Open:
+      twice an undo sent at once after the menu's unpin left the row back in the configuration while the document kept
+      the page temporary; with a 1 s pause it passes, and from the command line on niri, back to back, it never failed.
 - [x] Daemon unit tests: resolve (address / path / search / refused schemes), the search setting, temporary pages
       (browse, go, drop, the card's close, adopt), unpin keeps the page and undo gives it back, the menu's reload and the
       page's address, the sizes rows (`cargo test -p kurashi-mod-webdock`: 53 + 24).

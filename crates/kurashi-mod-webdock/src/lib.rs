@@ -564,12 +564,19 @@ impl Shared {
     /// page until the dock's rules unload it.
     async fn unpin(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
+        if self.settings.forced_by("pins").is_some() {
+            return Err(dock_error(DockError::Forced));
+        }
         let rows = remove_row(&rows_of(&self.settings), pin).map_err(dock_error)?;
         self.with_dock(|d| d.unpin_keep(pin).map_err(dock_error))?;
-        self.writer
-            .set("pins", Value::Array(rows))
-            .await
-            .map_err(settings_error)?;
+        if let Err(e) = self.writer.set("pins", Value::Array(rows)).await {
+            // The row stays: so does the pin (its page was never anything else).
+            let _ = self.with_dock(|d| {
+                d.unpin_undo(pin);
+                Ok(())
+            });
+            return Err(settings_error(e));
+        }
         Ok(None)
     }
 
