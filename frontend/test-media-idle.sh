@@ -290,7 +290,9 @@ restart_qs() { # restart_qs <log> [env…]
   for _ in $(seq 100); do grep -q 'get_layer_surface\|Configuration Loaded' "$log" 2>/dev/null && break; sleep 0.1; done
 }
 LOG=$R/qs-debug.log
-restart_qs "$LOG" WAYLAND_DEBUG=client
+# (MEDIA_IDLE_QS_ENV: more environment for the frontend while hunting, e.g. QT_LOGGING_RULES=qt.scenegraph.time.renderloop=true)
+# shellcheck disable=SC2086
+restart_qs "$LOG" WAYLAND_DEBUG=client ${MEDIA_IDLE_QS_ENV:-}
 # The start: the cover, the theme from it, the first spawn of every text, the lyrics' first line. Long enough for the
 # shell's own start-up animations to end.
 sleep "${MEDIA_IDLE_SETTLE:-12}"
@@ -327,9 +329,23 @@ say "off: [${MEDIA_IDLE_OFF:-none}] total $TOTAL commits in $SECS s ($trate/s); 
 if [ -n "${MEDIA_IDLE_CPU:-}" ]; then
   restart_qs "$R/qs.log"
   sleep "${MEDIA_IDLE_SETTLE:-12}"
-  c0=$(cpu "$QS"); sleep "$SECS"; c1=$(cpu "$QS")
+  # (and by thread name: the GUI thread, the render threads, the rest — top -H's view)
+  threads() { for t in /proc/"$QS"/task/*; do echo "$(cat "$t/comm" 2>/dev/null)|$(awk '{print $14 + $15}' "$t/stat" 2>/dev/null)"; done; }
+  threads > "$OUT/t0"; c0=$(cpu "$QS"); sleep "$SECS"; c1=$(cpu "$QS"); threads > "$OUT/t1"
   pct=$(awk -v a="$c0" -v b="$c1" -v t="$SECS" -v k="$TICK" 'BEGIN {printf "%.0f", (b - a) / k / t * 100}')
-  say "off: [${MEDIA_IDLE_OFF:-none}] frontend CPU ${pct}% (no debug log)"
+  by=$(python3 -I -c '
+import collections, sys
+def read(p):
+    d = collections.Counter()
+    for line in open(p):
+        name, _, v = line.strip().rpartition("|")
+        if v: d[name or "?"] += int(v)
+    return d
+a, b, secs, tick = read(sys.argv[1]), read(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4])
+diff = {k: (b[k] - a.get(k, 0)) / tick / secs * 100 for k in b}
+print(", ".join("%s %.0f%%" % (k, v) for k, v in sorted(diff.items(), key=lambda x: -x[1]) if v >= 1))
+' "$OUT/t0" "$OUT/t1" "$SECS" "$TICK")
+  say "off: [${MEDIA_IDLE_OFF:-none}] frontend CPU ${pct}% (no debug log; by thread: $by)"
 fi
 errs=$(grep -E 'TypeError|ReferenceError|Cannot read|is not a function' "$LOG" | sort -u | head -5)
 [ -z "$errs" ] || fail "QML errors: $errs"

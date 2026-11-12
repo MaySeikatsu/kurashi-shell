@@ -31,8 +31,10 @@ Singleton {
     // Music: the media document, watched only while the flow waits for it.
     readonly property bool wantsMedia: on && when === "media"
     readonly property var media: wantsMedia && Store.docs ? Store.docs["svc.media"] : null
+    // (W75: `!!` — without an `active` player the expression was `undefined`, which a bool refuses: the property kept its
+    // last value, so a pause could leave the flow running)
     readonly property bool playing: !!media && (media.status === "playing" || media.playing === true
-        || (media.active && media.active.status === "playing"))
+        || !!(media.active && media.active.status === "playing"))
     readonly property bool running: on && (when === "always" || (when === "active" && busy) || (when === "media" && playing))
 
     // The clock: 0 … 1, one round in 12 s at speed 1.
