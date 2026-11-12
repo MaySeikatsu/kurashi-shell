@@ -43,8 +43,12 @@ full Settings docked in a sidebar, and later "still sections" for scroll edges u
 6. K145 named groups (`[[layout.groups]]`, core records keys in the schema): a bar group a block of its own that can fold,
    a sidebar group one tab or one stack; a sidebar's "+" (`SectionPicker`); the launcher's search and mods' desk cards
    (notes, lyrics) as sidebar sections.
-**Verified.** See the PR's Verification section (the merge set and `just check` on the combined branch; the web dock's
-four suites green on `feat/s30-webdock` after W76; `media-idle` 7.5/s per pinned sidebar). Seen on nested niri with the
+**Verified.** On the combined branch: `just check` green (fmt, clippy, every test, the launch test, icon names); the merge
+set (41 suites with W75's `media-idle`): 40 pass, `quick-modules` red as on `main` (B92); `quick-sections` and `stage` were
+re-run after the last fix (a kept card dropped on a theme change) and pass. The web dock's `test-card`, `test-sidebar`,
+`test-host`, `test-background` pass on `feat/s30-webdock` after W76 (`test-dock` fails W76's two checks that fail on its
+base too, B123). `media-idle`: 7.5 commits a second per pinned sidebar. The disk filled up mid-session (B124): 154 GB of
+suite sandboxes and merged build dirs deleted at the user's word. Seen on nested niri with the
 user's profile: launcher at the edge, quick card at its limit with scrolling, floating gaps, tab row and its wheel, splat
 opening, bar groups and the fold, the group tab, the "+" picker, the launcher section. Not seen: two real monitors, the
 user's own eyes on anything, WhatsApp (offline sandbox), the OSD (no audio in the sandbox), Settings' Reset in a shot.
