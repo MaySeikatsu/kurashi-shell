@@ -720,10 +720,11 @@ settle 1
 # Session 30 (I493, `bar.card_keep_loaded`, on by default): a closed card keeps its view a minute, and what it watches
 # stays watched (the setting says so); any settings change drops a kept view — the Ma of the closing then holds again.
 [ "$(last_event svc.network)" = "unsub svc.network" ] && fail "card style: a kept card let go of svc.network at once"
-K set bar.card_keep_loaded=false >/dev/null || fail "bar.card_keep_loaded refused"
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.card_keep_loaded":{"value":false}}}}' >/dev/null \
+  || fail "mock.doc refused bar.card_keep_loaded"
 settle 1
 [ "$(last_event svc.network)" = "unsub svc.network" ] || fail "card style: svc.network stayed subscribed after the kept card was dropped"
-K reset bar.card_keep_loaded >/dev/null || true
+K act mock.doc '{"doc":"config","patch":{"values":{"bar.card_keep_loaded":{"value":true}}}}' >/dev/null || true
 echo "ok: the card style (quick.style = card): the Stage's card, 400 px; a tile switches, its arrow opens its page, Escape returns; Ma"
 
 # 18. W71 (the user's review of a compact flyout): a focus ring is drawn whole — its four sides are read in the pixels — round
