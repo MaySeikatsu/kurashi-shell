@@ -23,13 +23,17 @@ Row {
     readonly property var levelsIn: spec.available === true && Array.isArray(spec.bars) ? spec.bars : []
     // The bars take every other of cava's frames: 15 a second (each one is a whole frame of the window they are in, and of
     // the compositor's blur under it), smooth enough for a meter a few pixels tall. The first frame, the last (empty) and
-    // any after a pause are taken at once.
+    // any after a pause are taken at once; a frame left over when the stream stops (the daemon sends no repeat of the
+    // silent frame) is taken a moment later, so the bars never rest on a level that is gone. (A lone Timer is a pause:
+    // it starts no animation driver and wakes no window.)
     property var levels: []
     property real takenAt: 0
     onLevelsInChanged: {
         var now = Date.now()
         if (levelsIn.length === 0 || levels.length === 0 || now - takenAt >= 50) { levels = levelsIn; takenAt = now }
+        else settle.restart()
     }
+    Timer { id: settle; interval: 80; onTriggered: if (lb.levels !== lb.levelsIn) { lb.levels = lb.levelsIn; lb.takenAt = Date.now() } }
     readonly property bool live: watching && levels.length > 0
     // The still mark: a short staircase that reads as "playing" at a glance (the ▂▅▃▆ of a paused meter).
     readonly property var still: [0.45, 0.85, 0.6, 1.0, 0.7, 0.9]

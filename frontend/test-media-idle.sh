@@ -3,7 +3,7 @@
 # platform: niri's blur re-runs on every commit of a blurred surface).
 #   The user's setup (profile red-wood-splatting, session 29): washi, chrome `line`, colour flow while music plays at speed
 #   0.25 (drift, tones), the paper material, text spawn `kana`, the sketch outline, the frame, a bottom bar with the island
-#   (faces clock, media …) and the lyrics line, the desk with its media and lyrics cards, the web dock; scheme from the
+#   (faces clock, media …) and the lyrics line, the desk with its media and lyrics cards, the web dock, both sidebars pinned (the user's sections); scheme from the
 #   wallpaper, palette wa-iro, `mods.media.show_art`.
 #   Music: a fake MPRIS player with a cover (crates/kurashi-mock/examples/fake_mpris_art.rs) on the sandbox's bus, a fake
 #   cava on the daemon's PATH (16 levels, 30 a second: svc.audio.spectrum as on a real session), synced lyrics in the
@@ -14,7 +14,7 @@
 #   bars, which are what this suite is about. Nothing opens or closes in the window, so no surface's form runs.
 #
 #   KURASHI_BIN_DIR=<dir with kurashid, kurashi, examples/fake_mpris_art> timeout 900 nix develop -c frontend/test-media-idle.sh
-#   MEDIA_IDLE_OFF="flow art lyrics spectrum outline fx desk island" turns parts off (bisecting; no budget check then);
+#   MEDIA_IDLE_OFF="flow art lyrics spectrum outline fx desk island sidebars" turns parts off (bisecting; no budget check then);
 #   MEDIA_IDLE_CPU=1 also measures the CPU with no debug log (the frontend restarted without it).
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -73,6 +73,8 @@ SPAWN=kana; off fx && SPAWN=none
 DESK=true; off desk && DESK=false
 LYR='"mod:lyrics:lyrics"'; off lyrics && LYR=''
 ISL='"island"'; off island && ISL=''
+# The user pins both sidebars on one output (HDMI-A-1): here, on the one output.
+PIN=true; off sidebars && PIN=false
 cat > "$CFG" <<TOML
 [idle]
 enabled = false
@@ -100,20 +102,29 @@ visibility = "empty_desktop"
 bar = true
 center = [$ISL]
 draw = "auto"
-end = ["tray", "audio", "clock", "quick", "mod:webdock:webdock"]
+end = ["recorder", "tray", "audio", "clock", "quick", "mod:webdock:webdock"]
 start = ["launcher", "workspaces", $LYR]
 visibility = "always"
 
 [edges.top]
 bar = false
+start = []
+center = []
+end = []
 visibility = "empty_desktop"
 
 [edges.left]
 bar = false
+start = []
+center = []
+end = []
 visibility = "empty_desktop"
 
 [edges.right]
 bar = false
+start = []
+center = []
+end = []
 visibility = "hidden"
 
 [island.main]
@@ -132,7 +143,7 @@ reserve = true
 thickness = 10
 
 [mods]
-enabled = ["media", "lyrics", "webdock", "timer"]
+enabled = ["sysmon", "media", "calendar", "lyrics", "webdock", "timer", "wallpaper", "handwriting"]
 
 [mods.media]
 show_art = $ART
@@ -142,9 +153,22 @@ edge = "right"
 reserve = true
 
 [sidebar.left]
+mode = "pages"
+pinned = $PIN
+sections = ["mod:webdock:webdock", "mod:wallpaper:wallpaper", "sliders", "mod:sysmon:sysmon", "mod:timer:timer", "mod:handwriting:handwriting"]
 visibility = "hover"
+width = 390
+
 [sidebar.right]
+mode = "stack"
+pinned = $PIN
+sections = ["header", "toggles", "notifications", "calendar"]
 visibility = "hover"
+width = 390
+
+[mods.sysmon]
+show = ["cpu", "mem", "temp"]
+watch = true
 
 [theme]
 style = "washi"
