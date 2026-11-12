@@ -217,6 +217,28 @@ K act webdock.pin '{"on":false}' >/dev/null
 ok "Show here in the sidebar brings the page back from the edge, with no reload"
 qml_errors
 
+# ---- 2c. W76 (docs/ux/webdock.md "Round three"): "+" in the sidebar's row opens a temporary page with its address field;
+# Esc in the empty field drops it (the sidebar shows a pin again) ----
+for _ in $(seq 40); do grep -qF 'webdock-panel addkey-side ' "$R/qs.log" && break; sleep 0.25; done
+read -r AX AY <<< "$({ grep -F 'webdock-panel addkey-side ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel addkey-side //')"
+[ -n "${AX:-}" ] || fail "the sidebar's row logged no + key"
+ptr move "$AX" $(( OY + AY ))
+ptr click "$AX" $(( OY + AY )) left
+wait_doc "d['sidebar'].get('pin', '').startswith('browse-') and [p for p in d['pins'] if p['id'] == d['sidebar']['pin']][0].get('temporary') == True" 5 \
+  || fail "+ did not open a temporary page in the sidebar ($(doc "d.get('sidebar')"))"
+TMP=$(doc "d['sidebar']['pin']")
+for _ in $(seq 40); do grep -qF "webdock-debug field $TMP open" "$HOSTLOG" && break; sleep 0.25; done
+grep -qF "webdock-debug field $TMP open" "$HOSTLOG" || fail "the temporary page's address field did not open ($HOSTLOG)"
+[ "$(doc "'$TMP' in [p['id'] for p in d['pins']]")" = True ] || fail "the temporary page is not served"
+timeout 10 python3 -I "$ROOT/tools/bench/wl_keys.py" escape >/dev/null 2>&1 || fail "the keyboard did not press Esc"
+wait_doc "'$TMP' not in [p['id'] for p in d['pins']] and not d['sidebar'].get('pin', '').startswith('browse-')" 5 \
+  || fail "Esc in the empty field did not drop the temporary page ($(doc "d.get('sidebar')"))"
+K act webdock.sidebar_select '{"pin":"other"}' >/dev/null
+wait_doc "d['sidebar'].get('pin') == 'other'" 5 || fail "the sidebar did not take its pin back"
+wait_px "$CX" "$CY" '#3a2b45' 10
+ok "+ in the sidebar opens a temporary page with its address field (focused); Esc in the empty field drops it"
+qml_errors
+
 # ---- 3. closing the sidebar hides the page: unmapped, no frames, frozen, kept ----
 hid0=$(count 'webdock-debug side hidden' "$HOSTLOG")
 K act sidebar.toggle '{"side":"left"}' >/dev/null

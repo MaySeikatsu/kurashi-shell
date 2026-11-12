@@ -41,7 +41,10 @@ PanelWindow {
     readonly property var geo: d.geometry || ({})
     readonly property int stripPx: geo.strip || 56
     readonly property int grace: geo.grace !== undefined ? geo.grace : 24
-    readonly property int phoneW: geo.width || 412
+    // W76: the card's box the user dragged on this output (`sizes`), else `width` × twice that (WebCard's own rule).
+    readonly property var box: (d.sizes && d.sizes[outName]) || null
+    readonly property int phoneW: box ? box.width : (geo.width || 412)
+    readonly property int phoneH0: box ? box.height : 2 * phoneW
     readonly property int largePct: geo.large || 90
     readonly property bool large: d.size === "large"
     // W69: the page style the cards wear (absent = phone), the host's card's too.
@@ -54,6 +57,9 @@ PanelWindow {
 
     // ---- the pins and the card's subject ----
     readonly property var pins: d.pins || []
+    // W76: the pins the strip lists: a temporary page (from "+", or unpinned but kept open) is shown, never listed. Made
+    // in refreshRows, and replaced only when the rows change (a binding made a new list on every patch of the document).
+    property var listed: []
     readonly property string shownId: d.shown || ""
     readonly property var shownPin: pinOf(shownId)
     readonly property string hostState: (d.host && d.host.state) || "off"
@@ -68,8 +74,8 @@ PanelWindow {
         return null
     }
     function indexOfPin(id) {
-        for (var i = 0; i < pins.length; i++)
-            if (pins[i].id === id) return i
+        for (var i = 0; i < listed.length; i++)
+            if (listed[i].id === id) return i
         return -1
     }
     // `mod:<id>:<panel>` as { mod, panel }; null for anything else (the same rule as frontend/core/mods.js panelOf).
@@ -84,21 +90,23 @@ PanelWindow {
     // The strip's rows: the pins in order with a divider where the kind changes, then the dock's controls. The list is
     // replaced only when its content changes, so the strip's tiles (and the focus on them) survive other patches.
     function refreshRows() {
-        var out = []
-        for (var i = 0; i < pins.length; i++) {
-            if (i > 0 && pins[i].kind !== pins[i - 1].kind) out.push({ kind: "divider" })
-            out.push({ kind: "pin", pin: pins[i] })
+        var out = [], ps = []
+        for (var k = 0; k < pins.length; k++)
+            if (pins[k].temporary !== true) ps.push(pins[k])
+        for (var i = 0; i < ps.length; i++) {
+            if (i > 0 && ps[i].kind !== ps[i - 1].kind) out.push({ kind: "divider" })
+            out.push({ kind: "pin", pin: ps[i] })
         }
-        if (pins.length > 0) out.push({ kind: "divider" })
+        if (ps.length > 0) out.push({ kind: "divider" })
         out.push({ kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" }, { kind: "ctl", ctl: "settings" })
-        if (JSON.stringify(out) !== JSON.stringify(rowList)) rowList = out
+        if (JSON.stringify(out) !== JSON.stringify(rowList)) { rowList = out; listed = ps }
     }
     Component.onCompleted: { refreshRows(); Qt.callLater(function () { dock.born = true }) }
 
     // ---- what the panel beside the strip shows ----
     readonly property bool viewCard: extended && view !== null
     readonly property bool coldCard: extended && shownPin !== null && shownPin.kind === "web" && hostState !== "ready"
-    readonly property bool emptyCard: extended && pins.length === 0
+    readonly property bool emptyCard: extended && listed.length === 0 && shownPin === null
     // The add form and a pin's menu take the card's place beside the strip, whatever the card shows.
     property string side: ""         // "" | "add" | "menu"
     property string menuId: ""
@@ -112,7 +120,7 @@ PanelWindow {
     // The content held while a panel slides out (it stays until the slide ends, then unloads: Ma).
     property string held: ""
     onKindNowChanged: if (kindNow !== "") held = kindNow
-    onOpenChanged: { if (!open) side = ""; else pulseSpent = false }
+    onOpenChanged: { if (!open) side = ""; else pulseSpent = false; if (open && debugLog) stripLog.restart() }
     // (W64: a panel that closes while the strip stays keeps its content until its form or slide has put it away)
     readonly property string kind: !open ? held : kindNow !== "" ? kindNow : (cardReveal > 0.001 ? held : "")
 
@@ -127,19 +135,38 @@ PanelWindow {
     // A side edge is limited by the window's own length; a top or bottom edge by the usable height it spans, less the
     // strip (the card stands beyond it, across the edge) and a gap at the far end, as WebCard leaves (I100).
     readonly property real cardH: sideways
-        ? (large ? Math.round(along - 2 * gap) : Math.min(2 * phoneW, Math.round(along - 2 * gap)))
-        : (large ? Math.round(spanH - stripPx - 2 * gap) : Math.min(2 * phoneW, Math.round(spanH - stripPx - 2 * gap)))
+        ? (large ? Math.round(along - 2 * gap) : Math.min(phoneH0, Math.round(along - 2 * gap)))
+        : (large ? Math.round(spanH - stripPx - 2 * gap) : Math.min(phoneH0, Math.round(spanH - stripPx - 2 * gap)))
     // Test-only (KURASHI_WEBDOCK_DEBUG=1, test-dock.sh): the card's height and the window's, to check it fills the area.
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
     function logGeometry() { if (debugLog) console.log("webdock-debug dock", edge, cardH, Math.round(height)) }
     onCardHChanged: logGeometry()
+    // (test only, W76: where each listed pin's tile is in the window once the strip is in, and the window's size —
+    // test-card.sh right-clicks a tile for its menu)
+    Timer {
+        id: stripLog
+        interval: 800
+        onTriggered: {
+            for (var i = 0; i < dock.listed.length; i++) {
+                var t = stripItem.tileOf(String(dock.listed[i].id))
+                if (!t) continue
+                var p = t.mapToItem(null, t.width / 2, t.height / 2)
+                console.log("webdock-debug strip " + dock.listed[i].id + " " + Math.round(p.x) + " " + Math.round(p.y) + " "
+                    + Math.round(dock.width) + " " + Math.round(dock.height))
+            }
+        }
+    }
     onHeightChanged: logGeometry()
     onEdgeChanged: logGeometry()
     readonly property real sideSize: 300
     readonly property bool kindSide: kind.indexOf("side") === 0
     // A panel across its edge (its thickness) and along it.
-    readonly property real panelAcross: kind === "" ? 0 : (kindSide ? sideSize : (sideways ? cardW : cardH))
-    readonly property real panelAlong: kind === "" ? 0 : (kindSide ? sideSize : (sideways ? cardH : cardW))
+    // (W76: the pin's menu is 300 wide and 460 tall: its page entries came first)
+    readonly property real menuH: Math.min(380, (sideways ? along : spanH - stripPx) - 2 * gap)
+    readonly property real sideAcross: kind === "side-menu" && !sideways ? menuH : sideSize
+    readonly property real sideAlong: kind === "side-menu" && sideways ? menuH : sideSize
+    readonly property real panelAcross: kind === "" ? 0 : (kindSide ? sideAcross : (sideways ? cardW : cardH))
+    readonly property real panelAlong: kind === "" ? 0 : (kindSide ? sideAlong : (sideways ? cardH : cardW))
     readonly property real panelAlong0: (along - panelAlong) / 2
     readonly property real stripAlong0: (along - stripLen) / 2
     readonly property real stripMax: along - 2 * gap
@@ -295,9 +322,11 @@ PanelWindow {
                 edge: dock.edge
                 panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
-                onPinMenu: id => { dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }
+                // (W76: over a site's card the menu would open under the host's window: the card closes first, the page stays)
+                onPinMenu: id => { if (dock.hostFront) dock.send("webdock.collapse", {}); dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }
                 onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
-                onAddPressed: { dock.sideOwner = "add"; dock.side = "add" }
+                // W76: "+" opens a new temporary page in the card, its address field where the title is (the host's).
+                onAddPressed: dock.send("webdock.browse", { place: "edge", output: dock.outName })
                 onSettingsPressed: dock.send("settings.open", { key: "mods.webdock.pins" })
                 onBackPressed: dock.send("webdock.back", {})
                 onTabPressed: if (dock.panelUp && panelLoader.item) panelLoader.item.forceActiveFocus()
@@ -419,6 +448,9 @@ PanelWindow {
             large: dock.large
             style: dock.pageStyle
             edge: dock.edge
+            pinned: dock.pinned
+            pinForcedBy: dock.forced.pinned !== undefined && dock.forced.pinned !== null ? String(dock.forced.pinned) : ""
+            onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
             onSizeChosen: size => dock.send("webdock.size", { size: size })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
@@ -441,10 +473,13 @@ PanelWindow {
         id: coldC
         Card {
             anchors.fill: parent
-            title: dock.shownPin ? String(dock.shownPin.title || "") : ""
+            title: dock.shownPin ? String(dock.shownPin.title || (dock.shownPin.temporary === true ? I18n.tr("webdock.browse") : "")) : ""
             large: dock.large
             style: dock.pageStyle
             edge: dock.edge
+            pinned: dock.pinned
+            pinForcedBy: dock.forced.pinned !== undefined && dock.forced.pinned !== null ? String(dock.forced.pinned) : ""
+            onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
             onSizeChosen: size => dock.send("webdock.size", { size: size })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
@@ -464,6 +499,9 @@ PanelWindow {
             sizable: false
             style: dock.pageStyle
             edge: dock.edge
+            pinned: dock.pinned
+            pinForcedBy: dock.forced.pinned !== undefined && dock.forced.pinned !== null ? String(dock.forced.pinned) : ""
+            onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
             Notice {
@@ -488,9 +526,13 @@ PanelWindow {
             anchors.fill: parent
             pin: dock.pinOf(dock.menuId) || ({})
             index: dock.indexOfPin(dock.menuId)
-            count: dock.pins.length
+            count: dock.listed.length
             onMoved: to => { dock.send("webdock.move", { pin: dock.menuId, to: to }); dock.side = "" }
             onRemoved: { dock.send("webdock.remove", { pin: dock.menuId }); dock.side = "" }
+            // W76: the page's own entries (docs/ux/webdock.md "Round three": the pin's menu)
+            onReloaded: { dock.send("webdock.reload", { pin: dock.menuId }); dock.side = "" }
+            onRetargeted: { dock.send("webdock.retarget", { pin: dock.menuId }); dock.side = "" }
+            onUnpinned: { dock.send("webdock.unpin", { pin: dock.menuId }); dock.side = "" }
             onClosed: dock.side = ""
         }
     }

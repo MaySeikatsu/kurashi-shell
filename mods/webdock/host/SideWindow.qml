@@ -34,6 +34,14 @@ PanelWindow {
     property bool cardRole: false
     property string dockEdge: "right"
     property int focusAsks: 0
+    // W76 (docs/ux/webdock.md "Round three"): the bar card's keep-open key (moves the page to the edge, pinned), its
+    // resize (the card in `dock` size: `resizable`; inert while `sizes` is forced), who forces either.
+    property string pinForcedBy: ""
+    property bool resizable: false
+    property string sizesForcedBy: ""
+    // (the remembered box on this output, and `geometry.width`: the side not dragged keeps it, not the clamped well)
+    property var box: null
+    property int dockWidth: 412
     readonly property string tag: cardRole ? "card" : "side"
 
     readonly property bool onRight: !cardRole && !!place && place.side === "right"
@@ -51,15 +59,59 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: cardRole ? "kurashi-webdock-card" : "kurashi-webdock-side"
     // (W72: the card's window asks for the keyboard once when the page is asked for it; a click gives it on demand)
-    WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+    // (W76: an empty "+" page holds the keyboard for its field, as the edge card does)
+    WlrLayershell.keyboardFocus: asksKeys || (visible && blank && !holdSpent) ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     anchors.top: true
     anchors.left: !onRight
     anchors.right: onRight
-    margins.top: !place ? 0 : (cardRole ? place.y : place.top)
-    margins.left: !place || onRight ? 0 : (cardRole ? place.x : place.inset)
+    // (W76: while the bar card's well is dragged the window grows by `dragW`, `dragH` on its free sides, the page with it)
+    margins.top: !place ? 0 : (cardRole ? place.y - (growUp ? dragH : 0) : place.top)
+    margins.left: !place || onRight ? 0 : (cardRole ? place.x - (growLeft ? dragW : 0) : place.inset)
     margins.right: place && onRight ? place.inset : 0
-    implicitWidth: place ? Math.max(1, place.width) : 1
-    implicitHeight: place ? Math.max(1, place.height) : 1
+    implicitWidth: place ? Math.max(1, place.width + (cardRole ? dragW : 0)) : 1
+    implicitHeight: place ? Math.max(1, place.height + (cardRole ? dragH : 0)) : 1
+
+    // ---- W76: the bar card's resize: the well's edge away from the bar, and its side away from the nearer screen edge ----
+    property int dragW: 0
+    property int dragH: 0
+    readonly property real scrW: screen ? screen.width : 1920
+    readonly property real scrH: screen ? screen.height : 1080
+    readonly property bool growUp: cardRole && !!place && place.y + place.height / 2 > scrH / 2
+    readonly property bool growLeft: cardRole && !!place && place.x + place.width / 2 > scrW / 2
+    readonly property bool canResize: cardRole && resizable && visible && !!place
+    // A new place (the card re-rested at the written size) ends the drag's offset.
+    onPlaceChanged: { dragW = 0; dragH = 0; if (debugLog) keysLog.restart() }
+    function writeBox(w, h) {
+        if (sizesForcedBy !== "" || !place) return
+        // (null: not dragged — the remembered box, or the default `width` × twice that)
+        if (w === null) w = box ? box.width : dockWidth
+        if (h === null) h = box ? box.height : 2 * dockWidth
+        if (debugLog) console.log("webdock-debug card resize " + place.output + " " + w + " " + h)
+        Store.act("webdock.resize", { output: String(place.output), width: w, height: h }, function (m, err) {
+            if (err) { console.warn("webdock: webdock.resize refused: " + err.kind + " " + err.msg); side.dragW = 0; side.dragH = 0 }
+        })
+    }
+    function resetBox() {
+        dragW = 0
+        dragH = 0
+        if (sizesForcedBy !== "" || !place) return
+        Store.act("webdock.resize", { output: String(place.output) }, function (m, err) {
+            if (err) console.warn("webdock: webdock.resize refused: " + err.kind + " " + err.msg)
+        })
+    }
+    // Ctrl and an arrow on the card's own row: 10 px a press, written after a short pause (one undo step).
+    property int keyW: 0
+    property int keyH: 0
+    function nudge(key) {
+        if (!canResize || sizesForcedBy !== "") return false
+        if (key === Qt.Key_Left || key === Qt.Key_Right) dragW += ((key === Qt.Key_Left) === growLeft ? 10 : -10)
+        else dragH += ((key === Qt.Key_Up) === growUp ? 10 : -10)
+        dragW = Math.max(300 - place.width, dragW)
+        dragH = Math.max(300 - place.height, dragH)
+        keyWrite.restart()
+        return true
+    }
+    Timer { id: keyWrite; interval: 450; onTriggered: side.writeBox(side.dragW !== 0 ? side.place.width + side.dragW : null, side.dragH !== 0 ? side.place.height + side.dragH : null) }
 
     // Test only (KURASHI_WEBDOCK_DEBUG=1, mods/webdock/test/test-sidebar.sh, test-card.sh): the window, the page in it,
     // its frames. (A card's place reads `<output> <x> <y> <w> <h>`.)
@@ -76,6 +128,7 @@ PanelWindow {
     }
     onVisibleChanged: {
         if (debugLog) console.log("webdock-debug " + tag + " " + (visible ? "shown" : "hidden"))
+        if (debugLog && visible) keysLog.restart()
         if (!cardRole) return
         // W72: the page fades in once the card rests (a cut under reduced motion); unmapped, the pointer and the keyboard
         // are out of it, whatever the compositor sent last.
@@ -90,7 +143,24 @@ PanelWindow {
         }
     }
     onPageChanged: geometryLog()
-    onPinChanged: geometryLog()
+    onPinChanged: { geometryLog(); if (debugLog) keysLog.restart() }
+    // (test only, W76: where the title, "Pin" and the keep-open key are on the output: test-card.sh presses them)
+    Timer {
+        id: keysLog
+        interval: 300
+        onTriggered: {
+            if (!side.debugLog || !side.visible || !side.place || !side.cardRole) return
+            function at(it) {
+                if (!it.visible) return "- -"
+                var p = it.mapToItem(null, it.width / 2, it.height / 2)
+                return Math.round(side.margins.left + p.x) + " " + Math.round(side.margins.top + p.y)
+            }
+            console.log("webdock-debug card keys " + (side.pin ? side.pin.id : "-") + " title " + at(navTitle) + " pin "
+                + at(navPin) + " keep " + at(keepKey))
+        }
+    }
+    readonly property bool pinKeyUp: navPin.visible
+    onPinKeyUpChanged: if (debugLog) keysLog.restart()
     Connections {
         target: side.debugLog ? frame.Window.window : null
         function onFrameSwapped() { console.log("webdock-debug " + side.tag + " frame") }
@@ -125,6 +195,29 @@ PanelWindow {
         report("webdock.open", { pin: pin.id, output: place ? place.output : "" })
         closeCard()
     }
+    // W76: "Keep open at the edge" — one place for a page kept open: the edge dock, pinned; the bar card closes.
+    function keepAtEdge() {
+        if (!report || !pin) return
+        report("webdock.open", { pin: pin.id, output: place ? place.output : "" })
+        if (pinForcedBy === "") report("webdock.pin", { on: true })
+        closeCard()
+    }
+    // W76: "Pin" on a temporary page: a pin of the page where the user is now (the host renames the page, no reload).
+    readonly property bool temp: !!pin && pin.temporary === true
+    function pinPage() {
+        if (!temp || !page || !report) return
+        var url = String(page.engine.url)
+        if (url === "" || url === "about:blank") return
+        var args = { url: url, from: String(pin.id) }
+        if (String(page.engine.title || "") !== "") args.title = String(page.engine.title)
+        report("webdock.add", args)
+    }
+    // (an empty "+" page asks for the keyboard for its field, once, as the page does on Tab)
+    readonly property bool blank: temp && String(pin.target || "") === ""
+    onBlankChanged: if (blank && visible) { pulseSpent = false; wantKeys = true; holdSpent = false; holdTimer.restart() }
+    // (bounded as the edge card's: 15 s without a keystroke lets the keyboard go)
+    property bool holdSpent: false
+    Timer { id: holdTimer; interval: 15000; onTriggered: side.holdSpent = true }
     // The keyboard asked for the page (Tab past the card's keys): the window asks for it exclusively until it has it, at
     // most a second (WebCard's pulse), then on demand again.
     property bool winActive: false
@@ -141,7 +234,7 @@ PanelWindow {
         if (!winActive) pulseSpent = false
         reportPage(hoverSent, true)
     }
-    readonly property bool asksKeys: cardRole && visible && !winActive && !pulseSpent
+    readonly property bool asksKeys: (cardRole || blank) && visible && !winActive && !pulseSpent
     onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
     Timer { id: pulseTimer; interval: 1000; onTriggered: side.pulseSpent = true }
     property int focusSeen: -1
@@ -172,6 +265,7 @@ PanelWindow {
         // W72: the card's window reports the pointer and the keyboard in it (handlers on top of the page, passive: the page
         // gets every event). Its keyboard focus gained is the page's.
         Item {
+            id: hoverLayer
             anchors.fill: parent
             z: 100
             HoverHandler {
@@ -189,7 +283,8 @@ PanelWindow {
             side.winActive = Window.active
             if (Window.active) side.pulseSpent = true
             side.reportPage(side.hoverSent, side.wantKeys)
-            if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
+            if (Window.active && side.blank) navTitle.focusField()
+            else if (Window.active && side.cardRole && side.page && !nav.activeFocus) side.page.engine.forceActiveFocus()
         }
         // I482 (the user, session 28: "page first, then close"): in the bar card Esc belongs to the page first. With the
         // keys in the page, the first Esc is the site's — its dialog, its search field — and the card stays; a second Esc within a moment closes the card. With the keys on the card's own row Esc closes at
@@ -199,7 +294,8 @@ PanelWindow {
         Timer { id: escWindow; interval: 1500; onTriggered: side.escArmed = false }
         Shortcut {
             sequence: "Escape"
-            enabled: side.cardRole && side.visible
+            // (W76: not while the address field has the keyboard: its Esc puts the title back)
+            enabled: side.cardRole && side.visible && !navTitle.inputFocus
             onActivated: {
                 var inPage = side.page && side.page.engine && side.page.engine.activeFocus
                 if (!inPage || side.escArmed) { side.escArmed = false; escWindow.stop(); side.closeCard(); return }
@@ -209,6 +305,78 @@ PanelWindow {
                 e.runJavaScript("(function(){var t=document.activeElement||document.body;"
                     + "['keydown','keyup'].forEach(function(k){t.dispatchEvent(new KeyboardEvent(k,"
                     + "{key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true}))})})()")
+            }
+        }
+
+        // W76: the bar card's grips (8 px, half over the well): its edge away from the bar and its side away from the nearer
+        // screen edge. The window grows with the pointer (the page follows 1:1); on release the size is written and the
+        // card follows it (the Stage lays it out again, the page re-rests there).
+        Item {
+            // (inside the hover layer: the pointer on a grip is still in the page's window for its hover report)
+            parent: hoverLayer
+            anchors.fill: parent
+            z: 101
+            visible: side.canResize
+            Repeater {
+                model: ["v", "h"]
+                delegate: Item {
+                    id: grip
+                    required property string modelData
+                    readonly property bool horiz: modelData === "h"
+                    x: horiz ? (side.growLeft ? 0 : parent.width - 8) : 0
+                    y: horiz ? 0 : (side.growUp ? 0 : parent.height - 8)
+                    width: horiz ? 8 : parent.width
+                    height: horiz ? parent.height : 8
+                    Accessible.role: Accessible.Grip
+                    Accessible.name: I18n.tr("webdock.resize.grip")
+                    Accessible.description: side.sizesForcedBy !== ""
+                        ? I18n.tr("webdock.dock.forced.tip").replace("{by}", side.sizesForcedBy)
+                        : I18n.tr("webdock.resize.hint").replace("{w}", side.place ? side.place.width + side.dragW : 0)
+                            .replace("{h}", side.place ? side.place.height + side.dragH : 0)
+                    Rectangle {
+                        visible: side.sizesForcedBy === "" && (gHover.hovered || gDrag.pressed)
+                        x: grip.horiz ? (side.growLeft ? 0 : 6) : 0
+                        y: grip.horiz ? 0 : (side.growUp ? 0 : 6)
+                        width: grip.horiz ? 2 : parent.width
+                        height: grip.horiz ? parent.height : 2
+                        color: Theme.accent
+                        opacity: gDrag.pressed ? 0.9 : 0.55
+                    }
+                    HoverHandler { id: gHover }
+                    MouseArea {
+                        id: gDrag
+                        anchors.fill: parent
+                        enabled: side.sizesForcedBy === ""
+                        cursorShape: grip.horiz ? Qt.SplitHCursor : Qt.SplitVCursor
+                        preventStealing: true
+                        property real start: 0
+                        property int startD: 0
+                        property bool moved: false
+                        readonly property real sign: grip.horiz ? (side.growLeft ? -1 : 1) : (side.growUp ? -1 : 1)
+                        // (on the output: the window itself moves while it grows up or left)
+                        function at(ev) {
+                            var p = mapToItem(null, ev.x, ev.y)
+                            return grip.horiz ? p.x + side.margins.left : p.y + side.margins.top
+                        }
+                        onPressed: ev => { start = at(ev); startD = grip.horiz ? side.dragW : side.dragH; moved = false }
+                        onPositionChanged: ev => {
+                            if (!pressed || !side.place) return
+                            var d = at(ev) - start
+                            if (!moved && Math.abs(d) < 2) return
+                            moved = true
+                            var base = grip.horiz ? side.place.width : side.place.height
+                            var lim = grip.horiz ? side.scrW : side.scrH
+                            var v = Math.round(Math.max(300 - base, Math.min(lim - base, startD + sign * d)))
+                            if (grip.horiz) side.dragW = v
+                            else side.dragH = v
+                        }
+                        onReleased: {
+                            if (moved && side.place) side.writeBox(grip.horiz ? side.place.width + side.dragW : null, grip.horiz ? null : side.place.height + side.dragH)
+                            moved = false
+                        }
+                        onDoubleClicked: side.resetBox()
+                    }
+                }
             }
         }
 
@@ -244,6 +412,12 @@ PanelWindow {
                     if (side.page) side.page.engine.forceActiveFocus()
                     event.accepted = true
                 }
+                // W76: Ctrl and an arrow resize the bar card while its row has the keyboard.
+                Keys.onPressed: event => {
+                    if ((event.modifiers & Qt.ControlModifier) && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down]
+                            .indexOf(event.key) >= 0)
+                        event.accepted = side.nudge(event.key)
+                }
                 Row {
                     id: navL
                     anchors.left: parent.left
@@ -265,18 +439,34 @@ PanelWindow {
                         onClicked: nav.engine.goForward()
                     }
                 }
-                Text {
+                // W76: the title is the address field; "Pin" beside it on a temporary page.
+                TitleField {
+                    id: navTitle
                     anchors.left: navL.right
                     anchors.leftMargin: 6
-                    anchors.right: navR.left
+                    anchors.right: navPin.visible ? navPin.left : navR.left
                     anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    text: nav.engine && nav.engine.title ? nav.engine.title : (side.pin ? side.pin.title : "")
-                    color: Theme.fg
-                    font.pixelSize: Theme.fsLabel
-                    font.weight: Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
+                    height: 26
+                    bold: true
+                    title: nav.engine && nav.engine.title ? nav.engine.title
+                        : (side.pin ? (side.pin.title || (side.temp ? I18n.tr("webdock.browse") : "")) : "")
+                    pin: side.pin
+                    page: side.page
+                    report: side.report
+                    onTyped: holdTimer.restart()
+                }
+                HostButton {
+                    id: navPin
+                    visible: side.temp && String(side.pin.target || "") !== ""
+                    anchors.right: navR.left
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 26
+                    label: I18n.tr("webdock.pin.page.short")
+                    a11y: I18n.tr("webdock.pin.page")
+                    primary: true
+                    onClicked: side.pinPage()
                 }
                 Row {
                     id: navR
@@ -285,7 +475,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
                     HostButton {
-                        visible: !!side.page && !side.page.atTarget
+                        visible: !!side.page && !side.page.atTarget && !side.blank
                         glyph: "⌂"
                         icon: "home"
                         a11y: I18n.tr("webdock.nav.home")
@@ -304,6 +494,18 @@ PanelWindow {
                         enabled: !!side.pin
                         onClicked: if (side.report) side.report("webdock.view",
                             { pin: side.pin.id, view: side.view === "mobile" ? "desktop" : "mobile" })
+                    }
+                    // W76: keep the page open: at the edge, pinned (the bar card closes).
+                    HostButton {
+                        id: keepKey
+                        visible: side.cardRole
+                        glyph: "⊙"
+                        icon: "push_pin"
+                        a11y: I18n.tr("webdock.keep.edge")
+                        Accessible.description: side.pinForcedBy !== ""
+                            ? I18n.tr("webdock.dock.forced.tip").replace("{by}", side.pinForcedBy) : ""
+                        enabled: !!side.pin
+                        onClicked: side.keepAtEdge()
                     }
                     // W72: the way out to the larger place: the pin at the edge (its large size); the card closes.
                     HostButton {
@@ -362,6 +564,23 @@ PanelWindow {
                 onWidthChanged: side.geometryLog()
                 onHeightChanged: side.geometryLog()
 
+                // W76: an empty "+" page: what to do, until an address is typed.
+                Rectangle {
+                    anchors.fill: parent
+                    z: 3
+                    visible: side.blank
+                    color: Theme.containerHigh
+                    Text {
+                        anchors.centerIn: parent
+                        width: parent.width - 2 * Theme.pad
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        text: I18n.tr("webdock.browse.hint")
+                        color: Theme.dim
+                        font.pixelSize: Theme.fs
+                        font.family: Theme.fam(text, Theme.families)
+                    }
+                }
                 // The skeleton until the first paint: no white flash.
                 Rectangle {
                     anchors.fill: parent

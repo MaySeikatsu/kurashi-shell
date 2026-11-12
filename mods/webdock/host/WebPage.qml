@@ -11,6 +11,36 @@ Item {
     property string target: ""
     property var profile: null
     property var report: null
+    // I495 (session 30, the user: the strip and the bar show the site's own image, its letter only where none is known):
+    // the page's icon, saved once per icon to `iconDir/<pin>.png` (the daemon's icon cache: it accepts nothing else) and
+    // reported with the load, so the shell — another process, without the engine's favicon provider — can show it.
+    property string iconDir: ""
+    property string savedIcon: ""
+    function saveIcon() {
+        if (iconDir === "" || pinId === "" || favicon.status !== Image.Ready || String(web.icon) === savedIcon) return
+        var at = String(web.icon)
+        favicon.grabToImage(function (res) {
+            var path = page.iconDir + "/" + page.pinId.replace(/[^A-Za-z0-9_.-]/g, "_") + ".png"
+            if (res.saveToFile(path)) {
+                page.savedIcon = at
+                if (page.report) page.report("webdock.host.loaded", { pin: page.pinId, icon: path })
+            }
+        }, Qt.size(64, 64))
+    }
+    // (drawn, at an opacity the eye cannot see, so it can be grabbed; only while it holds an icon)
+    Image {
+        id: favicon
+        z: -1
+        width: 32
+        height: 32
+        opacity: 0.01
+        visible: String(web.icon) !== ""
+        source: web.icon
+        sourceSize: Qt.size(64, 64)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        onStatusChanged: if (status === Image.Ready) Qt.callLater(page.saveIcon)
+    }
     // The profile's view: "mobile" or "desktop". A change reloads the page (the user agent is sent with a request).
     property string mode: ""
     property bool active: false
@@ -19,6 +49,23 @@ Item {
     // W73: the page stays Active though hidden and silent — the pin's `awake`, `audible` or `background` in mod.webdock
     // (the daemon's grace after a sound, a pin that keeps running).
     property bool awake: false
+
+    // W76 (docs/ux/webdock.md "Round three"): the pin's menu asks for a reload (`reload` on the pin, a counter: each new
+    // value reloads once; the value the page is made with is the baseline), and the page tells the daemon where it is
+    // (`webdock.host.url`, on each change of address only), so the menu can offer "Update pin to this page".
+    property int reloadAsks: 0
+    property int reloadSeen: -1
+    onReloadAsksChanged: {
+        if (reloadSeen >= 0 && reloadAsks > reloadSeen && web.url.toString() !== "") web.reload()
+        reloadSeen = reloadAsks
+    }
+    Connections {
+        target: web
+        function onUrlChanged() {
+            var u = web.url.toString()
+            if (u !== "" && u !== "about:blank" && page.report && page.pinId !== "") page.report("webdock.host.url", { pin: page.pinId, url: u })
+        }
+    }
 
     // What the card draws: the first paint (the skeleton goes), a failed load (code and text), a popup sheet.
     property bool painted: false
@@ -44,7 +91,9 @@ Item {
     // The pin's address loads when the page is made, and again when the pin's target moves to another address (a
     // settings edit). The view's `url` is not bound: the header navigates it, which would drop a binding.
     Component.onCompleted: {
-        if (target !== "") web.url = target
+        reloadSeen = reloadAsks
+        // (W76: a "+" page starts blank — an engine never given an address did not load the first one it was given later)
+        web.url = target !== "" ? target : "about:blank"
         // W30: the page lives in the card's pane (`home`) or, while the sidebar shows its pin, in the sidebar window's
         // slot (`sideHost`). Bound here, after the Repeater has set the parent it creates the page with.
         parent = Qt.binding(function () { return page.sideHost !== null ? page.sideHost : page.home })
@@ -62,7 +111,10 @@ Item {
         console.log("webdock-debug life " + pinId + " " + what + ": state " + n[web.lifecycleState] + " recommended "
             + n[web.recommendedState] + " audible " + web.recentlyAudible + " visible " + web.visible)
     }
-    onTargetChanged: if (target !== "" && !atTarget) web.url = target
+    onTargetChanged: {
+        if (debugLog) console.log("webdock-debug target " + pinId + " " + target + " at " + web.url)
+        if (target !== "" && !atTarget) web.url = target
+    }
 
     onModeChanged: {
         if (lastMode !== "" && mode !== lastMode)

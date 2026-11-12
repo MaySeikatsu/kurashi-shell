@@ -698,6 +698,187 @@ default, B as setting."
       sidebar"; its "Show here" pressed on screen takes it; with A, a rest takes the page; no reload.
 - [ ] The bar card against a hover reveal on screen: not reachable (the click-away window, above). Not shot on niri.
 
+## Round three (W76, session 30; I496, I497)
+**User (session 30, items 3b, 3d, 3e):** the card resizable at its edge in the default size, remembered; a pin on the
+card that keeps it open while focus is elsewhere (no reserved space); a "+" that adds a site through a search/URL bar
+(browse, then pin where you are); a pin's menu with reload, "update the pin to this page", "unpin but keep open"; a click
+on the title opens the URL bar; a pin that was not updated goes home to its pinned page after it unloads.
+
+### How others do it (from the products; not re-checked online for this card — the sandbox keeps agents off the net)
+- **Arc:** the sidebar's width is dragged at its inner edge (no double-click reset; ⌘S hides it); Little Arc and split
+  views resize at their edges with the page following live. "+" / ⌘T opens the command bar *over* the page: typing an
+  address loads it, other text searches with the chosen engine (Google by default, set in Settings), and the new tab is
+  *temporary* ("Today" tabs are archived after a while) until it is dragged into the pinned section. A pinned tab that
+  wandered away shows a "back to pinned URL" affordance; its context menu has "Reset to pinned URL" / "Change pinned URL
+  to current" and "Unpin". A click on the address in the toolbar turns it into the field, the URL selected.
+- **Zen:** Essentials and pinned tabs; "Reset pinned tab" returns home, "Replace pinned URL with current"; a pinned tab
+  that unloads opens at its pinned URL again. The URL bar floats over the page on ⌘T/⌘L (a single field, the
+  address selected; Esc dismisses it and drops an empty new tab). The sidebar's width drags at its edge.
+- **Edge's sidebar (removed in Edge 149)** and **Opera / Vivaldi panels:** the pane's width drags at its inner edge and is
+  remembered per panel (Vivaldi: per panel, Opera: one); a pin icon "Keep the sidebar open" / "Pin panel" keeps the pane
+  beside the page instead of overlaying, and the panel's context menu has Reload, "Remove from sidebar"; "+" opens a
+  small "add a site" field that takes the current tab's address.
+- **Safari:** the address field is the title: a click turns the page's name into the full address, selected; Enter loads,
+  Esc puts the name back. Search goes to the engine in Settings (DuckDuckGo is one of the choices).
+- **Floorp:** "+" on the panel sidebar asks for a URL and adds a panel; each panel's width is set by a drag, remembered
+  per panel (0 = the global width); its context menu: reload, "unload", mute, "change URL to current page", delete.
+- **Taken:** Safari's and Arc's title-is-the-field, selected on entry, Esc restores; Arc's *temporary* page from "+"
+  until it is pinned where the user is now (a "Pin" key, as Arc's drag into pinned); Zen's and Arc's pinned URL as the
+  pin's home (an unloaded pin opens there again) with Arc's / Floorp's "change pinned URL to current"; Edge's / Opera's
+  "keep open" pin on the pane; the inner edge drag with a double-click reset and the sidebar's own Ctrl+arrow keys
+  (session 30's sidebar width, `frontend/surfaces/Sidebar.qml`), remembered per output like the sidebar's width (I500).
+
+### Design
+**1. Resize (3b).** In the edge card's own size (its phone size: not `large`) and in the bar card while `card_size` is
+`dock` ("As at the edge"), the card's box is the user's: a remembered `width × height` per output, else `width` × twice
+that (W74). The fixed sizes (`large`, and the bar card's phone, tablet, wide) do not resize and draw no grip.
+- **Where:** an 8 px grip along each free edge of the card — the edge away from the strip (the card's width at a side
+  edge, its height at a top or bottom edge) and, along the strip, the two ends (the card is centred there, so an end moves
+  by the pointer and the other end by as much: both ends follow). In the bar's card: the card's edge away from the bar
+  (its height) and the side away from the nearer screen edge (its width), in the page's window (the host draws the well).
+  The edge lights in `accent` while the pointer is on it or it is dragged; the cursor is the split cursor.
+- **Live:** the page follows the drag 1:1 (the window holds the larger size while it is dragged; nothing animates); the
+  size is written on release (one undo step). A press that did not move writes nothing; a double click resets (the row
+  goes, the default returns). Ctrl+Left/Right (width) and Ctrl+Up/Down (height), 10 px a press, while the card's own
+  chrome (its header, a grip) has the keyboard — never while the page has it (word jumps in a text field); written after a
+  short pause, so a run of presses is one undo step, as the sidebar's.
+- **Remembered** in a new records setting `mods.webdock.sizes` (`output`, `width`, `height`; unique by output): one row per
+  output, written by the daemon (`webdock.resize {output, width?, height?}`; no size removes the row), shown and editable in
+  Settings › Web dock like the pins. The document carries `sizes {<output>: {width, height}}` (absent while empty).
+- **Within the output:** at least 300 × 300; at most the usable area less the strip and a gap at each end (edge), the
+  Stage's card limit (bar card: `bar.card_max_*`, the Stage clamps; the well never runs off screen). A remembered size
+  larger than the output it is read on (another monitor's row, a changed resolution) is clamped when drawn, not rewritten.
+- **Forced** (`forced.sizes`): the grips are inert, drawn at half strength, and their accessible description says who sets
+  it (I91); the daemon refuses `webdock.resize` too (`webdock.error.forced`).
+
+**2. Keep open (3d).** A `push_pin` key in the card's toolbar (the edge card's header and the phone's bottom bar; the
+shell's own cards' title row; the bar card's navigation row).
+- **At the edge:** the dock's `pinned` (`webdock.pin`): lit (`color.selected`, filled glyph) while pinned; the dock stays
+  open while focus is elsewhere, reserving nothing (`reserve` stays its own setting). Its name is "Keep the dock open" or
+  "Let the dock hide" (the strip's own words), role button, checkable, checked while pinned.
+- **In the bar's card:** "Keep open at the edge": the page moves to the edge dock (`webdock.open`), the dock is pinned
+  (`webdock.pin {on: true}`) and the bar card closes — one place for "kept open", the edge, as the card asks. The key
+  shows the edge it goes to (`left_panel_open` / `right_panel_open` / `dock_to_bottom`), beside "Show at the edge".
+- **Forced** `pinned`: the key is inert with the reason in its description; in the bar card it still moves the page
+  (the edge then follows the forced value).
+
+**3. Add and edit sites (3e).**
+- **"+"** at the end of the pins (the strip's existing add control — the old add form stays behind the empty dock's "Add
+  a site"; the sidebar's and the bar card's row gain a "+" key before the size and settings keys) opens a *temporary page* in that place
+  (`webdock.browse {place}`): the card shows it with the address field where the title is, focused and empty, the page
+  area saying "Type an address or search". Enter: text that is an address loads it (`https`, `http`, `file`; a bare
+  `example.com` or `localhost:8080` gets `https://` / `http://`), any other text searches with `mods.webdock.search` (a
+  URL with `{q}`; default DuckDuckGo, `https://duckduckgo.com/?q={q}`) — the daemon decides (`webdock.go {pin, text}` →
+  `{url}`), the host loads it. `javascript:`, `data:` and other schemes are searched as text, never loaded.
+- **The temporary page** is a pin the daemon serves but the settings do not hold (`temporary: true` in the document; not
+  drawn in the strip or the rows). It has its own page and the profile `browse` (shared by everything browsed from "+":
+  a browser's default profile). A **Pin** key (`push_pin` with "Pin") in its toolbar pins the page where the user is now
+  (`webdock.add {url, title, from}`): the new pin takes that page — the same page, no reload (the host renames it; the
+  document says `was` on the new pin) — and the profile `browse`; it appears at the end of the strip.
+- **Dropped** when Esc is pressed in its empty field, when its card closes (the edge card's ×, Esc on its chrome, the bar
+  card closing in any way: its panel reads the Stage's `runtime.ui` and says `closed`), when the place picks another pin,
+  or when "+" opens another one — unless another place shows it then ("Show at the edge" and "Keep open at the edge"
+  move it to the edge first); a hover hide keeps it (the next reveal shows it again, as any shown pin). In the sidebar
+  it stays the sidebar's page until another pin is picked or the dock's rules unload it (the sidebar keeps its panel
+  loaded after it closes, K139, and the panel cannot tell that close from a slide).
+- **The title is the field:** a click on the card's title (the edge card's header and pill, the bar card's and the
+  sidebar's navigation row) turns it into the same field holding the page's address, selected; Enter goes there in the
+  same page (`webdock.go`): the pin stays at its address — its *home* (W20's home key returns there; after it unloads it
+  opens there again). Esc or a click elsewhere puts the title back.
+- **The pin's menu** (`PinMenu.qml`, the strip's right click / menu key) gains, after what it had (move up, move down,
+  remove, close; the new entries before Close): **Reload** (`webdock.reload {pin}`: the loaded page reloads; inert while not loaded), **Update pin to
+  this page** (`webdock.retarget {pin}` with the page's current address, which the host reports as `at` on the pin while
+  it differs from the target; inert while the page is at home or not loaded), **Unpin but keep open**
+  (`webdock.unpin {pin}`: the row goes at once — one undo step, and `kurashi undo` brings the pin back with its page — and
+  the page stays as a temporary page until the dock's rules unload it). A forced list keeps the three inert with the
+  reason, as the menu's other edits; Reload stays live (it changes nothing that is configured).
+
+### States
+- **Resize:** default (no row), remembered (a row for this output), dragging (accent edge, live), forced (inert grips),
+  a fixed size (no grips), a remembered size too large for this output (clamped).
+- **Keep open:** off, on (lit), forced (inert), bar card (moves to the edge).
+- **Temporary page:** empty field ("Type an address or search"), loading (the progress line), loaded (the Pin key),
+  load error (the card's error state: an address that does not answer, a search while offline), the engine missing or
+  failed (the place's own notice: "+" still opens the field, Enter is refused with the reason).
+- **Title field:** editing (the address selected), refused (an empty text does nothing; the field stays).
+- **Menu entries:** live, inert (not loaded / at home / forced).
+
+### Keyboard and a11y
+- "+" is a Tab stop in the strip and the rows (Enter, Space); the field takes the keyboard when it opens (the host's window
+  holds it while the field is empty — on niri a relaxed pulse handed the keys back to the strip "+" was clicked on);
+  Enter goes, Esc cancels (and drops an empty temporary page). Alt+D (a browser's own key for its address) opens the field
+  in the edge card; Ctrl+L still enters the header (test-host's walk).
+- The grips: role Grip, name "Resize the card", description the size and the keys (or the forced reason); the keys
+  work on the card's chrome. The pin key: role button, checkable, checked while pinned. The field: role EditableText,
+  name "Address or search". The Pin key: "Pin this page".
+
+### Motion, outputs, budget
+- Motion: the drag follows 1:1 (no animation, as the card asks); the field replaces the title in place (no motion); the
+  menu is the existing side panel. Reduced motion changes nothing here.
+- Outputs: the size row is per output (the output the card is on); a card on another output reads its own row or the
+  default. HiDPI: logical px.
+- Ma: nothing runs at rest — the grips are hover handlers; a drag writes once; the host reports a page's address only
+  when it changes (`webdock.host.url`); a temporary page costs what a pin's page costs and unloads by the same rules.
+
+### As built (W76)
+- **Temporary pages are pins the daemon serves** (`temps`, appended to the rows' pins; a row of the same id wins, so
+  `kurashi undo` of an unpin gives the page back to its pin). A "+" page is `browse-<n>`, profile `browse`, target "" until
+  Enter; the host starts its engine at `about:blank` (an engine never given an address did not load the first one given
+  later, measured on niri), so Back after the first page reaches a blank page (known, cosmetic).
+- **Pin keeps the page:** `webdock.add {from}` writes the row with the temporary page's profile, applies it and adopts:
+  the places, the loaded state and the shown order move to the new id and the pin says `was`; the host renames the page
+  (`ListModel.setProperty`) and, until then, resolves the old id to the new pin (`pinById`), so the page's address and
+  view never flicker through "none" (a view flicker reloaded the page: measured, fixed).
+- **The keyboard for the empty field:** the host's window holds the keyboard exclusively while the field is empty (edge
+  card and sidebar/bar card windows); on Enter it relaxes to on demand. The hold is bounded: 15 s without a keystroke
+  in the field lets the keyboard go (a pinned dock never hides, and a click into another window must reach it).
+- **A typed path** (`/home/…/x.html`) is a local file (`file://`), as in a browser's address bar; the test types paths
+  (the virtual keyboard's `:` did not reach the host's field).
+- **The pin's menu over a site's card:** the menu opened under the host's card window (both on the Top layer, the host's
+  mapped later); the card closes first now (`webdock.collapse`), the page stays loaded.
+- **The bar card's resize** follows the pointer in the page's window 1:1 (the window grows on its free sides), and the
+  size is written on release; the Stage then lays the card out at the new size and the page re-rests there (the page is
+  cut for the Stage's 160 ms settle — the Stage withdraws the placement while the card resizes, CONTRACT-CHANGE 741). The
+  Stage's limit (`bar.card_max_*`) bounds it: a box larger than the card holds is remembered and shown clamped.
+- **The Stage's card limit (I504)** put the default 824 px well in a scroll view, where no page can show (the placement is
+  withdrawn while a scroll view clips the panel): on this branch `test-card.sh` failed at step 1 before W76. The panel
+  now asks for no more than the card holds (`stageRoom`, a stand-in: CONTRACT-CHANGE 741); test-card's step 1b reads the
+  limited well (412 × 638 on 2560 × 1440 in washi).
+- **B117** (the dock coming out closes an open card) changed test-card's step 4: the card closes when the edge opens; the
+  card opened again takes the page back (last opened wins), and the two "Show here" keys move it.
+
+### Definition of done (W76)
+- [x] Edge card: drag the free edge → the card follows, the size is written for the output on release (test-card 6e: 60 px
+      wider → `sizes[HEADLESS-1]` 472 × 824); Ctrl+Left twice on the chrome → 20 px more, one write. `large` draws no grip
+      (`resizable` needs the phone size; by construction, not driven).
+- [ ] A double click on the grip resets: built (`onDoubleClicked` → `webdock.resize {output}`), but the virtual pointer's
+      two clicks were not seen as a double click in the suite; the reset is driven by the action there.
+- [x] Bar card (`dock` size): the grip at the well's foot (a top bar) up 60 px writes the box, the card's well follows, no
+      reload (test-card 6c); the box is the edge card's (one row per output). The page follows the drag 1:1 in its own
+      window; the card catches up on release (the Stage withdraws the placement while it resizes, CONTRACT-CHANGE 741).
+- [x] Keep-open key: lit while pinned, a press lets the dock hide (test-card 6e, the host's log); name "Keep the dock open" /
+      "Let the dock hide", checkable, checked while pinned. In the bar card "Keep open at the edge" moves the page to the
+      edge, pinned, and closes the card (test-card 6c).
+- [ ] The forced states (inert grips, inert keep key with the reason): built from `forced.sizes` / `forced.pinned`, not shot.
+- [x] "+" → field (focused) → a local test page loads → Pin → the pin `o` is in `mods.webdock.pins` (profile `browse`), the
+      host renames the page, no new load (test-card 6c); "+" in the sidebar, Esc in the empty field drops it
+      (test-sidebar 2c).
+- [x] Title click → field with the address → Enter goes there; the pin's target is unchanged, `at` reports the page's
+      address (test-card 6c).
+- [x] Menu: Reload (the counter, a new load report), Update pin to this page (the target changes, `at` clears), Unpin but
+      keep open (the row goes, the page stays loaded), `kurashi undo` brings the pin back (test-card 6d, keyboard). Open:
+      twice an undo sent at once after the menu's unpin left the row back in the configuration while the document kept
+      the page temporary; with a 1 s pause it passes, and from the command line on niri, back to back, it never failed.
+- [x] Daemon unit tests: resolve (address / path / search / refused schemes), the search setting, temporary pages
+      (browse, go, drop, the card's close, adopt), unpin keeps the page and undo gives it back, the menu's reload and the
+      page's address, the sizes rows (`cargo test -p kurashi-mod-webdock`: 53 + 24).
+- [x] Shots on nested niri, light and dark (`mods/webdock/test/shots-round3.sh` → `mods/webdock/shots/round3/`):
+      round3-resize (a remembered box, the grip lit), round3-keep (the key lit), round3-field (empty), round3-typed,
+      round3-temp (loaded, Pin), round3-menu (the three entries), round3-card (the bar card's "+" page: the field in the
+      navigation row, the keep-open key), round3-cardgrip.
+- [ ] Left / right bars, a second output, HiDPI: per output by construction (the row's key is the output's name), not
+      measured.
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on
