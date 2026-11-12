@@ -62,37 +62,10 @@ Item {
     // margins (W72's clamp), at least 240 px.
     implicitHeight: fillHeight > 0 ? fillHeight : (inCard
         ? Math.max(240 + tile + Theme.gap, Math.min(viewH + 36 + tile + Theme.gap,
-            (Screen.height > 0 ? Screen.height : 1080) - 2 * Theme.barH - 10 * Theme.pad, stageRoom))
+            (Screen.height > 0 ? Screen.height : 1080) - 2 * Theme.barH - 10 * Theme.pad))
         : 560)
-    // I504 (session 30): the Stage stands a card at most `bar.card_max_height` % of the screen tall and scrolls its view
-    // beyond — a page window cannot follow a scrolled well (the placement is withdrawn while a scroll view clips it), so
-    // the panel asks for no more than the card holds: that height less the card's padding (`pad + 4` each side). A local
-    // stand-in for a limit the Stage could hand its panels (CONTRACT-CHANGE row 741).
-    readonly property real stageRoom: {
-        var pct = Number(cfgValue("bar.card_max_height", 50))
-        var h = Screen.height > 0 ? Screen.height : 1080
-        return Math.max(160, Math.round(h * pct / 100)) - 2 * (Theme.pad + 4) - 2
-    }
-    Watch { doc: "config"; active: panel.inCard }
-    property var cfg: ({})
-    property var cfgSeen: undefined
-    // (copied on the next turn, as BarConfig does: a binding on the document re-entered itself there)
-    function copyCfg() {
-        var c = Store.docs["config"]
-        if (c === cfgSeen) return
-        cfgSeen = c
-        cfg = c || ({})
-    }
-    Connections {
-        target: panel.inCard ? Store : null
-        function onDocsChanged() { if (Store.docs["config"] !== panel.cfgSeen) Qt.callLater(panel.copyCfg) }
-    }
-    function cfgValue(key, dflt) {
-        var c = cfg, o = String(Screen.name || "")
-        var p = o !== "" && c.outputs && c.outputs[o] && c.outputs[o][key] !== undefined ? c.outputs[o][key]
-            : (c.values ? c.values[key] : undefined)
-        return p && p.value !== undefined ? p.value : dflt
-    }
+    // (I504: the Stage leaves a panel that places a page window out of its card limit — CONTRACT-CHANGE row 741 — so the
+    // well keeps W72's clamp)
 
     Watch { doc: "mod.webdock" }
     readonly property var d: Store.docs["mod.webdock"] || ({})
