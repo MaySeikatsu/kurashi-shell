@@ -476,7 +476,7 @@ wait_px "$CX" "$CY" '#2b3a55' 15
 # By keyboard: a click on the first pin's key gives the card the keys; Tab walks the keys and, past the settings key,
 # hands the keyboard to the page (`webdock.card_focus`); typed text arrives; Esc closes the card.
 ptr $(( PX + 20 )) $(( PY + 20 ))
-for _ in 1 2 3 4 5; do
+for _ in 1 2 3 4 5 6 7 8; do   # (the pins, +, keep, size, settings: session 31 added the keep key)
   keys tab
   doc_is "d['card'].get('focus', 0) >= 1" && break
 done
