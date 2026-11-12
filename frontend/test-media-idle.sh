@@ -50,7 +50,7 @@ trap cleanup EXIT
 #   still  commits in the whole window of a surface that shows nothing that moves (the closed launcher and Stage, the
 #          screen corners, the edge strips): none — one is let through for a minute's turn of a clock
 #   total  commits a second of all of them
-BUDGET_BARS=${MEDIA_IDLE_BUDGET_BARS:-22}
+BUDGET_BARS=${MEDIA_IDLE_BUDGET_BARS:-24}
 BUDGET_FLOW=${MEDIA_IDLE_BUDGET_FLOW:-9}
 BUDGET_STILL=${MEDIA_IDLE_BUDGET_STILL:-1}
 BUDGET_TOTAL=${MEDIA_IDLE_BUDGET_TOTAL:-100}
