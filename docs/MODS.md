@@ -278,7 +278,7 @@ place does), by `webdock.sidebar_select` and
 `webdock.card_select`, and by the first rest of a sidebar panel or a bar card (`fresh: true` on its first
 `webdock.sidebar` / `webdock.card` report; a rest after a move does not stamp). **Host reports**
 (the host's scoped connection): `webdock.host.loaded {pin, icon?}` (icon: a file under `dirs.icons`) ·
-`webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on}` · `webdock.host.blocked {pin, permission}`
+`webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on, title?}` (the page title rides along, I495) · `webdock.host.blocked {pin, permission}`
 (`camera|microphone|location|notifications|screen|clipboard|download|other`; cleared by the next `loaded`) ·
 `webdock.host.new_window {pin, url}` (→ `open_external`) · `webdock.host.crashed {pin}` (`error` =
 `webdock.error.crashed` until the next `loaded`).
