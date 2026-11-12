@@ -62,7 +62,7 @@ RoundBox {
             if (item.sheet !== undefined) item.sheet = true
         }
     }
-    border.color: urgent ? Theme.accent : Theme.surfaceLineColor
+    border.color: urgent ? Theme.accent : (ColorFlow.lineOn && ColorFlow.under(c) ? Theme.surfaceLineStill : Theme.surfaceLineColor)
     Loader {
         id: pen
         z: 3

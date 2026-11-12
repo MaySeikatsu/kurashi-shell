@@ -27,6 +27,9 @@ Item {
         : view.contentHeight - view.height - (view.contentY - view.originY)
     readonly property real a0: Math.max(0, Math.min(1, startCut / zone))
     readonly property real a1: Math.max(0, Math.min(1, endCut / zone))
+    // (what the view holds keeps its still colours while the layer draws it: ColorFlow.holdStill)
+    onActiveChanged: if (view) ColorFlow.holdStill(view, active)
+    Component.onDestruction: if (view) ColorFlow.holdStill(view, false)
 
     x: view ? view.x : 0
     y: view ? view.y : 0
@@ -34,21 +37,19 @@ Item {
     height: view ? view.height : 0
     z: view ? view.z : 0
 
-    ShaderEffectSource {
-        id: src
-        sourceItem: se.active ? se.view : null
-        hideSource: se.active
-        live: true
-        visible: false
-    }
-    ShaderEffect {
-        anchors.fill: parent
-        visible: se.active
-        property var source: src
-        property vector4d uEdge: Qt.vector4d(se.a0, se.a1, se.len > 0 ? se.zone / se.len : 0, se.horizontal ? 1 : 0)
-        property vector4d uLook: Qt.vector4d(se.len > 0 ? se.blurPx / se.len : 0,
-            se.horizontal ? se.width / Math.max(1, se.height) : se.height / Math.max(1, se.width),
-            se.mode === "blur" ? 1 : 0, 0.94)
-        fragmentShader: Qt.resolvedUrl("../shaders/scroll_edge.frag.qsb")
+    // The view's own layer (not a ShaderEffectSource beside it: a live one drew every change of the view twice — once
+    // for the window, once more for its texture — measured on the pinned sidebars while the colour flow ran, 18 frames a
+    // second for 9). The effect reads this item's numbers.
+    Binding { target: se.view ? se.view.layer : null; property: "enabled"; value: se.active; when: se.view !== null; restoreMode: Binding.RestoreValue }
+    Binding { target: se.view ? se.view.layer : null; property: "effect"; value: edgeFx; when: se.view !== null; restoreMode: Binding.RestoreValue }
+    Component {
+        id: edgeFx
+        ShaderEffect {
+            property vector4d uEdge: Qt.vector4d(se.a0, se.a1, se.len > 0 ? se.zone / se.len : 0, se.horizontal ? 1 : 0)
+            property vector4d uLook: Qt.vector4d(se.len > 0 ? se.blurPx / se.len : 0,
+                se.horizontal ? se.width / Math.max(1, se.height) : se.height / Math.max(1, se.width),
+                se.mode === "blur" ? 1 : 0, 0.94)
+            fragmentShader: Qt.resolvedUrl("../shaders/scroll_edge.frag.qsb")
+        }
     }
 }
