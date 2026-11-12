@@ -151,6 +151,7 @@ Item {
                         : sid === "notifications" ? notesC
                         : sid === "calendar" ? calendarC
                         : sid === "media" ? mediaC
+                        : sid === "launcher" ? launcherC
                         : modRef !== null ? modC : null
                     onLoaded: {
                         if (item && modRef !== null) { item.mod = modRef.mod; item.panel = modRef.panel }
@@ -180,6 +181,7 @@ Item {
         TogglesSection { onPageRequested: (c, from) => rc.openPage(c, from) }
     }
     Component { id: slidersC; SlidersSection {} }
+    Component { id: launcherC; LauncherSection {} }
     SectionPicker {
         id: rcPicker
         z: 10

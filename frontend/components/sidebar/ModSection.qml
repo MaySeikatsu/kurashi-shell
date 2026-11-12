@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../../core"
+import "../../core/mods.js" as Mods
 
 // A mod panel as a right-sidebar section (`mod:<id>:<panel>`, K26): its Panel.qml through ModLoader, on a Card, given
 // the card's width. A mod that is off (or has no such panel) has no component: the section takes no space (`shown`).
@@ -8,12 +9,17 @@ Card {
     id: ms
     property string mod: ""
     property string panel: ""
-    shown: loader.resolved !== ""
+    // (a desk card that has nothing to show — no notes — keeps its height at 0, as on the desk: the section goes too)
+    shown: loader.resolved !== "" && (!asDesk || (loader.item !== null && loader.item.implicitHeight > 0))
+    // Session 30 (I501): a mod's desk card stands in where it has no panel of that name (notes, lyrics).
+    Watch { doc: "mods" }
+    readonly property bool asDesk: ms.panel !== "" && Mods.qmlOf(Store.docs["mods"], "panel:" + ms.panel, ms.mod) === ""
+        && Mods.qmlOf(Store.docs["mods"], "desk:" + ms.panel, ms.mod) !== ""
     ModLoader {
         id: loader
         width: ms.width - 2 * Theme.pad
         height: item ? item.implicitHeight : 0
-        provide: ms.panel !== "" ? "panel:" + ms.panel : ""
+        provide: ms.panel === "" ? "" : (ms.asDesk ? "desk:" : "panel:") + ms.panel
         mod: ms.mod
         // (B102: a sidebar kept after it closed keeps no mod's panel — its subscriptions, and what it shows of another
         // process, go with the close as they always did)

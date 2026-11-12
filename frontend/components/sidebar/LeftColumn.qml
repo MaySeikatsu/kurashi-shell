@@ -47,7 +47,8 @@ Item {
             var state = ref === null ? "unknown"
                 : e === null || e.state === "detected" ? "not_loaded"
                 : e.state !== "enabled" ? "off"
-                : Mods.qmlOf(modsDoc, "panel:" + ref.panel, ref.mod) === "" ? "no_panel" : "ok"
+                : Mods.qmlOf(modsDoc, "panel:" + ref.panel, ref.mod) === ""
+                    && Mods.qmlOf(modsDoc, "desk:" + ref.panel, ref.mod) === "" ? "no_panel" : "ok"
             out.push({ value: tabs[i], ref: ref, state: state,
                        name: e && e.name ? I18n.tr(String(e.name)) : (ref ? ref.mod : String(tabs[i])) })
         }
@@ -197,7 +198,9 @@ Item {
             id: panel
             width: pane.width
             height: item ? Math.max(item.implicitHeight, pane.height) : 0
-            provide: lc.tab && !lc.tab.core ? "panel:" + lc.tab.ref.panel : ""
+            // (a mod's desk card where it has no panel of that name, I501)
+            provide: !lc.tab || lc.tab.core ? ""
+                : (Mods.qmlOf(lc.modsDoc, "panel:" + lc.tab.ref.panel, lc.tab.ref.mod) === "" ? "desk:" : "panel:") + lc.tab.ref.panel
             mod: lc.tab && !lc.tab.core ? lc.tab.ref.mod : ""
             // (B102: unloaded while the sidebar is only kept after a close, ModSection)
             readonly property var qsw: lc.Window.window ? lc.QsWindow.window : null
