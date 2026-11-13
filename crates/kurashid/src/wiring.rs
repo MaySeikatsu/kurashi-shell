@@ -370,6 +370,17 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             Ok(None)
         }
     });
+    // Session 33 (I527): a script's own OSD, and the tests' way to draw every kind (osd.rs `custom`).
+    let h = hub.clone();
+    actions.register("osd.show", "action.osd.show", move |a| {
+        let hub = h.clone();
+        async move {
+            hub.osd
+                .custom(&hub, &a)
+                .map_err(|k| ActionError::Invalid(k.into()))?;
+            Ok(None)
+        }
+    });
     // What `kurashi act --list` shows for the ones that take arguments (PROTOCOL §6).
     for (id, args) in [
         ("island.expand", "{island?, face?}"),
@@ -380,6 +391,10 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         ("ui.peek", "{source?, output, x, w}"),
         ("ui.polkit", "{active}"),
         ("ui.keep", "{on}"),
+        (
+            "osd.show",
+            "{label, icon?, value?, muted?, sub?, short?, kind?}",
+        ),
     ] {
         actions.describe(id, args);
     }

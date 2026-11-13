@@ -22,6 +22,8 @@ history). New since the last merged PR (#60):
 - **Launcher providers for mods** (K150): `/` opens an address or a search in the web dock; the terminal's `!` and entries.
 - **Launcher clipboard in two columns**: one-line rows with the selected entry's picture or whole text beside them.
 - **Web pages follow light and dark** (`prefers-color-scheme`), live.
+- **A proper OSD** (K152): volume, mute, mic mute, brightness and keyboard layout as one pill in the look — bottom, top,
+  centre or the island (`osd.*`); `kurashi act osd.show '{"label": "…", "value": 0.4}'` for your own scripts.
 - **`config.toml.example`**: every option of the shell and its bundled mods, annotated, at its default — generated and
   checked by a test; installed under `share/doc/kurashi/`.
 - **Versioning** (K151): `kurashi --version`, the version in `kurashi doctor` and Settings.

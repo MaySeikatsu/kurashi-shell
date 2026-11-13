@@ -147,11 +147,11 @@ impl Osd {
             return;
         }
         let icon = if level < 0.34 {
-            "brightness_low"
+            "brightness_5"
         } else if level < 0.67 {
-            "brightness_medium"
+            "brightness_6"
         } else {
-            "brightness_high"
+            "brightness_7"
         };
         self.publish(
             hub,
@@ -186,6 +186,42 @@ impl Osd {
             json!({"kind": "layout", "label": l["name"], "short": l["short"],
             "icon": "keyboard"}),
         );
+    }
+
+    /// `osd.show {label, icon?, value?, muted?, sub?}` (session 33): a script's own OSD (as `swayosd-client
+    /// --custom-message`), and the tests' way to draw every kind. Shown whatever the per-kind switches say; the place
+    /// is the setting's.
+    pub fn custom(&self, hub: &Hub, args: &Value) -> Result<(), &'static str> {
+        let label = args["label"]
+            .as_str()
+            .filter(|l| !l.is_empty())
+            .ok_or("osd.error.label")?;
+        let value = match &args["value"] {
+            Value::Null => None,
+            v => Some(
+                v.as_f64()
+                    .filter(|v| (0.0..=1.0).contains(v))
+                    .ok_or("osd.error.value")?,
+            ),
+        };
+        let kind = match args["kind"].as_str() {
+            Some(k @ ("volume" | "mic" | "brightness" | "layout")) => k,
+            _ => "custom",
+        };
+        let p = self.prefs.lock().expect("osd prefs").clone();
+        let mut event = json!({"kind": kind, "label": label,
+            "icon": args["icon"].as_str().unwrap_or("info"), "muted": args["muted"].as_bool().unwrap_or(false)});
+        if let Some(v) = value {
+            event["value"] = json!(v);
+        }
+        if let Some(s) = args["sub"].as_str() {
+            event["sub"] = json!(s);
+        }
+        if let Some(s) = args["short"].as_str() {
+            event["short"] = json!(s);
+        }
+        self.publish(hub, &p, event);
+        Ok(())
     }
 
     fn publish(&self, hub: &Hub, p: &Prefs, mut event: Value) {

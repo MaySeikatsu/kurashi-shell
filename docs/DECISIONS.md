@@ -1630,3 +1630,12 @@ tags `vX.Y.Z` on `main` and pushes the tag. Shown by `kurashi --version`, the fi
 the daemon's `daemon` document, and at the end of Settings' page list. Starts at 0.1.0 (sessions 1–33).
 **Why.** The user (session 33): "please also start using the versioning of the shell". They chose SemVer 0.x over
 numbering by session or CalVer.
+
+## K152 — One OSD surface, decided by the daemon (session 33, I527)
+**Decision.** `crates/kurashid/src/osd.rs` turns edges of `svc.audio` (volume, mute, mic mute), a brightness key and a
+keyboard layout change (`svc.keyboard`) into `runtime.osd`; `frontend/surfaces/Osd.qml` draws it as one pill in the look on
+the focused output for `osd.timeout_ms`, unmapped when hidden, never taking input. `osd.place` (bottom, top, centre, the
+island — where the island keeps volume and brightness as before), one switch per kind. `osd.show` lets scripts show their own.
+**Why.** The user: "a proper OSD, we don't really have it yet" — the island's faces showed only volume and brightness and
+nothing at all without the island. GNOME, KDE, Windows 11 and SwayOSD show one transient pill near the bottom; the
+daemon decides (rule 1), the frontend draws.

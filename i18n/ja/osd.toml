@@ -1,0 +1,10 @@
+# The OSD (session 33, I527; docs/ux/osd.md).
+"osd.volume" = "音量"
+"osd.muted" = "ミュート"
+"osd.mic_muted" = "マイクをミュート"
+"osd.mic_on" = "マイクをオン"
+"osd.brightness" = "明るさ"
+"osd.layout" = "キーボード配列"
+"action.osd.show" = "OSD を表示"
+"osd.error.label" = "OSD にはラベルが必要です"
+"osd.error.value" = "値は 0 から 1 の割合です"

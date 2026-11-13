@@ -235,6 +235,8 @@ ShellRoot {
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
     Toasts { screen: root.focusedScreen() }
+    // I527 (session 33): the OSD, on the focused output (docs/ux/osd.md).
+    Osd { screen: root.focusedScreen() }
     Launcher {}
     // The polkit agent (K47 (5)): its dialog exists only while a request is up.
     PolkitDialog {}

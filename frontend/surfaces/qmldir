@@ -18,3 +18,4 @@ EdgeStripHost 1.0 EdgeStripHost.qml
 EdgeModules 1.0 EdgeModules.qml
 Effects 1.0 Effects.qml
 Traveller 1.0 Traveller.qml
+Osd 1.0 Osd.qml
