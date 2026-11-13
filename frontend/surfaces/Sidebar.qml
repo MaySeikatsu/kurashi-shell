@@ -214,6 +214,13 @@ Scope {
             }
             readonly property bool hoverOn: vis === "hover" || (emptyMode && !emptyDesk)
             property bool pointerIn: false
+            // B127 (session 32, K149): the pointer on the docked Settings over this column's section (another process's
+            // window: its own hover comes through runtime.settings `hover`) holds the column as its own hover does.
+            Watch { doc: "runtime.settings"; active: col.hoverOn }
+            readonly property bool onDock: {
+                var r = Store.docs["runtime.settings"] || ({})
+                return col.hoverOn && r.hover === true && !!r.dock && String(r.dock.output) === col.out
+            }
             property bool focusHeld: false
             property bool resizing: false
             EdgeReveal {
@@ -224,7 +231,7 @@ Scope {
                 enabled: col.hoverOn && !col.toggledHere && col.out !== ""
                 from: col.spanStart
                 to: col.sh - col.spanEnd
-                holdIn: col.pointerIn || col.focusHeld || col.resizing
+                holdIn: col.pointerIn || col.focusHeld || col.resizing || col.onDock
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
             // Session 28 (colour flow "while something is open", core/ColorFlow.qml): a column that is out and not pinned

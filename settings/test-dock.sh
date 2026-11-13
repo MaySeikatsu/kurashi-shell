@@ -180,7 +180,13 @@ if wait_until 6 host_is "dock *"; then
   "$SB" move "$(( $(jq .x <<<"$LD") + $(jq .width <<<"$LD") / 2 ))" "$(( $(jq .y <<<"$LD") + 200 ))" >/dev/null
   sleep 2
   host_is "dock *" && ok "hover: the sidebar stays with the pointer on Settings" \
-    || echo "test-dock: KNOWN GAP: a hover-opened sidebar closes with the pointer on the docked Settings ($(Q host))"
+    || fail "a hover-opened sidebar closed with the pointer on the docked Settings (B127; $(Q host))"
+  [ "$(K sub runtime.settings --count 0 | jq -r '.data.hover // false')" = true ] \
+    || fail "runtime.settings has no hover with the pointer on the dock"
+  # The pointer leaves the dock and the column: the sidebar goes after its grace.
+  "$SB" move 960 540 >/dev/null
+  wait_until 6 host_is "" && ok "hover: off the dock and the column, the sidebar goes" \
+    || fail "the sidebar stayed after the pointer left the dock ($(Q host))"
 else
   echo "test-dock: KNOWN GAP: the hover reveal did not open the left sidebar here (not measured)"
 fi

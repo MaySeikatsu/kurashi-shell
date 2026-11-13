@@ -1599,3 +1599,12 @@ off or reduced snaps. No renderer branches on a look (rule 4): the mark takes th
 default. A shape path (Qt Quick Shapes, curve renderer) needs no shader build and repaints only while the ends move (Ma).
 Other shells: end-4 and Caelestia slide an indicator, Android's page indicators stretch ("worm") or pinch ("liquid");
 docs/ux/workspace-motion.md.
+
+## K149 — The docked Settings holds a hover-opened sidebar (session 32, B127)
+**Decision.** Settings' dock reports the pointer on it, on change (`settings.dock_hover {inside}`); the daemon keeps
+`runtime.settings.hover` (true only while a dock is there, removed with the dock); a sidebar in `hover` visibility on
+the dock's output counts it as the pointer in its column (`holdIn`), so it stays while the pointer rests on Settings and
+goes after its grace when the pointer leaves both. Mock parity; fixture `snap_runtime_settings_hover.json`.
+**Why.** W77's gap: the dock is another process's window over the sidebar's well, so the column saw the pointer leave
+and closed under the user's pointer. The web dock's page solved the same for cards through `Peeks.hoverOverlay` inside
+one process tree; across processes the daemon carries it (rule 1). Not solved here: a key into the dock (B129).

@@ -63,6 +63,15 @@ PanelWindow {
         anchors.fill: parent
         radius: dh.radius
         color: Theme.surface
+        // B127 (session 32, K149): the pointer on the dock, reported on change (`settings.dock_hover {inside}`): a
+        // sidebar opened by hover holds while it rests here, as it does while it rests on its own column.
+        HoverHandler { id: dockHover }
+    }
+    readonly property bool pointerIn: dockHover.hovered && visible
+    property bool hoverSent: false
+    onPointerInChanged: if (pointerIn !== hoverSent) {
+        hoverSent = pointerIn
+        Store.act("settings.dock_hover", { inside: pointerIn })
     }
     Item {
         id: slot

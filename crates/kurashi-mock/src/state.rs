@@ -722,6 +722,25 @@ impl State {
             // W77/W79 (K146), as kurashid: `{}` takes the dock away, a rect (`output`, `x`, `y`, `width`, `height`,
             // `radius?`) sets it, checked by the daemon's own `settings_dock_of`. The mock starts no Settings process,
             // so a dock answers `launched` as `settings.open` does.
+            // B127 (K149), as kurashid: the pointer on the docked Settings, `hover: true` only while a dock is there.
+            "settings.dock_hover" => {
+                let inside = args["inside"]
+                    .as_bool()
+                    .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+                let old = self.data(kurashid::config::SETTINGS_RUNTIME_DOC).clone();
+                let mut next = old.clone();
+                if let Some(o) = next.as_object_mut() {
+                    if inside && o.get("dock").is_some_and(Value::is_object) {
+                        o.insert("hover".into(), json!(true));
+                    } else {
+                        o.remove("hover");
+                    }
+                }
+                if let Some(ops) = kurashi_ipc::diff_patch(&old, &next) {
+                    self.patch(kurashid::config::SETTINGS_RUNTIME_DOC, ops, None);
+                }
+                return Ok(None);
+            }
             "settings.dock" => {
                 let dock = kurashid::config::settings_dock_of(args)
                     .map_err(|_| Fail::invalid(ARGS_INVALID))?;
@@ -738,6 +757,7 @@ impl State {
                     None => {
                         if let Some(o) = next.as_object_mut() {
                             o.remove("dock");
+                            o.remove("hover");
                         }
                     }
                 }

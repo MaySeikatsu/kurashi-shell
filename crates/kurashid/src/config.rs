@@ -2586,6 +2586,33 @@ impl ConfigStore {
                 Ok(Some(json!({"docked": true, "opened": how})))
             }
         });
+        // B127 (session 32, K149): the pointer on the docked Settings. Its dock is another process's window over the
+        // sidebar, so a sidebar opened by hover took the pointer's arrival there for a leave and closed. Settings
+        // reports it (`{inside}`); `runtime.settings.hover` is true while it is inside and a dock is there, absent
+        // otherwise, and the sidebar holds as it does for its own column.
+        let hover_hub = self.hub.clone();
+        actions.register(
+            "settings.dock_hover",
+            "action.settings.dock_hover",
+            move |v| {
+                let hub = hover_hub.clone();
+                async move {
+                    let inside = v["inside"]
+                        .as_bool()
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                    let _ = hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
+                        if let Some(o) = d.as_object_mut() {
+                            if inside && o.get("dock").is_some_and(Value::is_object) {
+                                o.insert("hover".into(), json!(true));
+                            } else {
+                                o.remove("hover");
+                            }
+                        }
+                    });
+                    Ok(None)
+                }
+            },
+        );
         let (me, life) = (self.clone(), life.clone());
         actions.register("settings.open", "action.settings.open", move |v| {
             let me = me.clone();
@@ -2799,6 +2826,8 @@ impl SettingsLife {
                 }
                 None => {
                     o.remove("dock");
+                    // (no dock, no pointer on it)
+                    o.remove("hover");
                 }
             }
         });

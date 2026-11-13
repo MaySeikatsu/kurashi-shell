@@ -762,3 +762,52 @@ async fn settings_dock_goes_when_its_settings_process_exits() {
     let _ = std::fs::write(bin.join("quit"), "");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// B127 (session 32, K149): the pointer on the docked Settings is `runtime.settings.hover` while a dock is there, and it
+/// goes with the dock.
+#[tokio::test]
+async fn settings_dock_hover_holds_only_while_docked() {
+    let dir = root("dock-hover");
+    let (settings, bin) = fake_qs(&dir);
+    stay_qs(&bin);
+    let fx = open(
+        &dir,
+        SettingsApp {
+            dir: settings,
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let doc = || fx.hub.snapshot("runtime.settings").unwrap().1;
+    // No dock: nothing to rest on.
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    assert!(doc().get("hover").is_none(), "no dock, no hover: {}", doc());
+    assert!(
+        fx.call("settings.dock_hover", json!({})).await.is_err(),
+        "inside is required"
+    );
+
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/ipc/server/snap_runtime_settings_hover.json"
+    ))
+    .unwrap();
+    fx.call("settings.dock", fixture["data"]["dock"].clone())
+        .await
+        .unwrap();
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    assert_eq!(doc(), fixture["data"], "pinned by the fixture");
+    fx.call("settings.dock_hover", json!({"inside": false}))
+        .await
+        .unwrap();
+    assert!(doc().get("hover").is_none(), "left: {}", doc());
+
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    fx.call("settings.dock", json!({})).await.unwrap();
+    assert_eq!(doc(), json!({}), "the dock takes the hover with it");
+    std::fs::write(bin.join("quit"), "").unwrap();
+}
