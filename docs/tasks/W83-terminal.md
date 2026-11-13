@@ -31,3 +31,12 @@ is one line the lead reviews: say where. Contract changes (new docs, actions, a 
 `echo kurashi` prints it; the drop-down toggles by its action and keeps the session; closing the sidebar keeps the
 session; the host killed → the panel says so and a press restarts it; shots light and dark.
 **Build dir** `~/.cache/kurashi-agents-target/w83`. Report terse.
+
+**The user's refinement (session 33, during the card):** "Something similar to Yakuake. Build it as a plugin, but highly
+polished and deeply integrated into the shell — it should all feel native, not like an afterthought." So: the drop-down is
+the primary place (the others reuse its session); it draws like the shell's own surfaces (the look's form, material,
+corners and outline, the motion profile's entrance, joined to the bar or edge it drops from, blur, the palette's ANSI
+colours and the look's fonts, light and dark, no branch on look names); Yakuake's essentials (tabs, splits if the widget
+allows, a size per output by dragging, keep open, hide on focus loss as a setting, the toggle on the focused output); its
+settings as schema keys (Settings page, module menu), en/ja, a quick toggle or bar module, the island saying a command
+finished while hidden if cheap.
