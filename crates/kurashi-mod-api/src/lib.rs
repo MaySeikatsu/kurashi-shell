@@ -358,6 +358,39 @@ impl ChoicesHandle {
     }
 }
 
+/// A launcher result a mod offers (K150): launching it invokes the mod's own action `action` with `args`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LauncherRow {
+    /// Stable within one query (the launcher keeps the selection across replies by it).
+    pub key: String,
+    /// What the row says, translated by the mod (the session language is in its settings feed or the i18n
+    /// document it reads).
+    pub name: String,
+    /// The second line (an address, a path), may be empty.
+    pub sub: String,
+    /// An icon name (Kurashi Symbols / Material Symbols ligature) or an image URL; empty for none.
+    pub icon: String,
+    /// One of the mod's own actions (`<id>.<verb>`); a row naming another is dropped by the daemon.
+    pub action: String,
+    pub args: Value,
+}
+
+/// A mod's launcher provider (K150, manifest `launcher:<name>`). With a prefix (`prefix()` returns the characters
+/// the user set, e.g. `/`), a query that starts with it is the provider's alone (`query` gets the rest); without one
+/// (`None`), its rows join the ordinary results after the apps. The daemon refuses a prefix the launcher's own
+/// modes hold (`kurashi_launcher::BUILTIN_PREFIXES`) or another provider took first (the provider is then inert,
+/// and says so in `runtime.launcher`).
+#[derive(Clone)]
+pub struct LauncherSpec {
+    pub prefix: LauncherPrefixFn,
+    pub query: LauncherQueryFn,
+}
+
+/// The prefix a launcher provider holds now (K150): `None` for none.
+pub type LauncherPrefixFn = Arc<dyn Fn() -> Option<String> + Send + Sync>;
+/// A launcher provider's rows for the text after its prefix (K150).
+pub type LauncherQueryFn = Arc<dyn Fn(&str) -> Vec<LauncherRow> + Send + Sync>;
+
 /// What `enable` registers, applied by the daemon once `enable` returned `Ok`.
 pub enum Registration {
     /// Document `mod.<id>`, backed by a service that runs while it has a subscriber.
@@ -376,6 +409,8 @@ pub enum Registration {
     Face { name: String },
     /// Choice source `source`, offered to the settings that name it.
     Choices { source: String, options: ChoicesFn },
+    /// Launcher provider `name` (K150).
+    Launcher { name: String, spec: LauncherSpec },
 }
 
 /// A host process a mod declared (K38): taken with [`ModCtx::take_hosts`], like a background job. The daemon runs
@@ -680,6 +715,16 @@ impl ModCtx {
             hooks: self.hooks.clone(),
             source: source.into(),
         })
+    }
+
+    /// Launcher provider `name` (declared as `launcher:<name>`, K150): see [`LauncherSpec`].
+    pub fn launcher(&mut self, name: &str, spec: LauncherSpec) -> Result<(), ModError> {
+        self.claim("launcher", name)?;
+        self.regs.push(Registration::Launcher {
+            name: name.into(),
+            spec,
+        });
+        Ok(())
     }
 
     /// A handle on the mod's contribution to slot `name` (manifest `slot:<name>`; K28, row 72).

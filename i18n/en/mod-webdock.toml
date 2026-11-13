@@ -210,3 +210,8 @@
 "mods.webdock.content.local" = "Local"
 "action.webdock.content" = "Switch the web dock between online pins and local content"
 "webdock.error.content" = "The strip shows online or local"
+"mods.webdock.launcher_prefix" = "Launcher prefix"
+"mods.webdock.launcher_prefix.help" = "Type it first in the launcher to open an address or search in the web dock (\"/ github.com\"); your pins that match come first. Empty: none. The launcher's own : ; ? > cannot be used."
+"webdock.launcher.open" = "Open in the web dock"
+"webdock.launcher.search" = "Search in the web dock"
+"action.webdock.launch" = "Open a pin or an address in the web dock"

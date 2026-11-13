@@ -160,6 +160,25 @@ impl NativeMod for Webdock {
         })?;
 
         register_actions(ctx, &shared)?;
+        // Session 33 (K150, the user: "open or search something directly in the web panel from the launcher"): the
+        // launcher's `/` (a setting) — the pins it matches, the address it names, or a search for it, opened in the
+        // edge card on the launcher's output.
+        let (pre, rows) = (shared.clone(), shared.clone());
+        ctx.launcher(
+            "web",
+            kurashi_mod_api::LauncherSpec {
+                prefix: Arc::new(move || {
+                    let p = pre
+                        .dock
+                        .lock()
+                        .expect("dock lock")
+                        .launcher_prefix()
+                        .to_string();
+                    (!p.is_empty()).then_some(p)
+                }),
+                query: Arc::new(move |text| launcher_rows(&rows, text)),
+            },
+        )?;
         // Spawned last: a refused registration returns before anything runs.
         runtime.spawn(supervise(shared, settings, host_rx));
         Ok(())
@@ -592,6 +611,22 @@ impl Shared {
         Ok(Some(json!({"pin": id})))
     }
 
+    /// `webdock.launch {pin} | {url}, output?` (session 33, K150, the launcher's rows): a pin opens in the edge card; an
+    /// address opens there as a temporary page ("+" with it typed).
+    fn launch(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let output = str_arg(args, "output");
+        if let Some(pin) = str_arg(args, "pin") {
+            if self.with_dock(|d| d.open(pin, output).map_err(dock_error))? {
+                self.host.start();
+            }
+            return Ok(Some(json!({"pin": pin})));
+        }
+        let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
+        let id = self.with_dock(|d| Ok(d.browse_to(Spot::Edge, output, url)))?;
+        self.host.start();
+        Ok(Some(json!({"pin": id, "url": url})))
+    }
+
     /// `webdock.go {pin, text}` → `{url}` (W76, the address field): the address the text names or a search for it.
     fn go(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
@@ -903,6 +938,7 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     // W76: "+", the address field, the menu's reload, the page's address.
     sync_action(ctx, s, "webdock.browse", |s, a| s.browse(&a))?;
     sync_action(ctx, s, "webdock.go", |s, a| s.go(&a))?;
+    sync_action(ctx, s, "webdock.launch", |s, a| s.launch(&a))?;
     sync_action(ctx, s, "webdock.drop", |s, a| {
         let pin = pin_arg(&a)?;
         s.with_dock(|d| d.drop_temp(pin).map_err(dock_error))?;
@@ -1015,4 +1051,38 @@ async fn sleep_until_or_pending(at: Option<Instant>) {
         Some(at) => tokio::time::sleep_until(at).await,
         None => std::future::pending().await,
     }
+}
+
+/// The launcher's rows (session 33, K150): a pin opens it, an address or a search opens a temporary page.
+fn launcher_rows(s: &Shared, text: &str) -> Vec<kurashi_mod_api::LauncherRow> {
+    use dock::LaunchRow;
+    let rows = s.dock.lock().expect("dock lock").launcher_rows(text);
+    rows.into_iter()
+        .map(|r| match r {
+            LaunchRow::Pin { id, title, target } => kurashi_mod_api::LauncherRow {
+                key: format!("pin:{id}"),
+                name: title,
+                sub: target,
+                icon: "bookmark".into(),
+                action: "webdock.launch".into(),
+                args: json!({ "pin": id }),
+            },
+            LaunchRow::Address { url } => kurashi_mod_api::LauncherRow {
+                key: format!("url:{url}"),
+                name: url.clone(),
+                sub: "webdock.launcher.open".into(),
+                icon: "open_in_new".into(),
+                action: "webdock.launch".into(),
+                args: json!({ "url": url }),
+            },
+            LaunchRow::Search { words, url } => kurashi_mod_api::LauncherRow {
+                key: format!("search:{words}"),
+                name: words,
+                sub: "webdock.launcher.search".into(),
+                icon: "travel_explore".into(),
+                action: "webdock.launch".into(),
+                args: json!({ "url": url }),
+            },
+        })
+        .collect()
 }

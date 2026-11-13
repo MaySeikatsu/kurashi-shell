@@ -131,6 +131,15 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   remembers every registration; disable drops them all (documents answer `unknown_doc` again,
   their subscribers get a final `snap` with `{available:false}` first). Config is read through the
   same store (`mods.<id>.<key>`, K22).
+- **Launcher providers (K150, session 33):** `ctx.launcher(name, LauncherSpec { prefix, query })` for manifest
+  `launcher:<name>`. `prefix()` returns the characters the user set (a mod setting) or `None`; a query that starts
+  with a prefix in effect is the provider's alone (`query(rest)`), a provider without one adds rows after the apps.
+  A row (`LauncherRow {key, name, sub, icon, action, args}`) runs one of the mod's own actions with `args` when
+  launched (a row naming another mod's action is dropped); `sub` may be an i18n key. The launcher's own prefixes
+  (`kurashi_launcher::BUILTIN_PREFIXES`: `:` `;` `?` `>`), an empty prefix and one an earlier provider holds are
+  refused: `runtime.launcher {builtin, providers: [{id, prefix} | {id, refused: {reason, prefix?, by?}}]}` says which
+  and why. The web dock's is `/` (`mods.webdock.launcher_prefix`): its pins, the address the text names, or a search,
+  opened in the edge card (`webdock.launch {pin} | {url}, output?`).
 - **Background jobs (I23):** `ctx.background(name, reason, wanted_by, run)` declares `job:<name>`. The
   body is `Fn(JobCtx)` (the daemon starts it again when the setting turns it on), `JobCtx::settings()`
   is the mod's settings feed, and `wanted_by` names a bool setting of the same mod. The enable hands the

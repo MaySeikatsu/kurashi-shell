@@ -939,7 +939,31 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     let labels: Arc<Mutex<CommandLabels>> = Arc::default();
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
+    let q_hub = hub.clone();
+    // K150: the prefixes in effect, for Settings (a refused provider says why) and the frontend.
+    q_hub.register(
+        crate::launcher_mods::DOC,
+        q_hub.launcher_mods.document(),
+        None,
+    );
     let query: QueryFn = Arc::new(move |q: &str| {
+        // K150: a mod's launcher provider whose prefix starts the query answers it alone; providers without a prefix
+        // add their rows after the apps.
+        let mut mod_rows = Vec::new();
+        let strings = q_hub
+            .snapshot("i18n")
+            .map(|(_, d)| d["strings"].clone())
+            .unwrap_or_default();
+        let tr = |k: &str| {
+            strings
+                .get(k)
+                .and_then(Value::as_str)
+                .unwrap_or(k)
+                .to_string()
+        };
+        if let Some(rows) = q_hub.launcher_mods.query(q, &tr, &mut mod_rows) {
+            return rows;
+        }
         // Prefix modes: `:` emoji (recent first), `;` the clipboard history, `>` commands (I126), `?` the keys (W26).
         if let Some(rest) = q.strip_prefix(':') {
             let f = q_emoji.lock().expect("emoji frecency");
@@ -1033,6 +1057,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         row
                     }),
             )
+            .chain(mod_rows)
             .chain(kurashi_launcher::commands::web_row(q, &template))
             .collect()
     });
@@ -1155,6 +1180,10 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                     .as_str()
                     .ok_or_else(|| ActionError::Invalid("launcher.launch needs id".into()))?
                     .to_string();
+                // K150: a mod's row runs the mod's own action (the query kept only those).
+                if let Some((action, args)) = crate::launcher_mods::parse_row(&id) {
+                    return actions.invoke(&action, args).await;
+                }
                 // A `>` command runs its action; the web row opens its address in the default browser.
                 if let Some(action) = id.strip_prefix("cmd:") {
                     return actions.invoke(action, json!({})).await;
