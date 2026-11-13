@@ -118,10 +118,34 @@ Item {
         anchors.top: true
         anchors.left: true
         property point at: Qt.point(0, 0)
+        // The favourite folders (Tab on an empty field): a menu under the field (over it on a bottom bar), in the window.
+        property bool picking: false
+        readonly property var favs: (w.s.favourites || [])
+        readonly property bool up: !!screen && at.y > screen.height / 2
+        readonly property real pickW: Math.max(face.width, 300)
+        readonly property real pickH: picking ? pickCol.implicitHeight + 2 * Theme.pad : 0
         margins.left: at.x
-        margins.top: at.y
-        implicitWidth: Math.max(1, face.width)
-        implicitHeight: Math.max(1, face.height)
+        margins.top: at.y - (up && picking ? pickH + Theme.xs : 0)
+        implicitWidth: Math.max(1, picking ? pickW : face.width)
+        implicitHeight: Math.max(1, face.height + (picking ? pickH + Theme.xs : 0))
+        function pickTree() {
+            var kids = []
+            for (var i = 0; i < favs.length; i++) {
+                var f = favs[i], name = String(f.label || "") !== "" ? String(f.label) : w.tail(f.path)
+                kids.push({ id: 100 + i, enabled: f.missing !== true,
+                            label: f.missing === true ? I18n.tr("terminal.menu.dir_missing").replace("{label}", name)
+                                                      : I18n.tr("terminal.dir.open").replace("{label}", name) })
+            }
+            if (kids.length === 0) kids.push({ id: 1, enabled: false, label: I18n.tr("terminal.menu.no_favourites") })
+            return { children: kids }
+        }
+        function pick(id) {
+            var f = favs[id - 100]
+            picking = false
+            if (!f) return
+            Store.act("terminal.open_dir", { path: f.path, show: w.s.input_target !== "quiet", output: w.outName })
+            close()
+        }
         property int hist: -1
         function open() {
             if (w.mode !== "input" || !QsWindow.window) return
@@ -133,9 +157,32 @@ Item {
             visible = true
             input.forceActiveFocus()
         }
-        function close() { visible = false }
+        function close() { picking = false; visible = false }
+        MenuCard {
+            visible: field.picking
+            width: field.pickW
+            height: field.pickH
+            y: field.up ? 0 : face.height + Theme.xs
+            Accessible.role: Accessible.PopupMenu
+            Accessible.name: I18n.tr("terminal.menu.favourites")
+            Column {
+                id: pickCol
+                x: Theme.pad
+                y: Theme.pad
+                width: field.pickW - 2 * Theme.pad
+                TrayMenu {
+                    id: picker
+                    objectName: "terminal-field-picker"
+                    width: parent.width
+                    tree: field.picking ? field.pickTree() : null
+                    onChosen: id => field.pick(id)
+                }
+            }
+        }
         Rectangle {
-            anchors.fill: parent
+            y: field.up && field.picking ? field.pickH + Theme.xs : 0
+            width: face.width
+            height: face.height
             radius: Theme.rSm
             color: Theme.surface
             border.width: 1
@@ -152,6 +199,16 @@ Item {
                 font.family: Theme.tok("font.family_mono", "monospace")
                 Accessible.role: Accessible.EditableText
                 Accessible.name: I18n.tr("terminal.input.a11y")
+                // (while the folders are listed the keys walk them: TrayMenu's Up/Down, Enter, Esc puts them away)
+                Keys.onPressed: e => {
+                    if (field.picking) {
+                        if (e.key === Qt.Key_Escape) { field.picking = false; e.accepted = true; return }
+                        if (picker.handleKey(e.key)) { e.accepted = true; return }
+                        field.picking = false
+                        return
+                    }
+                    if (e.key === Qt.Key_Tab && input.text === "") { field.picking = true; picker.step(1); e.accepted = true }
+                }
                 Keys.onReturnPressed: field.run()
                 Keys.onEnterPressed: field.run()
                 Keys.onEscapePressed: field.close()

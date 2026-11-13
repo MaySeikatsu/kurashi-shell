@@ -38,9 +38,15 @@ Item {
         doc: panel.d
         output: panel.cardPlacement ? String(panel.cardPlacement.output || "") : (panel.placement ? String(panel.placement.output || "") : "")
     }
+    NoticeStrip {
+        width: row.width
+        height: row.keyH
+        doc: panel.d
+        owner: panel.where !== "" && panel.d.shown_in === panel.where
+    }
     Rectangle {
         id: well
-        y: row.height + Theme.xs
+        y: row.height + Theme.gap
         width: parent.width
         height: Math.max(80, parent.height - y)
         radius: Theme.rSm
@@ -49,6 +55,15 @@ Item {
             anchors.fill: parent
             doc: panel.d
             place: panel.where !== "" ? panel.where : "none"
+        }
+        // The text's last frame while the card or the sidebar moves, until the host's window is over the well.
+        Still {
+            anchors.fill: parent
+            doc: panel.d
+            place: panel.where
+            keep: panel.where !== "" && panel.d.shown_in === panel.where
+            hold: panel.where !== "" && panel.d.shown_in === panel.where
+                && !(panel.wellPlace !== null && panel.d.host && panel.d.host.shows === panel.where)
         }
         // Outside a card and a sidebar (a place that hands no placement): the terminal cannot be laid here; say so and
         // offer the drop-down.
@@ -121,6 +136,7 @@ Item {
     readonly property bool sideShown: side !== "" && (Store.docs["runtime.ui"] || ({})).sidebar === side
     onSideShownChanged: if (!sideShown && sentWhere === "sidebar") close()
     // The pointer in the host's window over the well holds a hover-opened card, as the card itself does.
-    readonly property bool pageHover: inCard && cardShown && d.pointer === true
+    // (and the "+" menu out of its tab row: the pointer is on the menu, the card stays)
+    readonly property bool pageHover: inCard && cardShown && (d.pointer === true || row.menuOpen)
     onPageHoverChanged: Peeks.hoverOverlay("terminal", pageHover)
 }

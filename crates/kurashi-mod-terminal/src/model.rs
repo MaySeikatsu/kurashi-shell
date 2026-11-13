@@ -133,6 +133,16 @@ pub struct Model {
     notice: Option<(String, String)>,
     /// The pointer is on the host's window (a hover-opened card holds while it is).
     pointer: bool,
+    /// Where the host's text is on screen now (`terminal.host.shown`): a place, or none while its window is unmapped.
+    /// The places draw the terminal's last frame until the text is there (W85: no pop-in).
+    host_shows: Option<Place>,
+    /// The stills the host keeps (`<tab>-<w>x<h>`, newest first): a place draws one only when it is there.
+    host_stills: Vec<String>,
+    /// The shell's own chrome holds the keyboard (a menu out of the tab row, a tab's name edited): the host's window
+    /// lets go of it meanwhile (niri keeps the keyboard with the first of two exclusive layers).
+    held: bool,
+    /// Counts the stills written (a place keeps the newest loaded while it shows the text).
+    still_gen: u64,
     /// The drop-down holds the keyboard (exclusively): from its coming out until a click elsewhere releases it.
     keys: bool,
 }
@@ -159,6 +169,10 @@ impl Model {
             stopping: false,
             notice: None,
             pointer: false,
+            host_shows: None,
+            host_stills: Vec::new(),
+            held: false,
+            still_gen: 0,
             keys: false,
         }
     }
@@ -357,6 +371,10 @@ impl Model {
         if matches!(state, HostState::Off | HostState::Missing) {
             self.stopping = false;
         }
+        if !matches!(state, HostState::Ready) {
+            self.host_shows = None;
+            self.host_stills.clear();
+        }
         self.host = state;
         stop
     }
@@ -424,6 +442,7 @@ impl Model {
     pub fn hide(&mut self) {
         self.dropdown = false;
         self.keys = false;
+        self.held = false;
         self.open.retain(|q| *q != Place::Dropdown);
         self.rests.remove(&Place::Dropdown);
     }
@@ -482,6 +501,32 @@ impl Model {
 
     pub fn set_pointer(&mut self, on: bool) {
         self.pointer = on;
+    }
+
+    /// The host's report of where its text is on screen (`None`: its window is unmapped).
+    pub fn host_shown(
+        &mut self,
+        p: Option<Place>,
+        stills: Option<Vec<String>>,
+        still: Option<u64>,
+    ) {
+        self.host_shows = p;
+        if let Some(s) = stills {
+            self.host_stills = s.into_iter().take(16).collect();
+        }
+        if let Some(g) = still {
+            self.still_gen = g;
+        }
+    }
+
+    /// The shell's chrome takes the keyboard (`on`) or gives it back to the terminal.
+    pub fn hold_keys(&mut self, on: bool) {
+        self.held = on;
+    }
+
+    /// The notice read and put away (its strip's ×, or its time up).
+    pub fn dismiss(&mut self) {
+        self.notice = None;
     }
 
     // ---- running lines ----
@@ -608,6 +653,13 @@ impl Model {
         if self.crashed {
             host.insert("crashed".into(), json!(true));
         }
+        if let Some(p) = self.host_shows.filter(|_| self.host.is_running()) {
+            host.insert("shows".into(), json!(p.name()));
+        }
+        if !self.host_stills.is_empty() && self.host.is_running() {
+            host.insert("stills".into(), json!(self.host_stills));
+            host.insert("still_gen".into(), json!(self.still_gen));
+        }
         d.insert("host".into(), Value::Object(host));
         d.insert(
             "tabs".into(),
@@ -676,6 +728,9 @@ impl Model {
         }
         if self.keys && self.dropdown {
             d.insert("keys".into(), json!(true));
+        }
+        if self.held {
+            d.insert("held".into(), json!(true));
         }
         if let Some((key, path)) = &self.notice {
             d.insert("notice".into(), json!({"key": key, "path": path}));
@@ -766,6 +821,34 @@ mod tests {
         std::fs::create_dir(home.path().join("proj")).unwrap();
         let m = Model::new(Cfg::default(), home.path().to_path_buf());
         (home, m)
+    }
+
+    #[test]
+    fn the_hosts_shown_place_and_a_dismissed_notice() {
+        let mut m = Model::new(Cfg::default(), PathBuf::from("/tmp"));
+        m.set_host(HostState::Ready);
+        m.host_shown(
+            Some(Place::Dropdown),
+            Some(vec!["t1-800x400".into()]),
+            Some(3),
+        );
+        assert_eq!(m.doc()["host"]["shows"], "dropdown");
+        assert_eq!(m.doc()["host"]["stills"][0], "t1-800x400");
+        assert_eq!(m.doc()["host"]["still_gen"], 3);
+        m.host_shown(None, None, None);
+        assert!(m.doc()["host"].get("shows").is_none());
+        assert_eq!(m.doc()["host"]["stills"][0], "t1-800x400");
+        m.host_shown(Some(Place::Card), None, None);
+        m.set_host(HostState::Off);
+        assert!(m.doc()["host"].get("shows").is_none());
+        assert!(m.open_dir("/does-not-exist-w85", true).is_err());
+        assert_eq!(m.doc()["notice"]["key"], "terminal.error.no_dir");
+        m.dismiss();
+        assert!(m.doc().get("notice").is_none());
+        m.hold_keys(true);
+        assert_eq!(m.doc()["held"], true);
+        m.hide();
+        assert!(m.doc().get("held").is_none());
     }
 
     #[test]
