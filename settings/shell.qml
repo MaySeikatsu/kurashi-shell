@@ -1018,6 +1018,23 @@ ShellRoot {
                                 }
                             }
                         }
+                        // K151 (session 33): which kurashi this is — the daemon's version (the `daemon` document), at the end of the pages.
+                        Text {
+                            width: parent.width
+                            topPadding: Theme.pad
+                            leftPadding: Theme.gap
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            color: Theme.dim
+                            font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
+                            readonly property var d: Store.docs["daemon"] || ({})
+                            visible: !!d.version
+                        Component.onCompleted: Store.watch("daemon")
+                        Component.onDestruction: Store.unwatch("daemon")
+                            text: I18n.tr("settings.ui.version").replace("{v}", String(d.version || ""))
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: text
+                        }
                     }
                     ScrollEdge { view: navFlick }
                     }

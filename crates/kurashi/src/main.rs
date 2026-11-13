@@ -8,7 +8,7 @@ use serde_json::Value;
 use tokio::net::UnixStream;
 
 #[derive(Parser)]
-#[command(name = "kurashi", about = "Kurashi shell control")]
+#[command(name = "kurashi", about = "Kurashi shell control", version)]
 struct Cli {
     /// Socket path (default: $KURASHI_SOCKET or $XDG_RUNTIME_DIR/kurashi/ipc.sock)
     #[arg(long, global = true)]

@@ -1620,3 +1620,13 @@ search in its edge card (and lists the pins it matches); the terminal (W83) foll
 **Why.** The user (session 33): "open/search something directly in the web panel from the launcher", and the terminal's
 launcher entries. MODS.md promised launcher providers since K26 and the manifest accepted `launcher:`, but no code path
 existed; one mechanism serves both and any later mod, with no second hand-kept list of prefixes (rule 3).
+
+## K151 — Versioning: SemVer 0.x, one source, a changelog, a tag per release (session 33)
+**Decision.** The version is `[workspace.package] version` in `Cargo.toml` (every crate inherits it; `nix/package.nix`
+reads it). Until 1.0: a release with features bumps MINOR, fixes only bump PATCH; a break of a user's config, a mod
+manifest (`kurashi = ">=…"`) or the IPC protocol goes under **Breaking** in `CHANGELOG.md` with the way through. Each PR
+to `main` bumps the version and adds its changelog section (Unreleased → the version); after the user merges it, the lead
+tags `vX.Y.Z` on `main` and pushes the tag. Shown by `kurashi --version`, the first line of `kurashi doctor` (the CLI's),
+the daemon's `daemon` document, and at the end of Settings' page list. Starts at 0.1.0 (sessions 1–33).
+**Why.** The user (session 33): "please also start using the versioning of the shell". They chose SemVer 0.x over
+numbering by session or CalVer.
