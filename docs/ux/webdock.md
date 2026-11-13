@@ -949,6 +949,36 @@ View pins (`mod:<id>:<panel>`) exist since W20; the mode filters the strip and t
 - Ma: the switch is one setting write; the chooser reads the `mods` document the shell already holds (no new
   subscription, no process) and unloads when it closes.
 
+### As built (W78)
+- **The switch shows only while a mod that is on offers a view, or while Local is on** (the way back): a shell without
+  local content draws no inert key (Kanso), and a strip with only the web dock on keeps its old layout (test-dock's fixed
+  coordinates hold). Its tip names it on a rest (the icon alone does not say "switch").
+- **Online lists every pin** (see the Design and CONTRACT-CHANGE 760: the fixture decided it); Local lists `strip`.
+- **Switching closes a side panel** (the chooser or a pin's menu) and puts away a card of the other kind (daemon,
+  `content_changed`).
+- **A chooser row opens its pin with `webdock.open`** (never `select`, which would put away a pin already shown).
+- **The view card takes a desk card** where the mod has no panel of that name (notes, lyrics), as the sidebar does.
+- **Debug lines** (KURASHI_WEBDOCK_DEBUG=1): `webdock-debug rows <mode> <ids>`, `strip ctl:<name> x y w h`,
+  `local <target> <pinned|-> x y w h`, `view <provide> <loaded>` — test-card's part "local" reads them.
+
+### Definition of done (W78, Local mode)
+- [x] The switch flips `mods.webdock.content` (one undo step), the strip lists the mode's pins (`strip` while local),
+      the switch back lists every pin (test-card local).
+- [x] Local "+" lists the enabled mods' views — the timer's and the tasks' panels, the notes desk card, never the dock's
+      own; a press pins `mod:timer:timer` and opens it; "+" again marks it pinned (test-card local).
+- [x] A view pin opened in Local mode shows its panel in the card (`webdock-debug view panel:timer true`; shot).
+- [x] Unit tests: `content_step` (flip, named, unknown, forced), the strip per mode (no temporary page), the card of the
+      other kind put away, a view target added (`cargo test -p kurashi-mod-webdock`: 57 + 24).
+- [x] Shots light and dark on nested niri (`mods/webdock/test/shots-local.sh` → `mods/webdock/shots/local/`):
+      local-online, local-strip, local-chooser, local-view, local-pinned.
+- [ ] Forced `content` (inert switch with the reason): built like the pin toggle's (`forced.content`), not driven or shot.
+- [ ] The chooser's empty state ("No mod that is on offers a view…" + Settings › Mods) and an add refused: built, not
+      shot (the switch hides when no mod offers a view, so the empty chooser needs Local on with every view mod off).
+- [ ] The chooser's keyboard (Up/Down, Enter, Esc back to "+"): built, not driven in the suite.
+- [ ] A sites-only Online (the user's words): decision asked (CONTRACT-CHANGE 760).
+- [ ] Launcher / full Settings as local pins: not built (CONTRACT-CHANGE 761). The sidebar's and the bar card's rows
+      stay unfiltered.
+
 ## Desktop apps (experimental) — an evaluation, not a build (W78, session 32; the user's 3g)
 **Ask.** A desktop app as a pin, its window held in the card's frame. The user's lead: "it should be possible to use an
 OS-installed browser instead of the embedded one, so other apps too?" This section compares the routes on Wayland /
