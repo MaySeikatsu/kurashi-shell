@@ -2431,6 +2431,19 @@ pub enum WorkspaceMarks {
     Dots,
 }
 
+/// How the focused workspace's mark moves to the next one (session 32, docs/ux/workspace-motion.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum WorkspaceMotion {
+    /// Liquid
+    Goo,
+    /// Stretch
+    Stretch,
+    /// Slide
+    Slide,
+    /// Each key lights on its own
+    Off,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(section = "workspaces")]
 pub struct WorkspacesModule {
@@ -2441,6 +2454,11 @@ pub struct WorkspacesModule {
     /// Marks
     #[kurashi(default = WorkspaceMarks::Look, module = "workspaces", since = 7)]
     pub marks: WorkspaceMarks,
+    /// Switching animation
+    /// The lit mark travels to the workspace you switch to: liquid (it draws out and flows over), stretch (its front runs
+    /// ahead, its back catches up) or slide. The wobble follows the motion settings.
+    #[kurashi(default = WorkspaceMotion::Goo, module = "workspaces", since = 7)]
+    pub motion: WorkspaceMotion,
     /// Scroll to switch
     /// The mouse wheel over the workspaces moves to the next or the previous one.
     #[kurashi(default = false, module = "workspaces", since = 7)]
