@@ -1886,10 +1886,14 @@ struct AudioSink {
 
 impl kurashi_services::DocSink for AudioSink {
     fn set(&self, doc: Value) {
-        // The volume OSD and a moved default output are the island's edges (island.rs).
-        if let Some(island) = &self.island {
+        // The volume OSD and a moved default output are the island's edges (island.rs) while the OSD is the island's
+        // (`osd.place = island`); else the OSD's (osd.rs, I527), and the mic mute is always the OSD's.
+        if let Some(island) = &self.island
+            && self.hub.osd.in_island()
+        {
             island.observe_audio(&doc);
         }
+        self.hub.osd.observe_audio(&self.hub, &doc);
         let origin = self
             .last_origin
             .lock()
@@ -2308,12 +2312,21 @@ impl BrightnessWriter {
             .apply(&conn)
             .await
             .map_err(|e| ActionError::Internal(e.to_string()))?;
+        // I527: the OSD's, unless it is the island's (`osd.place = island`).
+        if let Some(percent) = doc["percent"].as_f64() {
+            self.hub.osd.brightness(&self.hub, percent / 100.0);
+        }
         // A running service keeps its document in step with the level now in effect.
         if self.provider.commands().is_some() {
             let _ = self.hub.set("svc.brightness", doc, origin);
         }
+
         // The OSD is a system event: none while `island.main.system_events` is off (K65).
-        if let Some(island) = self.island.as_ref().filter(|i| i.system_events()) {
+        if let Some(island) = self
+            .island
+            .as_ref()
+            .filter(|i| i.system_events() && self.hub.osd.in_island())
+        {
             island.signal(kurashi_island::FaceSignal {
                 face: "brightness".into(),
                 relevance: 0,
@@ -4672,6 +4685,8 @@ mod tests {
         let (_bus, _srv, sysfs, connect) = backlight_rig().await;
         let dev = sysfs.join("intel_backlight");
         let hub = Hub::new();
+        // (these check the island's faces: the OSD is the island's here, `osd.place = island`)
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "brightness"]);
         let mut actions = ActionRegistry::default();
         brightness_with(
@@ -4732,6 +4747,7 @@ mod tests {
         let (_bus, _srv, sysfs, connect) = backlight_rig().await;
         let dev = sysfs.join("intel_backlight");
         let hub = Hub::new();
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "brightness"]);
         let mut actions = ActionRegistry::default();
         let mut intents = crate::Intents::default();
@@ -4826,6 +4842,8 @@ mod tests {
     #[tokio::test]
     async fn volume_keys_step_through_the_audio_path_and_signal_the_osd() {
         let hub = Hub::new();
+        // (these check the island's faces: the OSD is the island's here, `osd.place = island`)
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "volume"]);
         let mut actions = ActionRegistry::default();
         let volume = Arc::new(Mutex::new(0.5));
@@ -5034,12 +5052,17 @@ impl<C: kurashi_compositor::Compositor + 'static> crate::hub::Provider for Keybo
         let task = tokio::spawn(async move {
             let mut events = compositor.events();
             if let Ok(s) = compositor.snapshot().await {
-                let _ = hub.set(KEYBOARD_DOC, keyboard_doc(s.keyboard.as_ref()), None);
+                let doc = keyboard_doc(s.keyboard.as_ref());
+                // (I527: the OSD learns the layout in effect; a later change is its edge)
+                hub.osd.observe_keyboard(&hub, &doc);
+                let _ = hub.set(KEYBOARD_DOC, doc, None);
             }
             while let Some(ev) = events.next().await {
                 match ev {
                     kurashi_compositor::Event::Keyboard(k) => {
-                        let _ = hub.set(KEYBOARD_DOC, keyboard_doc(k.as_ref()), None);
+                        let doc = keyboard_doc(k.as_ref());
+                        hub.osd.observe_keyboard(&hub, &doc);
+                        let _ = hub.set(KEYBOARD_DOC, doc, None);
                     }
                     kurashi_compositor::Event::Resync => {
                         if let Ok(s) = compositor.snapshot().await {

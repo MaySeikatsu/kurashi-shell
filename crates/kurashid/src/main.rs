@@ -262,10 +262,15 @@ async fn run() -> anyhow::Result<()> {
         kurashid::wiring::forced_services(&hub, store);
     }
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
+    // I527: the OSD's settings and its document.
+    hub.register(kurashid::osd::DOC, json!({}), None);
     let bindings = config.clone().map(|store| {
         let h = island.clone();
         store.on_change(move |c| h.apply_config(c));
         island.apply_config(&store);
+        let oh = hub.clone();
+        store.on_change(move |c| oh.osd.apply_config(c));
+        hub.osd.apply_config(&store);
         let b = kurashid::bindings::Bindings::new(&hub, store);
         b.register_actions(&mut actions);
         b

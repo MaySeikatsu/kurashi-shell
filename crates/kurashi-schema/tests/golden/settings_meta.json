@@ -7332,6 +7332,107 @@
               "type": "int"
             }
           ]
+        },
+        {
+          "id": "osd",
+          "label": "settings.section.osd",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.osd_place.bottom",
+                  "value": "bottom"
+                },
+                {
+                  "label": "config.choice.osd_place.top",
+                  "value": "top"
+                },
+                {
+                  "label": "config.choice.osd_place.center",
+                  "value": "center"
+                },
+                {
+                  "label": "config.choice.osd_place.island",
+                  "value": "island"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "bottom",
+              "help": "config.osd.place.help",
+              "key": "osd.place",
+              "label": "config.osd.place.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 1500,
+              "key": "osd.timeout_ms",
+              "label": "config.osd.timeout_ms.label",
+              "max": 5000,
+              "min": 600,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 100,
+              "type": "int"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "key": "osd.volume",
+              "label": "config.osd.volume.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "key": "osd.mic",
+              "label": "config.osd.mic.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "key": "osd.brightness",
+              "label": "config.osd.brightness.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.osd.layout.help",
+              "key": "osd.layout",
+              "label": "config.osd.layout.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            }
+          ]
         }
       ]
     },

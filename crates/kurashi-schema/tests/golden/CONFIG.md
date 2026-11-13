@@ -2327,6 +2327,44 @@ How many notifications are kept.
 - restart required
 - advanced
 
+### OSD
+
+#### `osd.place` — Where it shows
+
+The OSD answers a key that changes the volume, the brightness, the microphone or the keyboard layout. In the island: the island shows volume and brightness as it did before (the layout and the microphone show at the bottom).
+
+- type: `choice` · default: `"bottom"`
+- choices: `"bottom"` | `"top"` | `"center"` | `"island"`
+- since schema v7
+
+#### `osd.timeout_ms` — How long it stays (ms)
+
+- type: `int` · default: `1500`
+- range: `600..=5000`, step `100`
+- since schema v7
+
+#### `osd.volume` — Volume
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.mic` — Microphone mute
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.brightness` — Brightness
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.layout` — Keyboard layout
+
+Shown when the layout changes and there is more than one.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ## Launcher
 
 ### Apps

@@ -428,6 +428,10 @@ pub fn i18n_en(reg: &Registry) -> String {
 
 /// `motion_profile` → `Motion profile`.
 pub fn humanize(id: &str) -> String {
+    // (an initialism stays one)
+    if matches!(id, "osd") {
+        return id.to_uppercase();
+    }
     let s = id.replace(['_', '-'], " ");
     let mut c = s.chars();
     match c.next() {

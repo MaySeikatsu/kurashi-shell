@@ -45,6 +45,8 @@ pub struct Hub {
     /// K150: the mods' launcher providers — filled by the native mods' enable, read by the launcher's query (both hold
     /// the hub).
     pub launcher_mods: crate::launcher_mods::LauncherMods,
+    /// Session 33 (I527): the OSD — the audio, brightness and keyboard paths report to it, it publishes `runtime.osd`.
+    pub osd: crate::osd::Osd,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -60,6 +62,7 @@ impl Hub {
             tx,
             me: me.clone(),
             launcher_mods: Default::default(),
+            osd: Default::default(),
         })
     }
 

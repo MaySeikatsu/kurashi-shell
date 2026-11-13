@@ -37,21 +37,14 @@ fn strings() -> BTreeMap<String, String> {
 fn wrap(text: &str, width: usize, indent: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut line = String::from("#");
-    let mut first = true;
     for word in text.split_whitespace() {
-        let lead = if first { " " } else { "" };
         if line.len() + 1 + word.len() > width && line.len() > 2 {
-            lines.push(line);
-            line = format!("# {indent}");
-            first = false;
-        } else if !line.ends_with(' ') {
-            line.push_str(lead);
+            lines.push(std::mem::replace(&mut line, format!("# {indent}")));
+            line.push_str(word);
+            continue;
         }
-        if !line.ends_with(' ') && line.len() > 1 {
-            line.push(' ');
-        }
+        line.push(' ');
         line.push_str(word);
-        first = false;
     }
     if line.len() > 1 {
         lines.push(line);
@@ -139,7 +132,8 @@ fn mods_part(strings: &BTreeMap<String, String>) -> String {
         out.push_str(&format!("\n# [mods.{}]\n#\n", m.id));
         let title = tr(&m.name);
         let desc = m.description.as_deref().map(tr).unwrap_or_default();
-        for l in wrap(&format!("{title} — {desc}").trim_end_matches(" — ").to_string(), 100, "") {
+        let head = format!("{title} — {desc}");
+        for l in wrap(head.trim_end_matches(" — "), 100, "") {
             out.push_str(&l);
             out.push('\n');
         }
@@ -209,7 +203,10 @@ fn config_toml_example_is_current() {
         assert!(l.is_empty() || l.starts_with('#'), "not a comment: {l}");
     }
     // And every key line, uncommented, is TOML.
-    for l in actual.lines().filter(|l| l.starts_with("# ") && l.contains(" = ")) {
+    for l in actual
+        .lines()
+        .filter(|l| l.starts_with("# ") && l.contains(" = "))
+    {
         let line = &l[2..];
         let key = line.split(" = ").next().unwrap_or_default();
         let is_key = !key.is_empty()

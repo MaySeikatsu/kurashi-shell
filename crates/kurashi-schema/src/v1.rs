@@ -64,6 +64,8 @@ pub struct Config {
     pub cursor: Cursor,
     #[kurashi(nested)]
     pub quick: Quick,
+    #[kurashi(nested)]
+    pub osd: Osd,
 }
 
 // --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
@@ -2202,6 +2204,45 @@ pub struct IslandInstance {
 }
 
 // --- notifications ---------------------------------------------------------------------------
+
+/// Where the OSD shows (session 33, I527, docs/ux/osd.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum OsdPlace {
+    /// Bottom centre
+    Bottom,
+    /// Top centre
+    Top,
+    /// Centre of the screen
+    Center,
+    /// In the island
+    Island,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "notifications", section = "osd")]
+pub struct Osd {
+    /// Where it shows
+    /// The OSD answers a key that changes the volume, the brightness, the microphone or the keyboard layout. In the
+    /// island: the island shows volume and brightness as it did before (the layout and the microphone show at the bottom).
+    #[kurashi(default = OsdPlace::Bottom, since = 7)]
+    pub place: OsdPlace,
+    /// How long it stays (ms)
+    #[kurashi(default = 1500, range = 600..=5000, step = 100, since = 7)]
+    pub timeout_ms: u32,
+    /// Volume
+    #[kurashi(default = true, since = 7)]
+    pub volume: bool,
+    /// Microphone mute
+    #[kurashi(default = true, since = 7)]
+    pub mic: bool,
+    /// Brightness
+    #[kurashi(default = true, since = 7)]
+    pub brightness: bool,
+    /// Keyboard layout
+    /// Shown when the layout changes and there is more than one.
+    #[kurashi(default = true, since = 7)]
+    pub layout: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "notifications", section = "server")]
