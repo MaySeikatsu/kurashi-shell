@@ -56,16 +56,18 @@ terminal; the others show "Shown in the drop-down / the bar's card / the sidebar
   shadow, corners and outline, its tab row and grip; the bar card and sidebar draw the panel. Rule 4: tokens only.
 - The **host draws only the text**: a transparent layer window laid over the place's well (`setBackgroundOpacity(0)`),
   so the shell's material and niri's blur show through. The glyphs use the look's monospace (`font.mono`, else the
-  setting `font`), the palette's 16 ANSI colours and fg/bg (`theme` tokens `term.*`/`color.ansi.*`, else fallbacks from
-  the palette's roles), recoloured live on a theme change (patched `setColors`, no restart).
+  setting `font`), the palette's 16 ANSI colours and fg/bg (`theme` tokens `term.*`: the palette's own table, else
+  derived from it by hue — W85), recoloured live on a theme change (patched `setColors`, no restart).
 - **Motion** (the motion profile, DESIGN-SYSTEM §9): `bar` and `edge` slide out of what they hang from (the card's
   entrance the Stage uses); `center` and `position` a calm fade + scale 0.96 → 1. The host's window unmaps while the
-  sheet moves and maps at rest with a 90 ms fade of the text (the well shows the terminal's background meanwhile);
+  sheet moves; the place draws the text's last frame (a still the host keeps) through the slide, so the text comes and
+  goes with its sheet, and the host's window maps over it at rest as a cut (W85; a 90 ms fade where no still exists yet);
   reduced motion is a cut, and the text is there with the sheet.
 
 ## Tabs (Yakuake's essentials)
 A tab row along the sheet's free edge (bottom for `bar`/top edge): one key per tab (title: the shell's OSC title, else
-the cwd's last segment; a rename sticks), "+" (a menu: new tab, new tab in a favourite directory), × on hover/focus.
+the cwd's last segment; a rename sticks), "+" (a new tab) and its menu ⌄ (new tab, new tab in a favourite directory,
+the favourites' settings — the shell's TrayMenu), × on the current one, hover and focus (W85: the sidebar's tab style).
 Splits: **not in this round** (QMLTermWidget has one view per session; noted in BACKLOG).
 
 ## The bar module (`widget:terminal`, `modules.terminal.mode` → the mod setting `bar_mode`)
@@ -147,6 +149,69 @@ toggle on another output moves the drop-down there (one session, one place at a 
   the well shows the sheet's material and the terminal's ground.
 - Colours: `term.*` theme tokens when the theme publishes them (CONTRACT-CHANGE 781), else a stand-in from the roles.
 
+## As built (W85, the polish)
+The lead's review of W83 found it below the shell's bar ("highly polished, deeply integrated, native, not an
+afterthought"). Seen on nested niri in washi, kami and material, light and dark (`mods/terminal/shots/*-{washi,kami,material}-{light,dark}.png`).
+- **The tab row is the shell's** (the sidebar's tab row, I500): a horizontal list of keys (Block, the current one tonal
+  `Theme.selected`, the others the look's key), wheel and drag when they do not fit, the cut end blending out
+  (`ScrollEdge`), the current one kept in view, Ctrl+PageUp/PageDown from any key. At its end "+" (a new tab, as a
+  browser's and Windows Terminal's), its menu ⌄ (also a right click on "+"), and the pin — the drop-down's only (the card
+  has the Stage's own `ui.keep`). A tab: click selects, middle click closes, double click or F2 renames in place, × on the
+  current, the hovered and the focused one; `Accessible.PageTab`, "Tab 2 of 3, cargo".
+- **Menus are the shell's** (`TermMenu`: TrayMenu in a MenuCard, as the web page's menu, docs/ux/context-menus.md): "New
+  tab", one row per favourite ("New tab in fav"; a missing one grey, "gone (does not exist)"), "Favourite folders…"
+  (Settings, the mod's page; "Add favourite folders…" while there are none). It is a layer window of its own, mapped while
+  open: the terminal's text window lies over the well and would cover a menu drawn in the place. It holds the keyboard
+  while open — niri keeps the keyboard with the *first* of two exclusive layers, so the host's window lets go of it while
+  the shell's chrome holds it (`terminal.hold {on}` → `held`; the tab rename uses the same) and takes it back after. The
+  bar field's Tab on an empty field lists the favourites the same way (TrayMenu under the field, over it on a bottom bar).
+  The module's right-click menu cannot list the favourites yet: ModuleMenu draws only schema rows and a mod has no way to
+  add its own (CONTRACT-CHANGE 801).
+- **Notices in the shell's form.** The well's states (missing, starting, stopped, exited, shown elsewhere) are an empty
+  state as the shell's cards draw one: the symbol on a tonal disc (the error's tone for stopped and missing), one line
+  (starting: the look's `LoadingText`), a detail (why it stopped; what Enter does; the Home-Manager option), and the one
+  action that helps (Start again, New shell, Show it here, Terminal settings…). A refused folder is no longer red text
+  under the terminal: a strip in the error's tone laid over the tab row (the well and the terminal keep their size),
+  with "Favourite folders…" when the folder is a favourite and ×; it goes after 8 s (counted by the place that shows the
+  terminal), on ×, or with the next request that succeeds (`terminal.dismiss`).
+- **No pop-in: the text's last frame.** The host keeps a still of the active tab's text per well size
+  (`$XDG_RUNTIME_DIR/kurashi-terminal-<tab>-<w>x<h>.png`, `grabToImage` at the device's pixels): 400 ms after the display
+  last painted while it shows (nothing at rest), and once more before its window unmaps; it reports the stills it holds
+  (`terminal.host.shown {where?, stills, gen}` → `host.stills`, `host.still_gen`, `host.shows`). A place draws that still
+  in its well while its text is not there — through the slide in, until the host says its text is over the well, and
+  through the slide out — and keeps the newest one decoded while it shows the text, so it is drawn the moment it leaves.
+  Order on a hide: the place draws the still and holds the sheet two frames at rest; the host's window goes a frame after
+  its last still; then the sheet slides. The host maps as a cut where a still lies under it (the same pixels), else with
+  the 90 ms fade. Measured (bursts at 20 ms, `burst-{in,out}-<look>-<scheme>.png`): every frame in which the sheet stands
+  at rest shows the text, in and out, in each look. Costs: one PNG (~1128 × 424, a few ms) after a burst of output while
+  shown; ~2 MB of decoded still in the shell while the drop-down is out; the stills are cleared when a host starts.
+  The bar card and the sidebar draw the still too; their slides are the Stage's and the sidebar's, so the hide is not
+  held there (the host still waits a frame).
+- **The look's colours** (`term.*`, CONTRACT-CHANGE 785): kurashi-theme publishes `term.foreground`, `term.background`,
+  `term.cursor`, `term.cursor_text`, `term.cursor_on`, `term.selection_{background,foreground}`, `term.color0`…`15`. The
+  palette's own terminal table when it publishes one for the scheme (Dracula, Catppuccin…; not under high contrast or a
+  colour-blind aid); else derived from the palette by hue (`apps_palette::ansi_of`): red, green, yellow, blue, magenta
+  and cyan where a terminal expects them, each taken from the palette's own colour of that hue when it has one (kami's red
+  pen and blue pencil), at its colourfulness, ≥ 3:1 on its ground; black, white and the greys from its text and ground.
+  The look palettes (washi's wa-iro, kami, sekai, material…) have no table, so this is what they wear: a kami terminal
+  writes in blue ink on the dotted page. (The export templates keep their role mapping when `real_palettes` is off — a
+  test guards it — so an exported foot/ghostty may differ from the shell's own terminal there: CONTRACT-CHANGE 803.)
+- **Finished / failed and "a command finished" (OSC 133): not built — not cheap.** QMLTermWidget's emulation drops OSC
+  133 (`Session::setUserTitle` handles 0/1/2/11/30/31/32/50 only) and nothing reaches QML; a patch in
+  `nix/qmltermwidget.nix` would emit it as a signal (CONTRACT-CHANGE 802). What the user's shell needs once it does
+  (fish ≥ 4 emits the marks itself):
+  - bash: `PS0='\e]133;C\a'`; `PROMPT_COMMAND='printf "\e]133;D;%s\a\e]133;A\a" "$?"'` (before any other entry);
+  - zsh: `preexec() { print -n '\e]133;C\a' }`; `precmd() { print -n "\e]133;D;$?\a\e]133;A\a" }`;
+  - fish < 4: `function __k_post --on-event fish_postexec; printf '\e]133;D;%s\a' $status; end` and
+    `function __k_pre --on-event fish_preexec; printf '\e]133;C\a'; end`.
+- **Two outputs** (`mods/terminal/test/test-terminal-outputs.sh`, headless sway with two outputs — nested niri has one):
+  the drop-down comes out on the focused output (HEADLESS-2, then HEADLESS-1), a toggle on the other output moves it
+  there with the same sessions, and the module's card opens under the module on its own output.
+- **Budget** (nested niri, 1920 × 1080, one tab, bash): the host 140 MiB PSS hidden, 151 MiB shown; 0 voluntary context
+  switches in 15 s, hidden and shown idle (all threads). (BENCH.md is the lead's: CONTRACT-CHANGE 804.)
+- The card is as wide as `bar.card_max_width` lets a card be (33 % of the output: a 400 px card, a 328 px well, ~45
+  columns); the terminal asks for 760 (implicitWidth) but the Stage's limit is the user's.
+
 ## Definition of done
 Each line is reported met / not met.
 1. qs-terminal packaged (Qt 6 QMLTermWidget + palette patch), `$SHELL` runs, typing, resize, scrollback, CJK glyphs.
@@ -167,3 +232,12 @@ Each line is reported met / not met.
 16. Splits.
 17. i18n en/ja; a11y names; keyboard paths.
 18. `mods/terminal/test/test-terminal.sh` on nested niri covers 2, 9, 10, 11, 13, 14 and the shots.
+
+W85 additions (reported met / not met in the card's report):
+19. Notices in the shell's form (the well's empty states; the refused folder in a strip over the tab row), i18n, actions.
+20. The tab row in the shell's tab style; the "+" menu and the field's Tab picker as TrayMenus with keys; the module's
+    right-click favourites (needs CONTRACT-CHANGE 801).
+21. No pop-in: bursts in three looks show the text in every frame in which the sheet rests, in and out.
+22. `term.*` from the theme in every look.
+23. OSC 133 finished/failed and the island (needs CONTRACT-CHANGE 802).
+24. Two outputs (`test-terminal-outputs.sh`); the host's budget (CONTRACT-CHANGE 804 for BENCH.md).

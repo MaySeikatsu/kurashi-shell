@@ -16,6 +16,7 @@
 # W85 (the polish, docs/ux/terminal.md "As built (W85)"):
 #  10. the tab row's menu (⌄): it is the shell's menu (TrayMenu, `kurashi-terminal-menu`), it takes the keyboard from the
 #      terminal (`held`; the host's window lets go) — Down, Down, Enter opens a tab in the favourite — and gives it back;
+#      the bar field's Tab on an empty field lists the favourites the same way, Enter opens one;
 #  11. a refused folder is said in the notice strip (shot), `terminal.dismiss` puts it away; the last tab closed says the
 #      shell exited (shot), a new one starts;
 #  12. the looks (TERM_LOOKS: washi kami material by default, light and dark): the drop-down with the ANSI colours (the
@@ -207,6 +208,24 @@ type_line "echo kurashi > $OUT/field.txt"
 wait_until 10 file_has "$OUT/field.txt" kurashi || fail "the bar's field did not run echo kurashi"
 wait_until 10 doc_is "d['dropdown']['open'] == True" || fail "the field's run did not show the terminal (input_target = show)"
 ok "$S: the bar's field ran echo kurashi and showed the terminal"
+# Tab on the empty field lists the favourite folders (TrayMenu under the field); Enter opens a tab in the first.
+N0=$(doc "len(d['tabs'])")
+K act terminal.hide > /dev/null
+wait_until 10 bash -c "! (\"$SB\" niri layers 2>/dev/null | grep -q kurashi-terminal-away)" || fail "the drop-down did not go"
+sleep 1
+"$SB" click "$FX" 16
+wait_until 5 has_layer kurashi-terminal-field || fail "the field did not open again"
+sleep 0.3
+"$SB" spawn wtype -k Tab
+sleep 0.4
+[ "$S" = light ] && shot "field-favourites-$S" "1300,0 620x200" 1
+"$SB" spawn wtype -k Return
+wait_until 10 doc_is "len(d['tabs']) == $N0 + 1 and d['tabs'][-1]['dir'] == '$FAV'" \
+  || fail "Tab, Enter in the field opened no tab in the favourite ($(doc "d['tabs']"))"
+wait_until 5 bash -c "! (\"$SB\" niri layers 2>/dev/null | grep -q kurashi-terminal-field)" || fail "the field stayed after a folder was chosen"
+K act terminal.close_tab "{\"tab\":\"$(doc "d['tabs'][-1]['id']")\"}" > /dev/null
+wait_until 5 doc_is "len(d['tabs']) == $N0" || fail "the field's folder tab did not close"
+ok "$S: Tab on the empty field lists the favourites; Enter opens one"
 K act terminal.run "{\"text\":\"echo launcher > $OUT/launcher.txt\"}" > /dev/null || fail "terminal.run refused"
 wait_until 10 file_has "$OUT/launcher.txt" launcher || fail "terminal.run (the launcher's prefix) did not run"
 ok "$S: terminal.run (the launcher's prefix) ran"

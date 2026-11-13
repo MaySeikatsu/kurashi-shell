@@ -199,21 +199,17 @@ Item {
                 font.family: Theme.tok("font.family_mono", "monospace")
                 Accessible.role: Accessible.EditableText
                 Accessible.name: I18n.tr("terminal.input.a11y")
-                // (while the folders are listed the keys walk them: TrayMenu's Up/Down, Enter, Esc puts them away)
+                // (while the folders are listed the keys walk them: TrayMenu's Up/Down and Enter; Esc puts them away, any
+                // other key goes on to the field. The specific handlers come before Keys.onPressed, so each asks first.)
                 Keys.onPressed: e => {
-                    if (field.picking) {
-                        if (e.key === Qt.Key_Escape) { field.picking = false; e.accepted = true; return }
-                        if (picker.handleKey(e.key)) { e.accepted = true; return }
-                        field.picking = false
-                        return
-                    }
+                    if (field.picking) { field.picking = false; return }
                     if (e.key === Qt.Key_Tab && input.text === "") { field.picking = true; picker.step(1); e.accepted = true }
                 }
-                Keys.onReturnPressed: field.run()
-                Keys.onEnterPressed: field.run()
-                Keys.onEscapePressed: field.close()
-                Keys.onUpPressed: field.walk(1)
-                Keys.onDownPressed: field.walk(-1)
+                Keys.onReturnPressed: field.picking ? picker.handleKey(Qt.Key_Return) : field.run()
+                Keys.onEnterPressed: field.picking ? picker.handleKey(Qt.Key_Return) : field.run()
+                Keys.onEscapePressed: { if (field.picking) field.picking = false; else field.close() }
+                Keys.onUpPressed: field.picking ? picker.handleKey(Qt.Key_Up) : field.walk(1)
+                Keys.onDownPressed: field.picking ? picker.handleKey(Qt.Key_Down) : field.walk(-1)
                 onActiveFocusChanged: if (!activeFocus && field.visible) field.close()
             }
         }
