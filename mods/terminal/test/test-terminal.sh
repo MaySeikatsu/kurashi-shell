@@ -150,9 +150,18 @@ wait_until 10 file_has "$OUT/menu.txt" "$FAV" || fail "after the menu the keys d
 wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the menu's tab"
 ok "$S: the tab row's menu: keys walk it, Enter opens the favourite, the keyboard comes back to the terminal"
 # A double click on the tab renames it in place (the row takes the keyboard: `held`), Return keeps the name.
-# (one pointer for both presses: two `click` runs are too far apart for a double click)
-(. "$OUT/sway-env.sh"; printf 'click %s %s left\nclick %s %s left\n' $((WX + 30)) $((WY + WH + 23)) $((WX + 30)) $((WY + WH + 23)) \
-  | python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve)
+# (two presses 130 ms apart on one pointer, as test-sidebar-panel.sh's double click: `click` waits too long between them)
+(. "$OUT/sway-env.sh"; python3 -I -c '
+import struct, sys, time
+sys.path.insert(0, sys.argv[1])
+import wl_pointer as wp
+p = wp.Pointer()
+p.motion(int(sys.argv[2]), int(sys.argv[3])); p.roundtrip(); time.sleep(0.4)
+def press(state):
+    p.send(p.pointer, 2, struct.pack("<III", wp.ms(), wp.BUTTONS["left"], state)); p.send(p.pointer, 4); p.roundtrip()
+press(1); time.sleep(0.05); press(0); time.sleep(0.08); press(1); time.sleep(0.05); press(0)
+p.settle()
+' "$ROOT/tools/bench" $((WX + 30)) $((WY + WH + 23)))
 wait_until 5 doc_is "d.get('held') == True" || fail "a double click on the tab did not start its rename"
 sleep 0.3
 "$SB" spawn wtype -k BackSpace "w85name" -k Return
