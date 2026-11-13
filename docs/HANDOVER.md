@@ -17,6 +17,20 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-13 — session 33, part two (machine A): 0.2.0 merged straight to `main` (the user's call)
+**State.** `main` = 0.2.0 (tag `v0.2.0`; `v0.1.0` = PR #61). No open branch, PR or worktree. Merged directly to `main`
+(no PR) at the user's word, after `just check` (green) and the touched suites on nested niri (`test-osd`, the terminal's
+light/washi pass, `hm-eval`); the full merge set was not run for 0.2.0.
+**Done.** The attached OSD (`osd.place = edge`, `osd.edge`, Caelestia's style); the terminal's way out (a Put away key, the
+last shell's exit puts it away, `hide_on_blur` on by default — B141); the frontend unit `Wants` kurashid instead of
+`Requires`, so a rebuild that restarts the daemon no longer leaves the shell down (B140 — what the user hit after enabling
+the terminal); backlog I538 (more room for wallpapers in the Wallpaper & Theming menu), I539 (`!` with the terminal off
+should say so). The user's keyboard: English first, German or Japanese sometimes (niri binds go by the first layout:
+`Mod+Grave` should hold — confirm with the user).
+**Next steps.** As session 33's list below (1 is done: tagged), plus: the full merge set once on `main`; I538, I539.
+
+---
+
 ## 2026-11-13 — session 33 (machine A): 0.1.0 — terminal, work sessions, Wallpaper & Theming, OSD, menus, launcher
 **State.** `main` = #60 (session 32). **PR #61 (branch `feat/s33-context-menus`) is open, not merged** — the user merges;
 after the merge tag `v0.1.0` on `main` and push the tag (K151). No worktree or agent build dir is left (all removed).
