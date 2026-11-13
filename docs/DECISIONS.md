@@ -1557,6 +1557,22 @@ automatic blocks already frame each zone's stretch as one (the user: "like it wo
 (https://docs.noctalia.dev/noctalia/v5.4.0/bar/). Comma-separated members keep the records editor usable at once; the
 drag and drop of the brief (docs/ux/groups.md) is the next step.
 
+## K146 — Settings docks in a sidebar section as a third host (session 31, card W77, I501)
+**Decision.** A sidebar section `settings` shows the full Settings: the section reports its well's rect at rest with
+`settings.dock {output, x, y, width, height, radius?}` (`{}` when it goes); the daemon keeps it in the new document
+`runtime.settings.dock` and starts Settings for it (`KURASHI_SETTINGS_DOCK=1`) when none runs, tracking the process it
+started so a rest while it starts never starts a second. Settings adds a host `dock` beside window and sheet: a layer
+surface on the Top layer (as the sidebar, mapped after it), zones ignored, anchored top-left at `x, y` of the output. The shell measures the well there
+(the sidebar window's origin, Light.originOf, plus the well's place in it). Measured in session 31: the web dock's frame
+(top + side, `inset`/`top` from the usable area, exclusive zone 0) lands one sidebar width off under a pinned sidebar,
+whose own zone pushes a Normal-mode surface. A dock
+that moves to another output is made anew there (a mapped layer surface did not follow its screen). One content item: a window
+the user opened keeps it and the dock offers "Show here" (and the other way round). A process started only for the dock
+ends a minute after the dock goes, so a slide or a scroll (each withdraws the rect) never restarts it. Under 720 px the
+chrome goes compact (search across, a pages drawer). `settings.open` with no target asks a running Settings `open`
+instead of `current`, so a dock-only process shows its window.
+**Why.** The user's answer to I501, "Full Settings docked"; KDE's KCMs hosted in another shell (the same modules in a
+dialog) and browsers' side panels (a page reflowed to a column) are the models (docs/ux/settings.md "In a sidebar").
 ## K147 — Session 31's live fixes: a card can be kept open; a card opens where its bar was pressed; the desktop's bars stand still
 **Decision.** (1) `ui.keep {on}` and runtime.ui `kept` (PROTOCOL §5): the web dock's bar card has a keep-open key in its
 row of pins; kept, a click elsewhere passes through and the card stays (no space reserved); Esc, its module and
@@ -1568,3 +1584,27 @@ count as cards, and a card asked for on another screen while one is open moves t
 monitor … even when clicked there"; measured read-only on their session with music playing: the frontend at ~115 % of a
 core, ~6 % with the desktop's media card hidden — its bars redrew the full-screen desktop on both outputs at 15 frames a
 second (the colour flow, off, changed it by a few percent only).
+
+## K148 — The focused workspace is one travelling mark (session 32, I507)
+**Decision.** The workspaces module draws the focused workspace as one shape over the row's keys
+(`components/bar/WorkspaceMark.qml`) instead of each key lighting itself. It moves by `modules.workspaces.motion`: `goo`
+(default: the leading end runs ahead, the trailing one follows, and the middle thins to a neck while it is drawn out,
+never into two pieces), `stretch` (the same without a neck), `slide` (both ends together) or `off` (as before). The
+numbers are drawn over the mark and take its ink by how much of their key it covers. The wobble is the motion profile's:
+springs use `motion.spring.*` (a low damping overshoots), timed motion `stdMs` with `motion.spring.overshoot`, motion
+off or reduced snaps. No renderer branches on a look (rule 4): the mark takes the accent (keys, dots) or `selected`
+(the M3 indicator) as the row would. Rows only; a side bar's column keeps its dots.
+**Why.** The user (session 32), with close-ups of the bar: the mark should "fluently morph over to the other workspace
+… with a little wobble if the default motion profile has that", at least three animations; they chose liquid as the
+default. A shape path (Qt Quick Shapes, curve renderer) needs no shader build and repaints only while the ends move (Ma).
+Other shells: end-4 and Caelestia slide an indicator, Android's page indicators stretch ("worm") or pinch ("liquid");
+docs/ux/workspace-motion.md.
+
+## K149 — The docked Settings holds a hover-opened sidebar (session 32, B127)
+**Decision.** Settings' dock reports the pointer on it, on change (`settings.dock_hover {inside}`); the daemon keeps
+`runtime.settings.hover` (true only while a dock is there, removed with the dock); a sidebar in `hover` visibility on
+the dock's output counts it as the pointer in its column (`holdIn`), so it stays while the pointer rests on Settings and
+goes after its grace when the pointer leaves both. Mock parity; fixture `snap_runtime_settings_hover.json`.
+**Why.** W77's gap: the dock is another process's window over the sidebar's well, so the column saw the pointer leave
+and closed under the user's pointer. The web dock's page solved the same for cards through `Peeks.hoverOverlay` inside
+one process tree; across processes the daemon carries it (rule 1). Not solved here: a key into the dock (B129).

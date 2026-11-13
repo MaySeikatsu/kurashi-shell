@@ -43,3 +43,4 @@
 "sidebar.sections.close" = "Done"
 "sidebar.sections.forced" = "Set by {by}: change it there"
 "config.choice.sidebar_section.launcher" = "Search and launch"
+"config.choice.sidebar_section.settings" = "Settings"

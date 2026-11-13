@@ -283,6 +283,15 @@ for _ in $(seq 100); do
   [ "$(K sub svc.media --count 0 --json 2>/dev/null | jq -r '.data.playing // false')" = true ] && break; sleep 0.2
 done
 [ "$(K sub svc.media --count 0 --json | jq -r '.data.playing // false')" = true ] || die "svc.media never played the fake player"
+# MEDIA_IDLE_PAUSE=1 (W81): the player paused before the window — the shell at rest with everything mapped (no budget
+# check then: every window's budget is `still`'s).
+if [ -n "${MEDIA_IDLE_PAUSE:-}" ]; then
+  echo pause >&7
+  for _ in $(seq 50); do
+    [ "$(K sub svc.media --count 0 --json 2>/dev/null | jq -r '.data.playing // false')" = false ] && break; sleep 0.2
+  done
+  MEDIA_IDLE_OFF=${MEDIA_IDLE_OFF:-paused}
+fi
 
 # ---- the frontend again, with the Wayland debug log (niri-sandbox started one without) ----
 qs_pids() {
@@ -309,6 +318,12 @@ sleep "${MEDIA_IDLE_SETTLE:-12}"
 cpu() { awk '{print $14 + $15}' "/proc/$1/stat"; }
 TICK=$(getconf CLK_TCK)
 s=$(stat -c %s "$LOG"); c0=$(cpu "$QS")
+# MEDIA_IDLE_POKE="<kurashi args>" (W81, B119): that CLI call every 3 s of the window (e.g. `act island.next`: the island's
+# morph, an animation in the bar's window alone) — do the other windows draw for it?
+if [ -n "${MEDIA_IDLE_POKE:-}" ]; then
+  # shellcheck disable=SC2086
+  ( for _ in $(seq $((SECS / 3))); do sleep 1.5; K $MEDIA_IDLE_POKE > /dev/null 2>&1; sleep 1.5; done ) &
+fi
 sleep "$SECS"
 c1=$(cpu "$QS")
 tail -c +"$((s + 1))" "$LOG" > "$OUT/window.log"
@@ -344,7 +359,12 @@ if [ -n "${MEDIA_IDLE_CPU:-}" ]; then
   sleep "${MEDIA_IDLE_SETTLE:-12}"
   # (and by thread name: the GUI thread, the render threads, the rest — top -H's view)
   threads() { for t in /proc/"$QS"/task/*; do echo "$(cat "$t/comm" 2>/dev/null)|$(awk '{print $14 + $15}' "$t/stat" 2>/dev/null)"; done; }
-  threads > "$OUT/t0"; c0=$(cpu "$QS"); sleep "$SECS"; c1=$(cpu "$QS"); threads > "$OUT/t1"
+  # (and the nested niri's: every commit is composited, and re-blurred under a blurred surface — W81)
+  NIRI=$(for p in $(pgrep -u "$(id -u)" niri); do
+    tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$R" && echo "$p"; done | head -1)
+  threads > "$OUT/t0"; c0=$(cpu "$QS"); n0=$(cpu "${NIRI:-self}"); sleep "$SECS"
+  c1=$(cpu "$QS"); n1=$(cpu "${NIRI:-self}"); threads > "$OUT/t1"
+  say "niri CPU $(awk -v a="$n0" -v b="$n1" -v t="$SECS" -v k="$TICK" 'BEGIN {printf "%.0f", (b - a) / k / t * 100}')%"
   pct=$(awk -v a="$c0" -v b="$c1" -v t="$SECS" -v k="$TICK" 'BEGIN {printf "%.0f", (b - a) / k / t * 100}')
   by=$(python3 -I -c '
 import collections, sys
@@ -359,6 +379,15 @@ diff = {k: (b[k] - a.get(k, 0)) / tick / secs * 100 for k in b}
 print(", ".join("%s %.0f%%" % (k, v) for k, v in sorted(diff.items(), key=lambda x: -x[1]) if v >= 1))
 ' "$OUT/t0" "$OUT/t1" "$SECS" "$TICK")
   say "off: [${MEDIA_IDLE_OFF:-none}] frontend CPU ${pct}% (no debug log; by thread: $by)"
+fi
+# MEDIA_IDLE_SHOTS=<dir> (W81): the bar and both pinned sidebars into <dir> (before/after shots of a change; pass
+# MEDIA_IDLE_OFF=flow as well, or the flow's phase differs between runs).
+if [ -n "${MEDIA_IDLE_SHOTS:-}" ]; then
+  mkdir -p "$MEDIA_IDLE_SHOTS"
+  for s in "bar 0,1030 1920x50" "sidebar-left 0,0 420x1080" "sidebar-right 1500,0 420x1080"; do
+    set -- $s
+    cp "$("$SB" shot "w81-$1" "$2 $3" 1)" "$MEDIA_IDLE_SHOTS/$1.png" || fail "no shot of $1"
+  done
 fi
 errs=$(grep -E 'TypeError|ReferenceError|Cannot read|is not a function' "$LOG" | sort -u | head -5)
 [ -z "$errs" ] || fail "QML errors: $errs"

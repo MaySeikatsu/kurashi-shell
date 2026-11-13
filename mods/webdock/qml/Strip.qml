@@ -6,7 +6,8 @@ import qs.components
 // changes, then the dock's own controls at the end (pin the dock, add, settings). Vertical on a side edge, horizontal on
 // top and bottom. It scrolls when it is longer than the output and never shrinks an icon. Keys: the along arrows move
 // between the tiles, Enter activates one, Space toggles the dock's pin, Escape steps back, Tab goes to the card.
-// `rows` is what dock.qml builds: [{kind: "pin", pin} | {kind: "divider"} | {kind: "ctl", ctl: "pin"|"add"|"settings"}].
+// `rows` is what dock.qml builds: [{kind: "pin", pin} | {kind: "divider"} | {kind: "ctl", ctl: "content"|"pin"|"add"|"settings"}].
+// W78: the "content" control is the switch between Online and Local (docs/ux/webdock.md "Local mode").
 Flickable {
     id: strip
     property bool vertical: true
@@ -16,6 +17,8 @@ Flickable {
     property bool pinned: false
     property bool pinForced: false      // set by the configuration: the dock's pin toggle is inert
     property string pinForcedBy: ""     // the source that forces it (I91), named in the toggle's tip and description
+    property bool local: false          // W78: the strip lists the shell's own views (`content` local)
+    property string contentForcedBy: "" // the source that forces `content`: the switch is inert (I91)
     property string edge: "right"      // the dock's edge: an inert control's tip stands on the screen side of the strip
     property bool panelOpen: false      // a card or a panel is up: Tab goes to it
     readonly property int tile: thick - 8
@@ -25,6 +28,7 @@ Flickable {
     signal pinSelected(string pin)
     signal pinMenu(string pin)
     signal pinToggled()
+    signal contentToggled()
     signal addPressed()
     signal settingsPressed()
     signal backPressed()
@@ -32,6 +36,8 @@ Flickable {
 
     clip: true
     boundsBehavior: Flickable.StopAtBounds
+    // Session 32 (the user): the wheel scrolls the pins along the edge, sideways too on a top or bottom edge
+    KineticWheel { view: strip; horizontal: !strip.vertical }
     contentWidth: vertical ? width : grid.width + 8
     contentHeight: vertical ? grid.height + 8 : height
 
@@ -142,21 +148,27 @@ Flickable {
                         height: strip.tile
                         readonly property string name: cell.modelData.ctl
                         readonly property bool isPin: name === "pin"
+                        readonly property bool isContent: name === "content"
                         readonly property bool lit: isPin && strip.pinned
-                        readonly property bool live: !(isPin && strip.pinForced)
+                        readonly property bool live: !(isPin && strip.pinForced) && !(isContent && strip.contentForcedBy !== "")
                         readonly property bool focusable: true
-                        readonly property string glyph: isPin ? "◧" : (name === "add" ? "+" : "⚙")
-                        readonly property string icon: isPin ? "push_pin" : (name === "add" ? "add" : "settings")
-                        readonly property string a11yName: isPin
-                            ? I18n.tr(lit ? "webdock.pin.undock" : "webdock.pin.dock")
-                            : (name === "add" ? I18n.tr("webdock.dock.add") : I18n.tr("webdock.dock.settings"))
+                        readonly property string glyph: isContent ? (strip.local ? "▦" : "◎") : isPin ? "◧" : (name === "add" ? "+" : "⚙")
+                        readonly property string icon: isContent ? (strip.local ? "widgets" : "travel_explore")
+                            : isPin ? "push_pin" : (name === "add" ? "add" : "settings")
+                        readonly property string a11yName: isContent
+                            ? I18n.tr(strip.local ? "webdock.content.local" : "webdock.content.online")
+                            : isPin ? I18n.tr(lit ? "webdock.pin.undock" : "webdock.pin.dock")
+                            : (name === "add" ? I18n.tr(strip.local ? "webdock.local.title" : "webdock.dock.add") : I18n.tr("webdock.dock.settings"))
                         // Why an inert control is inert (rule 2): the tip shows it, and the accessible description says it.
                         readonly property string reason: isPin && strip.pinForced
-                            ? I18n.tr("webdock.dock.forced.tip").replace("{by}", strip.pinForcedBy) : ""
+                            ? I18n.tr("webdock.dock.forced.tip").replace("{by}", strip.pinForcedBy)
+                            : (isContent && strip.contentForcedBy !== ""
+                                ? I18n.tr("webdock.dock.forced.tip").replace("{by}", strip.contentForcedBy) : "")
 
                         function press() {
                             if (!ctl.live) return
-                            if (ctl.isPin) strip.pinToggled()
+                            if (ctl.isContent) strip.contentToggled()
+                            else if (ctl.isPin) strip.pinToggled()
                             else if (ctl.name === "add") strip.addPressed()
                             else strip.settingsPressed()
                         }
@@ -207,8 +219,8 @@ Flickable {
                         // The reason an inert control is inert: on a rest over it, or while it has the keyboard (Tip.qml).
                         Tip {
                             target: ctl
-                            text: ctl.reason
-                            shown: (hov.hovered || ctl.activeFocus) && ctl.reason !== ""
+                            text: ctl.reason !== "" ? ctl.reason : (ctl.isContent ? ctl.a11yName : "")
+                            shown: (hov.hovered || ctl.activeFocus) && text !== ""
                             edge: strip.edge
                         }
                     }

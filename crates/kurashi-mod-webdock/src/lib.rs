@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use dock::{
     CardPlace, Dock, DockError, Part, Place, Side, Spot, View, add_row_with, card_size_step,
-    move_row, records_of, remove_row, retarget_row, rows_of, sizes_rows, view_rows,
+    content_step, move_row, records_of, remove_row, retarget_row, rows_of, sizes_rows, view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -433,6 +433,15 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.side_page {hover}` (session 32, the host): the pointer in its window over the sidebar's page.
+    fn side_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let hover = opt_bool(args, "hover")?.unwrap_or(false);
+        self.with_dock(|d| {
+            d.side_page(hover);
+            Ok(None)
+        })
+    }
+
     /// `webdock.card_page {hover, engaged}` (W72, the host): the pointer in its window over the card, and the user using it.
     fn card_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let hover = opt_bool(args, "hover")?.unwrap_or(false);
@@ -498,6 +507,32 @@ impl Shared {
             .set("card_size", json!(next))
             .await
             .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.content {content?}` (W78, the strip's switch): `online` or `local`, else the other one than the value in
+    /// effect, written through the settings (one undoable step); a card of the other kind is put away. Refused while
+    /// the configuration forces it.
+    async fn content(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let current = self.settings.get("content");
+        let next = content_step(
+            current.as_ref().and_then(Value::as_str),
+            str_arg(args, "content"),
+            self.settings.forced_by("content").is_some(),
+        )
+        .map_err(dock_error)?;
+        self.writer
+            .set("content", json!(next))
+            .await
+            .map_err(settings_error)?;
+        // The feed has the value already (a write reaches it before it returns): the strip and the card change in one
+        // document.
+        let settings = self.settings.clone();
+        self.with_dock(|d| {
+            d.apply_settings(&settings, Instant::now());
+            d.content_changed();
+            Ok(())
+        })?;
         Ok(None)
     }
 
@@ -739,7 +774,7 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 22] = [
+const SETTING_KEYS: [&str; 23] = [
     "pins",
     "site_icons",
     "sizes",
@@ -762,6 +797,7 @@ const SETTING_KEYS: [&str; 22] = [
     "new_tabs",
     "page_style",
     "card_size",
+    "content",
 ];
 
 fn forced_of(settings: &Settings) -> BTreeMap<String, String> {
@@ -841,6 +877,7 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.card", |s, a| s.card(&a))?;
     sync_action(ctx, s, "webdock.card_select", |s, a| s.card_select(&a))?;
     sync_action(ctx, s, "webdock.card_page", |s, a| s.card_page(&a))?;
+    sync_action(ctx, s, "webdock.side_page", |s, a| s.side_page(&a))?;
     sync_action(ctx, s, "webdock.card_close", |s, _| {
         s.with_dock(|d| {
             d.card_close();
@@ -890,6 +927,9 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
         s.card_size(&a).await
     })?;
     write_action(ctx, s, "webdock.add", |s, a| async move { s.add(&a).await })?;
+    write_action(ctx, s, "webdock.content", |s, a| async move {
+        s.content(&a).await
+    })?;
     write_action(ctx, s, "webdock.remove", |s, a| async move {
         s.remove(&a).await
     })?;

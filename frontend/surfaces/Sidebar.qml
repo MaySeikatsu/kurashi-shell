@@ -214,6 +214,19 @@ Scope {
             }
             readonly property bool hoverOn: vis === "hover" || (emptyMode && !emptyDesk)
             property bool pointerIn: false
+            // B127 (session 32, K149): the pointer on the docked Settings over this column's section (another process's
+            // window: its own hover comes through runtime.settings `hover`) holds the column as its own hover does.
+            Watch { doc: "runtime.settings"; active: col.hoverOn }
+            readonly property bool onDock: {
+                var r = Store.docs["runtime.settings"] || ({})
+                return col.hoverOn && r.hover === true && !!r.dock && String(r.dock.output) === col.out
+            }
+            // Session 32 (the user): the same for the web dock's page over this column (the host's window): `sidebar.hover`.
+            Watch { doc: "mod.webdock"; active: col.hoverOn }
+            readonly property bool onWebPage: {
+                var sd = (Store.docs["mod.webdock"] || ({})).sidebar
+                return col.hoverOn && !!sd && sd.hover === true && !!sd.place && String(sd.place.output) === col.out
+            }
             property bool focusHeld: false
             property bool resizing: false
             EdgeReveal {
@@ -224,7 +237,7 @@ Scope {
                 enabled: col.hoverOn && !col.toggledHere && col.out !== ""
                 from: col.spanStart
                 to: col.sh - col.spanEnd
-                holdIn: col.pointerIn || col.focusHeld || col.resizing
+                holdIn: col.pointerIn || col.focusHeld || col.resizing || col.onDock || col.onWebPage
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
             // Session 28 (colour flow "while something is open", core/ColorFlow.qml): a column that is out and not pinned

@@ -408,6 +408,7 @@ Item {
                     }
                 }
             }
+            ScrollEdge { view: listView }
 
             // ---- footer: the counts, clear done, where the file lives ----
             Rectangle { width: parent.width; height: 1; color: Theme.outline; visible: !p.failed }
@@ -517,6 +518,7 @@ Item {
                         text: I18n.tr("mod-tasks.notes.hint")
                     }
                 }
+                ScrollEdge { view: noteFlick }
             }
             Item {
                 width: parent.width

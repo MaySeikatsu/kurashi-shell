@@ -16,7 +16,8 @@ Item {
     property bool on: true
     // The zone along each edge, in px: short, so the rest of the view is untouched.
     readonly property real len: view ? (horizontal ? view.width : view.height) : 0
-    readonly property real zone: Math.max(8, Math.min(28, len * 0.14))
+    // (session 32: at least 16 px — a short list's cut was a hard line — but never more than a third of the view)
+    readonly property real zone: Math.max(Math.min(16, len / 3), Math.min(28, len * 0.14))
     readonly property real blurPx: 6
     readonly property string mode: Theme.scrollEdges
     readonly property bool overflows: !!view && (horizontal ? view.contentWidth > view.width + 1 : view.contentHeight > view.height + 1)
@@ -31,10 +32,11 @@ Item {
     onActiveChanged: if (view) ColorFlow.holdStill(view, active)
     Component.onDestruction: if (view) ColorFlow.holdStill(view, false)
 
-    x: view ? view.x : 0
-    y: view ? view.y : 0
-    width: view ? view.width : 0
-    height: view ? view.height : 0
+    // Session 32: it draws nothing itself (the effect is the view's own layer), so it takes no room — beside a view in a
+    // Column or a Row it must not count as an item (unseen: positioners skip it); the effect reads the view's size.
+    visible: false
+    width: 0
+    height: 0
     z: view ? view.z : 0
 
     // The view's own layer (not a ShaderEffectSource beside it: a live one drew every change of the view twice — once
@@ -47,7 +49,7 @@ Item {
         ShaderEffect {
             property vector4d uEdge: Qt.vector4d(se.a0, se.a1, se.len > 0 ? se.zone / se.len : 0, se.horizontal ? 1 : 0)
             property vector4d uLook: Qt.vector4d(se.len > 0 ? se.blurPx / se.len : 0,
-                se.horizontal ? se.width / Math.max(1, se.height) : se.height / Math.max(1, se.width),
+                !se.view ? 1 : se.horizontal ? se.view.width / Math.max(1, se.view.height) : se.view.height / Math.max(1, se.view.width),
                 se.mode === "blur" ? 1 : 0, 0.94)
             fragmentShader: Qt.resolvedUrl("../shaders/scroll_edge.frag.qsb")
         }

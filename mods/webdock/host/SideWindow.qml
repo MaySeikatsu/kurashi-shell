@@ -54,7 +54,8 @@ PanelWindow {
     screen: screenFor(place ? place.output : "")
     visible: open && !!place
     color: "transparent"
-    exclusionMode: cardRole ? ExclusionMode.Ignore : ExclusionMode.Normal
+    // (both roles' places are on the output with the zones ignored: the card's from W72, the sidebar's from session 32)
+    exclusionMode: ExclusionMode.Ignore
     exclusiveZone: 0
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: cardRole ? "kurashi-webdock-card" : "kurashi-webdock-side"
@@ -182,11 +183,19 @@ PanelWindow {
     property bool hoverSent: false
     property bool engagedSent: false
     function reportPage(hover, engaged) {
-        if (!cardRole || (hover === hoverSent && engaged === engagedSent)) return
+        if (hover === hoverSent && engaged === engagedSent) return
         hoverSent = hover
         engagedSent = engaged
-        if (report) report("webdock.card_page", { hover: hover, engaged: engaged })
+        if (!report) return
+        if (cardRole) report("webdock.card_page", { hover: hover, engaged: engaged })
+        // Session 32 (the user: "the sidebar closes as soon as the pointer is on the web content"): the sidebar's page
+        // reports the pointer too, so a sidebar opened by hover holds while it rests on the page.
+        else if (hover !== sideHoverSent) {
+            sideHoverSent = hover
+            report("webdock.side_page", { hover: hover })
+        }
     }
+    property bool sideHoverSent: false
     // (I482: the page has had its Esc; the next one within a moment closes the card)
     property bool escArmed: false
     function closeCard() { if (cardRole && report) report("webdock.card_close", {}) }
@@ -261,8 +270,8 @@ PanelWindow {
             id: hoverLayer
             anchors.fill: parent
             z: 100
+            // (session 32: the sidebar's page reports the pointer too — `webdock.side_page`, the sidebar holds on it)
             HoverHandler {
-                enabled: side.cardRole
                 onHoveredChanged: side.reportPage(hovered, side.wantKeys)
             }
             PointHandler {

@@ -183,6 +183,60 @@ pub fn card_size_step(
     Ok(CardSize::CYCLE[(at + 1) % CardSize::CYCLE.len()].name())
 }
 
+/// What the strip lists (`content`, W78; docs/ux/webdock.md "Local mode"): the sites, or the shell's own views.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Content {
+    Online,
+    Local,
+}
+
+impl Content {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Online => "online",
+            Self::Local => "local",
+        }
+    }
+
+    fn parse(name: &str) -> Option<Self> {
+        match name {
+            "online" => Some(Self::Online),
+            "local" => Some(Self::Local),
+            _ => None,
+        }
+    }
+
+    /// Whether the strip lists a pin of this kind in this mode: Online the sites, Local the shell's own views (the
+    /// user, session 32: "sites only"; CONTRACT-CHANGE 760).
+    fn lists(self, kind: Kind) -> bool {
+        match self {
+            Self::Online => kind == Kind::Web,
+            Self::Local => kind == Kind::View,
+        }
+    }
+}
+
+/// The `content` a press of the strip's switch writes (W78, `webdock.content {content?}`): the mode asked for, else the
+/// other one than the value in effect (an unknown value counts as online). Refused while the configuration forces it.
+pub fn content_step(
+    current: Option<&str>,
+    want: Option<&str>,
+    forced: bool,
+) -> Result<&'static str, DockError> {
+    if forced {
+        return Err(DockError::Forced);
+    }
+    if let Some(want) = want {
+        return Content::parse(want)
+            .map(Content::name)
+            .ok_or(DockError::Content);
+    }
+    Ok(match current.and_then(Content::parse) {
+        Some(Content::Local) => Content::Online.name(),
+        _ => Content::Local.name(),
+    })
+}
+
 /// The three places a pin's page can show in (W73, docs/ux/webdock.md "Which place shows the page").
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Spot {
@@ -321,6 +375,8 @@ pub enum DockError {
     CardSize,
     /// The configuration forces the setting a control would write (W74: the card's size key).
     Forced,
+    /// A `content` that is not `online` or `local` (W78).
+    Content,
 }
 
 impl DockError {
@@ -336,6 +392,7 @@ impl DockError {
             Self::Address => "webdock.error.address",
             Self::CardSize => "webdock.error.card_size",
             Self::Forced => "webdock.error.forced",
+            Self::Content => "webdock.error.content",
         }
     }
 }
@@ -372,6 +429,8 @@ pub struct Config {
     pub new_tabs: NewTabs,
     pub page_style: PageStyle,
     pub card_size: CardSize,
+    /// W78: what the strip lists (`content`).
+    pub content: Content,
     /// W76: the search engine "+" and the address field search with (`search`; `{q}` is the words).
     pub search: String,
     /// W76: the card's box the user dragged, per output (`sizes` rows: output → width × height).
@@ -435,6 +494,12 @@ impl Config {
                 .and_then(Value::as_str)
                 .and_then(CardSize::parse)
                 .unwrap_or(CardSize::Dock),
+            content: settings
+                .get("content")
+                .as_ref()
+                .and_then(Value::as_str)
+                .and_then(Content::parse)
+                .unwrap_or(Content::Online),
             search: settings
                 .get("search")
                 .as_ref()
@@ -543,6 +608,9 @@ pub struct Dock {
     side_pin: Option<String>,
     /// The sidebar panel's page area while the panel is at rest in an open sidebar; `None` otherwise.
     place: Option<Place>,
+    /// Session 32 (the user): the pointer in the host's window over the sidebar's page (`webdock.side_page`), so a
+    /// sidebar opened by hover holds while it rests there. Only while `place` is set.
+    side_hover: bool,
     pins: Vec<PinSpec>,
     states: BTreeMap<String, PinState>,
     /// Web pins by the time they were last shown, most recent first.
@@ -582,6 +650,7 @@ impl Dock {
             card_at: 0,
             side_pin: None,
             place: None,
+            side_hover: false,
             pins: Vec::new(),
             states: BTreeMap::new(),
             recent: Vec::new(),
@@ -620,6 +689,7 @@ impl Dock {
     /// Takes the settings in effect: pins, and the values the dock reads. A pin that is gone takes its state with it.
     /// A changed `hover` or `pinned` brings the pending deadline in line with the state (K40).
     pub fn apply_settings(&mut self, settings: &Settings, now: Instant) {
+        let content = self.config.content;
         self.config = Config::read(settings);
         self.pins = pins_of(&rows_of(settings));
         // W76: the temporary pages stay after the rows; a row of the same id (an undone unpin) takes its page back.
@@ -673,6 +743,11 @@ impl Dock {
             self.card.pin = None;
         }
         self.default_card_pin();
+        // W78: the strip's mode changed (the switch, `kurashi undo`, Settings, the file): a card of the other kind goes.
+        // Only on a change — a site opened by name in Local stays through any other write.
+        if self.config.content != content {
+            self.content_changed();
+        }
         self.sanitize();
         self.settle(now);
     }
@@ -684,6 +759,9 @@ impl Dock {
     pub fn place(&mut self, place: Option<Place>, fresh: bool) -> bool {
         if fresh && place.is_some() {
             self.stamp(Spot::Sidebar);
+        }
+        if place.is_none() {
+            self.side_hover = false;
         }
         self.place = place;
         self.default_side_pin();
@@ -760,6 +838,12 @@ impl Dock {
             self.card.hover = hover;
             self.card.engaged = engaged;
         }
+    }
+
+    /// `webdock.side_page {hover}` (session 32): the pointer in the host's window over the sidebar's page. Only while the
+    /// page area is placed.
+    pub fn side_page(&mut self, hover: bool) {
+        self.side_hover = hover && self.place.is_some();
     }
 
     /// `webdock.card_close {}` (W72): the page asked the card to close (Esc it did not take, "Show at the edge"); the
@@ -1067,6 +1151,32 @@ impl Dock {
         }
         self.sanitize();
         Ok(kind == Kind::Web)
+    }
+
+    /// The ids of the pins the strip lists (W78, `strip`, in the document while it is not every pin): the mode's, in
+    /// the rows' order, no temporary page.
+    pub fn strip(&self) -> Vec<String> {
+        let content = self.config.content;
+        self.pins
+            .iter()
+            .filter(|p| p.temp.is_none() && content.lists(p.kind))
+            .map(|p| p.id.clone())
+            .collect()
+    }
+
+    /// After the strip's mode changed (W78): a card that shows a pin of the other kind is put away, the strip stays.
+    /// True when it was.
+    pub fn content_changed(&mut self) -> bool {
+        let other = self.mode == Mode::Extended
+            && self
+                .shown
+                .as_deref()
+                .and_then(|id| self.pin(id).ok())
+                .is_some_and(|p| !self.config.content.lists(p.kind));
+        if other {
+            self.collapse();
+        }
+        other
     }
 
     /// The strip only (`webdock.collapse`): the card closes, the pin stays loaded.
@@ -1461,6 +1571,15 @@ impl Dock {
         if self.config.card_size != CardSize::Dock {
             doc["card_size"] = json!(self.config.card_size.name());
         }
+        // W78: the strip's mode, absent while online (the default); `strip` while it lists fewer than every pin (Online
+        // with a view pinned, or Local), so a document with sites only reads as before.
+        if self.config.content != Content::Online {
+            doc["content"] = json!(self.config.content.name());
+        }
+        let strip = self.strip();
+        if strip.len() != self.pins.iter().filter(|p| p.temp.is_none()).count() {
+            doc["strip"] = json!(strip);
+        }
         // I495 (session 30): the bar module's views, named only while on.
         if self.config.bar_site {
             doc["bar_site"] = json!(true);
@@ -1511,6 +1630,9 @@ impl Dock {
             }
             if let Some(at) = self.elsewhere(Spot::Sidebar) {
                 side["elsewhere"] = json!(at.name());
+            }
+            if self.side_hover && self.place.is_some() {
+                side["hover"] = json!(true);
             }
             doc["sidebar"] = side;
         }
@@ -1868,7 +1990,8 @@ pub fn add_row_with(
     also_taken: &[String],
     profile: Option<&str>,
 ) -> Result<(Vec<Value>, String), DockError> {
-    if !web_address(url) {
+    let view = view_target(url);
+    if !web_address(url) && view.is_none() {
         return Err(DockError::Address);
     }
     let taken: Vec<&str> = rows
@@ -1876,7 +1999,8 @@ pub fn add_row_with(
         .filter_map(|r| r.get("id").and_then(Value::as_str))
         .chain(also_taken.iter().map(String::as_str))
         .collect();
-    let id = unique_id(&slug_of(id_text(url)), &taken);
+    // W78: a view (`mod:<id>:<name>`) is named by its view's name, a site by its host.
+    let id = unique_id(&slug_of(view.map_or_else(|| id_text(url), |v| v.1)), &taken);
     let name = title
         .filter(|t| !t.is_empty())
         .map_or_else(|| host_of(url).unwrap_or(&id).to_string(), str::to_string);
@@ -2116,6 +2240,17 @@ fn parse_pin(row: &Map<String, Value>) -> Option<PinSpec> {
         background: row.get("background").and_then(Value::as_bool) == Some(true),
         temp: None,
     })
+}
+
+/// A view's target `mod:<id>:<name>` as (mod, name), both non-empty slugs (W78: `webdock.add` takes one); else None.
+fn view_target(target: &str) -> Option<(&str, &str)> {
+    let (module, name) = target.strip_prefix("mod:")?.split_once(':')?;
+    let slug = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+    };
+    (slug(module) && slug(name)).then_some((module, name))
 }
 
 /// A web pin's address: `https`, `http` or `file`, with something after the scheme (MODS.md: a pin's `target`
@@ -2689,10 +2824,9 @@ mod tests {
             add_row(&[], "javascript:alert(1)", None),
             Err(DockError::Address)
         );
-        assert_eq!(
-            add_row(&[], "mod:weather:weather", None),
-            Err(DockError::Address)
-        );
+        assert_eq!(add_row(&[], "mod:weather", None), Err(DockError::Address));
+        assert_eq!(add_row(&[], "mod::x", None), Err(DockError::Address));
+        assert_eq!(add_row(&[], "mod:a:B/../c", None), Err(DockError::Address));
         assert_eq!(add_row(&[], "https://", None), Err(DockError::Address));
         assert_eq!(
             add_row(&[], "ftp://example.org/", None),
@@ -3730,5 +3864,154 @@ mod tests {
             json!([{"output": "DP-1", "width": 10, "height": 900}]),
         )]);
         assert!(d.doc().get("sizes").is_none());
+    }
+
+    // ---- W78: Local mode ----
+
+    #[test]
+    fn content_step_flips_takes_a_named_mode_and_is_refused_when_forced() {
+        assert_eq!(content_step(None, None, false), Ok("local"));
+        assert_eq!(content_step(Some("online"), None, false), Ok("local"));
+        assert_eq!(content_step(Some("local"), None, false), Ok("online"));
+        assert_eq!(
+            content_step(Some("bogus"), None, false),
+            Ok("local"),
+            "unknown counts as online"
+        );
+        assert_eq!(
+            content_step(Some("local"), Some("local"), false),
+            Ok("local")
+        );
+        assert_eq!(
+            content_step(None, Some("web"), false),
+            Err(DockError::Content)
+        );
+        assert_eq!(
+            content_step(None, Some("local"), true),
+            Err(DockError::Forced)
+        );
+    }
+
+    #[test]
+    fn the_strip_lists_the_sites_online_and_the_views_local_never_a_temporary_page() {
+        let mut d = dock(&[]);
+        assert_eq!(d.strip(), ["mail", "chat"]);
+        let doc = d.doc();
+        assert!(doc.get("content").is_none(), "online is the default");
+        assert_eq!(
+            doc["strip"],
+            json!(["mail", "chat"]),
+            "a view pinned: the strip names the sites"
+        );
+        let temp = d.browse(Spot::Edge, Some("DP-1"));
+        assert!(
+            !d.strip().contains(&temp),
+            "a temporary page is never listed"
+        );
+        let mut d = dock(&[("content", json!("local"))]);
+        assert_eq!(d.doc()["strip"], json!(["weather"]));
+        assert_eq!(d.doc()["content"], "local");
+        let temp = d.browse(Spot::Edge, Some("DP-1"));
+        assert_eq!(
+            d.doc()["strip"],
+            json!(["weather"]),
+            "{temp} is not listed in Local either"
+        );
+        assert_eq!(
+            dock(&[("content", json!("x"))]).doc()["strip"],
+            json!(["mail", "chat"]),
+            "unknown: online"
+        );
+    }
+
+    #[test]
+    fn the_pointer_on_the_sidebars_page_is_named_only_while_the_page_is_placed() {
+        let mut d = dock(&[]);
+        d.side_page(true);
+        assert!(
+            d.doc().get("sidebar").is_none(),
+            "no place: nothing to hold"
+        );
+        let place = Place {
+            output: "DP-1".into(),
+            side: Side::Right,
+            inset: 8,
+            top: 40,
+            width: 360,
+            height: 800,
+        };
+        d.place(Some(place), true);
+        d.side_page(true);
+        assert_eq!(d.doc()["sidebar"]["hover"], true);
+        d.side_page(false);
+        assert!(d.doc()["sidebar"].get("hover").is_none());
+        d.side_page(true);
+        d.place(None, false);
+        assert!(
+            d.doc()
+                .get("sidebar")
+                .and_then(|s| s.get("hover"))
+                .is_none(),
+            "the place going takes the hover with it"
+        );
+    }
+
+    #[test]
+    fn switching_puts_away_a_card_of_the_other_kind_and_keeps_one_of_its_own() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        let local = settings_with(rows(), &[("content", json!("local"))]);
+        // the settings alone (the switch, an undo, Settings, the file) put a site's card away in Local
+        d.apply_settings(&local, Instant::now());
+        assert_eq!(
+            d.doc()["mode"],
+            "compact",
+            "a site's card goes when the strip lists views"
+        );
+        d.open("weather", Some("DP-1")).unwrap();
+        assert!(!d.content_changed(), "a view's card stays in Local");
+        assert_eq!(d.doc()["shown"], "weather");
+        d.apply_settings(&settings_with(rows(), &[]), Instant::now());
+        assert_eq!(
+            d.doc()["mode"],
+            "compact",
+            "Online lists the sites (session 32): a view's card goes"
+        );
+        d.apply_settings(&local, Instant::now());
+        // a pin of the other kind opened by name still shows: the mode filters the strip, not what is shown
+        d.open("chat", Some("DP-1")).unwrap();
+        assert_eq!(d.doc()["shown"], "chat");
+        assert!(
+            d.content_changed(),
+            "content_changed puts it away when asked"
+        );
+        d.open("chat", Some("DP-1")).unwrap();
+        d.apply_settings(&local, Instant::now());
+        assert_eq!(
+            d.doc()["shown"],
+            "chat",
+            "a write that does not change the mode keeps a site opened by name"
+        );
+    }
+
+    #[test]
+    fn add_takes_a_view_target_named_by_its_view() {
+        let (out, id) = add_row(&[], "mod:notes:notes", Some("Notes")).unwrap();
+        assert_eq!(id, "notes");
+        assert_eq!(out[0]["target"], "mod:notes:notes");
+        assert_eq!(out[0]["title"], "Notes");
+        let rows = rows_list(rows());
+        let (out, id) = add_row(&rows, "mod:weather:weather", None).unwrap();
+        assert_eq!(id, "weather-2", "a taken id gets a suffix");
+        assert_eq!(
+            out.last().unwrap()["title"],
+            "weather-2",
+            "no title: the id"
+        );
+        assert!(
+            parse_pin(out.last().unwrap().as_object().unwrap())
+                .is_some_and(|p| p.kind == Kind::View)
+        );
     }
 }

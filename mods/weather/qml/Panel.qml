@@ -566,6 +566,7 @@ Item {
                 }
                 FocusRing { anchors.fill: parent; shown: strip.activeFocus; corner: Theme.rSm }
             }
+            ScrollEdge { view: strip; horizontal: true }
         }
 
         // Seven days on one shared scale: each bar spans the day's low to its high, on the week's range that the

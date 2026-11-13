@@ -152,10 +152,11 @@ IFS=, read -r FX FY FW FH <<< "$FR"
 PAD=$(( PIN - FX ))
 [ "$PAD" -ge 0 ] && [ "$PAD" -le 32 ] || fail "the panel sits $PAD px into the column (inset $PIN, column x $FX)"
 [ "$(( PIN + PW + PAD ))" = "$(( FX + FW ))" ] || fail "the pane is not the column less its padding ($PIN+$PW+$PAD vs $FX+$FW)"
-# The panel's `top` counts from the usable area's top (W44: Placement's origin, under a top bar of BARH px); the column's
-# frame from the output's top.
+# The page area's `top` counts from the output's top (session 32: zones ignored, the bar's height in it); the panel's own
+# logged place (`at`, Placement's origin) from the usable area's top, under a top bar of BARH px (UY).
 OY=0
-[ "$BEDGE" = top ] && OY=$BARH
+UY=0
+[ "$BEDGE" = top ] && UY=$BARH
 [ "$(( OY + TOP + WH ))" = "$(( FY + FH - PAD ))" ] \
   || fail "the page area ends at $(( OY + TOP + WH )), the pane at $(( FY + FH - PAD )): it does not take the full height"
 # The host: site win <w> <h> page <x> <y> <w> <h> place …
@@ -166,8 +167,7 @@ read -r _ _ HW HH _ PX PY PGW PGH _ <<< "$(side_line site)"
 [ "$PY" -le 64 ] || fail "the navigation row over the page is $PY px tall"
 ok "the page fills the pane: area ${WW}x$WH at $IN,$TOP in a ${SBW}x$SBH sidebar (column $FR, padding $PAD); host window ${HW}x$HH, page ${PGW}x$PGH under a $PY px row"
 # The page's own colour, on screen, in the middle of the area (the sidebar sits under a top bar of BARH px).
-OY=0
-[ "$BEDGE" = top ] && OY=$BARH
+OY=0   # (session 32: the place is on the output, zones ignored — the bar's height is in `top`)
 CX=$(( IN + WW / 2 )); CY=$(( OY + TOP + WH * 3 / 4 ))
 wait_px "$CX" "$CY" '#2b3a55' 10
 ok "the page is on screen inside the sidebar ($CX,$CY is the page's colour)"
@@ -177,7 +177,7 @@ timeout 20 grim -g "0,0 $(( SBW + 140 ))x$SH" "$SHOTS/sidebar-washi.png" && ok "
 qml_errors
 
 # ---- 2. a click on the second pin's key switches the page ----
-ptr click $(( PIN + PITCH + 20 )) $(( OY + PTOP + 20 )) left
+ptr click $(( PIN + PITCH + 20 )) $(( UY + PTOP + 20 )) left
 wait_doc "d['sidebar'].get('pin') == 'other'" 10 || fail "the click on the second pin did not switch ($(doc "d.get('sidebar')"))"
 for _ in $(seq 60); do [ -n "$(side_line other)" ] && break; sleep 0.25; done
 [ -n "$(side_line other)" ] || fail "the host did not move to the other pin"
@@ -204,8 +204,8 @@ ok "the edge opened on the sidebar's pin shows its page; the sidebar says where 
 for _ in $(seq 40); do grep -qF 'webdock-panel here-side ' "$R/qs.log" && break; sleep 0.25; done
 read -r HX HY <<< "$({ grep -F 'webdock-panel here-side ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel here-side //')"
 [ -n "$HX" ] || fail "the sidebar's notice has no Show here key"
-ptr move "$HX" $(( OY + HY ))
-ptr click "$HX" $(( OY + HY )) left
+ptr move "$HX" $(( UY + HY ))
+ptr click "$HX" $(( UY + HY )) left
 wait_doc "d.get('elsewhere') == 'sidebar' and 'elsewhere' not in d['sidebar']" 5 \
   || fail "Show here did not bring the page to the sidebar ($(doc "(d.get('elsewhere'), d['sidebar'].get('elsewhere'))"))"
 for _ in $(seq 40); do [ "$(count 'webdock-debug side shown' "$HOSTLOG")" -gt "$shown0" ] && break; sleep 0.25; done
@@ -222,8 +222,8 @@ qml_errors
 for _ in $(seq 40); do grep -qF 'webdock-panel addkey-side ' "$R/qs.log" && break; sleep 0.25; done
 read -r AX AY <<< "$({ grep -F 'webdock-panel addkey-side ' "$R/qs.log" || true; } | tail -1 | sed 's/.*webdock-panel addkey-side //')"
 [ -n "${AX:-}" ] || fail "the sidebar's row logged no + key"
-ptr move "$AX" $(( OY + AY ))
-ptr click "$AX" $(( OY + AY )) left
+ptr move "$AX" $(( UY + AY ))
+ptr click "$AX" $(( UY + AY )) left
 wait_doc "d['sidebar'].get('pin', '').startswith('browse-') and [p for p in d['pins'] if p['id'] == d['sidebar']['pin']][0].get('temporary') == True" 5 \
   || fail "+ did not open a temporary page in the sidebar ($(doc "d.get('sidebar')"))"
 TMP=$(doc "d['sidebar']['pin']")
@@ -281,12 +281,49 @@ for _ in $(seq 40); do [ "$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs
 [ "$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs.log")" -gt "$p0" ] || fail "the right section never placed its page"
 read -r _ _ IN TOP WW WH _ <<< "$(panel_place)"
 read -r _ _ _ _ _ _ _ _ _ BEDGE BARH _ <<< "$(geom)"
-OY=0
-[ "$BEDGE" = top ] && OY=$BARH
+OY=0   # (session 32: the place is on the output, zones ignored — the bar's height is in `top`)
 wait_doc "d['sidebar'].get('place', {}).get('side') == 'right'" 5 || fail "the daemon did not take the right placement"
 wait_px $(( SW - IN - WW / 2 )) $(( OY + TOP + WH / 2 )) '#3a2b45' 15
 ok "a right-sidebar section shows the page in its area (${WW}x$WH, $IN px from the right edge)"
 K act sidebar.close >/dev/null
 wait_window down
+qml_errors
+
+# ---- 6. pinned (session 32, the user: "pinned in web dock mode it loads forever"): the page shows in a pinned column ----
+p0=$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs.log")
+K set sidebar.right.visibility '"always"' >/dev/null || fail "sidebar.right.visibility always was refused"
+wait_window up
+for _ in $(seq 60); do [ "$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs.log")" -gt "$p0" ] && break; sleep 0.25; done
+[ "$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs.log")" -gt "$p0" ] || fail "the pinned section never placed its page"
+read -r _ _ IN TOP WW WH _ <<< "$(panel_place)"
+read -r _ _ _ _ _ _ _ _ _ BEDGE BARH _ <<< "$(geom)"
+OY=0   # (session 32: the place is on the output, zones ignored — the bar's height is in `top`)
+wait_doc "d['sidebar'].get('place', {}).get('side') == 'right'" 5 || fail "pinned: the daemon did not take the placement"
+wait_px $(( SW - IN - WW / 2 )) $(( OY + TOP + WH / 2 )) '#3a2b45' 15 || fail "pinned: the page is not on screen (still loading?)"
+timeout 20 grim -g "$(( SW - IN - WW - 40 )),0 $(( IN + WW + 40 ))x$SH" "$SHOTS/sidebar-pinned.png" && ok "shot mods/webdock/shots/sidebar-pinned.png"
+ok "a pinned sidebar shows the page in its area (${WW}x$WH, $IN px from the right edge)"
+K set sidebar.right.visibility '"hidden"' >/dev/null
+wait_window down
+
+# ---- 7. hover (session 32, the user: "the sidebar closes as soon as the pointer is on the web content"): a sidebar opened by
+# its edge stays while the pointer rests on the page (another process's window), and goes once the pointer leaves both ----
+K set sidebar.left.visibility '"hover"' >/dev/null || fail "sidebar.left.visibility hover was refused"
+sleep 1
+p0=$(count 'webdock-panel place HEADLESS-1 left ' "$R/qs.log")
+ptr move 1 $(( SH / 2 ))
+sleep 0.3
+ptr move 0 $(( SH / 2 ))
+wait_window up
+for _ in $(seq 60); do [ "$(count 'webdock-panel place HEADLESS-1 left ' "$R/qs.log")" -gt "$p0" ] && break; sleep 0.25; done
+read -r _ _ IN TOP WW WH _ <<< "$(panel_place)"
+ptr move $(( IN + WW / 2 )) $(( TOP + WH / 2 ))
+wait_doc "d['sidebar'].get('hover') == True" 5 || fail "hover: the host did not report the pointer on the page ($(doc "d.get('sidebar')"))"
+sleep 2
+last_window | grep -q 'sidebar-window up' || fail "hover: the sidebar closed with the pointer on its page"
+ok "hover: the sidebar stays while the pointer rests on the web page"
+ptr move $(( SW / 2 )) $(( SH / 2 ))
+wait_window down
+ok "hover: off the page and the column, the sidebar goes"
+K set sidebar.left.visibility '"hidden"' >/dev/null
 qml_errors
 echo "test-sidebar: PASS"

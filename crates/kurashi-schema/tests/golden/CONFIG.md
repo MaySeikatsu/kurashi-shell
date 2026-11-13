@@ -419,6 +419,14 @@ Off: only the workspaces with windows and the one you are on.
 - choices: `"look"` | `"numbers"` | `"dots"`
 - since schema v7
 
+#### `modules.workspaces.motion` — Switching animation
+
+The lit mark travels to the workspace you switch to: liquid (it draws out and flows over), stretch (its front runs ahead, its back catches up) or slide. The wobble follows the motion settings.
+
+- type: `choice` · default: `"goo"`
+- choices: `"goo"` | `"stretch"` | `"slide"` | `"off"`
+- since schema v7
+
 #### `modules.workspaces.scroll` — Scroll to switch
 
 The mouse wheel over the workspaces moves to the next or the previous one.

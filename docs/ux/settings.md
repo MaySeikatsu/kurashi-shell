@@ -206,3 +206,53 @@ the page's name.
 **Definition of done.** Sheet open/close captured frame by frame on niri for expressive, calm, lively and none; window
 mode's content reveal; wheel and drag scrolling of a long page (Appearance) with the bar visible; the sidebar framed
 under line and keycap, unchanged under flat and soft (shots); `just suites settings` green; no frames at rest (idle).
+
+## In a sidebar (W77, I501, K146)
+**Ask.** I501, the user's answer "Full Settings docked": a sidebar section `settings` that is the real Settings — the
+same pages, search, keys and previews — inside the sidebar's frame, as the web dock's page shows in its panel.
+
+**How others do it.** GNOME Settings and KDE System Settings are one app with one window; neither embeds it elsewhere:
+GNOME's quick settings and KDE's system tray offer *links* into it ("Settings" opens the panel's page), and KDE's Plasma
+widgets' configs are KCMs (the same modules) hosted in a dialog — the same pages in another host, which is the model here.
+macOS's Control Centre and Windows 11's quick settings likewise link out. Quickshell shells draw settings in the shell:
+Noctalia's settings panel and DankMaterialShell's modal are shell surfaces, end-4's sidebar has quick toggles only.
+Browsers' side panels (Edge, Vivaldi, Zen) host full pages in a narrow column and show a page meant for a window at a
+phone's width — the content reflows, nothing is cut. None docks the full settings app in a column: the closest are
+KDE's KCMs-in-another-host and the side panels' reflow, and both are what this does.
+
+**Design.** One Settings process (K2), a third host besides window and sheet: `dock`.
+- The section is a card that takes the column's free height (as notifications do; with both, they share it). It reports
+  where its well rests (`Placement` says when it rests, as for the web dock's panel) with `settings.dock {output, x, y,
+  width, height, radius}` — the well on its output, from the output's corner — while at rest, and `settings.dock {}` when
+  it goes (closed, sliding, scrolled, under the "+" picker or a tile's page). The daemon keeps that rect in
+  `runtime.settings.dock` (absent while undocked) and starts Settings for it if it does not run (never twice).
+- Settings maps a layer surface exactly over the well (Top layer as the sidebar, zones ignored, top-left at x, y), no backdrop, the
+  well's radius, keyboard on demand (a click in it gives it the keyboard). Its content is the same item the window and the
+  sheet hold.
+- Narrow: under 720 px the chrome goes compact — the header is the search field across the width with a pages key
+  (☰) before it and "Open in a window" after it, Undo, Redo and Advanced on a second row; the navigation is a drawer over
+  the page (☰ or the pages key opens it, a page picked or Esc closes it). The pages reflow at the width, as in a narrow
+  window.
+- One content, two places: if Settings' own window (or sheet) is open, it keeps its content and the dock says "Settings is
+  open in its window" with **Show here**; shown here, the window says "Settings is in the sidebar" with **Show here**.
+  The dock's "Open in a window" moves it to the window. When the dock goes the content goes back to the window; a process
+  started only for the dock stays a minute without a surface (0 frames, the sidebars' "kept a minute", K139) and then
+  ends — so a slide or a scroll never restarts it.
+- Two outputs: one dock at a time, the last section to rest wins (as the web dock's "last opened wins"); the other
+  section's well says "Settings is shown on <output>" with **Show here**.
+- Esc in the dock: what a control takes first (a field, a preview, the drawer), then it closes the sidebar, as the
+  sidebar's own Esc. Tab cannot cross from the sidebar's surface into the dock's (two surfaces); a click in it moves the
+  keyboard there. Still to do: a key from the sidebar into the dock (as the web dock's card asks for the keyboard once).
+
+**States.** Starting (the well: "Opening Settings…"), docked, not at rest (the well's own plate, empty: the surface is
+unmapped), unavailable (the well names the reason: Settings not installed, no `qs`), open in its window / shown here,
+shown on another output, disconnected (Settings' veil), kept after the dock went (no surface).
+
+**Known gaps.** A sidebar opened by hover holds open on the pointer over its own window; the pointer on the dock's surface
+is not over that window (as with the web dock's page), so a hover-opened sidebar closes when the pointer rests on
+Settings (to be measured by `settings/test-dock.sh`, which reports it). Toggled and pinned sidebars are not affected. A fix needs
+a signal from Settings that the pointer is in the dock (a contract change: the shell's hover hold, as `Peeks.hoverOverlay`).
+
+**Definition of done.** The section opens Settings in place on nested niri; a key typed lands in its search; the
+sidebar's close takes it away (0 frames); the window/dock hand-over both ways; the other output's well; light and dark
+shots at the default 420 px and at 320 px; `settings/test.sh` part `dock`.

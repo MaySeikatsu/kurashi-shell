@@ -2,6 +2,7 @@ import QtQuick
 import "../../core"
 import ".."
 import "../../surfaces" as S
+import "../bar" as B
 
 // Module `workspaces`: this output's workspaces (svc.workspaces `outputs`, or the "*" list for every output). In a row:
 // flat chrome a dot each, the focused one a wider accent bar; chromes with groups a small numbered key — focused lit in
@@ -19,6 +20,16 @@ ModuleBase {
     readonly property bool scrolls: cfg.valueOf("modules.workspaces.scroll", false) === true
     // I285: last-seen stills while this module is out and its previews are on; the pointer's arrival keeps what is on screen.
     readonly property bool previews: cfg.valueOf("modules.workspaces.previews", true) === true
+    // Session 32 (the user; docs/ux/workspace-motion.md): the focused mark travels from key to key — goo, stretch, slide —
+    // or each key lights on its own (`off`, as before). Rows only; a column keeps its dots.
+    readonly property string motion: String(cfg.valueOf("modules.workspaces.motion", "goo"))
+    readonly property string rowKind: m.marks === "dots" ? "dot" : m.marks === "numbers" ? "key"
+        : (m.navMark ? "nav" : (Theme.groups ? "key" : "dot"))
+    readonly property bool travels: !m.vertical && m.motion !== "off"
+    // The colours a mix of two by `t` (a number under the travelling mark turns to the mark's ink as it is covered).
+    function mix(a, b, t) {
+        return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t)
+    }
     Watch { doc: "svc.previews"; active: m.live && m.previews }
     HoverHandler { onHoveredChanged: if (hovered && m.previews) Store.act("preview.refresh", { output: m.output }) }
     readonly property var allPills: {
@@ -69,7 +80,8 @@ ModuleBase {
             height: modelData.focused ? 10 : 8
             width: modelData.focused ? 24 : 8
             radius: height / 2
-            color: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.fg : "transparent")
+            // (while the mark travels it is the focused dot: the dot itself waits under it, unseen)
+            color: modelData.focused ? (m.travels ? "transparent" : Theme.accent) : (modelData.occupied ? Theme.fg : "transparent")
             border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
             border.color: Theme.dim
             Behavior on width {
@@ -104,8 +116,8 @@ ModuleBase {
             ringScale: 0
             softScale: 0
             pressed: wsTap.pressed
-            fill: modelData.focused ? Theme.accent
-                : (modelData.occupied ? (Theme.lifted ? Theme.containerHigh : "transparent")
+            fill: modelData.focused && !m.travels ? Theme.accent
+                : (modelData.occupied || modelData.focused ? (Theme.lifted ? Theme.containerHigh : "transparent")
                     : (Theme.ringW > 0 ? Theme.ring : "transparent"))
             opacity: modelData.focused || modelData.occupied ? 1 : 0.7
             Behavior on width {
@@ -113,6 +125,8 @@ ModuleBase {
                 NumberAnimation { duration: Theme.stdMs + 80; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
             }
             Text {
+                // (while the mark travels, the numbers are drawn over it: keyNumbers below)
+                visible: !m.travels
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 antialiasing: !Theme.pixelType
                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
@@ -157,10 +171,11 @@ ModuleBase {
             Rectangle {
                 anchors.fill: parent
                 radius: height / 2
-                visible: np.modelData.focused || navTap.pressed || navHover.hovered
-                color: np.modelData.focused ? Theme.selected : Qt.alpha(Theme.fg, navTap.pressed ? 0.10 : 0.08)
+                visible: (np.modelData.focused && !m.travels) || navTap.pressed || navHover.hovered
+                color: np.modelData.focused && !m.travels ? Theme.selected : Qt.alpha(Theme.fg, navTap.pressed ? 0.10 : 0.08)
             }
             Text {
+                visible: !m.travels
                 anchors.centerIn: parent
                 color: np.modelData.focused ? Theme.color("color.on_selected", Theme.fg)
                     : Qt.alpha(Theme.color("color.on_surface_variant", Theme.dim), np.modelData.occupied ? 1 : 0.6)
@@ -221,10 +236,70 @@ ModuleBase {
         Repeater {
             id: repH
             model: m.vertical ? [] : m.pills
-            delegate: m.marks === "dots" ? dotPill : m.marks === "numbers" ? keyPill
-                : (m.navMark ? navPill : (Theme.groups ? keyPill : dotPill))
-            onItemAdded: Qt.callLater(m.publish, repH)
-            onItemRemoved: Qt.callLater(m.publish, repH)
+            delegate: m.rowKind === "dot" ? dotPill : m.rowKind === "nav" ? navPill : keyPill
+            onItemAdded: { m.itemsRev++; Qt.callLater(m.publish, repH) }
+            onItemRemoved: { m.itemsRev++; Qt.callLater(m.publish, repH) }
+        }
+    }
+    // ---- the travelling mark and, over it, the numbers (session 32) ----
+    // The focused key in the row (its box is the mark's goal; the key's own size animates, and the mark follows it).
+    readonly property int focusedAt: {
+        for (var i = 0; i < pills.length; i++) if (pills[i].focused) return i
+        return -1
+    }
+    // (itemAt does not notify: a delegate made anew — another look, other marks — counts as a change)
+    property int itemsRev: 0
+    readonly property Item focusedItem: m.itemsRev >= 0 && repH.count > 0 && focusedAt >= 0 && focusedAt < repH.count ? repH.itemAt(focusedAt) : null
+    // The mark lies on the key's face (a key block keeps its hard shadow's room below, and its ring and bevel inside).
+    readonly property real faceInset: m.rowKind === "key" && focusedItem && focusedItem.inset !== undefined ? focusedItem.inset : 0
+    B.WorkspaceMark {
+        id: mark
+        anchors.fill: row
+        z: 1
+        visible: m.travels && m.focusedItem !== null && goalW > 0
+        style: m.motion
+        color: m.rowKind === "nav" ? Theme.selected : Theme.accent
+        live: m.live && m.markReady
+        goalX: m.focusedItem ? m.focusedItem.x + m.faceInset : 0
+        goalW: m.focusedItem ? Math.max(0, m.focusedItem.width - 2 * m.faceInset) : 0
+        goalY: m.focusedItem ? m.focusedItem.y + (m.rowKind === "key" ? (m.focusedItem.shift || 0) : 0) + m.faceInset : 0
+        goalH: m.focusedItem ? Math.max(0, (m.focusedItem.faceH !== undefined ? m.focusedItem.faceH : m.focusedItem.height) - 2 * m.faceInset) : 0
+    }
+    // (the first goal is taken as it is: no travel from nowhere when the module is made)
+    property bool markReady: false
+    Timer { interval: 400; running: m.travels && !m.markReady; onTriggered: m.markReady = true }
+    Item {
+        id: keyNumbers
+        anchors.fill: row
+        z: 2
+        visible: m.travels && m.rowKind !== "dot"
+        Repeater {
+            model: keyNumbers.visible ? m.pills : []
+            Text {
+                id: num
+                required property var modelData
+                required property int index
+                readonly property Item key: m.itemsRev >= 0 && repH.count > index ? repH.itemAt(index) : null
+                readonly property real kx: key ? key.x : 0
+                readonly property real kw: key ? key.width : 0
+                // (the key's face: a block's hard shadow is below it)
+                readonly property real faceH: key ? (key.faceH !== undefined ? key.faceH : key.height) : 0
+                readonly property real covered: mark.cover(kx, kw)
+                readonly property color restInk: m.rowKind === "nav"
+                    ? Qt.alpha(Theme.color("color.on_surface_variant", Theme.dim), modelData.occupied || modelData.focused ? 1 : 0.6)
+                    : (modelData.occupied || modelData.focused ? Theme.fg : Theme.dim)
+                readonly property color markInk: m.rowKind === "nav" ? Theme.color("color.on_selected", Theme.fg) : Theme.fgOnAccent
+                x: Math.round(kx + (kw - width) / 2)
+                y: Math.round((key ? key.y + (m.rowKind === "key" ? (key.shift || 0) : 0) : 0) + (faceH - height) / 2)
+                color: m.mix(restInk, markInk, covered)
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                font.pixelSize: m.rowKind === "nav" ? Theme.fsCaption + 1 : Theme.fsCaption
+                font.weight: m.rowKind === "nav" && !modelData.focused ? Theme.wMedium : Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: modelData.idx ?? ""
+            }
         }
     }
     Column {

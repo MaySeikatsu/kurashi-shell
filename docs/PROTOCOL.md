@@ -266,6 +266,21 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   package's `settings/`) or `error.settings.no_runtime` (no `qs` on the daemon's PATH). With both, `key` wins. A page
   is checked against the page ids of the published `schema.settings`; `mod:<id>` needs the page `mods.<id>` (the mod
   is loaded); `@`-pages and a bare `mods.<id>` are unknown; a page that is not a string is `error.args.invalid` (row 386).
+  W77: a running Settings is asked `… settings open` (not `current`) when no key or page is given, so a process that runs
+  only for a sidebar's dock shows its window.
+- `settings.dock_hover {inside}` (K149, session 32): Settings' dock reports the pointer on it (on change); sets
+  `runtime.settings.hover` while a dock is there, removes it otherwise; `inside` missing or not a bool is
+  `error.args.invalid`. Answers nothing.
+- `settings.dock {output, x, y, width, height, radius?}` (W77, K146): a sidebar section `settings` rests and Settings is
+  to show over its well — the well's rect on `output`, logical px from the output's top-left corner, zones ignored (the
+  shell measures it: the sidebar window's origin on the output plus the well's place in it); integers, `x`/`y` ≥ 0,
+  `width`/`height` ≥ 1, `radius` the well's corner — or `settings.dock {}`: the well is not at rest (closed, sliding,
+  scrolled, covered). The rect is kept in `runtime.settings.dock` (the last rest wins; `{}` removes it). A rest starts
+  Settings when none runs (`qs -p <dir>` with `KURASHI_SETTINGS_DOCK=1`, detached); the process the daemon started is
+  tracked until it exits, so rests while it starts never start a second. Answers `{docked: true, opened: "launched" |
+  "running"}` or `{docked: false}`; a rect that is not one is `error.args.invalid`; `unavailable` as `settings.open`
+  (`error.settings.not_installed`, `error.settings.no_runtime`), and then nothing is written. Settings maps its dock host
+  while `dock` is there; a process started for the dock ends itself a minute after the dock goes (K139's minute).
 - Island face offers (`schema.settings`, `island.main.faces` and the like): each face carries a label, the
   catalogue key `config.face.<id>` for a core face and the providing mod's name for a mod's face (I37).
 
@@ -323,6 +338,7 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 | `svc.brightness` | `{"present":true,"device":"…","value":500,"max":1000,"percent":50}`; actions `brightness.up`/`brightness.down` `{step?}` (fraction of full scale, default 0.05) |
 | `svc.brightness` (kurashid) | same shape; intent `brightness.set` (0..1); actions `brightness.up`/`brightness.down` and `audio.volume.up`/`audio.volume.down` take optional `{step}` (0..1, default 0.05; volume keys stop at 100 %); each change shows the transient island face `brightness`/`volume` (TTL `island.main.ttl`) |
 | `runtime.lock` | `{"locked":false,…}` (static in the mock; lock-surface results from the mock are not evidence). kurashid: `{locked, busy, failures, retry_in_ms?, message_key?, pam_message?: {kind, text}, prompt?, prompt_echo?, prompt_key?}` from the lock's state machine (`kurashi-auth`), intents `lock.submit` (the secret) and `lock.cancel`. W53.0b (K80), laid over it by the daemon: `face` (the lock face in effect: `lock.face` — `follow` takes the style's `decor.lock` token — resolved against the faces the package ships, `components/lock/<Name>Face.qml`; `plain` otherwise) and `face_reason?` (`lockui.face.missing`: the face asked for is not shipped, the plain one stands in); `caps_lock?` (bool, the keyboards' Caps Lock LED, `/sys/class/leds/*::capslock`; read when the screen locks, after each attempt and on intent `lock.caps` — the face saw the Caps Lock key —, never on a timer; absent = unknown); `fingerprint {available, state}` (`available`: the lock's PAM service asks `pam_fprintd` and fprintd has a reader with the user's enrolled fingers, probed once per lock; `state` `idle` \| `scanning` — PAM shows its message while `pam_fprintd` waits on the reader). Pinned by `fixtures/ipc/server/snap_runtime_lock.json` |
+| `runtime.settings` | W77 (K146): `{dock?: {output, x, y, width, height, radius?}, hover?: true}` — where a sidebar's `settings` section wants Settings shown (action `settings.dock`, §6); absent while no section rests. `{}` at start. K149: `hover` (true while the pointer rests on the docked Settings and a dock is there, absent otherwise; action `settings.dock_hover {inside}` from Settings; a `{}` dock takes it away) — a sidebar opened by hover holds while it is true on its output. Pinned with it by `snap_runtime_settings_hover.json`. Read by Settings (its dock host) and the section (which output shows it). Pinned by `fixtures/ipc/server/snap_runtime_settings.json` (kurashid `tests/settings_daemon.rs`) |
 
 Probe actions: `island.next`, `island.prev`, `island.pin` (toggles the face shown; `{face}`, I408, pins that face, or unpins it when it is the one pinned; one the island does not offer is refused with `island.error.unknown_face`), `probe.popup.toggle`, `audio.mute.toggle`.
 Mock parity (M0.8): also `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`,

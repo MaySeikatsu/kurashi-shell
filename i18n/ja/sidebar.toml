@@ -42,3 +42,4 @@
 "sidebar.sections.close" = "完了"
 "sidebar.sections.forced" = "{by} で設定されています。そちらで変更してください"
 "config.choice.sidebar_section.launcher" = "検索と起動"
+"config.choice.sidebar_section.settings" = "設定"

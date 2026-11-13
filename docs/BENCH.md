@@ -39,6 +39,59 @@ baseline.
 
 ## Results
 
+### 2026-11-13 — W81: what wakes every window, and what a pinned sidebar frame costs (B119, B120; machine A, nested niri)
+`frontend/test-media-idle.sh` (W75's suite: the user's profile, washi, both sidebars pinned, the frame, the dock, the desk,
+fake music with cover, cava and lyrics) on nested niri, base `4aa819b3`, debug `kurashid`. Commits = Wayland commits per
+window over 12 s (`WAYLAND_DEBUG`), CPU = the frontend's over 12 s with no debug log (`MEDIA_IDLE_CPU=1`, by thread). The
+machine was shared with another agent's suites (load 1.9–15, labelled loaded): commit counts held to ±3 % between runs,
+CPU moved ±2 points between runs of the same tree, so a CPU change under 3 points is noise here. Knobs added for this:
+`MEDIA_IDLE_PAUSE=1` (the player paused: the shell at rest, everything mapped), `MEDIA_IDLE_POKE="act island.next"` (that
+CLI call every 3 s), `MEDIA_IDLE_SHOTS=<dir>` (bar and both sidebars), and niri's own CPU beside the frontend's.
+
+| scenario | commits/s all windows | per window | frontend CPU % (render threads / GUI) |
+|---|---|---|---|
+| music + flow (5 runs of the base) | 72.6–75.8 | bar 16.6–19.7, desk 10.7, each sidebar, frame strip and dock 7.5 | 21–24 (18–20 / 2–4) |
+| same, sidebars not pinned | 62.1 | — | 17 (13 / 3) |
+| music, flow off | 19.6 | bar 15.3, desk 4.2, the rest 0 | 3–5 (2–3 / 1–2) |
+| paused (at rest) | 0 | 0 everywhere | 0 |
+| paused + island morph every 3 s, threaded loop (default) | 21.3 | bar 13.9, desk 2.0, **every other window 0.4 (one frame per morph)** | — |
+| same, `QSG_RENDER_LOOP=basic` | 15.3 | bar 15.3, every other window 0 | — |
+| music + flow, `QSG_RENDER_LOOP=basic` | 106.5 | frame strip, dock, sidebars 15.2 (twice the flow's steps) | 13 (GUI thread only) |
+| music + flow, `__GL_YIELD=USLEEP` (2 runs) | 72.3–75.2 | as the base | 20–23 (18–20 / 2–3) |
+| music + flow, pinned sidebar window as wide as its column (2 runs, interleaved with 2 base) | 75.1–76.8 | as the base | 20–23 against 21–23 base; niri 5–7 against 7 |
+
+- **B119, it is Qt's threaded render loop.** At rest nothing commits (0 in 12 s, every window), so no idle Behavior or timer
+  starts in the bars, the island, the desk or the sidebars of this profile; while music plays, the windows that show nothing
+  that moves commit 0 too. But each animation that starts while the animation driver is stopped draws one whole frame in
+  every window of the shell: with the island's morph poked 4 times, the 13 windows it is not in (the closed launcher and
+  Stage, the four screen corners, the frame's strips, both sidebars, the dock, the web dock's strip) committed 5 times each,
+  each commit a full `damage` + new `attach` (a real frame, not a frame-callback request), against `animationStarted` 5
+  times in `qt.scenegraph.renderloop` — consistent with Qt's threaded loop posting an update request to every window when
+  the driver starts (Qt's source not read here; the evidence is the A/B): under `QSG_RENDER_LOOP=basic` the same pokes
+  drew the bar alone. Not explained: 5 starts for 4 pokes, and the desk's 24 commits under the pokes. The 12 s windows
+  spanned no minute flip; the suite's `still` budget lets one commit through for the clock's turn, likely this same
+  mechanism. What would avoid it: the basic loop (here: ~40 % less frontend CPU with the flow, but four flowing windows drew
+  15.2 frames a second, not 7.5 — unexplained — and every swap is on the GUI thread: its own card and a K decision), or
+  never starting an animation where nothing visible changes (already so in this profile).
+- **B120, where a sidebar frame's CPU goes.** `qt.scenegraph.time.renderloop` per window (one 12 s run; windows told apart
+  by their frame counts, not identified): sync 0.0 ms, render 0.0–0.14 ms, swap 7–16 ms of wall time per frame (the
+  thinnest windows ~7 ms, the two that are likely the sidebars 12–13 ms, the desk 16 ms). Sync and render together are at
+  most ~1 point at 75 frames a second while the render threads use 18–20: nearly all of the render threads' CPU is inside
+  the swap (egl-wayland on NVIDIA), roughly 2.5–4 ms of CPU within its 7–16 ms of wall time. The "11 ms" of B120 is wall
+  time. Two pinned sidebars at 7.5 frames a second cost ~4–7 points of a core (one run without them: 17 %, against
+  21–24 %), ~3–4.5 ms of CPU per sidebar frame. A window ~36 % narrower (the pinned column's window at its column's width,
+  451 px instead of ~700: commit `99c7d621`) measured 20–23 % against 21–23 % (niri 5–7 against 7): under this load a
+  saving of the size expected from the pixels alone (~1.5–2.5 points) is not resolvable, so pixel versus fixed cost per
+  frame is open. The change is reverted (`f53ef20d`): no measured gain, and the right column's shot changed (its tiles'
+  grain) — the drag path it touched never ran through the sidebar suites. `__GL_YIELD=USLEEP` (NVIDIA's driver sleeping
+  instead of spinning in a wait) changed nothing. To settle it: per-TID render-thread CPU in one run (the six 7.5/s windows
+  — three frame strips, the dock, two sidebars — differ only in size). NVIDIA-specific; nested niri's swap pacing may
+  differ from a real session's.
+- Shots on niri (`MEDIA_IDLE_OFF=flow`, bar and both sidebars), base against the narrow window: left sidebar
+  pixel-identical, bar differs in the lyric line and the clock only, right sidebar in its tiles' grain (661 px at 2 %).
+  The final tree (`f53ef20d`) against the base: left 0 px, bar 72 px, right 62 px (the clock in the shot's corner only) —
+  the narrowing moved the grain.
+
 ### 2026-10-26 — W44 follow: one reveal model, holders, openings, the Stage on its own bar (machine A; K71, rows 510–525)
 `frontend/test-bars.sh` (sandbox `w44-follow-bars`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
 card's target dir) with `idle.enabled = false`, calm motion; "ref" is main's frontend at 0628659d (`git archive`), "new"

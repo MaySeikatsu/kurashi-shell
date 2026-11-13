@@ -60,6 +60,8 @@
 "error.media.no_player" = "No media player is running."
 "error.media.no_such_player" = "No media player has that id."
 "action.settings.open" = "Open Settings"
+"action.settings.dock" = "Show Settings in a sidebar"
+"action.settings.dock_hover" = "Report the pointer on Settings in the sidebar"
 "error.settings.not_installed" = "Settings is not installed, so it cannot open."
 "error.settings.no_runtime" = "The Quickshell runtime (qs) is not available, so Settings cannot open."
 # settings.open {page} (I40): a page Settings does not have.

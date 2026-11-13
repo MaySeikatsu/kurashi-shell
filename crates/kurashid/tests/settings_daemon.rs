@@ -312,6 +312,28 @@ async fn wait_for(path: &Path) -> String {
     panic!("{} never appeared", path.display());
 }
 
+/// W79: a fake `qs` for a Settings that stays up. `ipc` answers once `ready` exists in its directory; a launch appends
+/// its `KURASHI_SETTINGS_DOCK` to `launches`; the process ends when `quit` or `crash` appears (it removes both).
+fn stay_qs(bin: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let qs = bin.join("qs");
+    std::fs::write(
+        &qs,
+        "#!/bin/sh\n\
+         d=\"$(dirname \"$0\")\"\n\
+         if [ \"$3\" = \"ipc\" ]; then\n\
+           [ -e \"$d/ready\" ] || exit 1\n\
+           printf '%s' \"$6 $7\" > \"$d/ipc\"\n\
+           exit 0\n\
+         fi\n\
+         printf '%s\\n' \"$KURASHI_SETTINGS_DOCK\" >> \"$d/launches\"\n\
+         i=0; while [ ! -e \"$d/quit\" ] && [ ! -e \"$d/crash\" ] && [ $i -lt 400 ]; do sleep 0.05; i=$((i+1)); done\n\
+         rm -f \"$d/quit\" \"$d/crash\"\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&qs, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
 #[tokio::test]
 async fn settings_open_launches_the_window_with_the_key_or_jumps_a_running_one() {
     let dir = root("open");
@@ -521,4 +543,271 @@ async fn island_face_offers_have_labels_in_both_catalogues() {
         assert_eq!(label, format!("config.face.{value}"));
     }
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// W77 (K146): `settings.dock` keeps the sidebar well's rect in `runtime.settings.dock` (the document of
+/// `fixtures/ipc/server/snap_runtime_settings.json`), starts Settings for it with `KURASHI_SETTINGS_DOCK=1` when none
+/// runs — once, however many rests arrive while that process lives — and `{}` takes the dock away. A dock nothing can
+/// draw (no Settings, no `qs`) is refused and not written; a rect that is not one is `error.args.invalid`.
+#[tokio::test]
+async fn settings_dock_writes_the_rect_and_starts_settings_once() {
+    let dir = root("dock");
+    let (settings, bin) = fake_qs(&dir);
+    stay_qs(&bin);
+    let fx = open(
+        &dir,
+        SettingsApp {
+            dir: settings,
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/ipc/server/snap_runtime_settings.json"
+    ))
+    .unwrap();
+    let dock = fixture["data"]["dock"].clone();
+    let doc = || fx.hub.snapshot("runtime.settings").unwrap().1;
+    assert_eq!(doc(), json!({}), "undocked at start");
+
+    let first = fx.call("settings.dock", dock.clone()).await.unwrap();
+    assert_eq!(first, json!({"docked": true, "opened": "launched"}));
+    assert_eq!(doc(), fixture["data"]);
+    // Rests while that process lives (a slide, a scroll, the other output) start nothing more.
+    let other = json!({"output": "HDMI-A-1", "x": 0, "y": 0, "width": 320, "height": 600});
+    let (a, b) = tokio::join!(
+        fx.call("settings.dock", dock.clone()),
+        fx.call("settings.dock", other)
+    );
+    assert_eq!(a.unwrap()["opened"], "running");
+    assert_eq!(b.unwrap()["opened"], "running");
+    assert!(doc()["dock"].get("output").is_some());
+    let last = fx
+        .call(
+            "settings.dock",
+            json!({"output": "HDMI-A-1", "x": 0, "y": 0, "width": 320, "height": 600}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(last["opened"], "running");
+    assert_eq!(doc()["dock"]["output"], "HDMI-A-1", "the last rest wins");
+    assert!(
+        doc()["dock"].get("radius").is_none(),
+        "no radius given, none kept"
+    );
+    assert_eq!(wait_for(&bin.join("launches")).await, "1\n");
+
+    // The dock goes; the process is Settings' own business from there (it ends itself a minute later).
+    let gone = fx.call("settings.dock", json!({})).await.unwrap();
+    assert_eq!(gone, json!({"docked": false}));
+    assert_eq!(doc(), json!({}));
+    // Once it has exited, the next rest starts it again.
+    std::fs::write(bin.join("quit"), "").unwrap();
+    let mut again = Value::Null;
+    for _ in 0..200 {
+        again = fx.call("settings.dock", dock.clone()).await.unwrap();
+        if again["opened"] == "launched" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(again["opened"], "launched");
+    let mut launches = String::new();
+    for _ in 0..200 {
+        launches = std::fs::read_to_string(bin.join("launches")).unwrap();
+        if launches != "1\n" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(launches, "1\n1\n");
+
+    for bad in [
+        json!({"output": "DP-1", "x": -1, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "", "x": 0, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 0, "y": 0, "width": 0, "height": 10}),
+        json!({"output": "DP-1", "x": "4", "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 1.5, "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "y": 0, "width": 10, "height": 10}),
+        json!({"output": "DP-1", "x": 0, "y": 0, "width": 10, "height": 10, "radius": -1}),
+        json!([1]),
+    ] {
+        let err = fx.call("settings.dock", bad.clone()).await.unwrap_err();
+        assert_eq!(
+            err,
+            ActionError::Invalid("error.args.invalid".into()),
+            "{bad}"
+        );
+    }
+
+    let not_installed = open(
+        &dir,
+        SettingsApp {
+            dir: dir.join("nothing"),
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let err = not_installed.call("settings.dock", dock).await.unwrap_err();
+    assert_eq!(
+        err,
+        ActionError::Unavailable("error.settings.not_installed".into())
+    );
+    assert_eq!(
+        not_installed.hub.snapshot("runtime.settings").unwrap().1,
+        json!({})
+    );
+    let _ = std::fs::write(bin.join("quit"), "");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// W79 (K146): a `settings.open` and a `settings.dock` that arrive while Settings starts (its IPC does not answer
+/// yet) join the process that runs: one launch in either order. The window answers the open once it is up.
+#[tokio::test]
+async fn settings_open_and_dock_during_a_start_join_one_settings_process() {
+    let dir = root("race");
+    let (settings, bin) = fake_qs(&dir);
+    stay_qs(&bin);
+    let fx = open(
+        &dir,
+        SettingsApp {
+            dir: settings,
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let rect = json!({"output": "DP-1", "x": 0, "y": 0, "width": 320, "height": 600});
+    let launches = || std::fs::read_to_string(bin.join("launches")).unwrap();
+    let doc = || fx.hub.snapshot("runtime.settings").unwrap().1;
+
+    // The dock starts Settings; the window comes up 300 ms later, so the open arrives while it starts.
+    assert_eq!(
+        fx.call("settings.dock", rect.clone()).await.unwrap()["opened"],
+        "launched"
+    );
+    let (opened, ()) = tokio::join!(
+        fx.call("settings.open", json!({"key": "bar.height"})),
+        async {
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            std::fs::write(bin.join("ready"), "").unwrap();
+        }
+    );
+    assert_eq!(opened.unwrap(), json!({"opened": "jumped"}));
+    assert_eq!(launches(), "1\n", "the open joined the dock's process");
+
+    // The process ends (a quit): the dock goes with it. Then the open starts Settings and the dock joins it.
+    std::fs::remove_file(bin.join("ready")).unwrap();
+    std::fs::write(bin.join("quit"), "").unwrap();
+    for _ in 0..200 {
+        if doc().get("dock").is_none() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(doc().get("dock").is_none(), "{}", doc());
+    assert_eq!(
+        fx.call("settings.open", json!({"key": "bar.height"}))
+            .await
+            .unwrap()["opened"],
+        "launched"
+    );
+    let (docked, ()) = tokio::join!(fx.call("settings.dock", rect), async {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        std::fs::write(bin.join("ready"), "").unwrap();
+    });
+    assert_eq!(
+        docked.unwrap(),
+        json!({"docked": true, "opened": "running"})
+    );
+    assert_eq!(launches().lines().count(), 2, "{:?}", launches());
+    assert_eq!(doc()["dock"]["output"], "DP-1");
+    let _ = std::fs::write(bin.join("quit"), "");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// W79 (K146): a Settings process that exits by itself (a crash) clears the dock, so the well stops showing "Opening
+/// Settings…"; the next rest starts Settings again.
+#[tokio::test]
+async fn settings_dock_goes_when_its_settings_process_exits() {
+    let dir = root("crash");
+    let (settings, bin) = fake_qs(&dir);
+    stay_qs(&bin);
+    let fx = open(
+        &dir,
+        SettingsApp {
+            dir: settings,
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let rect = json!({"output": "DP-1", "x": 0, "y": 0, "width": 320, "height": 600});
+    let doc = || fx.hub.snapshot("runtime.settings").unwrap().1;
+    assert_eq!(
+        fx.call("settings.dock", rect.clone()).await.unwrap()["opened"],
+        "launched"
+    );
+    assert_eq!(doc()["dock"]["output"], "DP-1");
+    wait_for(&bin.join("launches")).await;
+    std::fs::write(bin.join("crash"), "").unwrap();
+    let mut gone = false;
+    for _ in 0..200 {
+        if doc().get("dock").is_none() {
+            gone = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(gone, "the dock outlived its process: {}", doc());
+    assert_eq!(
+        fx.call("settings.dock", rect).await.unwrap()["opened"],
+        "launched"
+    );
+    assert_eq!(doc()["dock"]["output"], "DP-1");
+    let _ = std::fs::write(bin.join("quit"), "");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// B127 (session 32, K149): the pointer on the docked Settings is `runtime.settings.hover` while a dock is there, and it
+/// goes with the dock.
+#[tokio::test]
+async fn settings_dock_hover_holds_only_while_docked() {
+    let dir = root("dock-hover");
+    let (settings, bin) = fake_qs(&dir);
+    stay_qs(&bin);
+    let fx = open(
+        &dir,
+        SettingsApp {
+            dir: settings,
+            path: bin.clone().into_os_string(),
+        },
+    );
+    let doc = || fx.hub.snapshot("runtime.settings").unwrap().1;
+    // No dock: nothing to rest on.
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    assert!(doc().get("hover").is_none(), "no dock, no hover: {}", doc());
+    assert!(
+        fx.call("settings.dock_hover", json!({})).await.is_err(),
+        "inside is required"
+    );
+
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../fixtures/ipc/server/snap_runtime_settings_hover.json"
+    ))
+    .unwrap();
+    fx.call("settings.dock", fixture["data"]["dock"].clone())
+        .await
+        .unwrap();
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    assert_eq!(doc(), fixture["data"], "pinned by the fixture");
+    fx.call("settings.dock_hover", json!({"inside": false}))
+        .await
+        .unwrap();
+    assert!(doc().get("hover").is_none(), "left: {}", doc());
+
+    fx.call("settings.dock_hover", json!({"inside": true}))
+        .await
+        .unwrap();
+    fx.call("settings.dock", json!({})).await.unwrap();
+    assert_eq!(doc(), json!({}), "the dock takes the hover with it");
+    std::fs::write(bin.join("quit"), "").unwrap();
 }

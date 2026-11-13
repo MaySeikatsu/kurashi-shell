@@ -8,12 +8,110 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 > need is in this repo. Use subagents as described there (parallel, isolated git worktrees, disjoint
 > ownership, task cards in `docs/tasks/`; push `main` before spawning them) and keep the lead role
 > yourself (review, measure, merge, decide). Ask me the open design decisions the handover lists
-> before building them. Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, file
+> before building them, and ask whenever you are unsure (batched, in the selection view). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, file
 > every new bug or idea in `docs/BACKLOG.md`, and write a new handover entry before ending the session.
 >
 > Machines: both have a quiet baseline in `docs/BENCH.md` (A = desktop with a GTX 1060; B = hybrid
 > laptop, measure on its iGPU with `KURASHI_RENDER_NODE=/dev/dri/renderD129`). Benchmarks only on a
 > quiet machine; K3 = Quickshell stays fixed; never modify `archive/bakeoff-probes/`.
+
+---
+
+## 2026-11-13 — session 32 (machine A): B128, the travelling workspace mark, Local mode, groups round two, the user's live bugs
+**State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR #60 is open, not merged**
+(the user merges; it closes #58 and #59). After the merge remove #58's worktree `.claude/worktrees/agent-ac748735f1e82a580`
+(branch `feat/s31-settings-dock`), `~/.cache/kurashi-agents-target/w77`, and W80's worktree
+`.claude/worktrees/agent-ae7eda47dcd83e6c3` (locked by its agent's process: `git worktree remove -f -f`). W78, W79, W81's
+worktrees and build dirs are gone. Disk: ~180 GB free.
+**Done** (K148, K149; CONTRACT-CHANGE 760, 764 decided; 766/767 deferred):
+1. B128: the web dock's bar card kept open followed the focus (`bar.popups_follow`); a kept card stays, one not kept follows.
+2. I507 / K148: the focused workspace is one travelling mark — `modules.workspaces.motion` goo (default) / stretch / slide /
+   off; the wobble from the motion profile; `test-ws-motion` (merge set).
+3. The user's live bugs: B132 a hover-opened sidebar holds while the pointer is on the web dock's page (`webdock.side_page`,
+   `sidebar.hover`); B133 a pinned sidebar's page was one column off (placed on the output now, zones ignored);
+   B134 the pins scroll with the wheel; B135 scroll edges on every scrolling view (ScrollEdge takes no room now).
+4. B127 / K149: the docked Settings holds a hover-opened sidebar (`settings.dock_hover`, `runtime.settings.hover`); W79:
+   one Settings process per start, a crash clears the dock, doctor and mock.
+5. W80 (I508, partly): groups in Settings' list and a bar preview (drag/keys), "Group with…"/"Leave group" in the module
+   menu; one `frontend/components/groups.js` (linked into settings/components). Open ends in I508.
+6. W78: Local mode; Online lists sites only (the user); the desktop-apps evaluation (I510).
+7. W81: B119/B120 measured, no fix: B119 is Qt's threaded render loop (BENCH.md, the rows).
+**The user's answers this session.** #58/#59: build on top, one PR. B128: unpinned follows; it was the bar card. Workspace
+motion default: goo. W78: Local mode, apps evaluated. Groups: both the list and a bar preview. B129: no key handover, click
+only. Online: sites only. Apps spike: yes, next session. "Fix all bugs, then tests and builds; don't waste time on long
+compiles before."
+**Verified.** `just check` green; `just suites` (44): 43 pass, `quick-modules` red — the same on `main` (B92, checked in a
+worktree of origin/main); `nix build .#kurashi` green. Seen on nested niri: the workspace mark (washi keys, dots, Material),
+Settings' page edges and the notifications' edge, groups on the bar and the module menu, the docked Settings' hover hold.
+On sway only: the web dock sidebar (pinned, hover), B128 (two outputs). Live on the user's session: frontend 0.0 % CPU at
+rest (music paused); nothing visual yet.
+**Next steps (in order; ask the user where a step says so — batched, one AskUserQuestion):**
+1. Check PR #60's state; after the merge clean the worktrees above.
+2. Live read with the user (read-only): `top -H` with music playing; ask them to look at the PR's "check live" list. File
+   what they report.
+3. Ask: try `QSG_RENDER_LOOP=basic` as an experiment card on the real session (B119)?
+4. The desktop-apps spike (I510): a script on nested niri with `foot` and `chromium --app` — the user said yes.
+5. I508's open ends (empty group drawn, states shot, motion, cross-zone drops, the `rect` hook with screen coordinates).
+6. B123/B131 (`test-dock`'s mock bar has no web dock widget), B92 (`quick-modules`: a click past the output), B130, B120.
+7. Older: B113, B112/B100, B114, B115, B116, B121, I483, I509's rest, the workspace mark in a side bar's column.
+**Risks.** The scroll edge now on Settings' pages turns each page's layer on while it overflows (a layer per page; 0 frames
+at rest, but memory). The web dock sidebar's place changed meaning (on the output, zones ignored): a compositor that counts
+zones differently would misplace it — seen on sway and in the pinned case only.
+
+---
+
+## 2026-11-13 — session 31 (machine A): live fixes on the user's session, Settings in a sidebar
+**State.** `main` = #57 (live fixes). **PR #58 (Settings docked in a sidebar, W77, K146) is open, not merged** — the user
+merges; its worktree `.claude/worktrees/agent-ac748735f1e82a580` (branch `feat/s31-settings-dock`) and build dir
+`~/.cache/kurashi-agents-target/w77` go after the merge. #56 (session 30) is merged; its worktrees are gone. Disk: ~270 GB
+free after removing 154 GB of suite sandboxes and build dirs (B124).
+**Done** (K147):
+1. B125: read-only `top -H` on the user's session with music: ~115 % of a core, ~6 % with the desktop's media card hidden
+   (the colour flow off changed it by a few percent). The card's level bars stand still unless `desktop.media_bars`.
+   Not yet re-measured on the user's session after the rebuild.
+2. B126: a card opens on the screen whose bar was pressed (IslandGeom's last press), mod cards count as cards, a card
+   asked for on another screen while one is open moves there. `test-follow` green; not yet seen on the user's monitors.
+3. `ui.keep {on}` / runtime.ui `kept`: the web dock's bar card has a keep-open key (the user's choice: the card itself
+   stays; a click elsewhere passes through; Esc, the module, `ui.close` close it).
+4. Web dock icons: none was ever saved (K38's privacy setting stopped the engine fetching them).
+   `mods.webdock.site_icons` (on) lets it; the grab is retried while shown; `test-host`'s net-log proof runs with it off.
+5. B124: the nested-niri sandbox refuses an empty env file or one naming no sandbox, and refuses to start under 2 GB
+   free; `sandbox.sh` under 1 GB; `tools/test-suites.sh` under 20 GB (`KURASHI_SUITES_MIN_GB`).
+6. W77 (#58, open): the full Settings docked in a sidebar section, a third host `dock`, `runtime.settings` +
+   `settings.dock`; gaps in B127.
+**The user's answers this session.** Bar card keep-open: the card itself stays open. Colour flow while music plays: leave
+as is (I506 closed). Live checks: read-only only — read `top`/documents on their session, they look at the visual things
+and tell you; never open anything on their display.
+**Next steps — session 32 is time-boxed: the user reviews at 13:00.** Plan backwards from it: a review-ready PR with
+a summary by 12:45; the merge set and `just check` on the combined branch from ~12:00; nothing new started after 11:45.
+1. **First 10 minutes:** fetch; check #58 and #59 are merged (if not, ask). Then ask the user ALL of these at once
+   (one AskUserQuestion, recommended option first) so no step waits later:
+   - B128: when the edge web dock is *not* pinned, does it still follow the focus to the other monitor?
+   - W78: the desktop-apps experiment's scope (which apps; what "done" means for an experiment), or leave W78 for later?
+   - Groups round two (I502): where the drag happens (the bar preview in Settings, or the list) and what a drop on
+     another group does — or leave it for later?
+2. **Right after the questions, start at most two subagents** (worktrees, cards in `docs/tasks/`, own target dirs):
+   - B127 mechanical parts (Haiku, max effort): `runtime.settings` in doctor's KNOWN_DOCS and the mock, the double-start
+     race, a crash clearing `dock`, `settings/test-dock.sh` in the merge set. Not the hover hold (a contract change).
+   - W78 (Opus) only if the user said yes and gave a scope; otherwise the hover hold of B127 (Opus; contract change
+     authorised by the lead: row + K-id).
+3. **Meanwhile, yourself — B128:** a pinned edge dock stays on its output (`crates/kurashi-mod-webdock/src/dock.rs`, the
+   paths that set `output`; the dock's window follows `mod.webdock.output`, `mods/webdock/qml/surfaces/dock.qml`).
+   A unit test plus a two-output step in a web dock suite. Then the keyboard path from a sidebar into the docked
+   Settings (B127; `SideWindow`'s `focusAsks` is the pattern).
+4. **~12:00:** merge the agents' branches into one session branch; `just check` and `just suites` (the merge set; only
+   a failure alone counts; `quick-modules` is red on `main`, B92); `nix build .#kurashi`.
+5. **By 12:45:** push, open ONE PR. Its body is the review: what changed, by the user's points; what was seen on niri
+   (shot paths); what the user should look at live after the rebuild (cards on the clicked monitor, site icons, the
+   kept bar card, docked Settings, CPU with music); what is not done and why. Update this handover.
+Not in this time box (leave in BACKLOG unless time is left): B119/B120 performance, B122/B123/B117/B110 web dock rough
+edges, B92, B113, B112/B100, B114, B115, B116, B121, I483.
+**Efficiency.** While iterating use `just suites --changed` (never suites one by one); batch builds; Haiku for clear
+mechanical cards, Opus only for judgement; do small things yourself; terse agent reports; no idle waiting — review or
+fix something while suites run; check `df -h /` before a merge set. Live checks on the user's session are read-only.
+**Risks.** B126's fix keys on a press within 1.5 s; a card opened by key still uses the compositor's focused output.
+`mods.webdock.site_icons` on means one request per site the page did not make itself (the user asked for the images;
+off restores K38's strict proof). Two subagents at most; check `df -h /` before a merge set.
 
 ---
 
@@ -126,30 +224,3 @@ transform on a child. GLSL 1.20 (one of the qsb targets) has no constant arrays.
 **Learned.** The greeter and the lock link the frontend's `core` and `components`: a change to Theme, a control or a singleton needs `tools/test-suites.sh greeter styles` besides the merge set (neither is in it). A QML `Timer` (or any animation) that starts requests one frame from every window of the shell: never start one for a change that changes nothing (compare first). grim takes about 100 ms a shot: a burst's frames are further apart than its gap. A heredoc that writes a script containing a recursive removal is refused by the harness: write such files with the editor, and give suites a directory of their own instead of clearing one.
 
 ---
-
-## 2026-11-10 — session 27, handed over mid-task (machine A): PR #50 is a draft with three red suites
-**Task.** The user asked for ONE PR with everything since #48 and is waiting for it to be mergeable. It is **draft PR #50**, branch `feat/s27-motion-webdock` (pushed; worktree `.claude/worktrees/agent-aa16648a4ddeebf4f`, build dir `~/.cache/kurashi-agents-target/w72`). It contains: the colour cross-fade (K125; #49 is closed as superseded), the sidebar/pen/motion work (K126, branch `perf/s27-sidebar-slide`), the web dock's page in its bar card (I482, card W72, branch `feat/s27-webdock-in-card`), and the docs (backlog B88–B95, I482; CONTRACT-CHANGE 719–723 decided; `test-card.sh` in the merge set). `main` is at #48 (42eac105 on origin; **local `main` is behind: fetch**).
-**Verified on the combined branch.** `just check` green (before the docs commit 409352c7, which touches docs and `tools/test-suites.sh` only). Merge set: 33 of 37 pass. Web dock `test-real`, `test-styles`, `test-sidebar`, `test-host` pass. The W72 shots on nested niri (top, bottom, right bar; light, dark) were reviewed and are good: `mods/webdock/shots/card/` in that worktree (gitignored).
-**Red, to fix before the PR is marked ready** (logs: `/tmp/claude-1000/-home-maike-Projects-kurashi-shell/d7dd4261-e8cf-4968-b274-eb6c78c3a41f/scratchpad/suites-comb2/`, summary `/tmp/claude-1000/-home-maike-Projects-kurashi-shell/d7dd4261-e8cf-4968-b274-eb6c78c3a41f/scratchpad/comb2.log`; a run of the alone re-runs may still be going — check `pgrep -af "timeout 1800"` and do not edit that worktree's QML until it is done):
-1. `mods/webdock/test/test-card.sh`: every step passes; the final log check trips on `webdock.host.unloaded refused: invalid webdock.error.unknown_pin` (B93, harmless, older than W72). Exclude that line from the suite's grep as `shots-card.sh` does, or fix B93.
-2. `frontend/test-bars.sh`: "washi three/four": the side bars' windows are 61 px wide and the bars 32 px, the suite expects 36 px bars (`1884 36 36 1008`). **Not yet known whether `main` fails the same way**: run `tools/test-suites.sh bars` on a `main` worktree first. If `main` is red too it is a backlog row (default changed in #47?), not this PR's.
-3. `frontend/test-frame.sh`: "idle (kami)": every window commits exactly once in the idle window (frame, stage, launcher, edge, corners…). Passes on `fix/s27-colour-blend` and at 0a50ffe9 (`../kurashi-wt-bisect`); fails on `perf/s27-sidebar-slide` head and on the combined branch, so it is one of 5c32baf5, c991d7e2, e5e16d13, 3c633039, 673a0b19/6273a384. The `texture.*` exclusion in `ColorBlend.gate()` (6273a384) did NOT cure it. One commit per window smells of the cross-fade firing once (`Theme.fadeCapture`) or of `PenOutline.settleMs`/the gate's `release` timer after `mock.doc` patches; log `KURASHI_FADE_LOG` and bisect the five commits (the suite takes 12 min; `tools/test-suites.sh frame` in the bisect worktree, own target dir or touch sources: a shared target dir has stale fingerprints).
-4. `frontend/test-quick-modules.sh`: "a click on recorder did not open its card on the recorder page (page wifi)": B92, seen on `main` after #47 too. Run alone three times on `main`; fix the race or the suite.
-Also `frontend/test-pen.sh` (not in the merge set): "idle with the pen on (quick card open)" 10 commits in 10 s on the combined branch, alone; it passed alone on `perf/s27-sidebar-slide`. About one commit a second: look for something ticking in the open quick card. Its "pen off … differs from main's frontend" step fails only under load.
-**After they are green.** Re-run only the touched suites, then `just suites` once and `just check`; update PR #50's body (the Verification section names the red suites), `gh pr ready 50`. `gh` needs `GH_TOKEN=$(gh auth token --user MaySeikatsu)` and `--repo MaySeikatsu/kurashi-shell`. No AI attribution in commits or PR text.
-**The live session is NOT the installed build.** `$XDG_RUNTIME_DIR/systemd/user/kurashi-frontend.service.d/50-s27-blend.conf` runs the frontend from `~/.cache/kurashi-live-frontend/` (a copy of `perf/s27-sidebar-slide`), and a second Settings window runs from that copy. The user allowed live testing and will switch to the merged build with nix. Remove the drop-in (`rm` it, `systemctl --user daemon-reload`, restart `kurashi-frontend`) when the PR is ready, and tell the user.
-**Owed to the user beyond the PR.** They asked to judge three things about sidebar/card motion: the neighbour window that still repaints during an opening, the start hitch under a motion form (B90, about 70 ms for two frames with their `splat` form), the card's opening hitch (seen once, 589 ms). None is solved; say so plainly. Questions for them from W72: Esc in the bar card always closes it (a site's own Esc is lost); a click on the bar module still toggles the edge dock (hover or Enter opens the card); card size fixed at the phone's width; priority sidebar > bar card > edge.
-**Clean up after the merge.** Worktrees `../kurashi-wt-live`, `../kurashi-wt-bisect`, `.claude/worktrees/agent-a93f8f340922a6039` (merged in #47), `.claude/worktrees/agent-aa16648a4ddeebf4f` (locked); build dirs `~/.cache/kurashi-agents-target/{i454,w72}`; stale `/tmp/kurashi-sb-*` (kill only PIDs whose environ carries that runtime dir, never `pkill`); branches `perf/s27-sidebar-slide`, `fix/s27-colour-blend`, `feat/s27-webdock-in-card`.
-**Open, not scheduled (all in BACKLOG).** B87/B76 three non-merge-set suites red on `main`; B82; B81; B84 perf measurement of the chromes; B86; B88 wallpaper lags the fade; B89 wheel blends; B91; I478 layout transitions; I476 web dock round two; I480, I481; CONTRACT-CHANGE 710–720, 722 open (PROTOCOL/fixture text for the web dock card, mock parity).
-**Learned.** `tools/test-suites.sh` with no argument is the merge set; `merge` as an argument is taken as a suite name. A merge-set run is about 25 min plus the alone re-runs. Do not start a second runner beside one that is running.
-
----
-
-## 2026-11-10 — session 27 (machine A), in progress: after the crash, icon tint, open on hover, the night's list
-**Read this first if the session died.** The user is away until 09:00 on 2026-11-10 and left a list (BACKLOG I467 to I473, I464); they asked for best-judgement builds with questions collected for the summary, at most ONE Opus subagent at a time, and the PC kept awake.
-**State (2026-11-10, about 14:40).** `main` has everything of the night (#27 to #38, #29, #37, #40). Open PRs, all green where it says so: **#41** docs (this), **#42** `fix/s27-glow` (Glow as light, the frame outline's Glow choice with previews, the bar's rule unbroken; K122), **#44** `feat/s27-paint-ripped` on #42 (the Painted and Ripped paper chromes, `theme.edge`; K124; judged live by the user), **#43** `feat/s27-real-palettes` (terminals keep their own palette; K123), **#45** `feat/s27-settings-sections-2` (the sidebar scrolls, sections by the arrow, scroll resistance; I479), **#46** `feat/s27-control-round-two` (W71, I475; three suites outside the merge set red there and on `main`, B87; two of the user's review points not reproduced, B82). #42, #43, #44 and #46 all touch the schema's generated files: after each merge regenerate the goldens on the others (`UPDATE_GOLDEN=1 cargo test -p kurashi-schema -p kurashi-theme`), do not merge them by hand. The live session runs the installed build again (the preview drop-in is removed). Worktrees: `../kurashi-wt-palette` (on `feat/s27-settings-sections-2`), `../kurashi-wt-test` (on `feat/s27-paint-ripped`), the agents' in `.claude/worktrees/` (W68 to W71: removable after the merges); build dirs in `~/.cache/kurashi-agents-target/` (`palette`, `merge`, `i454`, `w71`: delete after the merges). Test sandboxes pile up in `/tmp/kurashi-sb-*` (B77): delete the dead ones by hand.
-**The live session is not the installed build.** `$XDG_RUNTIME_DIR/systemd/user/kurashi-frontend.service.d/50-s27-icons.conf` runs the frontend from a snapshot, `~/.cache/kurashi-live-frontend/frontend` (a copy of the worktree; in it `bar.hover` defaults to Card, because the installed daemon has no such key). To go back: remove the file, `systemctl --user daemon-reload`, restart `kurashi-frontend` (a reboot does it too). The daemon is the installed one: do not swap it. Keep-awake is on (`kurashi act idle.caffeine '{"on":true}'`): turn it off when the work ends (`'{"on":false}'`).
-**Learned.** Never run the live session from a tree being edited: Quickshell crashed twice on hot reload (B63); use the snapshot and restart. `tools/bench/wl_pointer.py move` makes a pointer that is gone when the tool exits, so a bar item loses hover 500 ms later: a suite that rests on something needs one pointer for the run (`--serve` on a fifo, as `test-bar-hover.sh`). The real session takes `kurashi act ui.peek …` and `grim -g`, which is how previews were seen without moving the user's pointer. The crash of 2026-11-09 23:03 was an NVIDIA `Xid 56` on wake from the idle lock while suites ran (B60). Judge a look live on the user's own layout from the first round: Glow took four rounds, Painted about twenty, each a snapshot of the frontend with a systemd drop-in; remove the drop-in in the same session. A random seed must not follow a size that animates (stutter). Check dark as well as light (a whitening bug was invisible on white paper). A suite read 0.5 s after an event can miss a state that relaxes.
-**Not verified.** B62 (tint on notifications, dock, window list, the logo's ink). The module menu's On hover row and the launcher on hover, on niri. Budgets: nothing measured tonight (an agent builds, the machine is not quiet).
-**Next steps, in order.** 1. The user merges #42, then #44; #43, #45, #41; #46 after a look at B87 and B82 (regenerate the goldens between merges). 2. What is open under paint and tears (B86: toasts, tooltips, Settings' window, Painted in dark; blur regions). 3. B87, B76 and B85 on a quiet machine: stale tests or regressions; then the merge set. 4. The paint forms (B80: judged in motion on the user's session). 5. Settings: the Modules group, plugin pages (I479). 6. Layout transitions (I478), web dock round two (I476), previews for the chromes, the other apps' palettes (I480), B81 (Dracula's light scheme). 7. The performance pass when the user says: I463, B56 to B59, B84. 8. I481 (the chromes as Hyprland window decorations) once the user's Lua config exists.
-**Open for the user.** See the session's summary; questions are collected there.

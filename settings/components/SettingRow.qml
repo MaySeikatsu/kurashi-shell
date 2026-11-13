@@ -1,6 +1,7 @@
 import QtQuick
 import "../core"
 import "../components"
+import "groups.js" as Groups
 
 // One schema row (DESIGN-SYSTEM §7; UX brief, settings "Design"). The label and its help sit on the left. The control
 // sits on the right, and under it the provenance chip with Reset (or, while a preview is open, Keep and Put back). Then
@@ -49,6 +50,9 @@ Item {
     // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
     // whole width under it.
     property bool stacked: false
+    // W77 (a sidebar's dock, a narrow window): too narrow for the label column beside the control — the label and help
+    // stay, the control goes under them across the whole width.
+    readonly property bool below: stacked || (width > 0 && width < 520)
     // A picker of the row's own (material cards, ink or light swatches; the page's `pickers`) takes the place of the generic
     // control: the provenance line, Reset and the reasons stay under it, and a jump's keyboard focus lands in it. It reads
     // and sets the value itself (it knows its key).
@@ -171,13 +175,13 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        implicitHeight: r.stacked ? labels.implicitHeight + Theme.gap + ctlCol.implicitHeight
+        implicitHeight: r.below ? labels.implicitHeight + Theme.gap + ctlCol.implicitHeight
                                   : Math.max(labels.implicitHeight, ctlCol.implicitHeight)
 
         // --- label, help, and the chips that say what the row is ---------------------------------
         Column {
             id: labels
-            width: r.stacked ? body.width : r.labelW
+            width: r.below ? body.width : r.labelW
             spacing: 2
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -227,8 +231,8 @@ Item {
         // --- control, then its provenance line and the reasons ------------------------------------
         Column {
             id: ctlCol
-            x: r.stacked ? 0 : r.labelW + Theme.pad
-            y: r.stacked ? labels.implicitHeight + Theme.gap : 0
+            x: r.below ? 0 : r.labelW + Theme.pad
+            y: r.below ? labels.implicitHeight + Theme.gap : 0
             width: body.width - x
             spacing: Theme.gap / 2
 
@@ -509,6 +513,13 @@ Item {
             enabled: r.editable
             refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)
+            // A bar zone's or a sidebar's list holds the named groups (I502, W80): drag, Ctrl+arrows and the group rows
+            // edit `layout.groups` and this list in one apply. Other lists of modules (the hover lists, "open the other
+            // way") take no groups, so the zones are told by their key until the schema marks them (CONTRACT-CHANGE 765).
+            groupable: r.row.choices_from === "modules" && /^edges\.[a-z]+\.(start|center|end)$/.test(r.row.key)
+                || ["sidebar.sections", "sidebar.tabs"].indexOf(r.row.choices_from) >= 0
+            groups: { var g = groupable ? Store.valueOf("layout.groups") : null; return Array.isArray(g) ? g : [] }
+            onRegrouped: res => Store.apply(Groups.ops(res, r.row.key, r.out))
         }
     }
     // A list of records (K38): rows named by their item_label, a form with one control per declared field. Its changes are

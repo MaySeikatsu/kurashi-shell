@@ -64,7 +64,7 @@ ShellRoot {
     // line — follows the pointer to another screen: the compositor's focused output changes (the daemon's
     // `svc.workspaces`), the card folds where it is and opens on that screen, under the same module where its bar has
     // it. Not what a hover opened (it closes as the pointer leaves it), not a tray item's menu (it belongs to its icon),
-    // and never a sidebar (a surface of its own, on its own screen).
+    // and never a sidebar (a surface of its own, on its own screen), nor a kept card (B128).
     readonly property bool follows: {
         var c = Store.docs["config"], p = c && c.values ? c.values["bar.popups_follow"] : undefined
         return p === undefined || p.value !== false
@@ -74,6 +74,9 @@ ShellRoot {
     onNowFocusedChanged: {
         if (!stageOpen || hopping || !follows || !nowFocused || nowFocused === stageScreen) return
         if (Peeks.hoverOwner !== "" || (ui && ui.panel === "tray")) return
+        // B128 (session 32, the user): a kept card (`ui.keep`, K147 — the web dock's bar card pinned) stays on the screen
+        // where it was kept; only a card that is not kept follows the focus.
+        if (ui && ui.kept !== undefined && ui.kept === ui.panel) return
         hopping = true
         hopLimit.restart()
     }

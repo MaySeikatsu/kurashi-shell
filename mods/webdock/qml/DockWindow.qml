@@ -54,6 +54,22 @@ PanelWindow {
     readonly property var forced: d.forced || ({})
     readonly property bool reserve: d.reserve === true
     readonly property bool wantFocus: d.engaged === true && open
+    // W78 (docs/ux/webdock.md "Local mode"): the strip lists the shell's own views; `strip` names them (the daemon's).
+    readonly property bool local: d.content === "local"
+    // The switch shows while a mod that is on offers a view (a panel or a desk card), or while Local is on (the way back):
+    // no inert key on a shell without local content (Kanso).
+    Watch { doc: "mods" }
+    readonly property bool hasLocal: {
+        var list = (Store.docs["mods"] && Store.docs["mods"].mods) || []
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === "webdock" || list[i].state !== "enabled") continue
+            for (var key in (list[i].qml || ({})))
+                if (key.indexOf("panel:") === 0 || key.indexOf("desk:") === 0) return true
+        }
+        return false
+    }
+    readonly property bool showSwitch: local || hasLocal
+    onShowSwitchChanged: refreshRows()
 
     // ---- the pins and the card's subject ----
     readonly property var pins: d.pins || []
@@ -67,6 +83,15 @@ PanelWindow {
     readonly property var view: viewOf(shownPin && shownPin.kind === "view" ? String(shownPin.target) : "")
     property var rowList: []
     onPinsChanged: refreshRows()
+    onLocalChanged: refreshRows()
+    // Whether the enabled mod `mod` has a QML file for `provide` (the `mods` document's `qml` map; frontend/core/mods.js
+    // qmlOf, which a mod's QML does not import).
+    function provides(mod, provide) {
+        var list = (Store.docs["mods"] && Store.docs["mods"].mods) || []
+        for (var i = 0; i < list.length; i++)
+            if (list[i].id === mod) return typeof (list[i].qml || ({}))[provide] === "string"
+        return false
+    }
 
     function pinOf(id) {
         for (var i = 0; i < pins.length; i++)
@@ -91,15 +116,21 @@ PanelWindow {
     // replaced only when its content changes, so the strip's tiles (and the focus on them) survive other patches.
     function refreshRows() {
         var out = [], ps = []
+        // (W78: `strip` lists the mode's pins while it is not every pin; absent, every pin but a temporary page)
+        var only = Array.isArray(d.strip) ? d.strip : null
         for (var k = 0; k < pins.length; k++)
-            if (pins[k].temporary !== true) ps.push(pins[k])
+            if (pins[k].temporary !== true && (only === null || only.indexOf(pins[k].id) >= 0)) ps.push(pins[k])
         for (var i = 0; i < ps.length; i++) {
             if (i > 0 && ps[i].kind !== ps[i - 1].kind) out.push({ kind: "divider" })
             out.push({ kind: "pin", pin: ps[i] })
         }
         if (ps.length > 0) out.push({ kind: "divider" })
+        if (showSwitch) out.push({ kind: "ctl", ctl: "content" })
         out.push({ kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" }, { kind: "ctl", ctl: "settings" })
-        if (JSON.stringify(out) !== JSON.stringify(rowList)) { rowList = out; listed = ps }
+        if (JSON.stringify(out) !== JSON.stringify(rowList)) {
+            rowList = out; listed = ps
+            if (debugLog && open) stripLog.restart()
+        }
     }
     Component.onCompleted: { refreshRows(); Qt.callLater(function () { dock.born = true }) }
 
@@ -108,7 +139,7 @@ PanelWindow {
     readonly property bool coldCard: extended && shownPin !== null && shownPin.kind === "web" && hostState !== "ready"
     readonly property bool emptyCard: extended && listed.length === 0 && shownPin === null
     // The add form and a pin's menu take the card's place beside the strip, whatever the card shows.
-    property string side: ""         // "" | "add" | "menu"
+    property string side: ""         // "" | "add" | "menu" | "local" (W78: the local chooser)
     property string menuId: ""
     // The tile that opened the side panel: when the panel closes, the keyboard goes back to it.
     property string sideOwner: ""
@@ -154,6 +185,17 @@ PanelWindow {
                 console.log("webdock-debug strip " + dock.listed[i].id + " " + Math.round(p.x) + " " + Math.round(p.y) + " "
                     + Math.round(dock.width) + " " + Math.round(dock.height))
             }
+            // (W78: the switch and "+", and what the strip lists — test-card.sh's part "local")
+            var ctls = ["content", "add"]
+            for (var j = 0; j < ctls.length; j++) {
+                var c = stripItem.tileOf(ctls[j])
+                if (!c) continue
+                var q = c.mapToItem(null, c.width / 2, c.height / 2)
+                console.log("webdock-debug strip ctl:" + ctls[j] + " " + Math.round(q.x) + " " + Math.round(q.y) + " "
+                    + Math.round(dock.width) + " " + Math.round(dock.height))
+            }
+            console.log("webdock-debug rows " + (dock.local ? "local" : "online") + " "
+                + dock.listed.map(function (x) { return x.id }).join(","))
         }
     }
     onHeightChanged: logGeometry()
@@ -163,8 +205,10 @@ PanelWindow {
     // A panel across its edge (its thickness) and along it.
     // (W76: the pin's menu is 300 wide and 460 tall: its page entries came first)
     readonly property real menuH: Math.min(380, (sideways ? along : spanH - stripPx) - 2 * gap)
-    readonly property real sideAcross: kind === "side-menu" && !sideways ? menuH : sideSize
-    readonly property real sideAlong: kind === "side-menu" && sideways ? menuH : sideSize
+    // (W78: the local chooser is a list: as long along the edge as the card's phone height allows, up to 460 px)
+    readonly property real localH: Math.min(460, Math.round(along - 2 * gap))
+    readonly property real sideAcross: kind === "side-menu" && !sideways ? menuH : (kind === "side-local" && !sideways ? localH : sideSize)
+    readonly property real sideAlong: kind === "side-menu" && sideways ? menuH : (kind === "side-local" && sideways ? localH : sideSize)
     readonly property real panelAcross: kind === "" ? 0 : (kindSide ? sideAcross : (sideways ? cardW : cardH))
     readonly property real panelAlong: kind === "" ? 0 : (kindSide ? sideAlong : (sideways ? cardH : cardW))
     readonly property real panelAlong0: (along - panelAlong) / 2
@@ -319,6 +363,9 @@ PanelWindow {
                 pinned: dock.pinned
                 pinForced: forced.pinned !== undefined && forced.pinned !== null
                 pinForcedBy: String(forced.pinned || "")
+                local: dock.local
+                contentForcedBy: forced.content !== undefined && forced.content !== null ? String(forced.content) : ""
+                onContentToggled: { dock.side = ""; dock.send("webdock.content", {}) }
                 edge: dock.edge
                 panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
@@ -326,7 +373,11 @@ PanelWindow {
                 onPinMenu: id => { if (dock.hostFront) dock.send("webdock.collapse", {}); dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }
                 onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
                 // W76: "+" opens a new temporary page in the card, its address field where the title is (the host's).
-                onAddPressed: dock.send("webdock.browse", { place: "edge", output: dock.outName })
+                // W78: in Local, "+" offers the mods' views (the local chooser beside the strip) instead.
+                onAddPressed: {
+                    if (dock.local) { dock.sideOwner = "add"; dock.side = "local" }
+                    else dock.send("webdock.browse", { place: "edge", output: dock.outName })
+                }
                 onSettingsPressed: dock.send("settings.open", { key: "mods.webdock.pins" })
                 onBackPressed: dock.send("webdock.back", {})
                 onTabPressed: if (dock.panelUp && panelLoader.item) panelLoader.item.forceActiveFocus()
@@ -371,7 +422,7 @@ PanelWindow {
                             id: panelLoader
                             anchors.fill: parent
                             active: dock.kind !== "" && dock.cardReveal > 0.001
-                            sourceComponent: dock.kind === "side-menu" ? menuC : (dock.kind === "side-add" ? addC
+                            sourceComponent: dock.kind === "side-menu" ? menuC : dock.kind === "side-local" ? localC : (dock.kind === "side-add" ? addC
                                 : (dock.kind === "view" ? viewC : (dock.kind === "cold" ? coldC : emptyC)))
                         }
                     }
@@ -443,6 +494,7 @@ PanelWindow {
     Component {
         id: viewC
         Card {
+            id: vcard
             anchors.fill: parent
             title: dock.shownPin ? String(dock.shownPin.title || "") : ""
             large: dock.large
@@ -454,18 +506,27 @@ PanelWindow {
             onSizeChosen: size => dock.send("webdock.size", { size: size })
             onCollapse: dock.send("webdock.collapse", {})
             onEscaped: dock.send("webdock.back", {})
+            // (W78: a mod's desk card stands in where it has no panel of that name — notes, lyrics: the sidebar's rule)
+            Watch { doc: "mods" }
+            readonly property bool asDesk: dock.view !== null
+                && !dock.provides(dock.view.mod, "panel:" + dock.view.panel)
+                && dock.provides(dock.view.mod, "desk:" + dock.view.panel)
             ModLoader {
                 id: viewBody
                 anchors.fill: parent
-                provide: dock.view ? "panel:" + dock.view.panel : ""
+                // (test only, W78: what the view card loaded)
+                onItemChanged: if (dock.debugLog) console.log("webdock-debug view " + provide + " " + (item !== null))
+                provide: dock.view ? (vcard.asDesk ? "desk:" : "panel:") + dock.view.panel : ""
                 mod: dock.view ? dock.view.mod : ""
                 shown: true
             }
             // The view's mod is off (or its panel is gone): said in words, the card stays (view pins still work).
             Notice {
                 anchors.fill: parent
-                visible: viewBody.item === null
-                text: I18n.tr("webdock.view.gone")
+                // (W78: a desk card with nothing to show — no notes yet — has no height: said in words, not a blank card)
+                readonly property bool blank: viewBody.item !== null && vcard.asDesk && !(viewBody.item.implicitHeight > 0)
+                visible: viewBody.item === null || blank
+                text: I18n.tr(blank ? "webdock.view.empty" : "webdock.view.gone")
             }
         }
     }
@@ -506,9 +567,9 @@ PanelWindow {
             onEscaped: dock.send("webdock.back", {})
             Notice {
                 anchors.fill: parent
-                text: I18n.tr("webdock.empty")
-                actionLabel: I18n.tr("webdock.dock.empty.add")
-                onActionPressed: { dock.sideOwner = "add"; dock.side = "add" }
+                text: I18n.tr(dock.local ? "webdock.local.empty" : "webdock.empty")
+                actionLabel: I18n.tr(dock.local ? "webdock.local.empty.add" : "webdock.dock.empty.add")
+                onActionPressed: { dock.sideOwner = "add"; dock.side = dock.local ? "local" : "add" }
             }
         }
     }
@@ -517,6 +578,16 @@ PanelWindow {
         AddForm {
             anchors.fill: parent
             onAdded: dock.side = ""
+            onCancelled: dock.side = ""
+        }
+    }
+    Component {
+        id: localC
+        LocalForm {
+            anchors.fill: parent
+            pins: dock.pins
+            onOpened: pin => { dock.side = ""; if (pin !== "") dock.send("webdock.open", { pin: pin, output: dock.outName }) }
+            onSettingsPressed: { dock.side = ""; dock.send("settings.open", { page: "mods" }) }
             onCancelled: dock.side = ""
         }
     }

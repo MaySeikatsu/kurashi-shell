@@ -1083,6 +1083,7 @@ Scope {
                                     }
                                 }
                             }
+                            ScrollEdge { view: list }
                         }
                         }
                         // W64: while a sheet form warps the body, the rest of the dock (the joined fillets, sized by the

@@ -413,6 +413,7 @@ Item {
                         }
                     }
                 }
+                ScrollEdge { view: pickFlick }
             }
         }
 
@@ -502,6 +503,7 @@ Item {
                     }
                 }
             }
+            ScrollEdge { view: histFlick }
         }
 
         // ================= chat =================
@@ -690,6 +692,7 @@ Item {
                     }
                 }
             }
+            ScrollEdge { view: flick }
 
             // The room a taller host gives, while there is no conversation to fill it: the composer stays at the bottom.
             Item { width: 1; height: flick.visible ? 0 : p.extra }
@@ -751,6 +754,7 @@ Item {
                             text: A.fill(p.tr("mod-ai.input.hint"), { provider: A.providerLabel(p.tr, p.prov.id) })
                         }
                     }
+                    ScrollEdge { view: inFlick }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onPressed: function (m) { input.forceActiveFocus(); m.accepted = false } }
                 }
                 IconButton {

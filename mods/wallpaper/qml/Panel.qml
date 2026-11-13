@@ -1238,5 +1238,6 @@ Item {
                 }
             }
         }
+        ScrollEdge { view: grid }
     }
 }

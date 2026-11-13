@@ -13,3 +13,4 @@ SidebarPin 1.0 SidebarPin.qml
 CardJoin 1.0 CardJoin.qml
 SectionPicker 1.0 SectionPicker.qml
 LauncherSection 1.0 LauncherSection.qml
+SettingsSection 1.0 SettingsSection.qml

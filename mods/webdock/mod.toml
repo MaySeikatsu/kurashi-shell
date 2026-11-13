@@ -257,3 +257,13 @@ default = "dock"
 choices = ["dock", "browser"]
 label = "mods.webdock.new_tabs"
 help = "mods.webdock.new_tabs.help"
+
+# W78 (I499; docs/ux/webdock.md "Local mode"): what the strip lists — every pin (online), or the shell's own views
+# (local: notes, tasks, a timer, any mod's panel or desk card). The strip's switch writes it (`webdock.content`).
+[[setting]]
+key = "content"
+type = "enum"
+default = "online"
+choices = ["online", "local"]
+label = "mods.webdock.content"
+help = "mods.webdock.content.help"

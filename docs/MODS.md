@@ -262,7 +262,11 @@ until the shell's strip exists), `width` the phone width in px, `large` a percen
 {output?}` (hidden → extended(`shown`) or compact; else hidden) · `webdock.size {size?}` (phone|large; no argument
 toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable) · `webdock.open_external {url}`
 (`xdg-open`; http, https only) · `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (the sidebar
-panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`) ·
+panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`; session 32: `inset`
+and `top` count from the output's side edge and top with the zones ignored — a pinned column's own zone included — and
+the host maps the page there ignoring zones) · `webdock.side_page {hover}` (session 32, the host: the pointer on the
+sidebar's page; the document's `sidebar.hover: true` while it is and the page is placed, so a sidebar opened by hover
+holds) ·
 `webdock.sidebar_select {pin}` (the pin the sidebar shows) · `webdock.card_size {size?}` (W74: the bar card's size key;
 a settings write of `card_size`, undoable; no argument steps dock → phone → tablet → wide → dock; a bad size is
 `webdock.error.card_size`, a forced `card_size` is refused with `webdock.error.forced`). An unknown pin is `invalid` with `webdock.error.unknown_pin`.
@@ -293,6 +297,13 @@ it, no reload), `at` (the page's address while it is not the pin's own), `reload
 width?, height?}` (writes `sizes`; none removes the row) · `webdock.retarget {pin, url?}` (no url: the page's `at`) ·
 `webdock.add {url, title?, from?}` (from a temporary page: it is adopted). Settings `sizes` (records) and `search`
 (`https://duckduckgo.com/?q={q}` by default), `bar_site`, `bar_playing` (I495).
+
+**Local mode (W78, session 32; CONTRACT-CHANGE 760):** setting `content` (`online` | `local`, default `online`); while
+it is `local` the document carries `content: "local"`; `strip: [<pin id>…]` names the ids the strip lists whenever
+that is fewer than every pin (Online lists the sites, Local the shell's own views — the user, session 32), absent when it
+is every pin (sites only, no view pinned). Action `webdock.content {content?}` (no
+argument flips; one undo step; `webdock.error.forced` while the configuration forces it). `webdock.add {url}` takes a
+view target `mod:<id>:<name>` too. A card of the other kind is put away when the mode changes.
 
 **Shell side (K40, rows 88, 109–111):** the shell draws the indicator, the strip and the card of a view pin
 (`surface:dock` → `qml/surfaces/dock.qml`, one per output, required property `screen`); the bar widget

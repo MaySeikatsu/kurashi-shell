@@ -1,0 +1,11 @@
+# サイドバーの設定（W77、K146、docs/ux/settings.md「In a sidebar」）。
+"settings.dock.in_window" = "設定はウィンドウで開いています"
+"settings.dock.in_sidebar" = "設定はサイドバーにあります"
+"settings.dock.show_here" = "ここに表示"
+"settings.dock.pop_out" = "ウィンドウで開く"
+"settings.ui.pages" = "ページ"
+# サイドバーのセクション（シェルが描き、設定が開くとその上に重なります）。
+"sidebar.settings.starting" = "設定を開いています…"
+"sidebar.settings.elsewhere" = "設定は {output} に表示中"
+"sidebar.settings.show_here" = "ここに表示"
+"sidebar.settings.failed" = "ここでは設定を開けませんでした"
