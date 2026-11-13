@@ -34,7 +34,8 @@ ShellRoot {
     // its screen was never picked again and it opened where the last card had been)
     readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true
         : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray" || ui.panel === "quick"
-            || String(ui.panel || "").indexOf("mod:") === 0)
+            || String(ui.panel || "").indexOf("mod:") === 0
+            || String(ui.panel || "").indexOf("appearance:") === 0)
     // B126: where a card opens — the screen whose bar module was pressed just now (a press on a bar does not move the
     // compositor's focus to that screen), else the focused one (a key, the command line).
     function openScreen() {

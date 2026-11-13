@@ -171,6 +171,39 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             refuse_under_polkit(refused)
         }
     });
+    // Session 33 (W84, CONTRACT-CHANGE 791): the Wallpaper & Theming menu as a Stage card, `appearance:<pane>` (the
+    // launcher shows the same menu in itself unless `launcher.appearance_opens = card`). Toggles like quick.toggle.
+    let h = hub.clone();
+    actions.register("appearance.open", "action.appearance.open", move |a| {
+        let hub = h.clone();
+        async move {
+            let pane = a["pane"]
+                .as_str()
+                .filter(|p| !p.is_empty())
+                .unwrap_or("wallpaper");
+            if !APPEARANCE_PANES.contains(&pane) {
+                return Err(ActionError::Invalid("ui.error.unknown_pane".into()));
+            }
+            let name = format!("appearance:{pane}");
+            let mut refused = false;
+            hub.update("runtime.ui", None, |d| {
+                if polkit_up(d) {
+                    refused = true;
+                    return;
+                }
+                let open = d["panel"].as_str() == Some(name.as_str());
+                d["panel"] = json!(if open { "" } else { name.as_str() });
+                d["popup"] = json!(!open);
+                d["tray"] = json!("");
+                d["face"] = json!("");
+                clear_peek(d);
+                clear_sidebar(d);
+                d["launcher"] = json!(false);
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            refuse_under_polkit(refused)
+        }
+    });
     actions.register(
         "notifications.center",
         "action.notifications.center",
@@ -385,6 +418,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     for (id, args) in [
         ("island.expand", "{island?, face?}"),
         ("mod.panel.open", "{id, panel}"),
+        ("appearance.open", "{pane?, output?}"),
         ("tray.menu.open", "{id}"),
         ("sidebar.toggle", "{side, output?}"),
         ("sidebar.open", "{side, output?}"),
@@ -629,6 +663,16 @@ fn mod_panel_rows(hub: &Hub, q: &str) -> Vec<Value> {
 }
 
 /// `mod.panel.open` of a panel the mod does not offer, or whose mod is off.
+/// The Wallpaper & Theming menu's panes (W84; frontend/components/appearance/appearance.js `panes`).
+const APPEARANCE_PANES: [&str; 7] = [
+    "wallpaper",
+    "colours",
+    "style",
+    "material",
+    "motion",
+    "effects",
+    "fonts",
+];
 const PANEL_UNAVAILABLE: &str = "mods.error.panel_unavailable";
 
 /// Whether the `mods` document lists mod `id` as enabled, providing `panel:<panel>`.

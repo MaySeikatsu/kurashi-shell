@@ -459,6 +459,22 @@ impl State {
                 }
                 self.toggle_panel(&format!("mod:{id}:{panel}"));
             }
+            // Session 33 (W84, row 791), as kurashid: the Wallpaper & Theming menu as a card.
+            "appearance.open" => {
+                let pane = args["pane"]
+                    .as_str()
+                    .filter(|p| !p.is_empty())
+                    .unwrap_or("wallpaper")
+                    .to_string();
+                if ![
+                    "wallpaper", "colours", "style", "material", "motion", "effects", "fonts",
+                ]
+                .contains(&pane.as_str())
+                {
+                    return Err(Fail::invalid("ui.error.unknown_pane"));
+                }
+                self.toggle_panel(&format!("appearance:{pane}"));
+            }
             // K23, as kurashid: the same item closes its menu, another item switches to its menu.
             "tray.menu.open" => {
                 let id = args["id"]

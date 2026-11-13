@@ -56,3 +56,5 @@
 "appearance-menu.wallpaper.order" = "The order rotation takes"
 "appearance-menu.wallpaper.order.name" = "In order"
 "appearance-menu.wallpaper.order.shuffle" = "Shuffled"
+"action.appearance.open" = "Open the Wallpaper & Theming menu"
+"ui.error.unknown_pane" = "No such pane"
