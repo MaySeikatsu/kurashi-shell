@@ -17,6 +17,49 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-13 — session 32 (machine A): B128, the travelling workspace mark, Local mode, groups round two, the user's live bugs
+**State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR <PR> is open, not merged**
+(the user merges; it closes #58 and #59). After the merge remove #58's worktree `.claude/worktrees/agent-ac748735f1e82a580`
+(branch `feat/s31-settings-dock`), `~/.cache/kurashi-agents-target/w77`, and W80's worktree
+`.claude/worktrees/agent-ae7eda47dcd83e6c3` (locked by its agent's process: `git worktree remove -f -f`). W78, W79, W81's
+worktrees and build dirs are gone. Disk: ~180 GB free.
+**Done** (K148, K149; CONTRACT-CHANGE 760, 764 decided; 766/767 deferred):
+1. B128: the web dock's bar card kept open followed the focus (`bar.popups_follow`); a kept card stays, one not kept follows.
+2. I507 / K148: the focused workspace is one travelling mark — `modules.workspaces.motion` goo (default) / stretch / slide /
+   off; the wobble from the motion profile; `test-ws-motion` (merge set).
+3. The user's live bugs: B132 a hover-opened sidebar holds while the pointer is on the web dock's page (`webdock.side_page`,
+   `sidebar.hover`); B133 a pinned sidebar's page was one column off (placed on the output now, zones ignored);
+   B134 the pins scroll with the wheel; B135 scroll edges on every scrolling view (ScrollEdge takes no room now).
+4. B127 / K149: the docked Settings holds a hover-opened sidebar (`settings.dock_hover`, `runtime.settings.hover`); W79:
+   one Settings process per start, a crash clears the dock, doctor and mock.
+5. W80 (I508, partly): groups in Settings' list and a bar preview (drag/keys), "Group with…"/"Leave group" in the module
+   menu; one `frontend/components/groups.js` (linked into settings/components). Open ends in I508.
+6. W78: Local mode; Online lists sites only (the user); the desktop-apps evaluation (I510).
+7. W81: B119/B120 measured, no fix: B119 is Qt's threaded render loop (BENCH.md, the rows).
+**The user's answers this session.** #58/#59: build on top, one PR. B128: unpinned follows; it was the bar card. Workspace
+motion default: goo. W78: Local mode, apps evaluated. Groups: both the list and a bar preview. B129: no key handover, click
+only. Online: sites only. Apps spike: yes, next session. "Fix all bugs, then tests and builds; don't waste time on long
+compiles before."
+**Verified.** `just check` green; `just suites` (44): 43 pass, `quick-modules` red — the same on `main` (B92, checked in a
+worktree of origin/main); `nix build .#kurashi` green. Seen on nested niri: the workspace mark (washi keys, dots, Material),
+Settings' page edges and the notifications' edge, groups on the bar and the module menu, the docked Settings' hover hold.
+On sway only: the web dock sidebar (pinned, hover), B128 (two outputs). Live on the user's session: frontend 0.0 % CPU at
+rest (music paused); nothing visual yet.
+**Next steps (in order; ask the user where a step says so — batched, one AskUserQuestion):**
+1. Check PR <PR>'s state; after the merge clean the worktrees above.
+2. Live read with the user (read-only): `top -H` with music playing; ask them to look at the PR's "check live" list. File
+   what they report.
+3. Ask: try `QSG_RENDER_LOOP=basic` as an experiment card on the real session (B119)?
+4. The desktop-apps spike (I510): a script on nested niri with `foot` and `chromium --app` — the user said yes.
+5. I508's open ends (empty group drawn, states shot, motion, cross-zone drops, the `rect` hook with screen coordinates).
+6. B123/B131 (`test-dock`'s mock bar has no web dock widget), B92 (`quick-modules`: a click past the output), B130, B120.
+7. Older: B113, B112/B100, B114, B115, B116, B121, I483, I509's rest, the workspace mark in a side bar's column.
+**Risks.** The scroll edge now on Settings' pages turns each page's layer on while it overflows (a layer per page; 0 frames
+at rest, but memory). The web dock sidebar's place changed meaning (on the output, zones ignored): a compositor that counts
+zones differently would misplace it — seen on sway and in the pinned case only.
+
+---
+
 ## 2026-11-13 — session 31 (machine A): live fixes on the user's session, Settings in a sidebar
 **State.** `main` = #57 (live fixes). **PR #58 (Settings docked in a sidebar, W77, K146) is open, not merged** — the user
 merges; its worktree `.claude/worktrees/agent-ac748735f1e82a580` (branch `feat/s31-settings-dock`) and build dir
