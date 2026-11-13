@@ -66,23 +66,31 @@ CLI call every 3 s), `MEDIA_IDLE_SHOTS=<dir>` (bar and both sidebars), and niri'
   every window of the shell: with the island's morph poked 4 times, the 13 windows it is not in (the closed launcher and
   Stage, the four screen corners, the frame's strips, both sidebars, the dock, the web dock's strip) committed 5 times each,
   each commit a full `damage` + new `attach` (a real frame, not a frame-callback request), against `animationStarted` 5
-  times in `qt.scenegraph.renderloop` (`QSGThreadedRenderLoop::animationStarted` posts an update request to every window).
-  Under `QSG_RENDER_LOOP=basic` the same pokes drew the bar alone. What would avoid it: the basic loop (here: ~40 % less
-  frontend CPU with the flow, but the flowing windows drew 15.2 frames a second, not 7.5, and every swap is on the GUI
-  thread — its own card and a K decision), or never starting an animation where nothing visible changes (already so here).
-- **B120, a sidebar frame is a fixed cost, not a pixel cost.** `qt.scenegraph.time.renderloop` per window (one 12 s run):
-  sync 0.0 ms, render 0.0–0.14 ms, swap 7–16 ms of wall time per frame for every window (strips 39 px wide 7 ms, sidebars
-  12–13 ms, the desk 16 ms) — the swap waits, it does not compute. In CPU, two pinned sidebars at 7.5 frames a second cost
-  ~4–7 points of a core (17 % without them, 21–24 % with), ~3–4.5 ms of CPU per sidebar frame, about the same per frame as
-  the other windows (the render threads' 18–20 % over ~75 frames a second is ~2.5 ms a frame). A window ~36 % narrower (the
-  pinned column's window at its column's width, 451 px instead of ~700: commit `99c7d621`) measured no CPU difference in
-  frontend or niri and moved the paper grain of the right column's tiles (they register to the window), so it is reverted
-  (`f53ef20d`). `__GL_YIELD=USLEEP` (NVIDIA's driver sleeping instead of spinning in a wait) changed nothing either. The
-  lever is the number of frames, not their size: each flowing window adds ~2.5–4 ms of CPU per step (six windows flow here:
-  three frame strips, the dock, two sidebars, 45 frames a second of the 75). NVIDIA-specific (egl-wayland's swap path);
-  nested niri's swap pacing may differ from a real session's.
-- Shots before/after on niri (`MEDIA_IDLE_OFF=flow`, bar and both sidebars): the left sidebar pixel-identical, the bar
-  differs only in the lyric line and the clock, the right sidebar in its tiles' grain (the reverted change above).
+  times in `qt.scenegraph.renderloop` — consistent with Qt's threaded loop posting an update request to every window when
+  the driver starts (Qt's source not read here; the evidence is the A/B): under `QSG_RENDER_LOOP=basic` the same pokes
+  drew the bar alone. Not explained: 5 starts for 4 pokes, and the desk's 24 commits under the pokes. The 12 s windows
+  spanned no minute flip; the suite's `still` budget lets one commit through for the clock's turn, likely this same
+  mechanism. What would avoid it: the basic loop (here: ~40 % less frontend CPU with the flow, but four flowing windows drew
+  15.2 frames a second, not 7.5 — unexplained — and every swap is on the GUI thread: its own card and a K decision), or
+  never starting an animation where nothing visible changes (already so in this profile).
+- **B120, where a sidebar frame's CPU goes.** `qt.scenegraph.time.renderloop` per window (one 12 s run; windows told apart
+  by their frame counts, not identified): sync 0.0 ms, render 0.0–0.14 ms, swap 7–16 ms of wall time per frame (the
+  thinnest windows ~7 ms, the two that are likely the sidebars 12–13 ms, the desk 16 ms). Sync and render together are at
+  most ~1 point at 75 frames a second while the render threads use 18–20: nearly all of the render threads' CPU is inside
+  the swap (egl-wayland on NVIDIA), roughly 2.5–4 ms of CPU within its 7–16 ms of wall time. The "11 ms" of B120 is wall
+  time. Two pinned sidebars at 7.5 frames a second cost ~4–7 points of a core (one run without them: 17 %, against
+  21–24 %), ~3–4.5 ms of CPU per sidebar frame. A window ~36 % narrower (the pinned column's window at its column's width,
+  451 px instead of ~700: commit `99c7d621`) measured 20–23 % against 21–23 % (niri 5–7 against 7): under this load a
+  saving of the size expected from the pixels alone (~1.5–2.5 points) is not resolvable, so pixel versus fixed cost per
+  frame is open. The change is reverted (`f53ef20d`): no measured gain, and the right column's shot changed (its tiles'
+  grain) — the drag path it touched never ran through the sidebar suites. `__GL_YIELD=USLEEP` (NVIDIA's driver sleeping
+  instead of spinning in a wait) changed nothing. To settle it: per-TID render-thread CPU in one run (the six 7.5/s windows
+  — three frame strips, the dock, two sidebars — differ only in size). NVIDIA-specific; nested niri's swap pacing may
+  differ from a real session's.
+- Shots on niri (`MEDIA_IDLE_OFF=flow`, bar and both sidebars), base against the narrow window: left sidebar
+  pixel-identical, bar differs in the lyric line and the clock only, right sidebar in its tiles' grain (661 px at 2 %).
+  The final tree (`f53ef20d`) against the base: left 0 px, bar 72 px, right 62 px (the clock in the shot's corner only) —
+  the narrowing moved the grain.
 
 ### 2026-10-26 — W44 follow: one reveal model, holders, openings, the Stage on its own bar (machine A; K71, rows 510–525)
 `frontend/test-bars.sh` (sandbox `w44-follow-bars`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
