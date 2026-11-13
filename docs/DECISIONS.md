@@ -1608,3 +1608,15 @@ goes after its grace when the pointer leaves both. Mock parity; fixture `snap_ru
 **Why.** W77's gap: the dock is another process's window over the sidebar's well, so the column saw the pointer leave
 and closed under the user's pointer. The web dock's page solved the same for cards through `Peeks.hoverOverlay` inside
 one process tree; across processes the daemon carries it (rule 1). Not solved here: a key into the dock (B129).
+
+## K150 — Mods offer launcher results through providers with an optional prefix (session 33)
+**Decision.** A native mod registers a launcher provider (manifest `launcher:<name>`, `ModCtx::launcher`): a prefix it
+reads from its own settings, and a function from the text to rows; each row runs one of the mod's own actions with its
+arguments. The daemon keeps the providers in one table (on the hub, filled by the mod host, read by the launcher's
+query), routes a query that starts with a provider's prefix to it alone, adds prefix-less providers' rows after the
+apps, refuses prefixes the launcher's own modes hold (`kurashi_launcher::BUILTIN_PREFIXES`, the one list) or another
+provider holds, and says so in `runtime.launcher` (Shōjiki). The web dock is the first: `/` opens an address or a
+search in its edge card (and lists the pins it matches); the terminal (W83) follows with `!`.
+**Why.** The user (session 33): "open/search something directly in the web panel from the launcher", and the terminal's
+launcher entries. MODS.md promised launcher providers since K26 and the manifest accepted `launcher:`, but no code path
+existed; one mechanism serves both and any later mod, with no second hand-kept list of prefixes (rule 3).

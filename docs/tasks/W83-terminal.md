@@ -31,3 +31,28 @@ is one line the lead reviews: say where. Contract changes (new docs, actions, a 
 `echo kurashi` prints it; the drop-down toggles by its action and keeps the session; closing the sidebar keeps the
 session; the host killed → the panel says so and a press restarts it; shots light and dark.
 **Build dir** `~/.cache/kurashi-agents-target/w83`. Report terse.
+
+**The user's refinement (session 33, during the card):** "Something similar to Yakuake. Build it as a plugin, but highly
+polished and deeply integrated into the shell — it should all feel native, not like an afterthought." So: the drop-down is
+the primary place (the others reuse its session); it draws like the shell's own surfaces (the look's form, material,
+corners and outline, the motion profile's entrance, joined to the bar or edge it drops from, blur, the palette's ANSI
+colours and the look's fonts, light and dark, no branch on look names); Yakuake's essentials (tabs, splits if the widget
+allows, a size per output by dragging, keep open, hide on focus loss as a setting, the toggle on the focused output); its
+settings as schema keys (Settings page, module menu), en/ja, a quick toggle or bar module, the island saying a command
+finished while hidden if cheap.
+**And its place (the user, session 33):** a setting — attached to the centre of the "main" bar (joined to it as cards are),
+floating in the centre of the screen, floating at a defined position, or attached to a screen edge (Yakuake). One schema
+setting (`place` = bar | center | position | edge, with the edge, the position, and a size per output); the motion fits
+each (out of the bar or edge, a calm fade/scale when floating). The test covers at least bar-attached and floating centre.
+**And a bar module (the user, session 33):** like the web dock's, pinned anywhere on a bar; hovering (or clicking) it opens
+the terminal's card from where the module sits, joined to the bar on that output — the shell's hover-open cards (grace,
+`ui.keep`), the web dock's bar-card placement pattern — on the same session as the drop-down. In the brief and the test.
+**And the bar module's modes and default directories (the user, session 33):** the module shows an `icon`, a `status`
+(running / finished / failed, cwd or title), or an `input` field (type a command, Enter runs it in the session — showing
+the terminal or quietly with a result glance, a choice; history, Esc, a11y, never wider than its fit). A default start
+directory and a list of favourite directories offered as quick keys (tab bar, "+", the module's menu and field, the
+right-click menu): a click opens a new tab there or changes to it (a choice); `~` expands; a missing path says so.
+All of it user settings (schema keys).
+**And the launcher (the user, session 33):** through a mod launcher provider: "Terminal" opens the drop-down; a run prefix
+(a setting, e.g. `>`) runs the typed command in the session and shows it; the favourite directories as entries that open a
+tab there.

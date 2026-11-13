@@ -154,3 +154,6 @@
 "launcher.start.recommended" = "おすすめ"
 "action.theme.export.link" = "ブラウザのプロファイルをテーマにリンク"
 "action.theme.export.others" = "ブラウザープロファイルの他のスタイルシートをオン／オフ"
+"launcher.error.prefix_empty" = "接頭辞が空です"
+"launcher.error.prefix_builtin" = "ランチャーが {prefix} を使っています"
+"launcher.error.prefix_taken" = "{by} がこの接頭辞を使っています"

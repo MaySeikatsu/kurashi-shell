@@ -759,6 +759,8 @@ impl Native {
                     CORE_SOURCES.contains(&source.as_str()),
                     format!("choices:{source}"),
                 ),
+                // K150: a provider's name is the mod's own (`<mod>:<name>`); its prefix is judged at query time.
+                Registration::Launcher { name, .. } => (false, format!("launcher:{name}")),
             };
             if taken {
                 return Err(ModError::Duplicate(id));
@@ -854,6 +856,10 @@ impl Native {
                     state.choices.insert(source.clone(), options);
                     state.offers.insert(source, offers);
                 }
+                Registration::Launcher { name, spec } => {
+                    self.hub.launcher_mods.insert(module.id(), &name, spec);
+                    publish_launcher(&self.hub);
+                }
             }
         }
         // K38: the mod's host processes, made once its registrations are in effect. A host belongs to its mod
@@ -915,6 +921,9 @@ impl Native {
                 island.unregister_face(face);
             }
         }
+        // K150: its launcher providers go with it.
+        self.hub.launcher_mods.remove_mod(id);
+        publish_launcher(&self.hub);
         // Dropping the ledger ends the settings feed: the services were stopped by `unregister`.
     }
 
@@ -922,6 +931,8 @@ impl Native {
     /// service is woken only when one of its values changed. A background job starts or stops as
     /// its setting now wants it (I23).
     pub fn feed(&self, store: &ConfigStore) {
+        // K150: a provider's prefix may be one of its settings: the document follows them.
+        publish_launcher(&self.hub);
         for ledger in self.active.values() {
             let values: Values = ledger
                 .keys
@@ -1182,6 +1193,13 @@ fn action_error(e: kurashi_mod_api::ActionError) -> ActionError {
         M::Unavailable(m) => ActionError::Unavailable(m),
         M::Internal(m) => ActionError::Internal(m),
     }
+}
+
+/// K150: `runtime.launcher` — the launcher's own prefixes and the mods' providers with theirs (in effect or refused,
+/// with the reason). Registered by the launcher's wiring; nothing while it is not (protocol tests).
+pub fn publish_launcher(hub: &Hub) {
+    let doc = hub.launcher_mods.document();
+    let _ = hub.update(crate::launcher_mods::DOC, None, |d| *d = doc);
 }
 
 #[cfg(test)]

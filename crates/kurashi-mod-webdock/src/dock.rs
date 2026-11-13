@@ -435,6 +435,9 @@ pub struct Config {
     pub search: String,
     /// W76: the card's box the user dragged, per output (`sizes` rows: output → width × height).
     pub sizes: BTreeMap<String, (u32, u32)>,
+    /// Session 33 (K150): the launcher prefix that opens or searches in the dock (`launcher_prefix`, `/` by default;
+    /// empty: none).
+    pub launcher_prefix: String,
 }
 
 impl Config {
@@ -508,6 +511,13 @@ impl Config {
                 .unwrap_or(DEFAULT_SEARCH)
                 .to_string(),
             sizes: sizes_of(&records_of(settings, "sizes")),
+            launcher_prefix: settings
+                .get("launcher_prefix")
+                .as_ref()
+                .and_then(Value::as_str)
+                .unwrap_or("/")
+                .trim()
+                .to_string(),
         }
     }
 }
@@ -946,6 +956,61 @@ impl Dock {
         self.sweep();
         self.sanitize();
         id
+    }
+
+    /// Session 33 (K150): the launcher prefix in effect (`launcher_prefix`; empty: none).
+    pub fn launcher_prefix(&self) -> &str {
+        &self.config.launcher_prefix
+    }
+
+    /// Session 33 (K150, the launcher): a temporary page already at `url`, shown in `place` — "+" with the address typed.
+    pub fn browse_to(&mut self, place: Spot, output: Option<&str>, url: &str) -> String {
+        let id = self.browse(place, output);
+        for p in self.pins.iter_mut().chain(self.temps.iter_mut()) {
+            if p.id == id {
+                p.target = url.to_string();
+            }
+        }
+        id
+    }
+
+    /// Session 33 (K150): the launcher's rows for `text` after the dock's prefix — the pins it matches (title or
+    /// address), then the address it names or a search for it. Empty text: every pin. (key, name, sub, icon, pin or
+    /// text) — the caller words them.
+    pub fn launcher_rows(&self, text: &str) -> Vec<LaunchRow> {
+        let t = text.trim().to_lowercase();
+        let mut out: Vec<LaunchRow> = self
+            .pins
+            .iter()
+            .filter(|p| p.temp.is_none() && p.kind == Kind::Web)
+            .filter(|p| {
+                t.is_empty()
+                    || p.title.to_lowercase().contains(&t)
+                    || p.target.to_lowercase().contains(&t)
+            })
+            .map(|p| LaunchRow::Pin {
+                id: p.id.clone(),
+                title: if p.title.is_empty() {
+                    p.target.clone()
+                } else {
+                    p.title.clone()
+                },
+                target: p.target.clone(),
+            })
+            .collect();
+        if let Some(url) = resolve(text, &self.config.search) {
+            // (a search is the engine's address with the words in it; anything else is the address the text names)
+            let engine = self.config.search.split("{q}").next().unwrap_or_default();
+            out.push(if !engine.is_empty() && url.starts_with(engine) {
+                LaunchRow::Search {
+                    words: text.trim().to_string(),
+                    url,
+                }
+            } else {
+                LaunchRow::Address { url }
+            });
+        }
+        out
     }
 
     /// `webdock.go {pin, text}` (W76, the address field): the address `text` names, or a search for it with the user's
@@ -4014,4 +4079,21 @@ mod tests {
                 .is_some_and(|p| p.kind == Kind::View)
         );
     }
+}
+
+/// One launcher row of the dock's (session 33, K150).
+#[derive(Debug, Clone, PartialEq)]
+pub enum LaunchRow {
+    Pin {
+        id: String,
+        title: String,
+        target: String,
+    },
+    Address {
+        url: String,
+    },
+    Search {
+        words: String,
+        url: String,
+    },
 }

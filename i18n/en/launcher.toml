@@ -154,3 +154,6 @@
 "launcher.start.recommended" = "Recommended"
 "action.theme.export.link" = "Link a browser profile to the theme"
 "action.theme.export.others" = "Turn a browser profile's other stylesheets off or on"
+"launcher.error.prefix_empty" = "The prefix is empty"
+"launcher.error.prefix_builtin" = "The launcher uses {prefix} itself"
+"launcher.error.prefix_taken" = "{by} already uses this prefix"
