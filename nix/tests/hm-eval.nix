@@ -121,7 +121,7 @@ let
     [ "kurashid restarts on failure" (one daemon.Service.Restart == "on-failure") ]
     [ "frontend ExecStart" (one front.Service.ExecStart == "${stub}/share/kurashi/frontend/launch.sh") ]
     [ "frontend gets quickshell via KURASHI_QS" (lib.elem "KURASHI_QS=${qs}" front.Service.Environment) ]
-    [ "frontend Requires (not BindsTo) kurashid" (front.Unit.Requires == [ "kurashid.service" ] && !(front.Unit ? BindsTo)) ]
+    [ "frontend Wants (not Requires, not BindsTo) kurashid: a daemon restart leaves it running" (front.Unit.Wants == [ "kurashid.service" ] && !(front.Unit ? Requires) && !(front.Unit ? BindsTo)) ]
     [ "frontend ordered after kurashid" (lib.elem "kurashid.service" front.Unit.After) ]
     [ "extraEnvironment reaches both" (daemon.Service.Environment == [ "RUST_LOG=kurashid=debug" ] && lib.elem "RUST_LOG=kurashid=debug" front.Service.Environment) ]
     [ "managed.toml generated" (cfg.xdg.configFile ? "kurashi/managed.toml") ]
@@ -175,7 +175,8 @@ pkgs.runCommand "kurashi-hm-eval"
     unit=$activation/home-files/.config/systemd/user
     grep -q "ExecStart=${stub}/bin/kurashid" $unit/kurashid.service
     grep -q "WantedBy=graphical-session.target" $unit/kurashid.service
-    grep -q "Requires=kurashid.service" $unit/kurashi-frontend.service
+    grep -q "Wants=kurashid.service" $unit/kurashi-frontend.service
+    ! grep -q "Requires=kurashid.service" $unit/kurashi-frontend.service
     grep -q "ExecStart=${stub}/share/kurashi/frontend/launch.sh" $unit/kurashi-frontend.service
     grep -q "KURASHI_QS=${qs}" $unit/kurashi-frontend.service
     ! grep -q BindsTo $unit/kurashi-frontend.service

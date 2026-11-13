@@ -8,6 +8,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+### Fixed
+- After a rebuild that changed the daemon (e.g. enabling the terminal) the shell did not come back: the frontend's unit
+  `Requires` the daemon, so Home-Manager's stop of kurashid stopped it too. It now `Wants` the daemon and reconnects (B140).
+
 ### Added
 - **Attached OSD** (`osd.place = edge`, `osd.edge`): joined to a screen edge and sliding out of it, upright on the left or
   right, as Caelestia has.
