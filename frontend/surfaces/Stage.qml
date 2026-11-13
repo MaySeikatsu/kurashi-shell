@@ -530,6 +530,13 @@ PanelWindow {
     Connections {
         target: card.Window.window
         function onFrameSwapped() {
+            // Test only (KURASHI_STAGE_DEBUG=1): the height a menu at the pointer is drawn at, per frame that changes it
+            // (test-context-menus.sh: one height from the first frame, no jump when the rows arrive).
+            if (stage.debugLog && stage.pointerMenuShown && stage.contentKind === "tray" && stage.shown
+                && Math.round(card.height) !== stage.frameH) {
+                stage.frameH = Math.round(card.height)
+                console.log("stage-menu-frame " + stage.shownTray + " " + stage.frameH)
+            }
             if (stage.gate) {
                 // The shape starts at its origin, read now (runtime.ui may name the panel a moment after the Stage
                 // opened), and grows from here on.
@@ -589,11 +596,13 @@ PanelWindow {
     function isCtx(id) { return id.indexOf("module:") === 0 || id === "desktop" || id.indexOf("desktop:") === 0 || id.indexOf("bar:") === 0 }
     // A menu at the pointer is (or was last) shown; where it was asked for (MenuAt), latched when it opened.
     readonly property bool pointerMenuShown: shownTray === "desktop" || shownTray.indexOf("desktop:") === 0 || shownTray.indexOf("bar:") === 0
-    // (set as the daemon names the menu: `loadTray`)
+    // (set as the daemon names the menu: `loadTray`). A press for the menu that is open, noted after it opened, moves
+    // the card there (MenuAt.open does not ask the daemon again: the same id would close it).
     property real menuOpenedT: 0
+    property int frameH: 0   // (test only: see onFrameSwapped; 0 again once the card is gone)
     readonly property var menuPoint: {
         var p = MenuAt.last
-        return pointerMenuShown && p.output === outName && p.t <= menuOpenedT && menuOpenedT - p.t < 1500 ? p : null
+        return pointerMenuShown && p.output === outName && p.target === shownTray && p.t >= menuOpenedT - 1500 ? p : null
     }
     // Test only (KURASHI_STAGE_DEBUG=1, frontend/test-context-menus.sh): where a menu at the pointer stands, in output px:
     // `stage-menu <target> <output> <card x> <card y> <w> <h> <pointer x|-> <pointer y|->`.
@@ -606,9 +615,6 @@ PanelWindow {
         ? ctxMenu.tree.children.filter(function (e) { return !e.separator })
             .map(function (e) { return (e.enabled === false ? "-" : "+") + e.label }).join("|") : ""
     onMenuRowsLineChanged: if (menuRowsLine !== "") console.log("stage-menu-rows " + menuRowsLine)
-    // The desktop's right click (menus/DeskCatch: one empty window per output over the wallpaper). Made here, with the
-    // panel that draws its menu, as the Stage lives as long as the shell (the lead may move it to shell.qml).
-    DeskCatches {}
     property var trayTree: null
     property string trayErr: ""
     property int trayReq: 0
@@ -1544,6 +1550,7 @@ PanelWindow {
     }
     onShownChanged: {
         if (!shown) {
+            frameH = 0
             run.reset()
             // I493 (session 30, `bar.card_keep_loaded`; as the sidebars, K139): the view a card showed stays made for a
             // minute after it closed — the window keeps it, unseen — so the same card opens again at once, at its size.

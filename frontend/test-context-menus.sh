@@ -8,7 +8,10 @@
 #      (`bar.popups_follow`) and the menu stays; a right click on the clock still opens the clock's own menu;
 #   4. the keyboard path without a pointer: `tray.menu.open {id: desktop}` opens it centred, Esc closes;
 #   5. the desktop widgets' cards answer the right click with the same menu;
-#   6. shots light and dark (frontend/shots/context-menu-*.png); no QML error.
+#   6. two outputs: the desktop's and the bar's menus open on the output that was pressed;
+#   7. shots light and dark (frontend/shots/context-menu-*.png); no QML error.
+#   Also: the card opens at its full height (no jump when the rows arrive); a right click elsewhere while it is open
+#   opens it there.
 #   nix develop -c frontend/test-context-menus.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -48,6 +51,11 @@ center = ["island"]
 end = ["clock"]'
 conf() { printf '%s\n%s\n' "$1" "$base" > "$CONF"; sleep 1.5; }
 printf '%s\n' "$base" > "$CONF"
+# Two outputs side by side (HEADLESS-2 right of HEADLESS-1): a menu opens on the output that was pressed.
+"$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "no second output"
+swaymsg output HEADLESS-1 pos 0 0 >/dev/null 2>&1
+W1=$(swaymsg -t get_outputs -r | jq '.[] | select(.name == "HEADLESS-1") | .rect.width')
+swaymsg output HEADLESS-2 pos "$W1" 0 >/dev/null 2>&1
 swaymsg output '*' bg '#5d7f8f' solid_color >/dev/null 2>&1 || true
 # A layer above the user (K15) forces one of the bar's rows: the menu shows it grey and says who holds it.
 printf '[_managed]\nenforce = true\n\n[bar]\ncard_keep_loaded = true\n' > "$XDG_CONFIG_HOME/kurashi/managed.toml"
@@ -61,9 +69,10 @@ qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=($!)
 wait_frontend "$R/qs.log" || fail "the frontend did not load"
 
-OUT=$(swaymsg -t get_outputs -r | jq -r '.[0].name')
-W_OUT=$(swaymsg -t get_outputs -r | jq -r '.[0].rect.width')
-H_OUT=$(swaymsg -t get_outputs -r | jq -r '.[0].rect.height')
+OUT=HEADLESS-1
+W_OUT=$(swaymsg -t get_outputs -r | jq '.[] | select(.name == "HEADLESS-1") | .rect.width')
+H_OUT=$(swaymsg -t get_outputs -r | jq '.[] | select(.name == "HEADLESS-1") | .rect.height')
+W2=$(swaymsg -t get_outputs -r | jq '.[] | select(.name == "HEADLESS-2") | .rect.width')
 ptr() { python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" "${3:-left}"; }
 keys() { python3 -I "$ROOT/tools/bench/wl_keys.py" "$@"; }
 doc() { K sub "$1" --count 0 2>/dev/null | head -1; }
@@ -87,6 +96,11 @@ placed_line "$since"
 [ "$TARGET" = "desktop:$OUT" ] && [ "$PX" = 600 ] && [ "$PY" = 500 ] || fail "the menu logged $TARGET at $PX,$PY"
 [ "$CX" -eq 600 ] && [ "$CY" -eq 500 ] || fail "the card stands at $CX,$CY, not at the pointer 600,500"
 ok "a right click on the wallpaper opens the desktop's menu at the pointer"
+# No jump on opening: the rows come with the card (MenuAt asks for the schema first), one height from the first frame.
+sleep 0.8
+hs=$(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a 'stage-menu-frame ' | awk '{print $NF}' | tr '\n' ' ')
+[ "$(echo $hs | wc -w)" -eq 1 ] || fail "the card was drawn at more than one height while opening: $hs"
+ok "the card is drawn at its full height from its first frame (frames at: $hs)"
 shot context-menu-desktop "$CX,$CY ${CW}x${CH}"
 dark_was=$(K get theme.colors.scheme | tr -d ' "' | sed 's/.*=//')
 # Down, Enter: the first row (no wallpaper mod): Dark mode.
@@ -96,6 +110,13 @@ wait_until 5 scheme_changed || fail "Dark mode did not change theme.colors.schem
 ui_is "\"tray\":\"desktop:$OUT\"" || fail "the menu closed after a change"
 ok "the keys work at once: Dark mode applies ($dark_was → $(K get theme.colors.scheme | sed 's/.*= *//')) and the menu stays"
 shot context-menu-desktop-dark "$CX,$CY ${CW}x${CH}"
+# A right click elsewhere on the desktop while it is open: the menu opens there (it moves; not closed, not toggled).
+since=$(log_size "$R/qs.log")
+ptr 900 300 right
+wait_until 5 eval '[ -n "$(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a "stage-menu desktop:$OUT $OUT 900 300 ")" ]' \
+  || fail "a second right click did not move the menu to 900,300: $(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a 'stage-menu ' | tail -2 | tr '\n' ' ')"
+ui_is "\"tray\":\"desktop:$OUT\"" || fail "the second right click closed the menu: $(doc runtime.ui)"
+ok "a right click elsewhere on the desktop opens the menu there"
 close_menu
 ok "Esc closes it"
 
@@ -122,6 +143,12 @@ case "$rows" in *"|-Keep a closed card ready|-forced: "*) ;; *) fail "the forced
 case "$rows" in *"|+Edit layout…") ;; *) fail "the bar's menu does not end in Edit layout…: $rows" ;; esac
 ok "a forced row stays, grey, and says who holds it ($(echo "$rows" | grep -o 'forced: [^|]*'))"
 shot context-menu-bar "$CX,$CY ${CW}x${CH}"
+since=$(log_size "$R/qs.log")
+ptr $(( W_OUT * 3 / 4 - 200 )) 14 right
+wait_until 5 eval '[ -n "$(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a "stage-menu bar:$OUT/top .* $(( W_OUT * 3 / 4 - 200 )) 14$")" ]' \
+  || fail "a second right click on the bar did not move its menu"
+ui_is "\"tray\":\"bar:$OUT/top\"" || fail "the second right click on the bar closed its menu"
+ok "a right click elsewhere on the bar opens its menu there"
 # Rows: edges.top.bar, .visibility, .reserve, .draw, bar.height, bar.popups, bar.popups_follow (7th).
 keys down down down down down down down return
 follow_off() { K get bar.popups_follow | grep -q false; }
@@ -132,7 +159,8 @@ close_menu
 ptr "$(( W_OUT - 40 ))" 14 right
 wait_until 5 ui_is '"tray":"module:clock"' || fail "the clock's right click no longer opens its own menu: $(doc runtime.ui)"
 ok "a module keeps its own right click"
-close_menu
+# (a module's menu takes the keyboard on demand, I408: a click on it first; here the action closes it)
+K act ui.close >/dev/null; wait_until 5 closed || fail "the clock's menu did not close"; sleep 0.4
 
 # ---- 4. by key: the action without a pointer opens it centred ----
 since=$(log_size "$R/qs.log")
@@ -159,7 +187,32 @@ near "$PX" 160 1 && near "$PY" 220 1 || fail "the card's right click logged the 
 ok "the desktop widgets answer the right click with the desktop's menu"
 close_menu
 
-# ---- 6. no QML error ----
+# ---- 6. two outputs: the menu opens on the output that was pressed ----
+conf ''
+since=$(log_size "$R/qs.log")
+ptr $(( W1 + 600 )) 500 right
+wait_until 5 ui_is '"tray":"desktop:HEADLESS-2"' || fail "a right click on the second output's desktop: $(doc runtime.ui)"
+placed_line "$since"
+[ "$OUTN" = HEADLESS-2 ] && [ "$CX" -eq 600 ] && [ "$CY" -eq 500 ] || fail "the second output's menu stands on $OUTN at $CX,$CY"
+ok "the desktop menu opens on the output that was pressed (HEADLESS-2, at the pointer)"
+shot context-menu-desktop-out2 "$(( W1 + CX )),$CY ${CW}x${CH}"
+close_menu
+since=$(log_size "$R/qs.log")
+ptr $(( W1 + W2 * 3 / 4 )) 14 right
+wait_until 5 ui_is '"tray":"bar:HEADLESS-2/top"' || fail "a right click on the second output's bar: $(doc runtime.ui)"
+placed_line "$since"
+[ "$OUTN" = HEADLESS-2 ] && [ "$PX" -eq $(( W2 * 3 / 4 )) ] || fail "the second bar's menu stands on $OUTN at pointer $PX"
+ok "the bar menu opens on the output that was pressed"
+close_menu
+since=$(log_size "$R/qs.log")
+ptr 600 500 right
+wait_until 5 ui_is "\"tray\":\"desktop:$OUT\"" || fail "back on the first output: $(doc runtime.ui)"
+placed_line "$since"
+[ "$OUTN" = "$OUT" ] || fail "back on the first output the menu stands on $OUTN"
+ok "and back on the first output"
+close_menu
+
+# ---- 7. no QML error ----
 if grep -E 'TypeError|ReferenceError|is not a type|is not defined|Cannot assign|Binding loop' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
   grep -E 'TypeError|ReferenceError|is not a type|is not defined|Cannot assign|Binding loop' "$R/qs.log" | head -10 >&2
   fail "QML problems in the shell's log"

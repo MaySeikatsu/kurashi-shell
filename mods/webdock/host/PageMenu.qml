@@ -18,6 +18,8 @@ Item {
     // The open menu's view (the page, or its sign-in sheet) and what its request said; null while closed.
     property var view: null
     property var req: null
+    // (counts the requests: a close deferred by a right press does not close the menu that press opened again)
+    property int serial: 0
     readonly property bool open: req !== null
     visible: open
     // Test only (KURASHI_WEBDOCK_DEBUG=1, test-page-menu.sh): where the page stands in its window, and the window's size.
@@ -33,6 +35,7 @@ Item {
     // Opens the menu for `request` (a ContextMenuRequest of `v`): its data is copied now, the request is answered here.
     function show(v, request) {
         request.accepted = true
+        req = null   // (a menu open already is made anew for this request: its rows and cursor start over)
         var f = request.editFlags
         req = {
             x: request.position.x, y: request.position.y,
@@ -43,6 +46,7 @@ Item {
             canPaste: (f & ContextMenuRequest.CanPaste) !== 0, canAll: (f & ContextMenuRequest.CanSelectAll) !== 0
         }
         view = v
+        serial++
         if (debugLog) console.log("webdock-debug menu " + pinId + " at " + Math.round(req.x) + "," + Math.round(req.y)
             + " link=" + (req.link !== "") + " image=" + req.image + " editable=" + req.editable + " rows="
             + JSON.stringify(tree.children.filter(function (e) { return !e.separator }).map(function (e) { return e.id })))
@@ -115,26 +119,27 @@ Item {
                 if (event.key === Qt.Key_Escape) pm.close()
                 event.accepted = true   // (the page under it gets no key while the menu is open)
             }
-            // A press outside the card closes it and reaches nothing under it.
+            // A press outside the card closes it and reaches nothing under it — but a right press goes on to the page, so
+            // the menu opens again there (as desktops and browsers do).
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.AllButtons
-                onPressed: pm.close()
+                onPressed: mouse => {
+                    if (mouse.button !== Qt.RightButton) { pm.close(); return }
+                    mouse.accepted = false
+                    var n = pm.serial
+                    Qt.callLater(function () { if (pm.serial === n) pm.close() })
+                }
             }
-            Rectangle {
+            MenuCard {
                 id: box
                 readonly property real pad: Theme.pad
-                width: Math.min(pm.width - 2 * Theme.xs, 280)
+                width: Math.min(pm.width - 2 * Theme.xs, 320)
                 height: Math.min(pm.height - 2 * Theme.xs, col.implicitHeight + 2 * pad)
                 // At the pointer, turned left or up where the page ends; kept inside the page.
                 x: !pm.req ? 0 : Math.max(Theme.xs, pm.req.x + width <= pm.width - Theme.xs ? pm.req.x
                     : (pm.req.x - width >= Theme.xs ? pm.req.x - width : pm.width - width - Theme.xs))
                 y: !pm.req ? 0 : Math.max(Theme.xs, Math.min(pm.height - height - Theme.xs, pm.req.y))
-                radius: Theme.rSm
-                color: Theme.surface
-                border.width: 1
-                border.color: Theme.outline
-                clip: true
                 Accessible.role: Accessible.PopupMenu
                 Accessible.name: title.text
                 Column {

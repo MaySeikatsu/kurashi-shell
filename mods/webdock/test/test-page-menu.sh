@@ -57,7 +57,7 @@ conf() {
 [idle]
 enabled = false
 [theme]
-style = "washi"
+style = "${2:-washi}"
 [theme.colors]
 scheme = "$1"
 [theme.motion]
@@ -154,6 +154,32 @@ wait_host 'webdock-debug menu menu chose 33' 5 "Paste was not chosen"
 wait_host "PAGE input $PAGES/other.html#from-menu" 5 "Paste did not put the copied link in the field: $(grep -F 'PAGE input' "$HOSTLOG" | tail -1)"
 ok "Copy link reached the clipboard: Paste put it in the field"
 
+# ---- 2b. by keyboard: the Menu key and Shift+F10 in the page (Chromium raises the same request, at the focus) ----
+for chord in menu shift+f10; do
+  ptr "$FX" "$FY"     # (the field has the focus: a click in it, as a reader would before the key)
+  sleep 0.3
+  n=$(menus)
+  keys "$chord"
+  wait_until 5 eval '[ "$(menus)" -gt '"$n"' ]' || fail "$chord in the page opened no menu"
+  last_menu | grep -q 'editable=true' || fail "$chord: the menu is not the field's: $(last_menu)"
+  keys escape
+  sleep 0.3
+done
+ok "the Menu key and Shift+F10 open the page's menu at the focus"
+
+# ---- 2c. a right click elsewhere while the menu is open opens it there ----
+n=$(menus)
+mv_to "$FX" "$FY"; ptr "$FX" "$FY" right
+wait_until 5 eval '[ "$(menus)" -gt '"$n"' ]' || fail "no menu on the field"
+n=$(menus)
+mv_to "$LX" "$LY"; ptr "$LX" "$LY" right
+wait_until 5 eval '[ "$(menus)" -gt '"$n"' ]' || fail "a right click on the link while the field's menu was open opened no menu there"
+last_menu | grep -q 'link=true' || fail "the menu opened again is not the link's: $(last_menu)"
+c0=$(count 'webdock-debug menu menu chose' "$HOSTLOG")
+keys down down return  # (it is open and holds the keys: Copy link)
+wait_host 'webdock-debug menu menu chose 12' 5 "the menu opened again does not take the keys"
+ok "a right click elsewhere while the menu is open opens it there"
+
 # ---- 3. the image ----
 n=$(menus)
 read -r IX IY <<< "$(at 50 37)"
@@ -195,6 +221,26 @@ keys return           # (closed: Enter goes to the page, not to a row)
 sleep 0.4
 [ "$(count 'webdock-debug menu menu chose' "$HOSTLOG")" -eq "$c0" ] || fail "a row ran after Esc"
 ok "Esc closes the menu"
+
+# ---- 5b. the card in the looks: washi and sekai, light and dark (the shell's card chrome: corners, outline, elevation) ----
+for look in washi sekai; do
+  for sch in light dark; do
+    conf "$sch" "$look"
+    sleep 2.5
+    # (a look may frame the page otherwise: its box again)
+    read -r _ PX PY PW PH WW WH <<< "$(grep -F 'webdock-debug pagebox menu ' "$HOSTLOG" | tail -1 | sed 's/.*webdock-debug pagebox //')"
+    WX=$(( W_OUT - 56 - WW )); WY=$(( H_OUT - WH ))
+    read -r LX LY <<< "$(at 50 12)"
+    n=$(menus)
+    mv_to "$LX" "$LY"; ptr "$LX" "$LY" right
+    wait_until 5 eval '[ "$(menus)" -gt '"$n"' ]' || fail "$look $sch: no menu"
+    shot "page-menu-$look-$sch" "$(region)"
+    keys escape
+    sleep 0.3
+  done
+done
+conf "$scheme"
+sleep 2
 
 # ---- 6. the bar card ----
 K act webdock.pin '{"on":false}' >/dev/null || true
