@@ -1252,6 +1252,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-terminal"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "kurashi-mod-timer"
 version = "0.0.1"
 dependencies = [

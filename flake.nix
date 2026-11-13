@@ -63,6 +63,8 @@
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
             self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine
+            # The terminal mod's host (W83), so the sandbox daemon finds `qs-terminal` on PATH
+            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-terminal
             # I331: `wtype` types only into a sandbox (its runtime dir under /tmp/kurashi-sb-*), never into the session's
             # own focused window: an agent once ran it from its own shell and its keys reached the user's display.
             (writeShellScriptBin "wtype" ''

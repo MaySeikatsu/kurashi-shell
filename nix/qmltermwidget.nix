@@ -36,6 +36,9 @@ stdenv.mkDerivation {
       --replace-fail '$$[QT_INSTALL_QML]' '$$PREFIX/${qt6.qtbase.qtQmlPrefix}/' \
       --replace-fail 'INSTALLS += target qmldir assets colorschemes colorschemes2 kblayouts kblayouts2 scrollbar' \
         'INSTALLS += target qmldir assets'
+    # The scrollback from QML (the mod's `scrollback`); upstream keeps 1000 lines and offers no setter to QML.
+    substituteInPlace lib/ksession.h \
+      --replace-fail '    void setHistorySize(int lines);' '    Q_INVOKABLE void setHistorySize(int lines);'
   '';
 
   dontWrapQtApps = true;
