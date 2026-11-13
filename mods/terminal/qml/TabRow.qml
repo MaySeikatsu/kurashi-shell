@@ -75,7 +75,7 @@ Item {
         var o = Light.originOf(w)
         var p = tools.mapToItem(null, 0, 0)
         plusMenu.show(w.screen, { x: o.x + p.x, y: o.y + p.y, width: tools.width, height: tr.keyH }, menuTree(),
-                      I18n.tr("terminal.menu.title"))
+                      "", I18n.tr("terminal.menu.title"))
     }
     TermMenu {
         id: plusMenu

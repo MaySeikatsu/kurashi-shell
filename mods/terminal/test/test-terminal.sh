@@ -13,7 +13,16 @@
 #   7. `place = center` floats it; shot dropdown-center-<scheme>;
 #   8. the host killed → the place says so (`host.crashed`), a press (`terminal.restart`) starts it again with a shell;
 #   9. light and dark (TERM_SCHEME=dark runs the dark pass; both by default).
-#   nix develop -c mods/terminal/test/test-terminal.sh
+# W85 (the polish, docs/ux/terminal.md "As built (W85)"):
+#  10. the tab row's menu (⌄): it is the shell's menu (TrayMenu, `kurashi-terminal-menu`), it takes the keyboard from the
+#      terminal (`held`; the host's window lets go) — Down, Down, Enter opens a tab in the favourite — and gives it back;
+#  11. a refused folder is said in the notice strip (shot), `terminal.dismiss` puts it away; the last tab closed says the
+#      shell exited (shot), a new one starts;
+#  12. the looks (TERM_LOOKS: washi kami material by default, light and dark): the drop-down with the ANSI colours (the
+#      theme's `term.*`), its menu, the notice, the card — shots `<what>-<look>-<scheme>`; with each look's own motion, a
+#      burst of the drop-down going out and coming in: every frame in which the sheet stands at rest shows the text (the
+#      still the place draws through the slide; no pop-in), bursts `burst-{in,out}-<look>-<scheme>`.
+#   nix develop -c mods/terminal/test/test-terminal.sh   (TERM_PASSES="light dark looks" by default)
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 export KURASHI_NIRI_SB_NAME=${KURASHI_SB_PREFIX:-}w83term
@@ -118,6 +127,27 @@ wait_until 5 doc_is "d['active'] != '$TAB'" || fail "Ctrl+PgDown did not wrap"
 "$SB" spawn wtype -M ctrl -M shift -k w -m shift -m ctrl
 wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the tab"
 ok "$S: Ctrl+Shift+T, Ctrl+PgDown, Ctrl+Shift+W"
+# 10. the tab row's menu: ⌄ at the row's end, left of the pin (the row stands 2 × 4 px under the well, keys 30 px).
+read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
+"$SB" click $((WX + WW - 49)) $((WY + WH + 23))
+wait_until 5 has_layer kurashi-terminal-menu || { shot "nomenu-$S"; fail "the tab row's ⌄ opened no menu"; }
+layers | grep -A1 '"kurashi-terminal-menu"' | grep -q exclusive || fail "the menu does not hold the keyboard"
+wait_until 5 doc_is "d.get('held') == True" || fail "the terminal did not let go of the keyboard for its menu"
+wait_until 5 bash -c "\"$SB\" niri layers 2>/dev/null | grep -A1 '\"kurashi-terminal\"' | grep -q none" \
+  || fail "the host's window still holds the keyboard under the menu"
+sleep 0.3
+shot "menu-$S"
+"$SB" spawn wtype -k Down -k Down -k Return
+wait_until 5 doc_is "len(d['tabs']) == 2 and d['tabs'][1]['dir'] == '$FAV' and d['active'] == d['tabs'][1]['id']" \
+  || fail "Down, Down, Enter in the menu opened no tab in the favourite ($(doc "d['tabs']"))"
+wait_until 5 bash -c "! (\"$SB\" niri layers 2>/dev/null | grep -q kurashi-terminal-menu)" || fail "the menu stayed after a choice"
+wait_until 5 doc_is "not d.get('held')" || fail "the menu did not give the keyboard back"
+sleep 1
+type_line "pwd > $OUT/menu.txt"
+wait_until 10 file_has "$OUT/menu.txt" "$FAV" || fail "after the menu the keys did not reach the new tab ($(cat "$OUT/menu.txt" 2>/dev/null))"
+"$SB" spawn wtype -M ctrl -M shift -k w -m shift -m ctrl
+wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the menu's tab"
+ok "$S: the tab row's menu: keys walk it, Enter opens the favourite, the keyboard comes back to the terminal"
 sleep 0.5
 shot "dropdown-bar-$S"
 # Kept out (hide_on_blur off): a click elsewhere gives the keyboard back, the terminal stays; on: it hides.
@@ -199,8 +229,11 @@ type_line "pwd > $OUT/pwd.txt"
 wait_until 10 file_has "$OUT/pwd.txt" "$FAV" || fail "pwd in the favourite's tab is not $FAV ($(cat "$OUT/pwd.txt" 2>/dev/null))"
 K act terminal.open_dir '{"path":"~/does-not-exist-w83"}' > /dev/null 2>&1 && fail "a missing folder was accepted"
 doc_is "d.get('notice', {}).get('key') == 'terminal.error.no_dir'" || fail "the missing folder is not said"
+sleep 0.4
 shot "dropdown-tabs-$S"
-ok "$S: the favourite opened a tab there (pwd), a missing folder is said"
+K act terminal.dismiss > /dev/null || fail "terminal.dismiss refused"
+wait_until 5 doc_is "'notice' not in d" || fail "the notice stayed after its dismissal"
+ok "$S: the favourite opened a tab there (pwd), a missing folder is said in the strip and put away"
 
 # 4b. the bar module's status: the program in the foreground of the active tab
 K set mods.terminal.bar_mode '"status"' > /dev/null || fail "bar_mode status refused"
@@ -264,6 +297,17 @@ shot "dropdown-position-$S"
 K set mods.terminal.place '"center"' > /dev/null
 ok "$S: place = edge and position"
 
+# 11b. the last shell exited: said in the well; a new one starts.
+K set mods.terminal.place '"bar"' > /dev/null
+wait_until 10 doc_is "'dropdown' in d.get('rests', {})" || fail "the drop-down did not come back to the bar"
+for t in $(doc "' '.join(t['id'] for t in d['tabs'])"); do K act terminal.close_tab "{\"tab\":\"$t\"}" > /dev/null; done
+wait_until 10 doc_is "len(d['tabs']) == 0" || fail "the tabs did not close ($(doc "d['tabs']"))"
+sleep 0.5
+shot "exited-$S"
+K act terminal.new_tab > /dev/null
+wait_until 10 doc_is "len(d['tabs']) == 1 and d['host']['state'] == 'ready'" || fail "a new shell did not start after the last exited"
+ok "$S: the last shell exited is said; a new one starts"
+
 # 8. the host killed
 HP=""
 for p in $(pgrep -f "terminal/host/shell.qml"); do
@@ -280,8 +324,105 @@ ok "$S: the host killed is said, a press restarts it"
 "$SB" stop > /dev/null
 }
 
-case "${TERM_SCHEME:-both}" in
-  both) pass light; pass dark ;;
-  *) pass "$TERM_SCHEME" ;;
-esac
+# ---- 12. the looks: shots and bursts ----
+# A frame's crop `geom` (WxH+X+Y) against the same crop of `ref`: RMSE (0 = the same).
+rmse() { magick compare -metric RMSE <(magick "$1" -crop "$3" +repage png:-) <(magick "$2" -crop "$3" +repage png:-) null: 2>&1 \
+  | sed -E 's/.*\(([0-9.e-]+)\).*/\1/'; }
+# frames <prefix> <x,y wxh> <n> <gap> -- <cmd…>: n shots at scale 1, `gap` s apart, while cmd runs.
+frames() {
+  local p=$1 g=$2 n=$3 gap=$4; shift 5
+  ( "$@" ) > /dev/null 2>&1 &
+  for i in $(seq -w 1 "$n"); do sleep "$gap"; (. "$OUT/sway-env.sh"; timeout 5 grim -s 1 -g "$g" "$OUT/$p-$i.png"); done
+  wait
+}
+lt() { python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) < float(sys.argv[2]) else 1)" "$1" "$2"; }
+# Every frame in which the sheet stands at rest (its tab row as in `ref`) shows the text (its first line as in `ref`).
+at_rest_has_text() { # <prefix> <ref.png> <n> <row crop> <text crop>
+  local p=$1 ref=$2 n=$3 rowc=$4 txtc=$5 bad=0 rest=0 f
+  for f in "$OUT/$p"-*.png; do
+    if lt "$(rmse "$f" "$ref" "$rowc")" 0.03; then
+      rest=$((rest + 1))
+      lt "$(rmse "$f" "$ref" "$txtc")" 0.06 || { bad=$((bad + 1)); echo "  $f: at rest, no text"; }
+    fi
+  done
+  echo "  $p: $rest of $n frames at rest, $bad without the text"
+  [ "$bad" -eq 0 ] && [ "$rest" -gt 0 ]
+}
+burst_strip() { # <prefix> <name>: the frames side by side into the shots
+  local p=${1:?}
+  magick "$OUT/$p"-*.png -resize 40% -background red -splice 3x0 +append "$SHOTS/$2.png"
+  rm -f "${OUT:?}/$p"-*.png
+}
+
+looks() {
+rm -f "$OUT"/*.txt
+conf light bar icon
+# (each look's own motion: the bursts need the slides)
+sed -i '/^\[theme.motion\]$/,/^profile/d' "$CONF"
+"$SB" start "$CONF" "$OUT/wall.png" > /dev/null || fail "the sandbox did not start"
+wait_until 20 doc_is "d.get('available') == True" || fail "mod.terminal never came"
+for L in ${TERM_LOOKS:-washi kami material}; do
+  for S in light dark; do
+    K set theme.style="$L" > /dev/null || fail "theme.style $L refused"
+    K set theme.colors.scheme="$S" > /dev/null
+    wait_until 10 doc_is "d.get('tokens', {}).get('term.color1') is not None" theme || fail "$L $S: the theme has no term.* tokens"
+    sleep 1.5
+    K act terminal.show > /dev/null
+    wait_until 20 doc_is "'dropdown' in d.get('rests', {}) and d['host']['state'] == 'ready' and d['host'].get('shows') == 'dropdown'" \
+      || fail "$L $S: the drop-down did not rest with its text"
+    sleep 0.5
+    type_line "clear; printf 'kurashi \\e[31mred \\e[32mgreen \\e[33myellow \\e[34mblue \\e[35mmagenta \\e[36mcyan \\e[90mgrey\\e[0m $L $S\\n'; ls -la /"
+    sleep 1.5
+    shot "look-$L-$S"
+    read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
+    # the menu
+    "$SB" click $((WX + WW - 49)) $((WY + WH + 23))
+    wait_until 5 has_layer kurashi-terminal-menu || fail "$L $S: no menu"
+    sleep 0.4
+    shot "menu-$L-$S" "$((WX + WW - 420)),$((WY + WH - 40)) 440x320" 1
+    "$SB" spawn wtype -k Escape
+    wait_until 5 bash -c "! (\"$SB\" niri layers 2>/dev/null | grep -q kurashi-terminal-menu)" || fail "$L $S: Esc left the menu open"
+    wait_until 5 doc_is "not d.get('held')" || fail "$L $S: Esc did not give the keyboard back"
+    # the notice strip
+    K act terminal.open_dir '{"path":"~/does-not-exist-w85"}' > /dev/null 2>&1
+    sleep 0.5
+    shot "notice-$L-$S" "$WX,$((WY + WH - 20)) ${WW}x70" 1
+    K act terminal.dismiss > /dev/null
+    # the bursts (the sheet's box: the well and the tab row under it)
+    G="$WX,$WY ${WW}x$((WH + 40))"
+    ROWC="120x24+0+$((WH + 10))"; TXTC="300x16+0+1"
+    sleep 1
+    (. "$OUT/sway-env.sh"; timeout 5 grim -s 1 -g "$G" "$OUT/ref-out.png")
+    frames bo "$G" 10 0.02 -- "$SB" act act terminal.hide
+    at_rest_has_text bo "$OUT/ref-out.png" 10 "$ROWC" "$TXTC" || { burst_strip bo "burst-out-$L-$S"; fail "$L $S: the text left before its sheet"; }
+    burst_strip bo "burst-out-$L-$S"
+    sleep 1
+    frames bi "$G" 14 0.02 -- "$SB" act act terminal.show
+    wait_until 10 doc_is "d['host'].get('shows') == 'dropdown'" || fail "$L $S: the text did not come back"
+    sleep 0.5
+    (. "$OUT/sway-env.sh"; timeout 5 grim -s 1 -g "$G" "$OUT/ref-in.png")
+    at_rest_has_text bi "$OUT/ref-in.png" 14 "$ROWC" "$TXTC" || { burst_strip bi "burst-in-$L-$S"; fail "$L $S: the sheet came to rest before its text (pop-in)"; }
+    burst_strip bi "burst-in-$L-$S"
+    # the card
+    K act terminal.hide > /dev/null
+    sleep 1
+    K act mod.panel.open '{"id":"terminal","panel":"terminal"}' > /dev/null
+    wait_until 10 doc_is "d.get('host', {}).get('shows') == 'card'" || fail "$L $S: the card did not show the text"
+    sleep 0.5
+    shot "card-$L-$S" "960,0 960x560" 1
+    K act ui.close > /dev/null
+    wait_until 10 doc_is "d.get('shown_in') != 'card'" || fail "$L $S: the card's place stayed"
+    ok "$L $S: shots, the menu, the notice, the card; the text comes and goes with its sheet"
+  done
+done
+"$SB" stop > /dev/null
+}
+
+for P in ${TERM_PASSES:-${TERM_SCHEME:-light dark} looks}; do
+  case "$P" in
+    looks) looks ;;
+    both) pass light; pass dark ;;
+    *) pass "$P" ;;
+  esac
+done
 echo "test-terminal: PASS (shots in mods/terminal/shots/)"

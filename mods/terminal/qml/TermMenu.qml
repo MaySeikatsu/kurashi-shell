@@ -14,7 +14,9 @@ PanelWindow {
     id: tm
     // The tree while open; null while closed.
     property var tree: null
+    // A heading over the rows ("" for none) and the card's accessible name.
     property string title: ""
+    property string a11yName: ""
     // Where the key it hangs from stands, in logical px on its output: {x, y, width, height}.
     property var anchorRect: ({ x: 0, y: 0, width: 0, height: 0 })
     readonly property bool open: tree !== null
@@ -23,10 +25,11 @@ PanelWindow {
     Component.onDestruction: if (open) Store.act("terminal.hold", { on: false })
     signal chosen(int id)
 
-    function show(onScreen, rect, t, heading) {
+    function show(onScreen, rect, t, heading, name) {
         if (onScreen) screen = onScreen
         anchorRect = rect
         title = heading || ""
+        a11yName = name || title
         tree = t
         Qt.callLater(function () { if (tm.open && body.item) body.item.forceActiveFocus() })
     }
@@ -76,7 +79,7 @@ PanelWindow {
                 x: Math.max(Theme.gap, Math.min(tm.width - width - Theme.gap, r.x + r.width - width))
                 y: below ? r.y + r.height + Theme.xs : r.y - height - Theme.xs
                 Accessible.role: Accessible.PopupMenu
-                Accessible.name: tm.title
+                Accessible.name: tm.a11yName
                 // (a press on the card is the card's: it never reaches the click-away under it)
                 MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
                 Column {
