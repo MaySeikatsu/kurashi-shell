@@ -447,13 +447,13 @@ pub struct Theme {
     /// A fixed preset that recreates one aesthetic: a look, a palette, the scheme, density and motion. Applying a
     /// style resets your appearance changes; what you change afterwards shows as a difference from it. It changes how
     /// things look, never where they are (K53).
-    #[kurashi(default = "washi".to_owned(), choices_from = "styles", section = "colors")]
+    #[kurashi(appearance = "style", default = "washi".to_owned(), choices_from = "styles", section = "colors")]
     pub style: String,
     /// Look
     /// The form and feel of the interface without its colours: chrome, corners, material, motion, type and its
     /// art — sekai's toy keycaps, washi's paper and ink, win95's bevels. The style picks one; pick another to
     /// override it (K53).
-    #[kurashi(default = "kanso".to_owned(), choices_from = "looks", section = "colors")]
+    #[kurashi(appearance = "style", default = "kanso".to_owned(), choices_from = "looks", section = "colors")]
     pub look: String,
     #[kurashi(nested, section = "colors")]
     pub colors: Colors,
@@ -525,7 +525,7 @@ pub struct Theme {
     pub motion: Motion,
     /// Density
     /// Scales spacing and control sizes everywhere.
-    #[kurashi(default = Density::Regular, section = "layout")]
+    #[kurashi(appearance = "style", default = Density::Regular, section = "layout")]
     pub density: Density,
     #[kurashi(nested, page = "fonts", section = "typography")]
     pub typography: Typography,
@@ -545,7 +545,7 @@ pub struct Theme {
     /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, KDE, terminals, editors,
     /// browsers, Discord, Spotify, Obsidian and the compositors (K49). Each one needs one line in its own config to
     /// read the file; Settings shows it.
-    #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
+    #[kurashi(appearance = "colours", default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
     /// Fonts in apps
     /// The apps that follow take the shell's fonts: its font for GTK, Qt and KDE apps, Vesktop, Obsidian and the interface of
@@ -835,7 +835,7 @@ pub struct MediaColors {
     /// Dynamic Media Color
     /// The shell and the apps that follow its theme take the colours of the track playing now. Your palette and light or
     /// dark stay as they are: turn this off and they are back.
-    #[kurashi(default = false)]
+    #[kurashi(appearance = "effects", default = false)]
     pub follow: bool,
     /// Apps follow too
     /// Apps cannot blend, so each track changes their colours at once and some of them reload. Off, only the shell takes
@@ -891,7 +891,7 @@ pub struct WallpaperGrade {
     /// Wallpaper Color Grade
     /// Recolours the wallpaper to the theme's colours whenever they change, by Dynamic Media Color too. The picture's detail
     /// stays and the file itself is never changed: turn this off and it is back. Needs the Wallpaper mod.
-    #[kurashi(default = false)]
+    #[kurashi(appearance = "wallpaper", default = false)]
     pub enabled: bool,
     /// How it recolours
     /// Automatic matches a colourful picture's colours to the theme's, and runs a nearly colourless one through them from
@@ -927,12 +927,12 @@ pub struct Colors {
     /// Palette
     /// Colours only: the roles every surface is painted with, in light and dark. A style picks one; pick another to
     /// override it (K53).
-    #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
+    #[kurashi(appearance = "colours", default = "wa-iro".to_owned(), choices_from = "palettes")]
     pub palette: String,
     /// Light or dark
     /// Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a
     /// style makes it follow the style; "Back to …" returns to your own choice (K55).
-    #[kurashi(default = Scheme::Auto, module = "darkmode")]
+    #[kurashi(appearance = "colours", default = Scheme::Auto, module = "darkmode")]
     pub scheme: Scheme,
     /// Wallpaper colours
     /// How the wallpaper's colours become the palette. Tone-matched builds calm tones around its main colour; Vibrant the
@@ -940,7 +940,7 @@ pub struct Colors {
     /// ground and text, its strongest hues as accents); Mixed spreads all of the picture's prominent colours over the
     /// shell (ground, cards, lines, accents). Text stays legible in every mode. The seasonal tint, when on, still shifts
     /// these hues (I455).
-    #[kurashi(default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
+    #[kurashi(appearance = "wallpaper", appearance = "colours", default = Extraction::ToneMatched, requires = "theme.colors.palette == wallpaper")]
     pub extraction: Extraction,
     /// Colours on the controls
     /// One accent: buttons, sliders, switches and tiles all in the accent. Spread: the palette's colours over them —
@@ -973,7 +973,7 @@ pub struct Colors {
     pub flow: ColourFlow,
     /// Contrast
     /// Raises the contrast between surfaces and text.
-    #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
+    #[kurashi(appearance = "colours", default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
     pub contrast: Contrast,
     /// Colour-blind adjustment
     /// Shifts accent colours so they stay distinguishable.
@@ -990,7 +990,11 @@ pub struct Colors {
     pub wallpaper_grade: WallpaperGrade,
     /// Pure black (OLED)
     /// Pure-black grounds on dark schemes.
-    #[kurashi(default = false, requires = "theme.colors.scheme != light")]
+    #[kurashi(
+        appearance = "colours",
+        default = false,
+        requires = "theme.colors.scheme != light"
+    )]
     pub oled: bool,
     /// Text colour
     /// The colour of text and icons: the palette's own, or an ink — each with a shade for light and for dark — or a
@@ -1028,6 +1032,7 @@ pub struct ColourFlow {
     /// Colours move: the chrome's gradient drifts, the frame's outline and its glow run through colours. It draws
     /// frames while it runs, so it is off by default and stops with the motion profile None and with reduced motion.
     #[kurashi(
+        appearance = "material",
         default = false,
         requires = "theme.motion.profile != none",
         overridden_by = "a11y.reduce_motion => false",
@@ -1113,7 +1118,7 @@ pub struct ChromeGradient {
     /// Gradient
     /// The chrome's fill — neutral or the strong colour — runs from one tone or colour to another across the screen (or
     /// every screen), in the pattern below; text stays legible over all of it (I460).
-    #[kurashi(default = false)]
+    #[kurashi(appearance = "effects", default = false)]
     pub on: bool,
     /// Gradient colours
     /// Tones: the strong colour from darker to lighter. Colours: the palette's accent, secondary and tertiary run into
@@ -1323,7 +1328,7 @@ pub struct Texture {
     /// Material
     /// A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and
     /// shade from the light below, never colours of its own (K59).
-    #[kurashi(default = TextureKind::None, overridden_by = "a11y.high_contrast => none",
+    #[kurashi(appearance = "material", default = TextureKind::None, overridden_by = "a11y.high_contrast => none",
               overridden_by = "a11y.reduce_transparency => none")]
     pub kind: TextureKind,
     /// Where
@@ -1475,7 +1480,7 @@ pub struct Light {
     /// elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right,
     /// warm when it is low — the wallpaper's own light: a lamp at its brightest place, in its colour (K59) — or a
     /// spotlight: a lamp pinned at the screen's edge in the light's direction, its beam aimed at the pointer (K61).
-    #[kurashi(default = LightMode::Static, requires = "theme.texture.kind != none")]
+    #[kurashi(appearance = "effects", default = LightMode::Static, requires = "theme.texture.kind != none")]
     pub mode: LightMode,
     /// Direction
     /// Where the fixed light comes from, in degrees round the screen: 0 from the top, 90 from the right, 315 from the
@@ -1583,7 +1588,7 @@ pub enum Corners {
 pub struct Shape {
     /// Corners
     /// Corner style of bars, popups and the island.
-    #[kurashi(default = Corners::Rounded)]
+    #[kurashi(appearance = "style", default = Corners::Rounded)]
     pub corners: Corners,
     /// Screen corners follow the radius
     /// The screen's corners follow the frame's: its corner radius plus its thickness on a framed screen, so the band keeps
@@ -1643,19 +1648,20 @@ pub enum MaterialKind {
 pub struct Material {
     /// Material
     /// Surface material of shell chrome.
-    #[kurashi(default = MaterialKind::Translucent,
+    #[kurashi(appearance = "material", default = MaterialKind::Translucent,
               overridden_by = "a11y.reduce_transparency => solid",
               overridden_by = "a11y.high_contrast => solid")]
     pub kind: MaterialKind,
     /// Opacity
     /// Opacity of translucent surfaces.
-    #[kurashi(default = 0.85, range = 0.3..=1.0, step = 0.01,
+    #[kurashi(appearance = "material", default = 0.85, range = 0.3..=1.0, step = 0.01,
               requires = "theme.material.kind != solid",
               overridden_by = "a11y.reduce_transparency => 1.0")]
     pub opacity: f64,
     /// Background blur
     /// Blur what is behind translucent surfaces. Forced off when the compositor cannot blur.
     #[kurashi(
+        appearance = "material",
         default = false,
         capability = "blur",
         requires = "theme.material.kind == translucent",
@@ -1713,7 +1719,7 @@ pub struct Material {
     /// Where a list or a page is cut by the edge of its card or sidebar: Blur fades the text out and blurs it toward
     /// the edge, as glass does; Fade only fades it; Cut shows it cut. Only an edge with something cut beyond it is
     /// drawn so, and nothing is redrawn while nothing scrolls.
-    #[kurashi(default = ScrollEdges::Blur, since = 7)]
+    #[kurashi(appearance = "material", default = ScrollEdges::Blur, since = 7)]
     pub scroll_edges: ScrollEdges,
 }
 
@@ -1766,12 +1772,12 @@ pub struct Motion {
     /// How everything moves, in one choice: the curves, the forms surfaces open and close in, and what moves when.
     /// A style recommends one; pick another, or change any part below on top of it.
     // The ids are motion packs (`motion/*.toml` and the user's); today's expressive, calm, lively and none stay ids.
-    #[kurashi(default = "expressive".to_owned(), choices_from = "motion.profiles", section = "profiles",
+    #[kurashi(appearance = "motion", default = "expressive".to_owned(), choices_from = "motion.profiles", section = "profiles",
               overridden_by = "a11y.reduce_motion => reduced")]
     pub profile: String,
     /// Animation speed
     /// Multiplies every motion duration's speed (2.0 = twice as fast).
-    #[kurashi(default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
+    #[kurashi(appearance = "motion", default = 1.0, range = 0.25..=3.0, step = 0.05, section = "profiles",
               requires = "theme.motion.profile != none")]
     pub speed: f64,
     /// Blend colour changes
@@ -1803,7 +1809,7 @@ pub struct Motion {
     /// Content
     /// When a surface's content appears as it opens: late (once the surface has nearly reached its size), with it, or
     /// row by row in a cascade.
-    #[kurashi(default = MotionContent::Profile, section = "choreography")]
+    #[kurashi(appearance = "motion", default = MotionContent::Profile, section = "choreography")]
     pub content: MotionContent,
     /// Cascade step
     /// Milliseconds between one row's arrival and the next in a cascade (-1: the profile's).
@@ -2014,7 +2020,7 @@ pub struct Typography {
     pub fx: TextFx,
     /// Font family
     /// Fallback chain; the first installed family wins (resolved via fontconfig).
-    #[kurashi(default = FontFamilies::of(&["Inter", "Noto Sans CJK JP", "sans-serif"]))]
+    #[kurashi(appearance = "fonts", default = FontFamilies::of(&["Inter", "Noto Sans CJK JP", "sans-serif"]))]
     pub family: FontFamilies,
     /// Japanese font family
     /// Fallback chain for Japanese text; the first installed family wins (K60).
@@ -2024,11 +2030,11 @@ pub struct Typography {
     /// Monospaced font
     /// For terminals and code: fallback chain, the first installed family wins. Apps take it while Monospaced font in apps
     /// is on.
-    #[kurashi(default = FontFamilies::of(&["monospace"]), since = 7)]
+    #[kurashi(appearance = "fonts", default = FontFamilies::of(&["monospace"]), since = 7)]
     pub mono: FontFamilies,
     /// Text scale
     /// Multiplies every type size token.
-    #[kurashi(default = 1.0, range = 0.75..=2.0, step = 0.05,
+    #[kurashi(appearance = "fonts", default = 1.0, range = 0.75..=2.0, step = 0.05,
               overridden_by = "a11y.large_text => 1.25")]
     pub scale: f64,
 }
@@ -2040,13 +2046,13 @@ pub struct TextFx {
     /// How headings and labels are lit. Glow: a soft light in the text's own colour. CRT: a phosphor glow with a
     /// colour fringe. Candle: a warm light that flickers while something is open. Rainbow: every letter its own
     /// colour. Shimmer: a light passes over the text now and then.
-    #[kurashi(default = TextEffect::None, since = 7)]
+    #[kurashi(appearance = "effects", default = TextEffect::None, since = 7)]
     pub effect: TextEffect,
     /// Fresh text
     /// How text appears when its surface opens or its words change. Typed: letter by letter, as in old games.
     /// Deciphered: signs settle into the letters. From kana: Japanese letters turn into the ones that belong there.
     /// Brushed: painted in from the left. Rise: each letter rises into place. Ink: it soaks into the paper.
-    #[kurashi(default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
+    #[kurashi(appearance = "effects", default = TextSpawn::None, requires = "theme.motion.profile != none", since = 7)]
     pub spawn: TextSpawn,
     /// Applies to
     /// Headings alone (card and page titles, the bar's clock, notifications, desktop widgets), or all text a surface
@@ -2110,7 +2116,7 @@ pub struct FontMix {
     /// Font mix
     /// Mixes several fonts letter by letter, so text looks less regular, as handwriting does. Handwriting takes shipped fonts;
     /// Custom takes yours. It works with any fonts; the first gives the sizes. Digits and other scripts stay as they are.
-    #[kurashi(default = FontMixPreset::Off, since = 7)]
+    #[kurashi(appearance = "fonts", default = FontMixPreset::Off, since = 7)]
     pub preset: FontMixPreset,
     /// How many fonts
     /// How many of the fonts to mix, from the first. Two is the quietest.
@@ -2344,6 +2350,15 @@ pub enum LauncherPlace {
     Fixed,
 }
 
+/// Where the appearance menu opens (W84, docs/ux/appearance-menu.md).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum AppearanceOpens {
+    /// In the launcher
+    Launcher,
+    /// As a card of its own
+    Card,
+}
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "launcher", section = "apps")]
 pub struct Launcher {
@@ -2362,6 +2377,15 @@ pub struct Launcher {
     #[kurashi(default = 50, range = 0..=100, step = 5, unit = "%", requires = "launcher.place == fixed",
               module = "launcher", since = 7)]
     pub place_y: u32,
+    /// Appearance menu opens
+    /// Where the menu of wallpaper, colours and style that the launcher finds opens: in the launcher, whose card turns
+    /// into the menu, or as a card of its own.
+    #[kurashi(default = AppearanceOpens::Launcher, module = "launcher", since = 7)]
+    pub appearance_opens: AppearanceOpens,
+    /// Appearance menu preview
+    /// A miniature of the desktop at the top of the appearance menu, showing a choice before it is kept.
+    #[kurashi(default = true, since = 7)]
+    pub appearance_preview: bool,
     /// Terminal command
     /// Prefix for apps that need a terminal, e.g. foot -e.
     #[kurashi(default = strings(&["foot", "-e"]), restart)]
@@ -2964,6 +2988,6 @@ pub struct Cursor {
     /// Pointer decoration
     /// A trail behind the pointer, sparkles or a ring round it, drawn over everything while the pointer moves and gone
     /// when it rests. Where the compositor does not say where the pointer is, none is drawn.
-    #[kurashi(default = CursorDecoration::Off, since = 7)]
+    #[kurashi(appearance = "effects", default = CursorDecoration::Off, since = 7)]
     pub decoration: CursorDecoration,
 }
