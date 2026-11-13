@@ -89,6 +89,9 @@ pub struct Handoff {
     pub seq: u64,
     pub action: String,
     pub args: Value,
+    /// The entry it opens: a handoff the shell cannot send (its mod is off) brings the step back for it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
 }
 
 /// Opens through the shell, per project: how many and the last (unix seconds).
@@ -147,7 +150,11 @@ impl Model {
             window: None,
             choosing: None,
             handoffs: Vec::new(),
-            seq: 0,
+            // (from the clock: a shell that outlives a daemon restart has sent sequence numbers up to its own count)
+            seq: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
             persisted: Persisted::default(),
             desk_reason: None,
             collect: None,
@@ -347,6 +354,9 @@ impl Model {
                     args["output"] = json!(o);
                 }
                 self.handoff("terminal.run", args);
+                if let Some(h) = self.handoffs.last_mut() {
+                    h.key = Some(entry.key.clone());
+                }
             }
             WINDOW => {
                 let mut argv = self.window.clone().ok_or(Error::NoTerminal)?;
@@ -385,6 +395,7 @@ impl Model {
             seq: self.seq,
             action: action.into(),
             args,
+            key: None,
         });
         let over = self.handoffs.len().saturating_sub(HANDOFFS);
         self.handoffs.drain(..over);
@@ -393,6 +404,23 @@ impl Model {
     /// `sessions.handed {seq}`: the shell sent every handoff up to `seq`.
     pub fn handed(&mut self, seq: u64) {
         self.handoffs.retain(|h| h.seq > seq);
+    }
+
+    /// `sessions.undelivered {seq}`: the shell could not send handoff `seq` (its mod is off). One that opened an entry
+    /// shows the step again for it (where In Kurashi is grey with its reason) instead of nothing happening.
+    pub fn undelivered(&mut self, seq: u64) {
+        let Some(h) = self.handoffs.iter().find(|h| h.seq == seq).cloned() else {
+            return;
+        };
+        self.handoffs.retain(|x| x.seq != seq);
+        if let Some(entry) = h
+            .key
+            .and_then(|k| self.entries.iter().find(|e| e.key == k).cloned())
+        {
+            let output = h.args["output"].as_str().map(String::from);
+            self.choosing = Some(Choosing { entry, output });
+        }
+        self.notice = Some(("sessions.notice.mod_off".into(), Some(h.action)));
     }
 
     /// The project of the current session, for "Save desk" without an argument.
@@ -881,6 +909,20 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
             actions,
             ["terminal.run", "terminal.open_dir", "webdock.open"]
         );
+    }
+
+    #[test]
+    fn an_undelivered_in_kurashi_brings_the_step_back() {
+        let mut m = model();
+        m.open(&json!({"name": "kurashi", "via": "kurashi"}), 1)
+            .unwrap();
+        let seq = m.doc()["handoff"][0]["seq"].as_u64().unwrap();
+        assert_eq!(m.doc()["handoff"][0]["key"], "s:kurashi");
+        m.undelivered(seq);
+        let d = m.doc();
+        assert!(d.get("handoff").is_none());
+        assert_eq!(d["choosing"]["name"], "kurashi");
+        assert_eq!(d["notice"]["key"], "sessions.notice.mod_off");
     }
 
     #[test]

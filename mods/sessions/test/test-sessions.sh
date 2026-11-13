@@ -153,6 +153,18 @@ doc_is "'choosing' not in d" || fail "a remembered project showed the step"
 K act sessions.forget "{\"project\":\"$PROJ\"}" > /dev/null
 ok "$S: the stub terminal ran noren connect kurashi; Remember opened it there without asking"
 
+# 4b. In Kurashi with the terminal mod off: never a silent nothing — the step comes back, In Kurashi grey with its reason
+K act mod.disable '{"id":"terminal"}' > /dev/null || fail "the terminal mod did not turn off"
+K act sessions.open '{"key":"s:kurashi","via":"kurashi"}' > /dev/null
+wait_until 10 doc_is "d.get('choosing', {}).get('name') == 'kurashi' and d.get('notice', {}).get('key') == 'sessions.notice.mod_off'" \
+  || fail "In Kurashi with the terminal off did not bring the step back ($(doc 'd.get("notice"), d.get("handoff")'))"
+wait_until 10 has_layer kurashi-sessions-chooser || fail "the step's card is not mapped (terminal off)"
+sleep 0.6
+shot "step-terminal-off-$S" "640,300 640x480" 1
+K act sessions.cancel > /dev/null
+K act mod.enable '{"id":"terminal"}' > /dev/null
+ok "$S: In Kurashi with the terminal off brings the step back, the target grey with its reason"
+
 # 5. the desk
 "$SB" spawn foot -a kstest-desk sh -c 'sleep 300'
 wait_until 10 win_is "len(w) == 1" || fail "the test window did not map"

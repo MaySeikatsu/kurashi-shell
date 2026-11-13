@@ -115,3 +115,5 @@
 "action.sessions.desk.extras" = "セッション：デスクのほかの部分"
 "action.sessions.desk.restore" = "プロジェクトのデスクを戻す"
 "action.sessions.desk.forget" = "プロジェクトのデスクを忘れる"
+"sessions.notice.mod_off" = "送れませんでした：{detail} の mod がオフです。"
+"action.sessions.undelivered" = "セッション：送れなかったもの"
