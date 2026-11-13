@@ -282,7 +282,7 @@ Item {
     // W76: "+" after the pins: a new temporary page here, its address field where the title is (the host's window).
     IconButton {
         id: addKey
-        anchors.right: sizeKey.visible ? sizeKey.left : settingsKey.left
+        anchors.right: keepKey.visible ? keepKey.left : (sizeKey.visible ? sizeKey.left : settingsKey.left)
         anchors.rightMargin: Theme.gap
         y: Math.round((panel.tile - height) / 2)
         icon: "add"
@@ -293,6 +293,26 @@ Item {
         enabled: panel.hasDoc
         onClicked: Store.act("webdock.browse", { place: panel.inCard ? "card" : (panel.placement ? "sidebar" : "edge"),
             output: panel.outName })
+    }
+    // Session 31 (the user: the pin keeps the bar's card open while other content has the focus, no space kept): lit while
+    // kept (`ui.keep`, runtime.ui `kept`); a click elsewhere passes through to the window under it, Esc and the module still
+    // close the card.
+    readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
+    readonly property bool cardKept: panel.inCard && (uiDoc.kept || "") !== "" && uiDoc.kept === uiDoc.panel
+    IconButton {
+        id: keepKey
+        visible: panel.inCard
+        anchors.right: sizeKey.visible ? sizeKey.left : settingsKey.left
+        anchors.rightMargin: Theme.gap
+        y: Math.round((panel.tile - height) / 2)
+        icon: "push_pin"
+        glyph: "⌖"
+        lit: panel.cardKept
+        activeFocusOnTab: visible
+        a11y: I18n.tr(panel.cardKept ? "webdock.keep.card_off" : "webdock.keep.card")
+        Accessible.checkable: true
+        Accessible.checked: panel.cardKept
+        onClicked: Store.act("ui.keep", { on: !panel.cardKept })
     }
     // W74: the card's size key, before the settings key (Tab: the pins, the size, the settings, then the page). A press
     // steps to the next size (the daemon writes it: one undo step); forced, it stays a Tab stop so its reason is read.

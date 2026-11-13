@@ -3,6 +3,7 @@ import Quickshell
 import "core"
 import "core/mods.js" as Mods
 import "surfaces"
+import "components/island"
 
 // Thin view (CLAUDE.md rule 1): the bars of each output; Quickshell.screens follows hotplug.
 // A single content-sized Stage serves the focused output only (K16).
@@ -28,8 +29,21 @@ ShellRoot {
     // (The probe-era mock has no `panel`, only `popup`.)
     readonly property var ui: Store.docs["runtime.ui"]
     // The quick card is wanted too (B14): a change of `want` re-picks the output, so the card opens on the focused one.
+    // (B126, session 30: a mod's card — `mod:<id>:<panel>`, the web dock's, the weather's — is wanted too; it was not, so
+    // its screen was never picked again and it opened where the last card had been)
     readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true
-        : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray" || ui.panel === "quick")
+        : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray" || ui.panel === "quick"
+            || String(ui.panel || "").indexOf("mod:") === 0)
+    // B126: where a card opens — the screen whose bar module was pressed just now (a press on a bar does not move the
+    // compositor's focus to that screen), else the focused one (a key, the command line).
+    function openScreen() {
+        var lp = IslandGeom.lastPress
+        if (lp && lp.output && Date.now() - lp.t < 1500) {
+            var s = Quickshell.screens
+            for (var i = 0; i < s.length; i++) if (s[i].name === lp.output) return s[i]
+        }
+        return focusedScreen()
+    }
     property bool stageOpen: false      // follows want, but only after the screen is re-picked
 
     // The output whose tray item was clicked: its menu opens there, not on the focused output. Set
@@ -41,7 +55,7 @@ ShellRoot {
         Store.act("tray.menu.open", {id: id})
     }
     onWantChanged: {
-        if (want) stageScreen = (ui && ui.panel === "tray" && trayOrigin) ? trayOrigin : focusedScreen()
+        if (want) stageScreen = (ui && ui.panel === "tray" && trayOrigin) ? trayOrigin : openScreen()
         else trayOrigin = null
         hopping = false
         stageOpen = want
@@ -66,8 +80,23 @@ ShellRoot {
     function hopLand() {
         if (!hopping) return
         hopLimit.stop()
-        if (want) stageScreen = focusedScreen()
+        if (want) stageScreen = hopTarget !== null ? hopTarget : focusedScreen()
+        hopTarget = null
         hopping = false
+    }
+    // B126: another card asked for while one is open (`want` stays true) by a press on another screen's bar — the card
+    // folds here and opens there, as a card that follows the pointer does.
+    property var hopTarget: null
+    readonly property string panelNow: ui ? String(ui.panel || "") : ""
+    onPanelNowChanged: {
+        if (!stageOpen || hopping || !want || (ui && ui.panel === "tray")) return
+        var lp = IslandGeom.lastPress
+        if (!lp || !lp.output || Date.now() - lp.t >= 1500) return
+        var s = openScreen()
+        if (!s || s === stageScreen) return
+        hopTarget = s
+        hopping = true
+        hopLimit.restart()
     }
     // (a card that does not report it is gone must not stay held)
     Timer { id: hopLimit; interval: 900; onTriggered: root.hopLand() }

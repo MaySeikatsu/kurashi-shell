@@ -28,6 +28,16 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 mkdir -p "$OUT/shots"
 SWAYENV=$OUT/sway-env.sh
 NIRIENV=$OUT/niri-env.sh
+# B124 (session 31): every command runs in the sandbox's environment or not at all. The env files are written once, at
+# start; under a full disk they came out empty, every later `.` sourced nothing, and niri, the shell and the clients ran in
+# the caller's environment — on the user's own display. `use_env` refuses an environment that is not a sandbox's.
+use_env() {
+  [ -s "$1" ] || { echo "niri-sandbox: refused: $1 is missing or empty (a full disk?)" >&2; exit 3; }
+  . "$1"
+  case "${XDG_RUNTIME_DIR:-}" in /tmp/kurashi-sb-*) ;; *)
+    echo "niri-sandbox: refused: $1 does not name a sandbox's runtime dir (XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-})" >&2; exit 3 ;;
+  esac
+}
 case "${1:-}" in
 start)
   # (a sandbox of this name left from an earlier run would hand back its dead sway's environment)
@@ -35,7 +45,11 @@ start)
   # (and its old sockets: sway would take the next wayland-N while the env still named the old one)
   rm -rf "/tmp/kurashi-sb-$NAME"
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
-  "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV"
+  # B124: room to run, and a sandbox to run in — never the caller's display.
+  free_kb=$(df -Pk /tmp | awk 'NR == 2 {print $4}')
+  [ "${free_kb:-0}" -ge 2097152 ] || { echo "niri-sandbox: refused: under 2 GB free in /tmp" >&2; exit 3; }
+  case "${XDG_RUNTIME_DIR:-}" in /tmp/kurashi-sb-*) ;; *) echo "niri-sandbox: refused: the sandbox did not start" >&2; exit 3 ;; esac
+  "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV" || { echo "niri-sandbox: refused: $SWAYENV not written" >&2; exit 3; }
   R=$XDG_RUNTIME_DIR
   # (sandbox.sh may return before sway answers on its IPC socket)
   for _ in $(seq 50); do swaymsg -t get_version >/dev/null 2>&1 && break; sleep 0.2; done
@@ -68,10 +82,10 @@ KDL
     echo "export KURASHI_DATA_DIR=$ROOT LC_ALL=${KURASHI_SB_LC_ALL:-C.UTF-8} KURASHI_SOCKET=$R/kurashi.sock"
     grep -E "DBUS_SESSION|POLKIT|NETNS|LD_PRELOAD" "$SWAYENV" || true
     echo "unset SWAYSOCK"
-  } > "$NIRIENV"
+  } > "$NIRIENV" || { echo "niri-sandbox: refused: $NIRIENV not written" >&2; exit 3; }
   sleep 1
   swaymsg '[app_id="niri"] fullscreen enable' >/dev/null 2>&1 || true
-  . "$NIRIENV"
+  use_env "$NIRIENV"
   cp "$2" "$XDG_CONFIG_HOME/kurashi/config.toml"
   env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" setsid "$BIN/kurashid" >> "$R/kurashid.log" 2>&1 < /dev/null &
@@ -83,23 +97,23 @@ KDL
   fi
   sleep 6
   echo "started (niri on $WAYLAND_DISPLAY; logs in $R)" ;;
-config) . "$NIRIENV"; cp "$2" "$XDG_CONFIG_HOME/kurashi/config.toml"; sleep 2 ;;
-shot) . "$SWAYENV"
+config) use_env "$NIRIENV"; cp "$2" "$XDG_CONFIG_HOME/kurashi/config.toml"; sleep 2 ;;
+shot) use_env "$SWAYENV"
   if [ -n "${3:-}" ]; then timeout 10 grim -s "${4:-2}" -g "$3" "$OUT/shots/$2.png"
   else timeout 10 grim -s 0.5 "$OUT/shots/$2.png"; fi
   echo "$OUT/shots/$2.png" ;;
-burst) . "$SWAYENV"; n=$2; g=$3; sc=$4; cnt=$5; gap=$6; shift 7; ( "$@" ) &
+burst) use_env "$SWAYENV"; n=$2; g=$3; sc=$4; cnt=$5; gap=$6; shift 7; ( "$@" ) &
   for i in $(seq -w 1 "$cnt"); do sleep "$gap"; timeout 5 grim -s "$sc" -g "$g" "$OUT/shots/$n-$i.png"; done; wait
   magick "$OUT"/shots/"$n"-*.png -background red -splice 3x0 +append "$OUT/shots/$n.png"; rm "$OUT"/shots/"$n"-*.png
   echo "$OUT/shots/$n.png" ;;
-act) . "$NIRIENV"; shift; timeout 10 "$BIN/kurashi" "$@" ;;
-niri) . "$NIRIENV"; shift; timeout 10 niri msg "$@" ;;
-spawn) . "$NIRIENV"; shift; setsid "$@" > /dev/null 2>&1 < /dev/null & ;;
-move) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" move "$2" "$3" ;;
-click) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$2" "$3" left ;;
-wheel) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" wheel "$2" "$3" "$4" "${5:-0.05}" ;;
-log) . "$NIRIENV"; grep -E 'WARN|ERROR|TypeError|ReferenceError|Unable' "$XDG_RUNTIME_DIR/qs.log" | sort | uniq -c | sort -rn | head -"${2:-20}" ;;
-nlog) . "$NIRIENV"; tail -"${2:-20}" "$XDG_RUNTIME_DIR/niri.log" ;;
+act) use_env "$NIRIENV"; shift; timeout 10 "$BIN/kurashi" "$@" ;;
+niri) use_env "$NIRIENV"; shift; timeout 10 niri msg "$@" ;;
+spawn) use_env "$NIRIENV"; shift; setsid "$@" > /dev/null 2>&1 < /dev/null & ;;
+move) use_env "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" move "$2" "$3" ;;
+click) use_env "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$2" "$3" left ;;
+wheel) use_env "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" wheel "$2" "$3" "$4" "${5:-0.05}" ;;
+log) use_env "$NIRIENV"; grep -E 'WARN|ERROR|TypeError|ReferenceError|Unable' "$XDG_RUNTIME_DIR/qs.log" | sort | uniq -c | sort -rn | head -"${2:-20}" ;;
+nlog) use_env "$NIRIENV"; tail -"${2:-20}" "$XDG_RUNTIME_DIR/niri.log" ;;
 stop) "$ROOT/tools/bench/sandbox.sh" stop "$NAME" ;;
 *) sed -n '2,22p' "$0"; exit 2 ;;
 esac

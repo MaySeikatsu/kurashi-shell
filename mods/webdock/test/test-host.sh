@@ -569,6 +569,9 @@ HTTP=$!
 sleep 1
 start_mock
 set_pins "$PORT"
+# (session 31: the proof is of the engine with site icons off — on, the page's icon is the one request it adds, by the
+# user's choice, `mods.webdock.site_icons`)
+ipc act mock.webdock '{"site_icons":false}' >/dev/null || fail "mock.webdock refused site_icons"
 start_host "$PRAGMA_FLAGS --log-net-log=$R/netlog.json --net-log-capture-mode=Everything"
 ipc act webdock.open '{"pin":"ctl"}' >/dev/null
 sleep 5

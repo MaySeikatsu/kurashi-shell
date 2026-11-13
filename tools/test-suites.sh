@@ -71,6 +71,13 @@ if [ "$MODE" != pick ]; then for s in "${PICK[@]}"; do suites+=("$(path_of "$s")
 mapfile -t suites < <(printf '%s\n' "${suites[@]}" | awk 'NF && !seen[$0]++')
 if [ ${#suites[@]} -eq 0 ]; then echo "test-suites: nothing to run"; exit 0; fi
 
+# B124 (session 31): a run under a nearly full disk wrote empty sandbox env files and ran a shell on the user's display.
+# Each suite's sandbox takes up to ~1 GB until a green run removes it: refuse to start under KURASHI_SUITES_MIN_GB free.
+min_gb=${KURASHI_SUITES_MIN_GB:-20}
+free_gb=$(( $(df -Pk /tmp | awk 'NR == 2 {print $4}') / 1048576 ))
+if [ "$free_gb" -lt "$min_gb" ]; then
+  echo "test-suites: refused: $free_gb GB free in /tmp, under $min_gb (old sandboxes: /tmp/kurashi-sb-*)"; exit 1
+fi
 OUT=${KURASHI_SUITES_OUT:-/tmp/kurashi-suites/$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$OUT"
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$ROOT/target}

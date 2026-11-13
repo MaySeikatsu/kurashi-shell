@@ -360,6 +360,8 @@ pub struct Config {
     pub bar_site: bool,
     /// While a page plays sound the bar module shows its image and its title (`bar_playing`, I495).
     pub bar_playing: bool,
+    /// The engine fetches a page's own icon for the strip and the bar (`site_icons`, session 31).
+    pub site_icons: bool,
     /// A reveal opens the card of the shown pin again (`reopen_last`).
     pub reopen_last: bool,
     /// The dock stays open: nothing hides it (`pinned`).
@@ -413,6 +415,7 @@ impl Config {
             hover_takes_page: flag("hover_takes_page", true),
             bar_site: flag("bar_site", false),
             bar_playing: flag("bar_playing", false),
+            site_icons: flag("site_icons", true),
             reopen_last: flag("reopen_last", true),
             pinned: flag("pinned", false),
             reserve: flag("reserve", false),
@@ -1461,6 +1464,10 @@ impl Dock {
         // I495 (session 30): the bar module's views, named only while on.
         if self.config.bar_site {
             doc["bar_site"] = json!(true);
+        }
+        // (session 31: named only while off — the engine then fetches no page icon, K38's proof)
+        if !self.config.site_icons {
+            doc["site_icons"] = json!(false);
         }
         if self.config.bar_playing {
             doc["bar_playing"] = json!(true);

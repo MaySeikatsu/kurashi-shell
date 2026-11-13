@@ -198,3 +198,7 @@
 "webdock.menu.at_home" = "ページはピンのアドレスにあります"
 "webdock.resize.grip" = "カードの大きさを変える"
 "webdock.resize.hint" = "{w} × {h}。縁をドラッグするか、Ctrl と矢印キーで変えます。ダブルクリックで元の大きさに戻ります。"
+"webdock.keep.card" = "このカードを開いたままにする"
+"webdock.keep.card_off" = "このカードを再び閉じられるようにする"
+"mods.webdock.site_icons" = "サイト自身のアイコンを表示"
+"mods.webdock.site_icons.help" = "ストリップとバーに各サイトのアイコンを表示します。アイコンはウェブエンジンがサイトに要求します（ページ自身がしていないリクエスト）。オフ：文字を表示し、そのリクエストはしません。"

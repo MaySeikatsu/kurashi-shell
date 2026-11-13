@@ -83,6 +83,8 @@ case $action in
       exit 1
     }
     [ -n "$SWAY" ] || fail "sway not on PATH (run inside 'nix develop')"
+    # B124: a sandbox under a nearly full disk wrote empty env files; its callers then ran in their own environment.
+    [ "$(df -Pk /tmp | awk 'NR == 2 {print $4}')" -ge 1048576 ] || fail "under 1 GB free in /tmp"
     command -v pgrep >/dev/null || fail "pgrep not on PATH"
     mkdir -p "$R" && chmod 700 "$R"
     # A stale sway from an earlier start of the same sandbox would add HEADLESS-2/3 confusion.

@@ -838,6 +838,8 @@
 "config.desktop.calendar.help" = "This month, today marked."
 "config.desktop.media.label" = "Now playing"
 "config.desktop.media.help" = "The song that plays, with its controls; hidden while nothing plays."
+"config.desktop.media_bars.label" = "Moving level bars"
+"config.desktop.media_bars.help" = "The now-playing card's bars move with the sound. Each move redraws the whole desktop on every screen — on two large screens about a core's quarter each while music plays — so by default they stand as a still \"playing\" mark."
 "config.desktop.weather.label" = "Weather"
 "config.desktop.weather.help" = "Today's weather, while the weather mod is on and has a place."
 "config.desktop.right.label" = "Cards on the right"

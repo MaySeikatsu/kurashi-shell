@@ -16,7 +16,9 @@ Scope {
 
     Watch { doc: "runtime.ui" }
     readonly property var ui: Store.docs["runtime.ui"] || ({})
-    readonly property bool open: ui.polkit !== true
+    // (session 31, `ui.keep`: a card kept open — `kept` names the open panel — lets clicks elsewhere through)
+    readonly property bool kept: (ui.kept || "") !== "" && ui.kept === ui.panel && ui.launcher !== true && (ui.tray || "") === ""
+    readonly property bool open: ui.polkit !== true && !kept
         && ((ui.panel || "") !== "" || ui.launcher === true || (ui.tray || "") !== "")
 
     LazyLoader {

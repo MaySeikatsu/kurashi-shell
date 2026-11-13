@@ -739,8 +739,9 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 21] = [
+const SETTING_KEYS: [&str; 22] = [
     "pins",
+    "site_icons",
     "sizes",
     "search",
     "bar_site",

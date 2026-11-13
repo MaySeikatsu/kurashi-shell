@@ -156,7 +156,7 @@ PanelWindow {
                 return Math.round(side.margins.left + p.x) + " " + Math.round(side.margins.top + p.y)
             }
             console.log("webdock-debug card keys " + (side.pin ? side.pin.id : "-") + " title " + at(navTitle) + " pin "
-                + at(navPin) + " keep " + at(keepKey))
+                + at(navPin))
         }
     }
     readonly property bool pinKeyUp: navPin.visible
@@ -193,13 +193,6 @@ PanelWindow {
     function toEdge() {
         if (!report || !pin) return
         report("webdock.open", { pin: pin.id, output: place ? place.output : "" })
-        closeCard()
-    }
-    // W76: "Keep open at the edge" — one place for a page kept open: the edge dock, pinned; the bar card closes.
-    function keepAtEdge() {
-        if (!report || !pin) return
-        report("webdock.open", { pin: pin.id, output: place ? place.output : "" })
-        if (pinForcedBy === "") report("webdock.pin", { on: true })
         closeCard()
     }
     // W76: "Pin" on a temporary page: a pin of the page where the user is now (the host renames the page, no reload).
@@ -495,18 +488,7 @@ PanelWindow {
                         onClicked: if (side.report) side.report("webdock.view",
                             { pin: side.pin.id, view: side.view === "mobile" ? "desktop" : "mobile" })
                     }
-                    // W76: keep the page open: at the edge, pinned (the bar card closes).
-                    HostButton {
-                        id: keepKey
-                        visible: side.cardRole
-                        glyph: "⊙"
-                        icon: "push_pin"
-                        a11y: I18n.tr("webdock.keep.edge")
-                        Accessible.description: side.pinForcedBy !== ""
-                            ? I18n.tr("webdock.dock.forced.tip").replace("{by}", side.pinForcedBy) : ""
-                        enabled: !!side.pin
-                        onClicked: side.keepAtEdge()
-                    }
+                    // (session 31: the bar card's keep-open key is the shell's, in the card's row of pins — `ui.keep`)
                     // W72: the way out to the larger place: the pin at the edge (its large size); the card closes.
                     HostButton {
                         visible: side.cardRole
