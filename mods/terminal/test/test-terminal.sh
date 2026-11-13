@@ -71,6 +71,7 @@ T
 
 pass() { # pass <scheme>
 local S=$1
+rm -f "$OUT"/*.txt
 conf "$S" bar icon
 "$SB" start "$CONF" "$OUT/wall.png" > /dev/null || fail "the sandbox did not start"
 wait_until 20 doc_is "d.get('available') == True" || fail "mod.terminal never came (is the mod linked?)"

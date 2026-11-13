@@ -94,8 +94,29 @@ ShellRoot {
             for (var i = 0; i < all.length; i++) if (all[i].name === name) return all[i]
             return all.length > 0 ? all[0] : null
         }
-        screen: screenFor(root.rest ? root.rest.output : "")
+        // The last place the well rested: kept while unmapped, so the terminal keeps its rows and columns (a window shrunk
+        // to nothing would resize every shell to one column, and the screen would come back empty).
+        property var last: ({ output: "", x: 0, y: 0, width: 800, height: 400 })
+        Connections {
+            target: root
+            function onRestChanged() { if (root.rest) place.last = root.rest }
+        }
+        Component.onCompleted: if (root.rest) last = root.rest
+        screen: screenFor(last.output)
         readonly property bool mapped: root.rest !== null && root.active !== "" && Store.connected
+        // The shown tab paints again once the window is back (and once more when its scene graph has come back).
+        onMappedChanged: if (mapped) { repaint(); repaintLater.restart() }
+        Timer { id: repaintLater; interval: 120; onTriggered: place.repaintViews() }
+        function repaintViews() {
+            var v = viewOf(root.active)
+            if (v) v.term.update()
+        }
+        function repaint() {
+            content.opacity = 1
+            if (Theme.motionKind !== "none") fadeIn.restart()
+            var v = viewOf(root.active)
+            if (v) v.term.update()
+        }
         visible: mapped
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
@@ -104,10 +125,10 @@ ShellRoot {
         WlrLayershell.namespace: "kurashi-terminal"
         anchors.top: true
         anchors.left: true
-        margins.top: root.rest ? root.rest.y : 0
-        margins.left: root.rest ? root.rest.x : 0
-        implicitWidth: root.rest ? Math.max(1, root.rest.width) : 1
-        implicitHeight: root.rest ? Math.max(1, root.rest.height) : 1
+        margins.top: last.y
+        margins.left: last.x
+        implicitWidth: Math.max(1, last.width)
+        implicitHeight: Math.max(1, last.height)
 
         // The keyboard. Out as the drop-down it is the terminal's while it shows (Yakuake): exclusive, so no click on a
         // window steals the shell's keys; the toggle takes it back (and `hide_on_blur` hides it on a click elsewhere, through
@@ -127,12 +148,21 @@ ShellRoot {
 
         Item {
             id: content
-            anchors.fill: parent
+            // (sized from the last rest, not the window: an unmapped window's content shrinks to nothing, and the shells
+            // with it)
+            width: Math.max(1, place.last.width)
+            height: Math.max(1, place.last.height)
             // The text arrives with the place at rest: a short fade, a cut under reduced motion.
-            opacity: place.visible ? 1 : 0
-            Behavior on opacity {
-                enabled: Theme.motionKind !== "none"
-                NumberAnimation { duration: 90; easing.type: Easing.OutCubic }
+            // (started on the map, not bound to it: an animation in an unmapped window does not run, and a bound fade
+            // to 0 on the unmap was left there)
+            NumberAnimation {
+                id: fadeIn
+                target: content
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: 90
+                easing.type: Easing.OutCubic
             }
             Repeater {
                 id: views
