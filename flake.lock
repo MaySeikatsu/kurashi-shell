@@ -52,11 +52,32 @@
         "type": "github"
       }
     },
+    "noren": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792081992,
+        "narHash": "sha256-LxHeH794ldkm8vAhDLYMh3pMfuYWanch7geypguhreo=",
+        "owner": "MaySeikatsu",
+        "repo": "noren",
+        "rev": "b7ef46e221d2f667ec8c7d76ec5ee464df351d6c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "MaySeikatsu",
+        "repo": "noren",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "crane": "crane",
         "niri-main": "niri-main",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "noren": "noren"
       }
     }
   },

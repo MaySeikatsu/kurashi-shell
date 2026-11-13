@@ -37,6 +37,9 @@ binds {
     // Web dock: shows and hides it (mod `webdock`, on with programs.kurashi.webdock.enable).
     Mod+B repeat=false { spawn "kurashi" "act" "webdock.toggle"; }
 
+    // Terminal: drops it out or puts it away on the focused output (mod `terminal`, on with programs.kurashi.terminal.enable).
+    Mod+Grave repeat=false { spawn "kurashi" "act" "terminal.toggle"; }
+
     // Session menu: log out, suspend, reboot, power off.
     Mod+Shift+E allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.menu"; }
 

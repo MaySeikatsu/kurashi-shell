@@ -36,6 +36,7 @@ kurashi-mod-ai = { path = "../kurashi-mod-ai" }
 kurashi-mod-timer = { path = "../kurashi-mod-timer" }
 kurashi-mod-handwriting = { path = "../kurashi-mod-handwriting" }
 kurashi-mod-terminal = { path = "../kurashi-mod-terminal" }
+kurashi-mod-sessions = { path = "../kurashi-mod-sessions" }
 # The test mod, linked only by the `test-mods` feature (`just mods-live`); default builds do not carry it.
 kurashi-mod-hello = { path = "../kurashi-mod-hello", optional = true }
 semver = "1"

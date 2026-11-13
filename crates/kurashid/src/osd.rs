@@ -204,10 +204,10 @@ impl Osd {
                     .ok_or("osd.error.value")?,
             ),
         };
-        let kind = match args["kind"].as_str() {
-            Some(k @ ("volume" | "mic" | "brightness" | "layout")) => k,
-            _ => "custom",
-        };
+        let kind = args["kind"]
+            .as_str()
+            .filter(|k| ["volume", "mic", "brightness", "layout"].contains(k))
+            .unwrap_or("custom");
         let p = self.prefs.lock().expect("osd prefs").clone();
         let mut event = json!({"kind": kind, "label": label,
             "icon": args["icon"].as_str().unwrap_or("info"), "muted": args["muted"].as_bool().unwrap_or(false)});

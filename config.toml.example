@@ -2201,6 +2201,39 @@
 # bar_line = true
 #
 
+# [mods.sessions]
+#
+# Sessions — Your projects' terminal sessions (zellij, through noren) in the launcher, opened in
+# the shell's terminal or a terminal window, with the windows of the desk put back where they stood.
+# Needs noren.
+#
+# Open in — Where a session opens when you choose it: ask each time, the shell's own terminal (the
+# drop-down), your default terminal window, or another installed terminal. A project can remember
+# its own choice.
+#   choices: from `sessions.targets` (resolved at runtime)
+# open_in = "ask"
+#
+# Projects — What each project remembers: where it opens (empty: as Open in says) and whether its
+# saved desk comes back with it.
+#   records: a list of tables
+# projects = []
+#
+# Launcher prefix — Characters that give the launcher to the sessions alone (@ for example).
+# Empty: sessions join the apps' results when a name matches.
+# launcher_prefix = ""
+#
+# List — Which of noren's sources the launcher and the section show.
+#   choices: "all" | "zellij" | "zoxide" | "config"
+# list = "all"
+#
+# Terminal window — The terminal a window opens with, as the launcher's (foot -e). Empty:
+# $TERMINAL, else the first installed terminal.
+# window_command = []
+#
+# noren — The noren program: a name on the PATH or a full path.
+# command = "noren"
+#
+
 # [mods.sysmon]
 #
 # System monitor — CPU, memory, temperature and GPU at a glance. Quiet while fine; when a level

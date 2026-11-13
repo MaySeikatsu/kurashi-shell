@@ -150,6 +150,14 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   also carries `host.shows`, `stills`, `still_gen` (the text's last frame per well size, drawn through a slide) and `held`
   (the shell's chrome holds the keyboard); actions `terminal.host.shown`, `terminal.hold`, `terminal.dismiss`. Colours:
   the theme's `term.*` (the palette's terminal table, else 16 derived by hue, K-theme row 803).
+- **Sessions (W86, session 33; CONTRACT-CHANGE 810–819; docs/ux/sessions.md):** the first-party mod `sessions`, work
+  sessions over the user's noren (off by default; inert, with the reason and the Home-Manager option, without noren).
+  noren's sessions and folders in the launcher (`launcher:sessions`, K150; an optional prefix), an "Open in…" step (the
+  in-shell terminal's new tab, the terminal window `window_command`, each installed terminal; `open_in` = ask by default,
+  remembered per project in the `projects` records), the desk — workspace, columns, widths, floating places, relaunch of
+  what is missing, never closing — saved and restored per project, a bar module and a sidebar section. Document
+  `mod.sessions` and the `sessions.*` actions: row 818. Home-Manager: `programs.kurashi.sessions.enable` (default false)
+  ships noren with zellij, zoxide, fzf, git and eza.
 - **Background jobs (I23):** `ctx.background(name, reason, wanted_by, run)` declares `job:<name>`. The
   body is `Fn(JobCtx)` (the daemon starts it again when the setting turns it on), `JobCtx::settings()`
   is the mod's settings feed, and `wanted_by` names a bool setting of the same mod. The enable hands the

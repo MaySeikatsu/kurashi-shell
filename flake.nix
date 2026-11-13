@@ -13,6 +13,12 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
+  # W86: noren (the zellij session manager) for the sessions mod; built only with `programs.kurashi.sessions.enable`.
+  inputs.noren = {
+    url = "github:MaySeikatsu/noren";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   outputs = { self, nixpkgs, crane, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
@@ -28,6 +34,8 @@
         # The terminal mod's QML terminal (W83) and its host's Quickshell, `qs-terminal`; not in the base closure.
         qmltermwidget = pkgs.callPackage ./nix/qmltermwidget.nix { };
         quickshell-terminal = pkgs.callPackage ./nix/quickshell-terminal.nix { inherit qmltermwidget; };
+        # The sessions mod's noren (W86); not in the base closure.
+        noren = self.inputs.noren.packages.${pkgs.stdenv.hostPlatform.system}.default;
         default = kurashi;
       });
 

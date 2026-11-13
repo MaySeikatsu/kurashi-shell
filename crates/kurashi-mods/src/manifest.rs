@@ -186,9 +186,13 @@ impl Provide {
                 }
             }
             // Several mods fill one slot; that is what slots are for (K28). Job names belong to their mod.
+            // Session 33: a mod's strings are its own domain (i18n/*/mod-<id>*.toml), and a launcher provider's name is
+            // keyed by its mod (K150): two mods that both have them do not collide.
             (Self::Slot(_), Self::Slot(_))
             | (Self::Job(_), Self::Job(_))
-            | (Self::Host(_), Self::Host(_)) => false,
+            | (Self::Host(_), Self::Host(_))
+            | (Self::I18n, Self::I18n)
+            | (Self::Launcher(_), Self::Launcher(_)) => false,
             _ => self == other,
         }
     }
@@ -994,6 +998,13 @@ mod tests {
             codes(&text(r#""slot:island.face""#, "")),
             ["provide_unknown_slot"]
         );
+    }
+
+    #[test]
+    fn every_mod_may_have_its_own_strings_and_launcher_provider() {
+        // (session 33: the terminal and the sessions mods both declare `i18n`, and once refused each other's enable)
+        assert!(!Provide::I18n.conflicts_with(&Provide::I18n));
+        assert!(!Provide::Launcher("web".into()).conflicts_with(&Provide::Launcher("web".into())));
     }
 
     #[test]

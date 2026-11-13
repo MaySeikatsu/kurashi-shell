@@ -1226,6 +1226,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-sessions"
+version = "0.1.0"
+dependencies = [
+ "kurashi-mod-api",
+ "niri-ipc",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "kurashi-mod-sysmon"
 version = "0.1.0"
 dependencies = [
@@ -1458,6 +1470,7 @@ dependencies = [
  "kurashi-mod-handwriting",
  "kurashi-mod-hello",
  "kurashi-mod-lyrics",
+ "kurashi-mod-sessions",
  "kurashi-mod-sysmon",
  "kurashi-mod-tasks",
  "kurashi-mod-terminal",

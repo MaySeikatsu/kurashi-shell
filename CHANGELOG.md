@@ -28,7 +28,15 @@ history). New since the last merged PR (#60):
   checked by a test; installed under `share/doc/kurashi/`.
 - **Versioning** (K151): `kurashi --version`, the version in `kurashi doctor` and Settings.
 
+- **Work sessions** (mod `sessions`, off by default): noren's sessions and folders in the launcher, "Open in…" (the
+  shell's terminal, a terminal window or another installed terminal), the desk saved and restored per project;
+  `programs.kurashi.sessions.enable` ships noren and its tools.
+- **Wallpaper & Theming menu**: an icon rail (Wallpaper, Colours, Style, Material, Motion, Effects, Fonts) with a live
+  preview you can switch off, in the launcher or as a card (`launcher.appearance_opens`).
+- **Terminal polish**: the shell's tab row, menus and notices; the look's own terminal colours (`term.*`).
+
 ### Fixed
+- Two mods that both have strings (the terminal and sessions) could not be enabled together (B137).
 - A hover-opened sidebar closed while the pointer rested on the docked Settings' page drawer or menus (B136).
 
 ### Changed
