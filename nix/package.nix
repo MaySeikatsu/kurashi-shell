@@ -174,6 +174,8 @@ runCommand "${pname}-${version}"
     mkdir -p $out/bin $out/share/kurashi $out/share/fonts/truetype
     cp -r ${dataSrc}/. $out/share/kurashi/
     cp ${iconFont}/share/fonts/truetype/*.ttf $out/share/fonts/truetype/
+    # Every option, annotated (session 33; generated, tests/config_example.rs)
+    install -Dm644 ${../config.toml.example} $out/share/doc/kurashi/config.toml.example
     # Wrappers exec the real binaries, so the processes keep their names. --set-default keeps an explicit
     # KURASHI_DATA_DIR (the sandboxes, the greeter) working.
     for b in ${bin}/bin/*; do

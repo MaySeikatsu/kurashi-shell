@@ -22,6 +22,9 @@ history). New since the last merged PR (#60):
 - **Launcher providers for mods** (K150): `/` opens an address or a search in the web dock; the terminal's `!` and entries.
 - **Launcher clipboard in two columns**: one-line rows with the selected entry's picture or whole text beside them.
 - **Web pages follow light and dark** (`prefers-color-scheme`), live.
+- **`config.toml.example`**: every option of the shell and its bundled mods, annotated, at its default — generated and
+  checked by a test; installed under `share/doc/kurashi/`.
+- **Versioning** (K151): `kurashi --version`, the version in `kurashi doctor` and Settings.
 
 ### Fixed
 - A hover-opened sidebar closed while the pointer rested on the docked Settings' page drawer or menus (B136).

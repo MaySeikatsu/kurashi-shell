@@ -1,0 +1,2602 @@
+# Kurashi (暮らし) configuration example — every option, at its default.
+#
+# Copy what you want to change into ~/.config/kurashi/config.toml (or set it in Settings; Home-Manager users:
+# programs.kurashi.settings). Kurashi works with no config file at all; every key here is optional and listed
+# commented out at its default. Unset keys keep following the defaults, the style and the profile.
+#
+# Generated from the schema and the bundled mods' manifests (crates/kurashid/tests/config_example.rs);
+# do not edit by hand: `UPDATE_GOLDEN=1 cargo test -p kurashid --test config_example` rewrites it.
+#
+# ==== Core ======================================================================================
+#
+# Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
+# schema_version = 7
+
+# [layout]
+#
+# Draw mode — How the bars, the dock, the sidebars and the island meet the screen's edges
+# and each other. Floating: a gap away from everything, every corner rounded, with the
+# look's shadow. Dynamic: flush on the edge (or the frame, or a bar), joined to it by
+# rounded fillets. Connected: flush and joined with straight corners. A component set to its
+# own mode keeps it.
+#   choices: "floating" | "dynamic" | "connected" · since schema v3
+# draw = "dynamic"
+#
+# Reveal delay — How long the pointer rests on an edge before what shows on hover comes
+# out; an edge another screen touches waits twice as long.
+#   range: 0..=1000, step 50 (ms) · since schema v3
+# reveal_delay = 250
+#
+# Groups — Modules and sections that stand together: on a bar one framed block, in a
+# one-column sidebar one card, with pages one tab. A bar zone or a sidebar names a group as
+# `group:<id>` in its list; its members are the ids it holds, in order. Accordion: on a bar
+# the group shows its first member until the pointer or the keyboard comes to it.
+#   since schema v7
+# groups = []
+
+# [layout.frame]
+#
+# Screen frame — A band round the screen that the bars, the dock and the sidebars stand
+# on, its inner corners rounded.
+#   per-output · since schema v3
+# enabled = false
+#
+# Frame thickness
+#   range: 2..=32, step 1 (px) · only while layout.frame.enabled == true · since schema v3
+# thickness = 8
+#
+# Windows keep clear of the frame — Windows tile inside the frame. Off: the frame is drawn
+# over the windows' edges.
+#   only while layout.frame.enabled == true · since schema v3
+# reserve = true
+
+# [bar]
+#
+# Bar height — Thickness of every bar in logical pixels (its width on a left or right
+# edge), and of an edge's modules.
+#   range: 16..=96, step 2 (px) · per-output
+# height = 32
+#
+# Cards open — Where the card a bar module opens comes out: under the module that was
+# clicked, or at the bar's centre, under the island.
+#   choices: "module" | "centre" · since schema v7
+# popups = "module"
+#
+# Modules that open the other way — These modules' cards open at the bar's centre while
+# cards open under their module, or under their module while cards open at the centre.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# popups_other = []
+#
+# Cards follow the pointer — A card that a click, a key or the command line opened moves
+# to the screen the pointer goes to and opens there again, under the same module where that
+# screen's bar has it. What a hover opened closes as the pointer leaves, and sidebars stay
+# on their screen.
+#   since schema v7
+# popups_follow = true
+#
+# Card height at most — The tallest a card grows, as a share of its screen's height; what
+# it holds beyond that scrolls inside it.
+#   range: 20..=100, step 5 (%) · since schema v7
+# card_max_height = 50
+#
+# Card width at most — The widest a card grows, as a share of its screen's width; a card
+# never gets narrower than its content needs to stay usable, so on a narrow screen this can
+# be exceeded.
+#   range: 20..=100, step 1 (%) · since schema v7
+# card_max_width = 33
+#
+# Keep a closed card ready — A card that has closed keeps what it showed for a minute, off
+# screen, so it opens again at once and at its size. It costs its memory for that minute,
+# and what it watches stays watched. Off: a closed card is gone at once and is made again
+# each time it opens.
+#   since schema v7
+# card_keep_loaded = true
+#
+# On hover — What resting the pointer on a bar module opens: its small preview, its card
+# (a module without a card shows its preview), or its menu, as a right click does. What a
+# hover opened closes when the pointer has left the module and what it opened; what a click
+# opened stays.
+#   choices: "preview" | "card" | "menu" · since schema v7
+# hover = "preview"
+#
+# Modules that show their preview on hover — These modules show their preview whatever the
+# bar does on hover. A module's menu sets it too (On hover).
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_preview = []
+#
+# Modules that open their card on hover — These modules open their card whatever the bar
+# does on hover.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_card = []
+#
+# Modules that open their menu on hover — These modules open their menu whatever the bar
+# does on hover.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# hover_menu = []
+
+# [edges.top]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = true
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.top.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = ["sidebar_left", "workspaces", "windows"]
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = ["island"]
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = ["volume", "mods", "recorder", "keyboard", "clock", "quick", "tray", "sidebar_right"]
+
+# [edges.bottom]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.bottom.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
+
+# [edges.left]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.left.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
+
+# [edges.right]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.right.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
+
+# [theme]
+#
+# Style — A fixed preset that recreates one aesthetic: a look, a palette, the scheme,
+# density and motion. Applying a style resets your appearance changes; what you change
+# afterwards shows as a difference from it. It changes how things look, never where they are
+# (K53).
+#   choices: from `styles` (resolved at runtime)
+# style = "washi"
+#
+# Look — The form and feel of the interface without its colours: chrome, corners,
+# material, motion, type and its art — sekai's toy keycaps, washi's paper and ink, win95's
+# bevels. The style picks one; pick another to override it (K53).
+#   choices: from `looks` (resolved at runtime)
+# look = "kanso"
+#
+# Corner shape — The shape of the sheet's corners, beside their radius: where joined
+# surfaces meet (a card and its bar, the dock, a sidebar and the frame), the frame's inner
+# corners, and the free corners of joined cards, the dock and the sidebars; cards that
+# float, toasts, and the keys, tiles and fields inside a card follow too. Rounded, cut
+# straight across, stepped as pixels, a drop, or square. The screen's own corners stay as
+# set above; a pill stays a pill.
+#   choices: "round" | "chamfer" | "steps" | "bulge" | "square" · since schema v7
+# join_corner = "round"
+#
+# Cards join their bar — How a card meets the bar it opens from — its draw mode, apart
+# from the chrome, as the bars, the dock and the sidebars have theirs. Automatic: as the
+# look and its chrome draw it. Floating: a card of its own under its module, a gap off the
+# bar. Dynamic: one shape with the bar, joined by fillets. Connected: one shape with the
+# bar, joined with straight corners. Bridge: a card of its own, held to its module by a
+# short neck — the keycap and the soft chrome's own connection, under any chrome.
+#   choices: "auto" | "float" | "dynamic" | "connected" | "bridge" · since schema v7
+# join = "auto"
+#
+# Chrome — How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and
+# a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow;
+# ink lines; or bevels, light and dark edges that press in (K42, K45, K80); a glowing
+# outline; grounds painted with a brush; or sheets of torn paper.
+#   choices: "flat" | "keycap" | "soft" | "line" | "bevel" | "glow" | "painted" | "ripped" ·
+#   forced to "flat" while a11y.high_contrast is on
+# chrome = "flat"
+#
+# Frame outline — A line along the frame's inner edge and the sides of what is joined to
+# it — bars, dock, sidebars — drawn in the chrome's style. Automatic is on for Keycap
+# and Lines, off for Flat and Soft, and glows under Glow. Glow lights the line under any
+# chrome; On under the Glow chrome keeps the line without its light. Where the chrome draws
+# no outline of its own, Off — and Automatic — also leaves cards, the dock, sidebars and
+# desktop widgets without a hairline; On gives them one.
+#   choices: "auto" | "on" | "off" | "glow" · since schema v7
+# frame_outline = "auto"
+#
+# Edge — How surfaces are edged. Clean: the chrome's own boxes. Painted: every ground is
+# laid in strokes of a brush that run past its box, in the accent thinned into the surface,
+# with the material you picked on the paint. Ripped: surfaces are sheets of paper torn by
+# hand, with the paper's white core along the tear. Automatic follows the chrome: painted
+# under Painted, ripped under Ripped paper, clean under the others.
+#   choices: "auto" | "clean" | "painted" | "ripped"
+# edge = "auto"
+#
+# Outline ink — The colour of every outline the shell draws — blocks, the frame, the
+# shapes joined to it: the chrome's own, the text's ink (as a hand-drawn look outlines its
+# blocks), or the accent. Looks set it with the rest of their outline.
+#   choices: "outline" | "text" | "accent" · since schema v7
+# outline_ink = "outline"
+#
+# Sliders — How every slider is drawn, in the shell and in Settings. Automatic: the look's
+# own. Line: a thin track and a knob. Expressive: a thick pill with a handle bar and a stop
+# mark. Capsule: the fill is the level, no knob. Wave: the filled part is a wave that moves
+# while you drag. Blocks: one block per step. Ink: a stroke of a brush with a blot for a
+# knob. Glow: a lit line.
+#   choices: "auto" | "line" | "expressive" | "capsule" | "wave" | "blocks" | "ink" | "glow"
+#   · since schema v7
+# slider = "auto"
+#
+# Switches — How every switch is drawn, in the shell and in Settings. Automatic: the
+# look's own. Switch: a knob in a track. Expressive: the knob grows and carries a check.
+# Capsule: a wide track, a flat knob. Lamp: a light that goes on. Stamp: a seal pressed in
+# ink. Flip: a rocker with its two sides.
+#   choices: "auto" | "switch" | "expressive" | "capsule" | "lamp" | "stamp" | "flip" · since
+#   schema v7
+# toggle = "auto"
+#
+# Density — Scales spacing and control sizes everywhere.
+#   choices: "compact" | "regular" | "airy"
+# density = "regular"
+#
+# Sounds — Short sounds when you unlock, when something goes wrong, when a notification
+# arrives and when the launcher opens or closes: the style's own set, original sounds in the
+# spirit of what it recreates (K80). Off: nothing is loaded or played.
+#   since schema v7
+# sounds = false
+#
+# Apps that follow — Write the shell's colours for these apps whenever the theme changes:
+# GTK, Qt, KDE, terminals, editors, browsers, Discord, Spotify, Obsidian and the compositors
+# (K49). Each one needs one line in its own config to read the file; Settings shows it.
+#   choices: from `theme.export` (resolved at runtime)
+# export = []
+#
+# Fonts in apps — The apps that follow take the shell's fonts: its font for GTK, Qt and
+# KDE apps, Vesktop, Obsidian and the interface of Zen and Firefox (and the fonts their
+# pages fall back to); its monospaced font (Monospaced font in Fonts) for the terminals
+# (Ghostty, Kitty, WezTerm, Foot, Alacritty) and the desktop's code font. Each terminal
+# keeps its size. Apps whose font lives in a file of your own (Spotify's user.css, Zed's
+# settings) keep theirs, and Settings says so. Off: every app keeps its own.
+# export_fonts = false
+#
+# Websites too — Pages in Zen and Firefox use the shell's fonts instead of their own.
+# Sites that draw their icons with a font show words or boxes where the icons were. After a
+# restart of the browser.
+#   only while theme.export_fonts == true
+# export_fonts_pages = false
+#
+# Window frames — The compositors that follow (niri, Hyprland, MangoWM, sway) draw a frame
+# round every window: the accent round the focused one, the outline round the others, as
+# wide as the shell's outline. Off: each keeps its own frame setting and only takes the
+# colours.
+#   since schema v7
+# window_frame = false
+#
+# Window frame colour — The colour round the focused window, on the compositors that
+# follow (niri, Hyprland, MangoWM, sway): the accent, the shell's outline ink, so that
+# frames and the shell's outlines are one colour, or a colour of the palette. Unfocused
+# windows keep the outline; a window asking for attention keeps the error colour.
+#   choices: "accent" | "shell_outline" | "secondary" | "tertiary" | "outline" | "on_surface"
+# window_frame_color = "accent"
+#
+# Material in browsers — Zen and Firefox take the material on their sidebar and toolbar,
+# as a tile, with the shell's corners. A tile is opaque, so it is left out while Translucent
+# browser is on. A browser reads its chrome at start: it shows after a restart.
+#   only while theme.texture.kind != "none" · only while theme.browser_translucent == false
+# browser_material = true
+#
+# Material strength in browsers — How strongly the tile reads on the browser's chrome,
+# against the shell's own: chrome has little text on it, so it can take more than a
+# terminal. After a restart of the browser.
+#   range: 0.4..=3.0, step 0.1 · only while theme.texture.kind != "none" · only while
+#   theme.browser_translucent == false · only while theme.browser_material == true
+# browser_material_strength = 1.6
+#
+# Translucent browser — Zen's and Firefox's own interface lets what is under the window
+# show. Zen needs its transparency setting, written to a linked profile. After a restart.
+# browser_translucent = false
+#
+# Translucent pages — Pages without a background of their own show what is under the
+# window too. Many sites assume a white page, so this is an opt-in of its own. After a
+# restart.
+#   only while theme.browser_translucent == true
+# browser_translucent_pages = false
+#
+# See-through unfocused windows — The compositors that follow make every window but the
+# focused one a little transparent (niri, Hyprland and MangoWM; sway has no setting for it).
+# Off: each keeps its own.
+#   since schema v7
+# inactive_transparent = false
+#
+# Unfocused opacity
+#   range: 0.5..=1.0, step 0.05 · only while theme.inactive_transparent == true · since
+#   schema v7
+# inactive_opacity = 0.9
+#
+# Window animations — The compositors that follow open, close and move windows with the
+# shell's motion: niri on its springs, Hyprland and MangoWM on its curve and duration (sway
+# has none). Off: each keeps its own.
+#   since schema v7
+# window_animations = true
+#
+# Titlebars — The compositors that draw titlebars give them the shell's colours and font:
+# sway its own, Hyprland through the hyprbars plugin (it must be loaded). niri and MangoWM
+# draw none: the apps draw theirs, in the colours GTK and Qt follow. Off: each keeps its
+# own.
+#   since schema v7
+# window_titlebars = false
+#
+# Icons for apps — The icon theme the apps that follow use (GTK, Qt, KDE), written with
+# their colours. "Leave as is" keeps each app's own choice (I183).
+#   choices: from `icon_themes` (resolved at runtime)
+# icon_theme = ""
+
+# [theme.colors]
+#
+# Palette — Colours only: the roles every surface is painted with, in light and dark. A
+# style picks one; pick another to override it (K53).
+#   choices: from `palettes` (resolved at runtime)
+# palette = "wa-iro"
+#
+# Light or dark — Every palette has both. Follow the system's preference, the wallpaper's
+# brightness, or pick one. Applying a style makes it follow the style; "Back to …" returns
+# to your own choice (K55).
+#   choices: "auto" | "wallpaper" | "dark" | "light"
+# scheme = "auto"
+#
+# Wallpaper colours — How the wallpaper's colours become the palette. Tone-matched builds
+# calm tones around its main colour; Vibrant the same, more saturated; Prominent takes the
+# colours that are in the picture as they are (its dark and light for ground and text, its
+# strongest hues as accents); Mixed spreads all of the picture's prominent colours over the
+# shell (ground, cards, lines, accents). Text stays legible in every mode. The seasonal
+# tint, when on, still shifts these hues (I455).
+#   choices: "tone_matched" | "vibrant" | "prominent" | "mixed" · only while
+#   theme.colors.palette == "wallpaper"
+# extraction = "tone_matched"
+#
+# Colours on the controls — One accent: buttons, sliders, switches and tiles all in the
+# accent. Spread: the palette's colours over them — buttons the accent, sliders the
+# secondary, switches and quick tiles the tertiary — so a wallpaper's other colours show
+# as themselves. Automatic spreads them under the wallpaper's Mixed colours.
+#   choices: "auto" | "one" | "spread"
+# controls = "auto"
+#
+# App icons — The icons of apps in the dock, the bar's window list, the tray, the launcher
+# and notifications: as they are, in the text's colour (a picture keeps its drawing as
+# lighter and denser ink), in the palette's tones (dark to light in the palette's colours)
+# or in its colours (each part takes the palette colour nearest its own hue).
+#   choices: "original" | "ink" | "tones" | "palette"
+# app_icons = "original"
+#
+# Terminals keep their own palette — Terminals and the tools that run in them (fzf,
+# Neovim, Helix, Zellij) wear a published theme as its authors made it, the 16 terminal
+# colours included, instead of colours derived from the shell's: the palette the shell wears
+# when it has such colours, else the published one closest to the shell's colours. Off under
+# high contrast and the colour-blind aids, which need the shell's own colours.
+# real_palettes = false
+#
+# Chrome fill — What the bar, frame, panels and cards — and the apps that follow the
+# theme — are filled with. Neutral: the palette's grey, black or white. Strong colour: the
+# palette's strong colour. Text and controls are chosen again so they stay legible. The
+# gradient below can run over either (I456).
+#   choices: "neutral" | "strong"
+# chrome_fill = "neutral"
+#
+# Contrast — Raises the contrast between surfaces and text.
+#   choices: "standard" | "medium" | "high" · forced to "high" while a11y.high_contrast is on
+# contrast = "standard"
+#
+# Colour-blind adjustment — Shifts accent colours so they stay distinguishable.
+#   choices: "none" | "protanopia" | "deuteranopia" | "tritanopia"
+# colorblind = "none"
+#
+# Seasonal tint (旬) — The colours lean a little toward the season's own — winter blue,
+# sakura, fresh green, maple — following the 24 solar terms. It shifts every palette's
+# accents, a wallpaper's too, so they can look unlike the picture.
+#   advanced
+# season = false
+#
+# Pure black (OLED) — Pure-black grounds on dark schemes.
+#   only while theme.colors.scheme != "light"
+# oled = false
+#
+# Text colour — The colour of text and icons: the palette's own, or an ink — each with a
+# shade for light and for dark — or a colour of your own. It is kept legible on every
+# surface; the theme notes say when it had to be adjusted (K60).
+#   choices: "palette" | "blue" | "black" | "sepia" | "red" | "green" | "violet" | "custom"
+# ink = "palette"
+#
+# Your text colour — Used in light and dark alike, adjusted only as far as legibility
+# needs.
+#   only while theme.colors.ink == "custom"
+# ink_custom = "#2b4a8b"
+
+# [theme.colors.gradient]
+#
+# Gradient — The chrome's fill — neutral or the strong colour — runs from one tone or
+# colour to another across the screen (or every screen), in the pattern below; text stays
+# legible over all of it (I460).
+# on = false
+#
+# Gradient colours — Tones: the strong colour from darker to lighter. Colours: the
+# palette's accent, secondary and tertiary run into each other (with the wallpaper's Mixed
+# colours, the picture's own).
+#   choices: "tones" | "colours" · only while theme.colors.gradient.on == true
+# colours = "tones"
+#
+# Pattern — Linear runs from one edge to the other; radial from the middle out;
+# watercolour lays large soft pools that bleed into each other; the wallpaper under it gives
+# every spot the colour of the picture right behind it, softened.
+#   choices: "linear" | "radial" | "watercolour" | "wallpaper" · only while
+#   theme.colors.gradient.on == true
+# pattern = "linear"
+#
+# Angle from the wallpaper — The gradient turns so its darker side lies where the
+# wallpaper is lighter and its lighter side where the wallpaper is darker, so the chrome
+# stands out from the picture behind it (no dark on dark, no light on light). Without a
+# wallpaper picture the angle below is used.
+#   only while theme.colors.gradient.on == true · only while theme.colors.gradient.pattern ==
+#   "linear"
+# auto_angle = true
+#
+# Angle — The direction a linear gradient runs in.
+#   range: 0..=359, step 5 (°) · only while theme.colors.gradient.on == true · only while
+#   theme.colors.gradient.pattern == "linear" · only while theme.colors.gradient.auto_angle
+#   == false
+# angle = 35
+#
+# Range of tones — How far the darker and the lighter tone lie apart; text stays legible
+# on both.
+#   range: 2..=30, step 1 (%) · only while theme.colors.gradient.on == true · only while
+#   theme.colors.gradient.colours == "tones"
+# spread = 12
+#
+# Softness — How gently one colour runs into the next (under the wallpaper pattern: how
+# much the picture is blurred).
+#   range: 0..=100, step 5 (%) · only while theme.colors.gradient.on == true
+# softness = 85
+#
+# Pool size — How large the watercolour's pools are.
+#   range: 120..=1600, step 20 (px) · only while theme.colors.gradient.on == true · only
+#   while theme.colors.gradient.pattern == "watercolour"
+# size = 420
+#
+# Across all screens — One gradient over every screen together, as they stand side by
+# side; off, each screen has its own.
+#   only while theme.colors.gradient.on == true
+# span_outputs = true
+
+# [theme.colors.flow]
+#
+# Colour flow — Colours move: the chrome's gradient drifts, the frame's outline and its
+# glow run through colours. It draws frames while it runs, so it is off by default and stops
+# with the motion profile None and with reduced motion.
+#   only while theme.motion.profile != "none" · forced to false while a11y.reduce_motion is
+#   on · since schema v7
+# on = false
+#
+# Runs — Always; only while a card, a sidebar or the launcher is open; or only while music
+# plays.
+#   choices: "always" | "active" | "media" · only while theme.colors.flow.on == true · since
+#   schema v7
+# when = "active"
+#
+# Pattern — Drift: the colours travel slowly along the line and across the gradient.
+# Breathe: they swell and fade. Cycle: they turn round the colour wheel. Chase: a light runs
+# along the line.
+#   choices: "drift" | "breathe" | "cycle" | "chase" · only while theme.colors.flow.on ==
+#   true · since schema v7
+# pattern = "drift"
+#
+# Colours — Tones: the accent from darker to lighter. Palette: the accent, the secondary
+# and the tertiary run into each other. Rainbow: the whole wheel.
+#   choices: "tones" | "palette" | "rainbow" · only while theme.colors.flow.on == true ·
+#   since schema v7
+# colours = "palette"
+#
+# Gradient — The chrome's gradient moves (while the gradient is on).
+#   only while theme.colors.flow.on == true · only while theme.colors.gradient.on == true ·
+#   since schema v7
+# gradient = true
+#
+# Frame outline — The frame's outline and the outline of what is joined to it move through
+# the colours; a hand-drawn stroke keeps its strokes and takes the colour.
+#   only while theme.colors.flow.on == true · since schema v7
+# outline = true
+#
+# Glow — The frame's glow and the Glow chrome's light move through the colours.
+#   only while theme.colors.flow.on == true · since schema v7
+# glow = true
+#
+# Speed — 1 is one round in about twelve seconds.
+#   range: 0.25..=4.0, step 0.25 · only while theme.colors.flow.on == true · since schema v7
+# speed = 1.0
+
+# [theme.colors.media]
+#
+# Dynamic Media Color — The shell and the apps that follow its theme take the colours of
+# the track playing now. Your palette and light or dark stay as they are: turn this off and
+# they are back.
+# follow = false
+#
+# Apps follow too — Apps cannot blend, so each track changes their colours at once and
+# some of them reload. Off, only the shell takes the track's colours and the apps keep your
+# palette.
+#   only while theme.colors.media.follow == true
+# apps = true
+#
+# Light or dark — The cover's own colours, as the Now Playing card shows them, or your
+# light or dark in the cover's hue. Text is kept readable either way.
+#   choices: "cover" | "keep" · only while theme.colors.media.follow == true
+# tone = "cover"
+#
+# Change of colour — How the shell goes from one track's colours to the next. Round the
+# colour wheel passes through the colours between them, the short way or the long way.
+#   choices: "fade" | "wheel_closest" | "wheel_furthest" | "direct" · only while
+#   theme.colors.media.follow == true
+# blend = "fade"
+#
+# Length of the change — The colour wheel takes half as long again, as it has further to
+# go.
+#   range: 200..=4000, step 100 (ms) · only while theme.colors.media.follow == true · only
+#   while theme.colors.media.blend != "direct"
+# blend_ms = 1200
+
+# [theme.colors.wallpaper_grade]
+#
+# Wallpaper Color Grade — Recolours the wallpaper to the theme's colours whenever they
+# change, by Dynamic Media Color too. The picture's detail stays and the file itself is
+# never changed: turn this off and it is back. Needs the Wallpaper mod.
+# enabled = false
+#
+# How it recolours — Automatic matches a colourful picture's colours to the theme's, and
+# runs a nearly colourless one through them from shadows to highlights.
+#   choices: "auto" | "match" | "balance" | "gradient" | "palette" · only while
+#   theme.colors.wallpaper_grade.enabled == true
+# mode = "auto"
+#
+# Strength — From the original picture to fully recoloured.
+#   range: 0.0..=1.0, step 0.05 · only while theme.colors.wallpaper_grade.enabled == true
+# strength = 1.0
+#
+# Follow the theme's brightness — Off keeps the picture's own light and dark. Higher lets
+# a dark theme darken the picture and a light one brighten it.
+#   range: 0.0..=1.0, step 0.05 · only while theme.colors.wallpaper_grade.enabled == true
+# lightness = 0.0
+
+# [theme.shape]
+#
+# Corners — Corner style of bars, popups and the island.
+#   choices: "none" | "rounded" | "squircle"
+# corners = "rounded"
+#
+# Screen corners follow the radius — The screen's corners follow the frame's: its corner
+# radius plus its thickness on a framed screen, so the band keeps one width round the corner
+# (a square look leaves them square). Off: they take their own size below.
+#   since schema v5
+# screen_corners_follow = true
+#
+# Screen corners — Rounds the corners of every screen by this many pixels (0 = square, as
+# the panel is).
+#   range: 0..=48, step 2 (px) · only while theme.shape.screen_corners_follow == false
+# screen_corners = 0
+#
+# Corner radius — The one radius every corner follows (K74, K96): panels, cards, the
+# island's views, the frame, merging corners, windows, the dock and desktop widgets, so they
+# match; buttons, toggles and smaller parts take steps of it. A surface below can take its
+# own.
+#   range: 0..=48, step 1 (px) · only while theme.shape.corners != "none" · since schema v4
+# radius = 18
+#
+# Frame corners — The corners of the window cut into the frame. The screen's outer corners
+# go with them, this much plus the frame's thickness. Auto: the corner radius.
+#   range: -1..=64, step 1 (px) · only while theme.shape.corners != "none"
+# radius_frame = -1
+#
+# Merging corners — The concave corners where a surface merges into a bar or the frame:
+# the dock, the sidebars, the island, menus. Auto: the corner radius.
+#   range: -1..=64, step 1 (px) · only while theme.shape.corners != "none"
+# radius_joins = -1
+#
+# Window corners — The corners of the compositor's windows (niri, Hyprland, MangoWM; sway
+# has none). Auto: the corner radius.
+#   range: -1..=64, step 1 (px) · only while theme.shape.corners != "none"
+# radius_windows = -1
+#
+# Desktop widget corners — The corners of the widgets on the desktop. Auto: the corner
+# radius.
+#   range: -1..=64, step 1 (px) · only while theme.shape.corners != "none"
+# radius_widgets = -1
+#
+# Dock corners — The dock's own corners, floating or joined. Auto: the corner radius.
+#   range: -1..=64, step 1 (px) · only while theme.shape.corners != "none"
+# radius_dock = -1
+#
+# Squircle curve — How far a squircle's corners reach toward square: 0 is nearly round, 1
+# nearly square.
+#   range: 0.0..=1.0, step 0.01 · only while theme.shape.corners == "squircle" · since
+#   schema v7
+# squircle = 0.77
+
+# [theme.material]
+#
+# Material — Surface material of shell chrome.
+#   choices: "solid" | "translucent" · forced to "solid" while a11y.reduce_transparency is on
+#   · forced to "solid" while a11y.high_contrast is on
+# kind = "translucent"
+#
+# Opacity — Opacity of translucent surfaces.
+#   range: 0.3..=1.0, step 0.01 · only while theme.material.kind != "solid" · forced to 1.0
+#   while a11y.reduce_transparency is on
+# opacity = 0.85
+#
+# Background blur — Blur what is behind translucent surfaces. Forced off when the
+# compositor cannot blur.
+#   only while theme.material.kind == "translucent" · needs compositor capability blur ·
+#   forced to false while a11y.reduce_transparency is on
+# blur = false
+#
+# Shadows — How strong the shadows under blocks and surfaces are: 0 draws none, 1 is the
+# look's own, 2 twice as long and dark.
+#   range: 0.0..=2.0, step 0.05 · only while theme.chrome != "flat" · only while
+#   theme.chrome != "line"
+# shadow = 1.0
+#
+# Shadow direction — Where shadows fall, in degrees round the screen: 180 straight down,
+# 135 down to the right.
+#   range: 0..=359, step 1 (°) · only while theme.material.shadow_follow == false · only
+#   while theme.chrome != "flat" · only while theme.chrome != "line"
+# shadow_angle = 180
+#
+# Shadows follow the light — Shadows fall away from the material's light, longer when it
+# stands low. A light that follows the pointer casts them from where it rests, so they never
+# move with the pointer.
+#   only while theme.texture.kind != "none" · only while theme.chrome != "flat" · only while
+#   theme.chrome != "line"
+# shadow_follow = false
+#
+# Elevation — Smooth drop shadows under the shell's surfaces — sidebars, the dock,
+# cards, the notification centre — that lift them off the desktop: a wide faint shadow all
+# round and a softer one along the light. Automatic: on for keycap and soft looks, off for
+# flat and line ones. Follow the light: they fall away from it, longer when it stands low.
+#   choices: "auto" | "off" | "static" | "follow" · forced to "off" while a11y.high_contrast
+#   is on · since schema v7
+# elevation = "auto"
+#
+# Frame and panel shadows — What the frame, the bars, the sidebars and the dock cast onto
+# what lies beside them. Automatic: as Elevation. Follow the light, or Static along the
+# shadow direction. Inward: evenly all round into the window cut into the frame, with no
+# direction. Off: none.
+#   choices: "auto" | "follow" | "static" | "inward" | "off" · forced to "off" while
+#   a11y.high_contrast is on
+# sheet_shadow = "auto"
+#
+# Elevation strength — How deep the surfaces' shadows are, the frame's and the panels'
+# too: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own
+# strength above).
+#   range: 0.0..=2.0, step 0.05 · since schema v7
+# elevation_strength = 1.0
+#
+# Elevation follows the pointer — While the light follows the pointer or the spotlight
+# aims at it, the surfaces' shadows turn away from it too, eased; off, they fall from where
+# the light rests.
+#   only while theme.material.elevation == "follow" · forced to false while
+#   a11y.reduce_motion is on · since schema v7
+# elevation_pointer = false
+#
+# Scroll edges — Where a list or a page is cut by the edge of its card or sidebar: Blur
+# fades the text out and blurs it toward the edge, as glass does; Fade only fades it; Cut
+# shows it cut. Only an edge with something cut beyond it is drawn so, and nothing is
+# redrawn while nothing scrolls.
+#   choices: "blur" | "fade" | "cut" · since schema v7
+# scroll_edges = "blur"
+
+# [theme.motion]
+#
+# Motion profile — How everything moves, in one choice: the curves, the forms surfaces
+# open and close in, and what moves when. A style recommends one; pick another, or change
+# any part below on top of it.
+#   choices: from `motion.profiles` (resolved at runtime) · forced to "reduced" while
+#   a11y.reduce_motion is on
+# profile = "expressive"
+#
+# Animation speed — Multiplies every motion duration's speed (2.0 = twice as fast).
+#   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none"
+# speed = 1.0
+#
+# Blend colour changes — A change of colours — a palette, light or dark, a look, the
+# wallpaper's colours — fades over a third of a second instead of cutting. Off with
+# reduced motion and with the motion profile None.
+#   only while theme.motion.profile != "none" · since schema v7
+# blend_colors = true
+#
+# A bar changes its edge — How a bar gets to another edge of the screen. Along the sides:
+# it slides round the corner, the shorter way. Parts: it splits in the middle and each half
+# runs down its side. Drips: it sags, drops and settles. Fades: the new bar fades in. Off:
+# it is there at once.
+#   choices: "follow" | "part" | "drip" | "fade" | "off" · only while theme.motion.profile !=
+#   "none" · since schema v7
+# layout_move = "follow"
+#
+# Content — When a surface's content appears as it opens: late (once the surface has
+# nearly reached its size), with it, or row by row in a cascade.
+#   choices: "profile" | "late" | "with" | "cascade"
+# content = "profile"
+#
+# Cascade step — Milliseconds between one row's arrival and the next in a cascade (-1: the
+# profile's).
+#   range: -1..=60 (ms) · advanced
+# stagger_ms = -1
+#
+# Squash and stretch — How much a shape narrows while it moves fast and bulges as it lands
+# (-1: the profile's).
+#   range: -1.0..=0.15, step 0.01 · advanced
+# squash = -1.0
+#
+# Jelly — A wobble after a surface lands, like pudding settling (-1: the profile's; 0:
+# none).
+#   range: -1.0..=1.0, step 0.05
+# jelly = -1.0
+#
+# Shadow while moving — What a surface's shadow does during its motion: carried with the
+# shape, or faded out and back at rest (folding forms shade themselves).
+#   choices: "profile" | "carry" | "fade" · advanced
+# shadow = "profile"
+#
+# Window animations — Give the compositor's window animations the profile's curves (niri).
+# With its animations, windows also open and close the way the shell's surfaces do, through
+# niri's custom shaders; niri keeps its own if a later version refuses one. Off: windows
+# move as the compositor says.
+#   choices: "off" | "follow" | "forms"
+# windows = "off"
+
+# [theme.motion.form]
+#
+# Opens with — The animation every surface opens with, unless one has its own below.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# open = ""
+#
+# Closes with — The animation every surface closes with, unless one has its own below.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# close = ""
+
+# [theme.motion.form.island]
+#
+# Island follows the default — The island opens and closes its cards the way every surface
+# does. Off: it uses its own animations below. Its faces and hover peeks keep their springs
+# either way.
+#   only while theme.motion.profile != "none"
+# follow = true
+#
+# Island opens with — The island's own opening animation.
+#   choices: from `motion.forms` (resolved at runtime) · only while
+#   theme.motion.form.island.follow == false
+# open = ""
+#
+# Island closes with — The island's own closing animation.
+#   choices: from `motion.forms` (resolved at runtime) · only while
+#   theme.motion.form.island.follow == false
+# close = ""
+
+# [theme.motion.form.panel]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.peek]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.launcher]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.centre]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.toast]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.sidebar]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.dock]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.bar]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.osd]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.menu]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.dialog]
+#
+# Opens with — This surface's own opening animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# open = ""
+#
+# Closes with — This surface's own closing animation ("": the default).
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.profile !=
+#   "none" · advanced
+# close = ""
+
+# [theme.motion.form.window]
+#
+# Windows open with — The animation a window opens with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
+# open = ""
+#
+# Windows close with — The animation a window closes with. Follows the style's unless you
+# pick one here.
+#   choices: from `motion.forms` (resolved at runtime) · only while theme.motion.windows ==
+#   "forms"
+# close = ""
+
+# [theme.motion.timing]
+#
+# Timing preset — How the profile's animations are timed: the profile's own, or a preset's
+# curves (calm, lively …) under its forms.
+#   choices: from `motion.timings` (resolved at runtime) · only while theme.motion.profile !=
+#   "none"
+# preset = ""
+#
+# Opening — The curve surfaces open and grow on.
+#   only while theme.motion.profile != "none"
+# open = ""
+#
+# Closing — The curve surfaces close and fold back on.
+#   only while theme.motion.profile != "none"
+# close = ""
+#
+# Quick moves — The curve of small, fast moves: hover peeks, menus, a bar sliding in.
+#   only while theme.motion.profile != "none"
+# fast = ""
+#
+# Fades — The curve of colour and opacity changes; it should not overshoot.
+#   only while theme.motion.profile != "none"
+# effects = ""
+#
+# Opening duration — Milliseconds (0: the profile's; a spring's duration is its response).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# open_ms = 0
+#
+# Closing duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# close_ms = 0
+#
+# Quick move duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# fast_ms = 0
+#
+# Fade duration — Milliseconds (0: the profile's).
+#   range: 0..=3000 (ms) · only while theme.motion.profile != "none" · advanced
+# effects_ms = 0
+
+# [theme.typography.mix]
+#
+# Font mix — Mixes several fonts letter by letter, so text looks less regular, as
+# handwriting does. Handwriting takes shipped fonts; Custom takes yours. It works with any
+# fonts; the first gives the sizes. Digits and other scripts stay as they are.
+#   choices: "off" | "handwriting" | "custom" · since schema v7
+# preset = "off"
+#
+# How many fonts — How many of the fonts to mix, from the first. Two is the quietest.
+#   range: 2..=8, step 1 · only while theme.typography.mix.preset != "off" · since schema v7
+# count = 3
+#
+# Fonts to mix — The fonts, in order. Any installed font, your own too.
+#   choices: from `fonts.installed` (resolved at runtime) · only while
+#   theme.typography.mix.preset == "custom" · since schema v7
+# fonts = ["Kalam", "Patrick Hand", "Handlee"]
+
+# [theme.typography.fx]
+#
+# Text effect — How headings and labels are lit. Glow: a soft light in the text's own
+# colour. CRT: a phosphor glow with a colour fringe. Candle: a warm light that flickers
+# while something is open. Rainbow: every letter its own colour. Shimmer: a light passes
+# over the text now and then.
+#   choices: "none" | "glow" | "crt" | "candle" | "rainbow" | "shimmer" · since schema v7
+# effect = "none"
+#
+# Fresh text — How text appears when its surface opens or its words change. Typed: letter
+# by letter, as in old games. Deciphered: signs settle into the letters. From kana: Japanese
+# letters turn into the ones that belong there. Brushed: painted in from the left. Rise:
+# each letter rises into place. Ink: it soaks into the paper.
+#   choices: "none" | "type" | "decipher" | "kana" | "brush" | "rise" | "ink" · only while
+#   theme.motion.profile != "none" · since schema v7
+# spawn = "none"
+#
+# Applies to — Headings alone (card and page titles, the bar's clock, notifications,
+# desktop widgets), or all text a surface shows as it opens — every label, row and value
+# in it.
+#   choices: "titles" | "all" · since schema v7
+# scope = "titles"
+#
+# Speed of fresh text — 1 writes a short heading in about a third of a second.
+#   range: 0.25..=3.0, step 0.25 · only while theme.typography.fx.spawn != "none" · since
+#   schema v7
+# spawn_speed = 1.0
+
+# [theme.typography]
+#
+# Font family — Fallback chain; the first installed family wins (resolved via fontconfig).
+# family = ["Inter", "Noto Sans CJK JP", "sans-serif"]
+#
+# Japanese font family — Fallback chain for Japanese text; the first installed family wins
+# (K60).
+#   advanced
+# family_jp = ["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]
+#
+# Monospaced font — For terminals and code: fallback chain, the first installed family
+# wins. Apps take it while Monospaced font in apps is on.
+#   since schema v7
+# mono = ["monospace"]
+#
+# Text scale — Multiplies every type size token.
+#   range: 0.75..=2.0, step 0.05 · forced to 1.25 while a11y.large_text is on
+# scale = 1.0
+
+# [theme.texture]
+#
+# Material — A relief the shell is made of — paper, fabric, stone, metal, leather, wood,
+# brushed oil paint. It adds light and shade from the light below, never colours of its own
+# (K59).
+#   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
+#   "display" | "tread_plate" | "old_paper" | "canvas" · forced to "none" while
+#   a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
+# kind = "none"
+#
+# Where — The shell's surfaces, the wallpaper (baked into the picture), both, or an
+# overlay over everything, apps included — that one costs a full-screen layer, shows in
+# screenshots and keeps fullscreen apps from the fastest path to the screen.
+#   choices: "shell" | "wallpaper" | "shell_wallpaper" | "everything" · only while
+#   theme.texture.kind != "none"
+# scope = "shell"
+#
+# Terminals too — The terminals among the apps that follow take the material: as a shader
+# that keeps off the text where the terminal has one (Ghostty), else as a faint background
+# picture (Kitty, WezTerm). Alacritty, Foot, Rio and Ratty can only take colours. Off: every
+# terminal has colours alone.
+#   only while theme.texture.kind != "none"
+# terminals = true
+#
+# Strength — How strongly the relief reads; past 1 it is strong. Under text it is capped
+# so text stays legible.
+#   range: 0.0..=2.0, step 0.05 · only while theme.texture.kind != "none"
+# strength = 0.5
+#
+# Depth — How steep the relief is: deeper grain, threads and rulings, with longer shadows
+# when the light is low.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.kind != "none"
+# depth = 1.0
+#
+# Relief shadows — Grain, threads and rulings cast short shadows away from the light,
+# longer when the light is low. Auto: on for materials with real height (oil paint, brush
+# strokes) and for styles that ask for it.
+#   choices: "auto" | "off" | "on" · only while theme.texture.kind != "none"
+# shadows = "auto"
+#
+# Scale — The size of the material's grain, weave or rulings.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.kind != "none"
+# scale = 1.0
+#
+# Wrinkles — Crumples the material: folds and creases, as in crumpled paper or creased
+# leather.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# wrinkles = 0.0
+#
+# Cracks — Breaks the material: a network of fine cracks, as in old stone or broken glass.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# cracks = 0.0
+#
+# Crack pattern — Stone: jagged, branching cracks. Glass: straight-edged shards.
+#   choices: "stone" | "glass" · only while theme.texture.kind != "none"
+# crack_style = "stone"
+#
+# Ink and colour — Print the rulings, dots and grain in faint colours of the palette. Off:
+# relief only — rulings are pressed into the sheet, nothing is coloured.
+#   only while theme.texture.kind != "none"
+# tint = true
+#
+# Texture over text — Let the relief run through text and icons too, as ink sinks into
+# paper or is pressed into leather. Off keeps them crisp on the material.
+#   only while theme.texture.kind != "none"
+# text = false
+#
+# Texture over controls — Let the relief run over buttons, sliders, switches and icons
+# too, so the material reads through the whole interface. Pictures — album covers,
+# wallpapers, avatars — stay untouched.
+#   only while theme.texture.kind != "none"
+# controls = false
+#
+# Sheet — How the material sits on surfaces that move. Carried: a panel takes its texture
+# along as it slides or grows and lands on the one continuous sheet. Fixed: the sheet stays
+# put and surfaces slide over it. Separate: every surface is a sheet of its own.
+#   choices: "carried" | "fixed" | "separate" · only while theme.texture.kind != "none"
+# sheet = "carried"
+
+# [theme.texture.wallpaper]
+#
+# Own material for the wallpaper — Give the wallpaper a material of its own instead of the
+# shell's (it is baked into the picture).
+#   only while theme.texture.scope != "shell" · only while theme.texture.scope !=
+#   "everything"
+# own = false
+#
+# Wallpaper material — The relief baked into the wallpaper.
+#   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" |
+#   "display" | "tread_plate" | "old_paper" | "canvas" · only while
+#   theme.texture.wallpaper.own == true · only while theme.texture.scope != "shell" · only
+#   while theme.texture.scope != "everything"
+# kind = "paper"
+#
+# Wallpaper strength — How strongly the wallpaper's relief reads.
+#   range: 0.0..=2.0, step 0.05 · only while theme.texture.wallpaper.own == true · only
+#   while theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
+# strength = 0.5
+#
+# Wallpaper scale — The size of the wallpaper material's grain.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.wallpaper.own == true · only
+#   while theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
+# scale = 1.0
+#
+# Wallpaper wrinkles — Crumples the wallpaper's material.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.wallpaper.own == true · only
+#   while theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
+# wrinkles = 0.0
+#
+# Wallpaper cracks — Cracks in the wallpaper's material (the pattern is the shell's).
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.wallpaper.own == true · only
+#   while theme.texture.scope != "shell" · only while theme.texture.scope != "everything"
+# cracks = 0.0
+
+# [theme.light]
+#
+# Light — Where the material's light comes from: a fixed direction, a lamp at the pointer
+# (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day
+# — sunrise from the left, sunset from the right, warm when it is low — the wallpaper's
+# own light: a lamp at its brightest place, in its colour (K59) — or a spotlight: a lamp
+# pinned at the screen's edge in the light's direction, its beam aimed at the pointer (K61).
+#   choices: "static" | "pointer" | "daytime" | "wallpaper" | "spotlight" · only while
+#   theme.texture.kind != "none"
+# mode = "static"
+#
+# Direction — Where the fixed light comes from, in degrees round the screen: 0 from the
+# top, 90 from the right, 315 from the top left.
+#   range: 0..=359, step 1 (°) · only while theme.light.mode != "daytime"
+# angle = 315
+#
+# Height — How high the light stands over the screen: low light makes long shadows and a
+# deeper relief.
+#   range: 10..=80, step 1 (°) · only while theme.light.mode != "daytime"
+# elevation = 40
+#
+# Beam width — How wide the spotlight's beam is: narrow lights a small pool round the
+# pointer, wide most of the screen.
+#   range: 10..=80, step 1 (°) · only while theme.light.mode == "spotlight"
+# beam = 35
+#
+# Monitors it reaches — Where the pointer's light and the shadows it turns act: on the
+# monitor the pointer is on, or on all of them, from where the pointer stands across your
+# monitors. All repaints every monitor's surfaces as the pointer moves.
+#   choices: "pointer" | "all" · only while theme.light.mode != "static" · only while
+#   theme.light.mode != "daytime" · only while theme.light.mode != "wallpaper"
+# outputs = "pointer"
+#
+# Light colour — The colour of the light's highlights. Natural: white, the sun's own, or
+# the wallpaper's.
+#   choices: "natural" | "white" | "warm" | "cool" | "custom" · only while theme.texture.kind
+#   != "none"
+# color = "natural"
+#
+# Your light colour — The highlights' colour.
+#   only while theme.light.color == "custom"
+# color_custom = "#ffd9a0"
+
+# [theme.pen]
+#
+# Outline — How outlines round blocks and surfaces are drawn: solid, dotted, dashed,
+# broken — long strokes with gaps where the pen left the paper — or rough, a very uneven
+# hand line.
+#   choices: "solid" | "dotted" | "dashed" | "broken" | "rough" | "sketch" · forced to
+#   "solid" while a11y.high_contrast is on
+# line = "solid"
+#
+# Pen pressure — Outlines swell and thin along their length, as with a fountain pen.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# pressure = 0.0
+#
+# Skips — The pen skips now and then: small gaps in the outlines.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# breaks = 0.0
+#
+# Ink flow — The ink runs thinner in places: the outlines' opacity varies along them.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# fade = 0.0
+#
+# Hand — Straight lines and curves wander a little, as if drawn by hand.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# wobble = 0.0
+#
+# Text: pen pressure — Letters and icons swell and thin, as written with a fountain pen.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_pressure = 0.0
+#
+# Text: skips — Small breaks in letters and icons where the pen skipped.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_breaks = 0.0
+#
+# Text: ink flow — Letters and icons vary a little in opacity, as ink does.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_fade = 0.0
+#
+# Text: hand — Letters and icons wander a little off the straight line, as if written by
+# hand.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_wobble = 0.0
+
+# [a11y]
+#
+# Reduce motion — Replaces movement with short fades: nothing slides, grows, folds or
+# flashes (forces the motion profile to reduced).
+# reduce_motion = false
+#
+# Reduce transparency — Makes every surface solid and disables blur.
+# reduce_transparency = false
+#
+# High contrast — Solid surfaces and a high-contrast palette.
+# high_contrast = false
+#
+# Large text — Raises the text scale to 125 %.
+# large_text = false
+
+# [island.main]
+#
+# Faces — Faces this island may show, in cycling order.
+#   choices: from `island.faces` (resolved at runtime)
+# faces = ["clock", "media", "notifications"]
+#
+# Default face — Face shown when nothing more relevant is happening.
+#   choices: from `island.faces` (resolved at runtime)
+# default = "clock"
+#
+# Transient duration — How long a transient face (volume, brightness, notification) stays
+# before falling back.
+#   range: 1..=60 (s)
+# ttl = 5
+#
+# System events — Volume, brightness, power and Bluetooth changes show on the island for a
+# moment. Off, the island does not listen to them at all.
+# system_events = true
+#
+# Draw mode — How the island meets the bar or the edge it grows out of. Automatic follows
+# the layout's draw mode (K71).
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
+
+# [island.main.input]
+#
+# Left click
+#   choices: from `actions` (resolved at runtime) · advanced
+# left = "island.expand"
+#
+# Right click
+#   choices: from `actions` (resolved at runtime) · advanced
+# right = ""
+#
+# Middle click
+#   choices: from `actions` (resolved at runtime) · advanced
+# middle = "island.pin"
+#
+# Hover
+#   choices: from `actions` (resolved at runtime) · advanced
+# hover = ""
+#
+# Scroll up
+#   choices: from `actions` (resolved at runtime) · advanced
+# scroll_up = "island.prev"
+#
+# Scroll down
+#   choices: from `actions` (resolved at runtime) · advanced
+# scroll_down = "island.next"
+#
+# Shift + scroll up
+#   choices: from `actions` (resolved at runtime) · advanced
+# shift_scroll_up = ""
+#
+# Shift + scroll down
+#   choices: from `actions` (resolved at runtime) · advanced
+# shift_scroll_down = ""
+
+# [notifications]
+#
+# Notification server — Receive desktop notifications. Never takes over from another
+# running notification daemon.
+#   restart required
+# server = true
+#
+# Do not disturb — Store notifications silently; critical ones still show.
+# dnd = false
+#
+# History size — How many notifications are kept.
+#   range: 10..=2000, step 10 · restart required · advanced
+# history_max = 200
+
+# [launcher]
+#
+# Opens — Where it was opened: at the button you clicked, and in the middle of the screen
+# when opened by its key. Out of the island: it grows from the bar's island. A fixed place:
+# where the two sliders below put it.
+#   choices: "opened" | "centre" | "island" | "fixed" · since schema v7
+# place = "opened"
+#
+# Across — How far across the screen it stands: 0 at the left edge, 100 at the right.
+#   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
+# place_x = 50
+#
+# Down — How far down the screen it stands: 0 at the top edge, 100 at the bottom.
+#   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
+# place_y = 50
+#
+# Terminal command — Prefix for apps that need a terminal, e.g. foot -e.
+#   restart required
+# terminal = ["foot", "-e"]
+#
+# Separate app scopes — Start apps in their own systemd scope so they outlive the shell.
+#   restart required · advanced
+# systemd_scope = true
+#
+# Web search — The address a query is searched at, `{}` standing for the query; empty = no
+# web search row.
+# web_search = "https://duckduckgo.com/?q={}"
+#
+# Launcher button logo — What the bar's launcher button shows: the look's own mark (or the
+# plain apps icon), your OS's logo (from os-release; a look may tint it, the PS2 look in its
+# four colours), or an image of your own below.
+#   choices: "look" | "os" | "own" · since schema v7
+# button_logo = "look"
+#
+# Your image — A PNG or SVG (an absolute path or `~/…`) for the launcher button. It
+# stays on this machine.
+#   only while launcher.button_logo == "own" · since schema v7
+# button_icon = ""
+#
+# Logo colour — The OS logo or your image as the look draws it, as it is, in the text's
+# colour, in the palette's colours as sectors (as the PS2 look does with its four), or in
+# the palette's tones (its drawing kept, dark to light).
+#   choices: "look" | "original" | "ink" | "palette" | "tones" · only while
+#   launcher.button_logo != "look"
+# logo_tint = "look"
+
+# [modules.workspaces]
+#
+# Show empty workspaces — Off: only the workspaces with windows and the one you are on.
+#   since schema v7
+# empty = true
+#
+# Marks
+#   choices: "look" | "numbers" | "dots" · since schema v7
+# marks = "look"
+#
+# Switching animation — The lit mark travels to the workspace you switch to: liquid (it
+# draws out and flows over), stretch (its front runs ahead, its back catches up) or slide.
+# The wobble follows the motion settings.
+#   choices: "goo" | "stretch" | "slide" | "off" · since schema v7
+# motion = "goo"
+#
+# Scroll to switch — The mouse wheel over the workspaces moves to the next or the previous
+# one.
+#   since schema v7
+# scroll = false
+#
+# Hover previews — Resting on a workspace shows what it held when you last saw it. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
+
+# [modules.windows]
+#
+# Most windows shown — The rest go under "+N". 0: as many as the bar has room for.
+#   range: 0..=24, step 1 · since schema v7
+# max = 0
+#
+# Middle click closes
+#   since schema v7
+# middle_close = true
+#
+# Hover previews — Resting on a window shows it as you last saw it, with its title. The
+# pictures stay in memory, for this session.
+#   since schema v7
+# previews = true
+
+# [clock]
+#
+# First day of the week — The calendar's first column; automatic follows the language
+# (Sunday for Japanese, Monday otherwise).
+#   choices: "auto" | "monday" | "sunday" | "saturday"
+# week_start = "auto"
+#
+# Week numbers — Show ISO week numbers beside the calendar's rows.
+# week_numbers = false
+
+# [desktop]
+#
+# Desktop widgets — Cards on the desktop under your windows: the clock, the month, what is
+# playing, the weather.
+#   per-output
+# enabled = false
+#
+# Side for other cards — The column a card neither list below names stands in. Both
+# columns show at once: put cards on the left and on the right below (or in the desk's edit
+# mode, Alt+Left/Right).
+#   choices: "left" | "right" · only while desktop.enabled == true · per-output
+# side = "right"
+#
+# Posted — How the cards are held on the desktop: lying flat, held by a pin, or stuck with
+# tape. A pinned or taped card hangs a little crooked, each its own way.
+#   choices: "none" | "pin" | "tape" · only while desktop.enabled == true · since schema v7
+# post = "none"
+#
+# Clock — The time in big keys, with the date.
+#   only while desktop.enabled == true
+# clock = true
+#
+# Calendar — This month, today marked.
+#   only while desktop.enabled == true
+# calendar = true
+#
+# Now playing — The song that plays, with its controls; hidden while nothing plays.
+#   only while desktop.enabled == true
+# media = true
+#
+# Moving level bars — The now-playing card's bars move with the sound. Each move redraws
+# the whole desktop on every screen — on two large screens about a core's quarter each
+# while music plays — so by default they stand as a still "playing" mark.
+#   only while desktop.media == true · since schema v7
+# media_bars = false
+#
+# Weather — Today's weather, while the weather mod is on and has a place.
+#   only while desktop.enabled == true
+# weather = true
+#
+# Cards on the right — The cards in the right column, top to bottom: the clock, the month,
+# what plays, the weather and the mods' cards. A card the left column names stands there
+# instead. The desk's edit mode writes it too (K48, K71).
+#   choices: from `desktop.cards` (resolved at runtime) · only while desktop.enabled == true
+#   · since schema v3
+# right = ["clock", "calendar", "media", "weather"]
+#
+# Cards on the left — The cards in the left column, top to bottom; a card named here
+# leaves the right column.
+#   choices: from `desktop.cards` (resolved at runtime) · only while desktop.enabled == true
+#   · since schema v3
+# left = []
+#
+# Hidden cards — Cards the desk leaves out, named as on either side. The desk's edit mode
+# writes it.
+#   only while desktop.enabled == true · advanced
+# hidden = []
+
+# [idle]
+#
+# Idle actions — Dim, lock, turn the screens off and suspend after a time without input.
+# Apps that play video or calls that are on keep the screen awake (they inhibit idle).
+# enabled = true
+#
+# Dim after — Lowers the brightness a little before locking. 0 = never.
+#   range: 0..=7200, step 30 (s) · only while idle.enabled == true
+# dim_after = 240
+#
+# Lock after — 0 = never.
+#   range: 0..=7200, step 30 (s) · only while idle.enabled == true
+# lock_after = 300
+#
+# Screens off after — 0 = never.
+#   range: 0..=7200, step 30 (s) · only while idle.enabled == true
+# screen_off_after = 600
+#
+# Suspend after — 0 = never.
+#   range: 0..=14400, step 60 (s) · only while idle.enabled == true
+# suspend_after = 0
+#
+# Stay awake while media plays — Music or video that plays keeps the screen on.
+#   only while idle.enabled == true
+# inhibit_while_media = true
+
+# [night_light]
+#
+# Night light — Warmer colours in the evening (wlsunset). Off by default.
+# enabled = false
+#
+# Warmth — Colour temperature at night; lower is warmer.
+#   range: 1500..=6500, step 100 (K) · only while night_light.enabled == true
+# temperature = 4000
+#
+# Schedule — When the night colours are on. Sunset to sunrise needs the weather mod's
+# place.
+#   choices: "always" | "manual" | "sun" · only while night_light.enabled == true
+# schedule = "manual"
+#
+# From — Start of the night colours, as HH:MM.
+#   only while night_light.schedule == "manual"
+# start = "20:00"
+#
+# Until — End of the night colours, as HH:MM.
+#   only while night_light.schedule == "manual"
+# end = "07:00"
+
+# [recorder]
+#
+# Folder — Where recordings are saved; empty = your Videos folder.
+# directory = ""
+#
+# Record sound — The desktop's sound goes into the recording.
+# audio = true
+#
+# Recorder — The program that records; automatic takes the first one installed.
+#   choices: "auto" | "gpu_screen_recorder" | "wf_recorder" · advanced
+# backend = "auto"
+
+# [dock]
+#
+# App dock — Your pinned apps and the running ones, at a screen edge.
+#   per-output
+# enabled = false
+#
+# Edge
+#   choices: "bottom" | "top" | "left" | "right" · only while dock.enabled == true ·
+#   per-output
+# edge = "bottom"
+#
+# Visibility — Shown while the desktop is empty and else when the pointer rests on its
+# edge (as before), always, on hover only, or hidden until a key or `layout.toggle` brings
+# it out (K71).
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · only while dock.enabled ==
+#   true · since schema v3
+# visibility = "empty_desktop"
+#
+# Keep space — Whether windows keep clear of the dock. Automatic keeps space only while it
+# is always shown.
+#   choices: "auto" | "on" | "off" · only while dock.enabled == true · only while
+#   dock.visibility != "hidden" · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · only while dock.enabled == true
+#   · since schema v3
+# draw = "auto"
+#
+# Pinned apps — Desktop entry ids (e.g. firefox, org.gnome.Nautilus), in order.
+# Right-click an app in the dock to pin it.
+#   only while dock.enabled == true
+# pinned = []
+#
+# Icon size
+#   range: 24..=96, step 2 (px) · only while dock.enabled == true
+# icon_size = 44
+#
+# Running apps — Apps with windows that are not pinned show after the pinned ones.
+#   only while dock.enabled == true
+# show_running = true
+
+# [sidebar.right]
+#
+# Sections — Top to bottom: you and the session, the quick tiles, the levels,
+# notifications, the month, what plays, and the mods' panels.
+#   choices: from `sidebar.sections` (resolved at runtime) · since schema v3
+# sections = ["header", "toggles", "sliders", "notifications", "calendar"]
+#
+# Layout — One column: every section stacked, scrolled together. Pages with tabs: one
+# section at a time, the tabs above it.
+#   choices: "stack" | "pages" · since schema v5
+# mode = "stack"
+#
+# Width — Drag the sidebar's inner edge to change it: each monitor keeps its own width.
+#   range: 320..=640, step 10 (px) · per-output · since schema v3
+# width = 420
+#
+# Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On
+# hover: rest the pointer on the screen's side. Always shown: pinned open, the windows
+# beside it.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · since schema v3
+# visibility = "hidden"
+#
+# Pinned — Kept open, the windows beside it, while pinned (the pin in the sidebar's
+# corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
+#   per-output · since schema v7
+# pinned = false
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# pinned open; Always also keeps space while it is open on hover.
+#   choices: "auto" | "on" | "off" · only while sidebar.right.visibility != "hidden" · since
+#   schema v3
+# reserve = "auto"
+#
+# Draw mode — Dynamic: from the bar (or the screen edge) to the far edge, flush to its
+# side, joined to the bar by rounded fillets. Floating: a gap away from every edge, every
+# corner rounded, with the look's shadow. Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
+
+# [sidebar.left]
+#
+# Sections — Top to bottom (or one page each, with pages and tabs): the same sections the
+# right sidebar offers — you and the session, the quick tiles, the levels, notifications,
+# the month, what plays — and the mods' panels (AI chat, tasks, …). A section whose mod
+# is not on is skipped. Empty: no left sidebar.
+#   choices: from `sidebar.sections` (resolved at runtime) · since schema v3
+# sections = ["mod:ai:ai"]
+#
+# Layout — One column: every section stacked, scrolled together. Pages with tabs: one
+# section at a time, the tabs above it.
+#   choices: "stack" | "pages" · since schema v5
+# mode = "pages"
+#
+# Width — Drag the sidebar's inner edge to change it: each monitor keeps its own width.
+#   range: 320..=640, step 10 (px) · per-output · since schema v3
+# width = 420
+#
+# Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On
+# hover: rest the pointer on the screen's side. Always shown: pinned open, the windows
+# beside it.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · since schema v3
+# visibility = "hidden"
+#
+# Pinned — Kept open, the windows beside it, while pinned (the pin in the sidebar's
+# corner); unpinned, it goes back to the visibility above, which pinning leaves as it is.
+#   per-output · since schema v7
+# pinned = false
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# pinned open; Always also keeps space while it is open on hover.
+#   choices: "auto" | "on" | "off" · only while sidebar.left.visibility != "hidden" · since
+#   schema v3
+# reserve = "auto"
+#
+# Draw mode — Dynamic: from the bar (or the screen edge) to the far edge, flush to its
+# side, joined to the bar by rounded fillets. Floating: a gap away from every edge, every
+# corner rounded, with the look's shadow. Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
+
+# [sidebar]
+#
+# Quick settings opens the right sidebar — The bar's quick settings button opens the right
+# sidebar instead of the quick settings card. The sidebars' own buttons stay; put them in
+# the bar or take them out below.
+# from_bar = false
+#
+# Keep a closed sidebar ready — A sidebar that has closed keeps its window and content for
+# a minute, off screen, so it opens again at once. It costs its memory for that minute, and
+# what its sections watch stays watched. Off: a closed sidebar is gone at once and is made
+# again each time it opens.
+#   since schema v7
+# keep_loaded = true
+
+# [settings]
+#
+# Settings opens as — A normal window the compositor places and tiles, or a sheet the
+# shell draws in the middle of the screen over a dimmed desktop — made of the shell's
+# material and lit by its light, like every shell surface.
+#   choices: "window" | "sheet"
+# window = "window"
+
+# [keys]
+#
+# Shortcuts for the compositor — Write these shortcuts into a file the compositor reads
+# (niri: `kurashi-binds.kdl`, included from its config; Sway: `kurashi-binds.conf`, read on
+# `swaymsg reload`; Hyprland: `kurashi-binds.conf`, sourced from `hyprland.conf`). Off: your
+# compositor's own config keeps the keys, as now.
+# write = false
+#
+# Launcher
+#   only while keys.write == true
+# launcher = "Mod+Space"
+#
+# Notification centre
+#   only while keys.write == true
+# notifications = "Mod+N"
+#
+# Right sidebar
+#   only while keys.write == true
+# sidebar_right = "Mod+Shift+N"
+#
+# Left sidebar
+#   only while keys.write == true
+# sidebar_left = "Mod+A"
+#
+# Quick settings
+#   only while keys.write == true
+# quick = ""
+#
+# Session menu
+#   only while keys.write == true
+# session_menu = "Mod+Shift+E"
+#
+# Lock the screen
+#   only while keys.write == true
+# lock = "Super+Alt+L"
+#
+# Settings
+#   only while keys.write == true
+# settings = ""
+#
+# Web dock
+#   only while keys.write == true
+# webdock = ""
+#
+# Top bar
+#   only while keys.write == true
+# bar_top = ""
+#
+# Bottom bar
+#   only while keys.write == true
+# bar_bottom = ""
+#
+# Left bar
+#   only while keys.write == true
+# bar_left = ""
+#
+# Right bar
+#   only while keys.write == true
+# bar_right = ""
+#
+# Dock
+#   only while keys.write == true
+# dock = ""
+#
+# Volume up
+#   only while keys.write == true
+# volume_up = "XF86AudioRaiseVolume"
+#
+# Volume down
+#   only while keys.write == true
+# volume_down = "XF86AudioLowerVolume"
+#
+# Mute
+#   only while keys.write == true
+# mute = "XF86AudioMute"
+#
+# Brightness up
+#   only while keys.write == true
+# brightness_up = "XF86MonBrightnessUp"
+#
+# Brightness down
+#   only while keys.write == true
+# brightness_down = "XF86MonBrightnessDown"
+
+# [lock]
+#
+# Lock screen — Follow the style: the lock screen its style brings, or the plain one when
+# it brings none. Plain: the shell's own lock screen in every style. Or one lock screen by
+# name, whatever the style.
+#   choices: from `lock.faces` (resolved at runtime) · since schema v7
+# face = "follow"
+
+# [title_bar]
+#
+# Title bar buttons — Where the style draws a title bar on its cards (the island's cards,
+# quick settings, menus): no title bar, only the close button, or minimize, maximize and
+# close. A style without title bars draws none either way.
+#   choices: "off" | "close" | "full" · since schema v7
+# buttons = "full"
+#
+# Close button
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons != "off" · since schema v7
+# close = "close"
+#
+# Maximize button — Full screen: the card grows to the largest size the screen has room
+# for.
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons == "full" · since schema v7
+# maximize = "full_screen"
+#
+# Minimize button — The app's menu: the menu its tray icon opens, where the card belongs
+# to an app that has one (a player); every other card hides, back to the island.
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons == "full" · since schema v7
+# minimize = "app_menu"
+
+# [cursor]
+#
+# The style's pointer — The pointer the style brings, set as the compositor's cursor theme
+# (niri: `kurashi-cursor.kdl`, included from its config). Off: your own cursor theme stays.
+#   since schema v7
+# theme = false
+#
+# Pointer size
+#   range: 16..=64, step 4 (px) · only while cursor.theme == true · since schema v7
+# size = 24
+#
+# Pointer decoration — A trail behind the pointer, sparkles or a ring round it, drawn over
+# everything while the pointer moves and gone when it rests. Where the compositor does not
+# say where the pointer is, none is drawn.
+#   choices: "off" | "style" | "trail" | "sparkles" | "ring" · since schema v7
+# decoration = "off"
+
+# [quick]
+#
+# Control centre look — A card as the shell's other cards: joined to its bar, in the
+# look's material and outline (a look may draw its own flyout instead). Or a phone: a status
+# row with the time, a greeting and keycap tiles inside a phone's frame.
+#   choices: "card" | "phone" · advanced · since schema v7
+# style = "card"
+#
+# Control centre tiles — The controls the control centre shows as tiles, in order. Each is
+# also a module of its own that a bar, a side bar or an edge group can show. The centre's
+# edit key changes this list too. Mods' tiles follow these. The levels and the session row
+# are wide tiles, drawn after the others in their own order. `audio` is the old name of
+# `volume` (sound) and still places it.
+#   choices: from `quick.tiles` (resolved at runtime) · since schema v7
+# tiles = ["wifi", "bluetooth", "focus", "volume", "power", "brightness", "caffeine", "nightlight", "recorder", "darkmode", "volume_level", "brightness_level", "session"]
+
+# [quick.click]
+#
+# A click on Wi-Fi — Opens its card (the networks), or switches the radio on or off.
+#   choices: "card" | "switch" · since schema v7
+# wifi = "card"
+#
+# A click on Bluetooth — Opens its card (the devices), or switches the adapter on or off.
+#   choices: "card" | "switch" · since schema v7
+# bluetooth = "card"
+#
+# A click on Focus — Opens its card (how long), or switches do not disturb on or off.
+#   choices: "card" | "switch" · since schema v7
+# focus = "card"
+#
+# A click on sound — Opens its card (outputs, inputs, what plays), or mutes and unmutes
+# the output, as the media key does.
+#   choices: "card" | "switch" · since schema v7
+# volume = "card"
+#
+# A click on the microphone — Opens its card (the inputs), or mutes and unmutes the
+# microphone.
+#   choices: "card" | "switch" · since schema v7
+# mic = "card"
+#
+# A click on power — Opens its card (the battery and the profiles), or switches the power
+# saver on or off.
+#   choices: "card" | "switch" · since schema v7
+# power = "card"
+#
+# A click on keep awake — Opens its card, or keeps the screen awake and lets it sleep
+# again.
+#   choices: "card" | "switch" · since schema v7
+# caffeine = "card"
+#
+# A click on night light — Opens its card (the warmth and the schedule), or switches the
+# night light on or off.
+#   choices: "card" | "switch" · since schema v7
+# nightlight = "card"
+#
+# A click on dark mode — Opens its card, or switches between light and dark.
+#   choices: "card" | "switch" · since schema v7
+# darkmode = "card"
+#
+# A click on airplane mode — Opens its card (with Wi-Fi), or switches every radio off or
+# on.
+#   choices: "card" | "switch" · since schema v7
+# airplane = "card"
+#
+# A click on the recorder — Opens its card (start and stop, which screen, the sound, where
+# the file goes), also while a recording runs; or starts and stops recording at once.
+#   choices: "card" | "switch" · since schema v7
+# recorder = "card"
+
+# [quick.value]
+#
+# Wi-Fi shows the network — The network's name beside the Wi-Fi mark on the bar.
+#   since schema v7
+# wifi = true
+#
+# Sound shows the level — The output's level beside the sound mark on the bar.
+#   since schema v7
+# volume = true
+#
+# Power shows the charge — The battery's charge beside the power mark on the bar.
+#   since schema v7
+# power = true
+
+# ==== Mods ======================================================================================
+#
+# Bundled mods are off until listed in `mods.enabled` (and `mods.loaded`), e.g.
+#   [mods]
+#   loaded = ["webdock", "terminal"]
+#   enabled = ["webdock", "terminal"]
+# Each mod's settings live under [mods.<id>] and apply while it is enabled.
+
+# [mods.ai]
+#
+# AI — A chat with a language model in a Stage panel. Local first: your own Ollama server; an
+# OpenAI-compatible server or Anthropic when you choose one. Conversations stay on this computer.
+#
+# Provider — Who answers. Ollama runs on this computer; with the others your messages are sent to
+# their server.
+#   choices: "ollama" | "openai" | "anthropic"
+# provider = "ollama"
+#
+# Ollama address — Where your Ollama server listens (ollama serve).
+# ollama_url = "http://127.0.0.1:11434"
+#
+# Ollama model — A model you pulled, e.g. llama3.2. Empty: the one you used last, else the first
+# installed. The panel's model picker sets it too and is remembered.
+# ollama_model = ""
+#
+# OpenAI-compatible address — The API's base address, ending before /chat/completions: OpenAI,
+# OpenRouter, Mistral, llama.cpp, LM Studio, vLLM…
+# openai_url = "https://api.openai.com/v1"
+#
+# OpenAI-compatible model — The model's id, e.g. as the panel's model picker lists it.
+# openai_model = ""
+#
+# OpenAI-compatible key: environment variable — The name of an environment variable that holds the
+# API key (never the key itself). Empty with no secret-tool attributes: no key is sent (a local
+# server).
+# openai_key_env = "OPENAI_API_KEY"
+#
+# OpenAI-compatible key: secret-tool attributes — Attributes of a keyring entry, e.g. service
+# openai. Store the key with: secret-tool store --label='AI key' service openai. Looked up before
+# the variable.
+# openai_key_secret = ""
+#
+# Anthropic address — The API's base address.
+# anthropic_url = "https://api.anthropic.com"
+#
+# Anthropic model — The model's id, e.g. as the panel's model picker lists it.
+# anthropic_model = ""
+#
+# Anthropic key: environment variable — The name of an environment variable that holds the API key
+# (never the key itself). Empty with no secret-tool attributes: no key is sent (a local server).
+# anthropic_key_env = "ANTHROPIC_API_KEY"
+#
+# Anthropic key: secret-tool attributes — Attributes of a keyring entry, e.g. service openai.
+# Store the key with: secret-tool store --label='AI key' service openai. Looked up before the
+# variable.
+# anthropic_key_secret = ""
+#
+# Longest answer — At most this many tokens per answer (Anthropic needs a limit).
+#   range: 256..=128000
+# max_tokens = 4096
+#
+# Instructions — Sent before every conversation, e.g. Answer briefly. Empty: none.
+# system_prompt = ""
+#
+# Conversations kept — The newest are kept as files in the shell's data folder. 0: none is saved.
+#   range: 0..=500
+# history = 50
+#
+
+# [mods.calendar]
+#
+# Calendar — Your calendars in the clock card, on the desk and in the bar: .ics files, a
+# vdirsyncer or khal folder, a calendar's secret address (Google, Proton, Nextcloud) or khal. Read
+# only.
+#
+# Calendars — A .ics file, a folder of them (a vdirsyncer or khal storage folder: one calendar per
+# sub-folder), or a feed address starting with https:// or webcal://. ~/ means your home folder.
+#   records: a list of tables
+# sources = []
+#
+# Also read khal — Adds the events khal lists (khal list), when khal is installed.
+# khal = false
+#
+# Refresh feeds every — How often a feed address is fetched while the calendar is shown. The last
+# copy is kept and used offline.
+#   range: 5..=1440 · unit: min
+# refresh = 30
+#
+# Upcoming event in the island — The island shows the next event shortly before it starts.
+# peek = false
+#
+# Show it this early
+#   range: 1..=60 · unit: min
+# peek_minutes = 10
+#
+
+# [mods.easter-eggs]
+#
+# Easter eggs — Subtle seasonal touches in the clock and the Island. On by default; one switch
+# turns it off.
+#
+# How often
+#   choices: "rare" | "sometimes"
+# frequency = "rare"
+#
+
+# [mods.handwriting]
+#
+# Handwriting — Make your own font by drawing it, letter by letter, in several versions that Font
+# Mix mixes like a real hand.
+#
+# Opens — Where the panel stands. Where it was opened: under the bar, or at its widget. The others
+# stand it apart on the screen.
+#   choices: "opened" | "centre" | "top" | "bottom" | "left" | "right" | "top_left" | "top_right" | "bottom_left" | "bottom_right"
+# panel_place = "opened"
+#
+# Letters to draw — Basic: A to Z, a to z, digits and the common marks. With accents adds umlauts,
+# ß, accented Latin letters, curly quotes, dashes and the euro and pound signs. A letter not drawn
+# falls back to the next font.
+#   choices: "basic" | "extended"
+# letters = "basic"
+#
+# Pen for a new font — The pen a new font starts with. Each font can change it later: the strokes
+# are kept.
+#   choices: "fine" | "medium" | "bold"
+# default_pen = "medium"
+#
+# Letter spacing — Room added between letters when a font is made, in font units (a letter's
+# height is about 700). Press Make font again to see a change.
+#   range: -30..=150
+# spacing = 0
+#
+# Writing lines — The lines in the box: capitals, small letters, the line it stands on, tails. A
+# letter's height comes from where you draw it, so the font is more even with them.
+# guides = true
+#
+# Letter shadow — The letter due, as a shadow behind what you draw. Off, only its name shows.
+# shadow = true
+#
+# Go on after saving — Save goes to the next letter not yet drawn. Off, it stays on the letter, to
+# draw it again.
+# next_letter = true
+#
+
+# [mods.lyrics]
+#
+# Lyrics — Synced lyrics for the song that plays: in the media card, in the bar and on the desk.
+# Lyrics come from LRCLIB (lrclib.net) and are kept on this computer once found.
+#
+# Look lyrics up online — Asks lrclib.net for the lyrics of each new song (artist, title, album
+# and length are sent). Off: only lyrics already found are shown.
+# online = true
+#
+# Timing offset — Shifts every line. A positive value shows lines earlier, a negative one later.
+#   range: -5000..=5000 · unit: ms
+# offset_ms = 0
+#
+# Current line in the bar — The bar widget shows the line being sung. Off: only the note icon.
+# bar_line = true
+#
+
+# [mods.sysmon]
+#
+# System monitor — CPU, memory, temperature and GPU at a glance. Quiet while fine; when a level
+# stays critical it names the culprit, and a process can be ended from the list.
+#
+# Sampling interval — How often the bar and the panel update. Nothing is sampled while neither is
+# open.
+#   range: 1..=60 · unit: s
+# interval = 2
+#
+# Paused — Stops all sampling, the watch included, until it is turned off here. The panel's Pause
+# is for a moment; this one is for longer.
+# paused = false
+#
+# Show in the bar, in this order
+#   choices: "cpu" | "mem" | "temp" | "load"
+# show = ["cpu", "mem"]
+#
+# Sparkline in the bar — Draws the last 30 samples of the first stat beside its figure.
+# bar_spark = false
+#
+# Temperature sensor — auto takes the die (Tdie, or the hottest chiplet of a Ryzen), then the
+# package sensor. Or name a hardware monitor, such as k10temp. The panel shows the sensor in use. A
+# control value (Tctl) is judged by at least 75 and 95 °C, because it runs warm on some parts.
+# temp_sensor = "auto"
+#
+# Terminal for Open in btop — The terminal the panel's menu starts btop in.
+#   choices: "foot" | "alacritty" | "kitty" | "xterm"
+# terminal = "foot"
+#
+# Watch for sustained trouble — Samples every 10 seconds while this mod is on, even with no bar or
+# panel open. Raises the Island face when a level stays critical.
+# watch = false
+#
+# Critical for — How long a level must stay critical before the face appears.
+#   range: 5..=600 · unit: s
+# sustain = 30
+#
+# CPU: activity from — Above this the bar tints (activity); staying above the critical level shows
+# the face. 0 turns the level off.
+#   range: 0..=100 · unit: %
+# cpu_activity = 50
+#
+# CPU: critical from — Above this the bar tints (activity); staying above the critical level shows
+# the face. 0 turns the level off.
+#   range: 0..=100 · unit: %
+# cpu_critical = 90
+#
+# Memory: activity from — Above this the bar tints (activity); staying above the critical level
+# shows the face. 0 turns the level off.
+#   range: 0..=100 · unit: %
+# mem_activity = 60
+#
+# Memory: critical from — Above this the bar tints (activity); staying above the critical level
+# shows the face. 0 turns the level off.
+#   range: 0..=100 · unit: %
+# mem_critical = 90
+#
+# Temperature: activity from — Above this the bar tints (activity); staying above the critical
+# level shows the face. 0 turns the level off.
+#   range: 0..=120 · unit: °C
+# temp_activity = 60
+#
+# Temperature: critical from — Above this the bar tints (activity); staying above the critical
+# level shows the face. 0 turns the level off.
+#   range: 0..=120 · unit: °C
+# temp_critical = 85
+#
+
+# [mods.tasks]
+#
+# Tasks — A to-do list and a note on the desk and in a panel, kept in plain Markdown files you can
+# also edit elsewhere, for example in your Obsidian vault.
+#
+# Tasks file — A Markdown file with - [ ] items. Empty uses tasks.md in the shell's data folder.
+# ~/ means your home folder. Obsidian Tasks dates (📅) and priorities (⏫ 🔼 🔽) are read and
+# kept.
+# file = ""
+#
+# Note file — The Markdown file the note is kept in. Empty uses notes.md in the shell's data
+# folder.
+# notes_file = ""
+#
+# Keep today's done tasks — Tasks you tick today stay in the list, struck through, until tomorrow.
+# show_done = true
+#
+# Open count in the bar — The bar widget shows how many tasks are open.
+# bar_count = false
+#
+
+# [mods.terminal]
+#
+# Terminal — A terminal that drops out of the bar or a screen edge on a key, and the same session
+# in the bar's card and the sidebar. It keeps running while hidden.
+#
+# Shell — The command a new tab runs, with its arguments (fish -l). Empty: your login shell
+# ($SHELL).
+# shell = ""
+#
+# Start in — The folder a new tab starts in. ~ is your home. A folder that does not exist is said
+# here, and tabs start in your home instead.
+# start_dir = "~"
+#
+# Favourite folders — Folders offered as keys in the tab row, the bar module and the launcher. A
+# press opens a new tab there, or changes the current tab to it (Folders open in).
+#   records: a list of tables
+# favourites = []
+#
+# Drops from — Bar: hangs from the middle of the screen's top bar (else its bottom bar), joined to
+# it. Edge: from a screen edge, as Yakuake. Centre: floats in the middle. Position: floats at a
+# corner or side you choose, moved by the offsets. Without a top or bottom bar on a screen, Bar
+# drops from the top edge there.
+#   choices: "bar" | "edge" | "center" | "position"
+# place = "bar"
+#
+# Edge — The screen edge it drops from when it drops from an edge.
+#   choices: "top" | "bottom" | "left" | "right"
+# edge = "top"
+#
+# Length along the edge — How much of the edge it spans, centred.
+#   range: 20..=100 · unit: %
+# length = 100
+#
+# Width — Its width when it hangs from the bar or floats, in % of the screen.
+#   range: 20..=100 · unit: %
+# width = 60
+#
+# Height — How far it reaches out of its edge (or its height when it floats), in % of the screen.
+# Dragging its free edge sets a height per screen.
+#   range: 20..=95 · unit: %
+# height = 45
+#
+# Position — Where it floats when it drops at a position; the offsets move it from there.
+#   choices: "top-left" | "top" | "top-right" | "left" | "center" | "right" | "bottom-left" | "bottom" | "bottom-right"
+# anchor = "top-left"
+#
+# Offset across
+#   range: -4000..=4000 · unit: px
+# offset_x = 0
+#
+# Offset down
+#   range: -4000..=4000 · unit: px
+# offset_y = 0
+#
+# Heights per screen — The heights you dragged, one per screen. Remove a row to go back to Height
+# there.
+#   records: a list of tables
+# sizes = []
+#
+# Keep open — It stays out when you click elsewhere. The pin in its tab row switches this.
+# pinned = false
+#
+# Hide when I click elsewhere — It goes back in when another window takes the keyboard, unless it
+# is kept open.
+# hide_on_blur = false
+#
+# Font — Empty: the look's monospace font.
+# font = ""
+#
+# Font size
+#   range: 6..=48 · unit: px
+# font_size = 13
+#
+# Background — How much of the terminal's own background lies over the look's material. 0: the
+# material alone.
+#   range: 0..=100 · unit: %
+# opacity = 60
+#
+# Scrollback — Lines each tab keeps to scroll back through. Each line costs a little memory while
+# the terminal runs.
+#   range: 100..=1000000
+# scrollback = 10000
+#
+# Bar module — Symbol: the terminal's sign. Status: and what runs in the current tab, or its
+# folder. Field: a field in the bar that runs what you type.
+#   choices: "icon" | "status" | "input"
+# bar_mode = "icon"
+#
+# After a command from the bar — Show: the terminal comes out with it. Quiet: it runs without
+# showing the terminal.
+#   choices: "show" | "quiet"
+# input_target = "show"
+#
+# Commands run in — Where a command from the bar's field or the launcher runs.
+#   choices: "current" | "new"
+# run_in = "current"
+#
+# Folders open in — A favourite folder opens a new tab there, or changes the current tab to it.
+#   choices: "new" | "current"
+# dir_opens = "new"
+#
+# Launcher prefix — Typed first in the launcher, the rest runs in the terminal (! htop). It cannot
+# be empty, hold a space, or be one of the launcher's own (: ; ? >).
+# run_prefix = "!"
+#
+
+# [mods.timer]
+#
+# Timer — Countdown timers and a pomodoro cycle. The end is announced with every view closed.
+#
+# Presets — Minutes separated by commas, in the order of the buttons (up to eight). Empty or
+# invalid entries are dropped.
+# presets = "5,10,25"
+#
+# Focus — The length of a pomodoro's focus phase.
+#   range: 1..=180 · unit: min
+# focus_minutes = 25
+#
+# Short break — The length of a short break, after every focus round but the last.
+#   range: 1..=60 · unit: min
+# short_break_minutes = 5
+#
+# Long break — The length of the long break, after the last round.
+#   range: 1..=120 · unit: min
+# long_break_minutes = 15
+#
+# Rounds — Focus rounds before the long break.
+#   range: 1..=12
+# rounds = 4
+#
+# Move on by itself — A pomodoro's next phase starts when the one before ends. Off: it waits for
+# Next phase.
+# auto_advance = true
+#
+# Sound — The end's notification plays its sound, when the notification server allows one.
+# sound = true
+#
+
+# [mods.wallpaper]
+#
+# Wallpaper — Wallpapers per output with awww or swww: a picker with thumbnails and palette chips,
+# favourite looks, and rotation.
+#
+# Backend — awww is the default. A backend that is not installed is shown greyed out with its
+# reason.
+#   choices: from `wallpaper.backends` (resolved at runtime)
+# backend = "awww"
+#
+# Folders — Folders of images, one per row, each starting with / or ~/. Subfolders are searched
+# too, four levels deep.
+#   unit: path
+# folders = ["~/Pictures/Wallpapers"]
+#
+# Fit
+#   choices: "crop" | "fit" | "stretch" | "no"
+# fit = "crop"
+#
+# Crop anchor — The part of the image that stays when a crop cuts it. Used with Crop to fill; awww
+# only.
+#   choices: "center" | "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right"
+# crop_anchor = "center"
+#
+# Transition
+#   choices: "none" | "fade" | "wipe" | "wave" | "grow" | "random"
+# transition = "fade"
+#
+# Transition length
+#   range: 0.1..=10 · unit: s
+# transition_duration = 1.0
+#
+# Wipe angle
+#   range: 0..=360 · unit: deg
+# transition_angle = 45
+#
+# Rotate every — Minutes between changes. 0 turns rotation off. The timer runs only while the mod
+# is on.
+#   range: 0..=1440 · unit: min
+# rotate = 0
+#
+# Rotation order
+#   choices: "alphabetical" | "shuffle"
+# rotate_order = "alphabetical"
+#
+# Each output on its own timer
+# rotate_per_output = false
+#
+# Restore on start — Show the stored images again when the backend starts.
+# restore = true
+#
+# Wallhaven — Search and download wallpapers from wallhaven.cc in the picker's Wallhaven tab.
+# Nothing is fetched until you open that tab.
+# wallhaven = true
+#
+# Wallhaven API key — Optional. Only needed for NSFW results and your own Wallhaven filters.
+# Stored in the config like any setting.
+# wallhaven_api_key = ""
+#
+
+# [mods.weather]
+#
+# Weather — Current weather, the next hours and seven days for a saved place. A rain-soon alert is
+# optional. Data by Open-Meteo.com.
+#
+# Place — The place the widget and panel show. The first saved place is the default. Add places in
+# the weather panel.
+#   choices: from `weather.places` (resolved at runtime)
+# place = ""
+#
+# Units
+#   choices: "auto" | "metric" | "imperial"
+# units = "auto"
+#
+# Refresh every (minutes) — How often the forecast is fetched while the widget or panel is
+# visible. Ten to 180 minutes.
+#   range: 10..=180 · unit: min
+# refresh = 30
+#
+# Rain-soon alerts — Shows a short Island note when rain starts within the hour. Runs one light
+# request per refresh even when nothing is open.
+# rain_alerts = false
+#
+# Bar text — Text of the bar widget. Use {glyph} for the condition, {temp} for the temperature and
+# {feels} for the feels-like value.
+# bar_template = "{glyph} {temp}"
+#
+
+# [mods.webdock]
+#
+# Web dock — Keep a few sites and kurashi views one hover away at a screen edge. The web engine
+# runs while a site is open or playing, and while a pin set to keep running in the background is
+# loaded.
+#
+# Pins — A pin set to keep running in the background is never frozen or unloaded by the dock once
+# you opened it: it keeps playing and working while hidden, and holds the web engine in memory and
+# on the CPU until you turn it off. A site that plays sound keeps running for 10 minutes after its
+# last sound anyway.
+#   records: a list of tables
+# pins = []
+#
+# Default view — The view a new pin opens in: mobile (phone width, mobile user agent) or desktop.
+#   choices: "mobile" | "desktop"
+# default_view = "mobile"
+#
+# Phone width (px)
+#   range: 360..=720 · unit: px
+# width = 412
+#
+# Large size (%)
+#   range: 50..=95 · unit: %
+# large = 90
+#
+# Page style — Phone: a phone, and a tablet lying sideways in the large size. Notebook: one half
+# of an opened spiral notebook; the page turns over the binding. Plain: the page alone on the dock's
+# card.
+#   choices: "phone" | "notebook" | "plain"
+# page_style = "phone"
+#
+# Card size in the bar — The size of the page in the bar module's card. As at the edge: the size
+# of the dock's card at the screen's edge, as wide as the phone width and twice as tall. Phone,
+# Tablet, Wide: a phone's, a tablet's or a small laptop's screen. It shrinks to fit the screen. The
+# size key in the card steps through them. The pin's view (mobile or desktop) is what the site is
+# told: a desktop view in the phone size shows a desktop page at phone width.
+#   choices: "dock" | "phone" | "tablet" | "wide"
+# card_size = "dock"
+#
+# Card size per screen — The size you dragged the dock's card to, one per screen. The card at the
+# edge in its own size and the bar's card in "As at the edge" take it. Drag a card's free edge to
+# change it (or Ctrl and the arrow keys on its controls); double-click the edge for the default size
+# again.
+#   records: a list of tables
+# sizes = []
+#
+# Search engine — Where words go that you type in the dock's address field when they are not an
+# address: a web address with {q} where the words go. DuckDuckGo by default.
+# search = "https://duckduckgo.com/?q={q}"
+#
+# Launcher prefix — Type it first in the launcher to open an address or search in the web dock ("/
+# github.com"); your pins that match come first. Empty: none. The launcher's own : ; ? > cannot be
+# used.
+# launcher_prefix = "/"
+#
+# Edge
+#   choices: "right" | "left" | "top" | "bottom"
+# edge = "right"
+#
+# Unload after unused (minutes) — Minutes without a shown site before the web engine stops (0
+# keeps it running while the dock is on). A site that plays sound holds it, and for 10 minutes after
+# its last sound; a pin that keeps running in the background holds it while loaded.
+#   range: 0..=1440 · unit: min
+# unload_after = 60
+#
+# Sites kept loaded
+#   range: 1..=12
+# max_loaded = 4
+#
+# Reveal on hover — Rest the pointer on the edge to show the dock. Off: only the keybind and the
+# bar button show it.
+# hover = true
+#
+# Hovering the edge brings the page there — On: when the dock comes out on hover, it shows the
+# pin's page even while the bar's card or the sidebar shows it; that place then says where the page
+# went. Off: only a click on a pin, the dock's key or Show here moves the page to the edge; a dock
+# that came out on hover says where the page is and offers Show here.
+# hover_takes_page = true
+#
+# Show the sites' own icons — The strip and the bar show each site's icon, which the web engine
+# asks the site for (a request the page itself did not make). Off: letters, and no such request.
+# site_icons = true
+#
+# Show the open site in the bar — The bar module shows the image of the site the dock shows last,
+# beside its own icon, so you see what opens.
+# bar_site = false
+#
+# Show what plays in the bar — While a site plays sound, the bar module shows that site's image
+# and the page's title — the track for a music site.
+# bar_playing = false
+#
+# Reopen the last page — A reveal opens the page you had open. Click its icon to put it away; the
+# next reveal shows only the strip.
+# reopen_last = true
+#
+# Keep the dock open — The strip stays while the pointer is elsewhere. The strip's pin button
+# toggles this.
+# pinned = false
+#
+# Reserve space while kept open — Windows make room for the strip while the dock is kept open. The
+# page card always floats over them.
+# reserve = false
+#
+# Edge indicator
+# indicator = true
+#
+# Strip width (px)
+#   range: 40..=64 · unit: px
+# strip = 56
+#
+# Links that open a new tab — In the dock: the link replaces the page and Back returns. In the
+# browser: it opens in your default browser.
+#   choices: "dock" | "browser"
+# new_tabs = "dock"
+#
+# Strip — What the dock's strip lists. Online: every pin, the sites and then the views. Local: the
+# shell's own views only (notes, tasks, a timer, any mod's panel or desk card), so the dock is a
+# local dock; its + offers what the mods that are on can show. The switch in the strip changes it.
+#   choices: "online" | "local"
+# content = "online"
+#

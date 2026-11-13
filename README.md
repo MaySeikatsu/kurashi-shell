@@ -105,7 +105,11 @@ Four ways, from the safest to the most committed:
    | `nix run .#mock -- --outputs HEADLESS-1` | `kurashi-mock`, the fake daemon for frontend work. It serves the real socket, so do not run it beside a live daemon. |
    | `nix run .#sandbox` | The invisible smoke test from item 1. |
 
-4. **NixOS and Home-Manager.** The flake exports `nixosModules.default` and `homeManagerModules.default`.
+4. **Configuration.** `~/.config/kurashi/config.toml` — everything is optional (Settings writes it too); see
+   [config.toml.example](config.toml.example) for every option of the shell and its bundled mods, annotated, at its
+   default (generated from the schema and the mods' manifests; the package installs it under `share/doc/kurashi/`).
+
+5. **NixOS and Home-Manager.** The flake exports `nixosModules.default` and `homeManagerModules.default`.
 
    ```nix
    # NixOS: package, UPower, and the PAM service of the lock screen
