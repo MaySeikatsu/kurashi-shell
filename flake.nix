@@ -25,6 +25,9 @@
         quickshell-webengine = pkgs.callPackage ./nix/quickshell-webengine.nix { };
         # The web dock's package (K38): the host plus xdg-open. Home-Manager and NixOS install it with the dock on.
         kurashi-webdock = pkgs.callPackage ./nix/webdock.nix { inherit quickshell-webengine; };
+        # The terminal mod's QML terminal (W83) and its host's Quickshell, `qs-terminal`; not in the base closure.
+        qmltermwidget = pkgs.callPackage ./nix/qmltermwidget.nix { };
+        quickshell-terminal = pkgs.callPackage ./nix/quickshell-terminal.nix { inherit qmltermwidget; };
         default = kurashi;
       });
 
@@ -60,6 +63,8 @@
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
             self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine
+            # The terminal mod's host (W83), so the sandbox daemon finds `qs-terminal` on PATH
+            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-terminal
             # I331: `wtype` types only into a sandbox (its runtime dir under /tmp/kurashi-sb-*), never into the session's
             # own focused window: an agent once ran it from its own shell and its keys reached the user's display.
             (writeShellScriptBin "wtype" ''
