@@ -1,0 +1,101 @@
+# Work sessions (W86, docs/ux/sessions.md): noren's zellij sessions and folders in the launcher, an "Open in…" step (the
+# terminal mod's drop-down, the default terminal window, each installed terminal), and the desk saved and restored with a
+# project. Off by default; without noren on the daemon's PATH it enables, stays inert and says why
+# (programs.kurashi.sessions.enable ships it). Daemon code: crates/kurashi-mod-sessions (linked in native.rs).
+id = "sessions"
+name = "Sessions"
+description = "mods.sessions.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = [
+    "service:sessions",
+    "action:sessions.*",
+    # The launcher (K150): the sessions and folders, no prefix unless `launcher_prefix` sets one.
+    "launcher:sessions",
+    # `open_in`'s choices: ask, the in-shell terminal, the window, each installed terminal.
+    "choices:sessions.targets",
+    # The "Open in…" step, one window per output, mapped only while the step is shown there.
+    "surface:chooser",
+    # The bar module (the current project) and its card; the panel is the sidebar section too.
+    "widget:sessions",
+    "panel:sessions",
+    "i18n",
+]
+# noren and the terminals are started as programs (no shell).
+capabilities = [
+    "exec:noren",
+    "exec:foot",
+    "exec:kitty",
+    "exec:ghostty",
+    "exec:alacritty",
+    "exec:wezterm",
+    "exec:konsole",
+    "exec:gnome-terminal",
+    "exec:kgx",
+    "exec:xfce4-terminal",
+    "exec:xterm",
+    "fs:scoped",
+]
+cost = "low"
+
+[[setting]]
+key = "open_in"
+type = "string"
+default = "ask"
+choices_from = "sessions.targets"
+label = "mods.sessions.open_in"
+help = "mods.sessions.open_in.help"
+
+[[setting]]
+key = "projects"
+type = "records"
+default = []
+unique = "path"
+item_label = "path"
+label = "mods.sessions.projects"
+help = "mods.sessions.projects.help"
+  [[setting.field]]
+  key = "path"
+  type = "string"
+  required = true
+  label = "mods.sessions.projects.path"
+  [[setting.field]]
+  key = "open_in"
+  type = "string"
+  default = ""
+  label = "mods.sessions.projects.open_in"
+  [[setting.field]]
+  key = "desk"
+  type = "bool"
+  default = false
+  label = "mods.sessions.projects.desk"
+
+[[setting]]
+key = "launcher_prefix"
+type = "string"
+default = ""
+label = "mods.sessions.launcher_prefix"
+help = "mods.sessions.launcher_prefix.help"
+
+[[setting]]
+key = "list"
+type = "enum"
+choices = ["all", "zellij", "zoxide", "config"]
+default = "all"
+label = "mods.sessions.list"
+help = "mods.sessions.list.help"
+
+[[setting]]
+key = "window_command"
+type = "list"
+default = []
+label = "mods.sessions.window_command"
+help = "mods.sessions.window_command.help"
+
+[[setting]]
+key = "command"
+type = "string"
+default = "noren"
+label = "mods.sessions.command"
+help = "mods.sessions.command.help"
