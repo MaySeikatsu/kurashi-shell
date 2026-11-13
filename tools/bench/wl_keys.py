@@ -24,7 +24,9 @@ import time
 # Named keys: evdev code and keysym. The keymap maps evdev code + 8, as XKB keycodes do.
 SPECIAL = {"tab": (15, "Tab"), "return": (28, "Return"), "space": (57, "space"), "escape": (1, "Escape"),
            "backspace": (14, "BackSpace"), "delete": (111, "Delete"),
-           "left": (105, "Left"), "right": (106, "Right"), "up": (103, "Up"), "down": (108, "Down")}
+           "left": (105, "Left"), "right": (106, "Right"), "up": (103, "Up"), "down": (108, "Down"),
+           # W82: the context-menu keys (the Menu key is evdev KEY_COMPOSE; Shift+F10 is the chord `shift+f10`)
+           "menu": (127, "Menu"), "f10": (68, "F10")}
 # Modifiers: evdev code, keysym and the XKB real modifier they set (Alt is Mod1, Super is Mod4 — the Mod of kurashi's
 # combos, W38-keys).
 MODIFIERS = {"shift": (42, "Shift_L", "Shift"), "ctrl": (29, "Control_L", "Control"),

@@ -4,6 +4,7 @@ import "core"
 import "core/mods.js" as Mods
 import "surfaces"
 import "components/island"
+import "components/menus"
 
 // Thin view (CLAUDE.md rule 1): the bars of each output; Quickshell.screens follows hotplug.
 // A single content-sized Stage serves the focused output only (K16).
@@ -201,6 +202,8 @@ ShellRoot {
         model: Quickshell.screens
         delegate: EdgeStripHost {}
     }
+    // The desktop's right click (W82, docs/ux/context-menus.md): one empty window per output over the wallpaper.
+    DeskCatches {}
     // A click elsewhere closes an open card, the launcher or the notification centre (I279): per output, only while one is open.
     Variants {
         model: Quickshell.screens

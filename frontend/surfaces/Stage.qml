@@ -11,6 +11,7 @@ import "../components/sidebar"
 import "../components/decor"
 import "../components/motion"
 import "../components/quick" as Q
+import "../components/menus"
 import "../core/motion"
 import "../components/bar/framegeom.js" as FG
 
@@ -239,7 +240,7 @@ PanelWindow {
     readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
     readonly property int fullH: screen ? screen.height - Theme.barH - bars.topInset - bars.bottomInset - 3 * Theme.pad : 600
     readonly property string cardTitle: {
-        if (contentKind === "tray") return moduleKey !== "" ? moduleMenu.title : (trayItem(trayKey).title || I18n.tr("frontend.tray.menu"))
+        if (contentKind === "tray") return ctxMenu ? ctxMenu.title : (trayItem(trayKey).title || I18n.tr("frontend.tray.menu"))
         if (contentKind === "quick" || contentKind === "power" || contentKind === "bluetooth") return I18n.tr("layout.module.quick")
         if (contentKind === "mod") return shownPanelMod
         if (contentKind === "session") return I18n.tr("styles.title.session")
@@ -363,7 +364,7 @@ PanelWindow {
     // A tray menu hangs from the tray's end of the bar: the bar's right end on a top or bottom bar,
     // the bottom end beside a side bar (the tray is the last thing in those columns).
     // (a module's menu, I408, hangs from its module where the bar is a row)
-    readonly property bool aligned: contentKind === "tray" && (!moduleMenuShown || bars.vertical || besideAt !== null)
+    readonly property bool aligned: contentKind === "tray" && !pointerMenuShown && (!moduleMenuShown || bars.vertical || besideAt !== null)
     readonly property bool menuBeside: aligned && (bars.vertical || besideAt !== null)
     // A module on a side edge: the rect it reports (`side:<id>`), and the card stands beside it.
     readonly property var besideAt: {
@@ -418,7 +419,10 @@ PanelWindow {
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height + 2 * placedRoom)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: open && !polkit ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // (W82: a menu at the pointer takes the keyboard at once — its right click landed on another surface, which gives the
+    // card no focus on demand — so the arrows and Esc work without a click on it first)
+    WlrLayershell.keyboardFocus: open && !polkit ? (contentKind === "tray" && pointerMenuShown ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.OnDemand) : WlrKeyboardFocus.None
     WlrLayershell.namespace: "kurashi-stage"
     color: "transparent"
     mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
@@ -526,6 +530,13 @@ PanelWindow {
     Connections {
         target: card.Window.window
         function onFrameSwapped() {
+            // Test only (KURASHI_STAGE_DEBUG=1): the height a menu at the pointer is drawn at, per frame that changes it
+            // (test-context-menus.sh: one height from the first frame, no jump when the rows arrive).
+            if (stage.debugLog && stage.pointerMenuShown && stage.contentKind === "tray" && stage.shown
+                && Math.round(card.height) !== stage.frameH) {
+                stage.frameH = Math.round(card.height)
+                console.log("stage-menu-frame " + stage.shownTray + " " + stage.frameH)
+            }
             if (stage.gate) {
                 // The shape starts at its origin, read now (runtime.ui may name the panel a moment after the Stage
                 // opened), and grows from here on.
@@ -568,11 +579,42 @@ PanelWindow {
     // ---- Tray item menus (K23). The daemon names the item (runtime.ui.tray); its tree is fetched
     // once per open, as action data, and drawn by TrayMenu. A newer open supersedes an older fetch.
     readonly property string trayKey: trayWanted ? String(ui.tray || "") : ""
+    // W82: the menu a provider draws — the one the daemon names, and while the card folds the one it showed (no flash of
+    // "Loading…" or of a shorter tree on the way out).
+    readonly property string menuTarget: trayKey !== "" ? trayKey : (shown && contentKind === "tray" && isCtx(shownTray) ? shownTray : "")
     // I408: `module:<id>` names a module's own menu instead of a tray item: the same panel and TrayMenu, its tree from the
     // schema (ModuleMenu) rather than from the item.
-    readonly property string moduleKey: trayKey.indexOf("module:") === 0 ? trayKey.substring("module:".length) : ""
+    readonly property string moduleKey: menuTarget.indexOf("module:") === 0 ? menuTarget.substring("module:".length) : ""
     readonly property bool moduleMenuShown: shownTray.indexOf("module:") === 0
     ModuleMenu { id: moduleMenu; module: stage.moduleKey; bars: bars }
+    // W82 (docs/ux/context-menus.md): the other right-click menus on this panel — the desktop's (`desktop:<output>`) and a
+    // bar's empty part (`bar:<output>/<edge>`) — each a provider of TrayMenu's tree, standing at the pointer (`placed`).
+    DesktopMenu { id: desktopMenu; target: stage.menuTarget; bars: bars }
+    BarMenu { id: barMenu; target: stage.menuTarget; bars: bars }
+    // The provider of the open menu (a tray item's tree comes from its app instead: null).
+    readonly property var ctxMenu: moduleKey !== "" ? moduleMenu : desktopMenu.active ? desktopMenu : barMenu.active ? barMenu : null
+    function isCtx(id) { return id.indexOf("module:") === 0 || id === "desktop" || id.indexOf("desktop:") === 0 || id.indexOf("bar:") === 0 }
+    // A menu at the pointer is (or was last) shown; where it was asked for (MenuAt), latched when it opened.
+    readonly property bool pointerMenuShown: shownTray === "desktop" || shownTray.indexOf("desktop:") === 0 || shownTray.indexOf("bar:") === 0
+    // (set as the daemon names the menu: `loadTray`). A press for the menu that is open, noted after it opened, moves
+    // the card there (MenuAt.open does not ask the daemon again: the same id would close it).
+    property real menuOpenedT: 0
+    property int frameH: 0   // (test only: see onFrameSwapped; 0 again once the card is gone)
+    readonly property var menuPoint: {
+        var p = MenuAt.last
+        return pointerMenuShown && p.output === outName && p.target === shownTray && p.t >= menuOpenedT - 1500 ? p : null
+    }
+    // Test only (KURASHI_STAGE_DEBUG=1, frontend/test-context-menus.sh): where a menu at the pointer stands, in output px:
+    // `stage-menu <target> <output> <card x> <card y> <w> <h> <pointer x|-> <pointer y|->`.
+    readonly property string menuPlaceLine: debugLog && pointerMenuShown && contentKind === "tray" && shown && card.height > 40
+        ? [shownTray, outName, Math.round(placedX), Math.round(placedY), Math.round(card.width), Math.round(card.height),
+           menuPoint ? menuPoint.x : "-", menuPoint ? menuPoint.y : "-"].join(" ") : ""
+    onMenuPlaceLineChanged: if (menuPlaceLine !== "") console.log("stage-menu " + menuPlaceLine)
+    // (and its rows, `+` live, `-` grey, separators left out)
+    readonly property string menuRowsLine: debugLog && pointerMenuShown && ctxMenu && shown
+        ? ctxMenu.tree.children.filter(function (e) { return !e.separator })
+            .map(function (e) { return (e.enabled === false ? "-" : "+") + e.label }).join("|") : ""
+    onMenuRowsLineChanged: if (menuRowsLine !== "") console.log("stage-menu-rows " + menuRowsLine)
     property var trayTree: null
     property string trayErr: ""
     property int trayReq: 0
@@ -582,7 +624,7 @@ PanelWindow {
         // Closed: the menu folds back with the tree it showed (W34: no "loading" flash while it goes).
         if (trayKey === "") return
         // (from trayKey itself: `moduleKey` may not have followed it yet when this runs)
-        if (trayKey.indexOf("module:") === 0) { trayMenu.cursor = -1; trayMenu.expanded = ({}); trayTree = null; trayErr = ""; return }
+        if (isCtx(trayKey)) { menuOpenedT = Date.now(); trayMenu.cursor = -1; trayMenu.expanded = ({}); trayTree = null; trayErr = ""; return }
         trayTree = null
         trayErr = ""
         trayMenu.cursor = -1
@@ -1093,13 +1135,17 @@ PanelWindow {
     // K102: a mod's panel may stand on the screen instead of under the bar, by its setting `panel_place`. A card apart: it does
     // not morph, it keeps the elevation's room round it, and it stands clear of the bars and bands.
     readonly property string panelPlace: contentKind === "mod" && shownPanelMod !== ""
-        ? String(bars.valueOf("mods." + shownPanelMod + ".panel_place", "opened")) : "opened"
+        ? String(bars.valueOf("mods." + shownPanelMod + ".panel_place", "opened"))
+        : (contentKind === "tray" && pointerMenuShown ? "pointer" : "opened")
     readonly property bool placed: panelPlace !== "opened" && !peekLayout
     readonly property int placedRoom: placed ? Theme.elevReach(3) : 0
     readonly property real placedX: {
         var w = card.width, band = outLay && outLay.frame && outLay.frame.band ? outLay.frame.band : ({})
         var L = Math.max(sideClear("left"), (band.left || 0) + Theme.gap), R = outW - Math.max(sideClear("right"), (band.right || 0) + Theme.gap)
         var p = panelPlace
+        // W82: a menu at the pointer stands its corner there, on the pointer's left where it would leave the output.
+        if (p === "pointer" && menuPoint) return Math.round(Math.max(L, menuPoint.x + w <= R ? menuPoint.x
+            : (menuPoint.x - w >= L ? menuPoint.x - w : R - w)))
         var x = p === "left" || p === "top_left" || p === "bottom_left" ? L
             : p === "right" || p === "top_right" || p === "bottom_right" ? R - w : (outW - w) / 2
         return Math.round(Math.max(L, Math.min(R - w, x)))
@@ -1108,6 +1154,8 @@ PanelWindow {
         var h = card.height, H = screen ? screen.height : 1080, band = outLay && outLay.frame && outLay.frame.band ? outLay.frame.band : ({})
         var T = Math.max(bars.topInset, (band.top || 0) + Theme.gap), B = H - Math.max(bars.bottomEdgeInset, (band.bottom || 0) + Theme.gap)
         var p = panelPlace
+        // (a menu at the pointer: up just as far as it must to stay on the output, so a submenu opening grows it in place)
+        if (p === "pointer" && menuPoint) return Math.round(Math.max(T, Math.min(Math.max(T, B - h), menuPoint.y)))
         var y = p === "top" || p === "top_left" || p === "top_right" ? T
             : p === "bottom" || p === "bottom_left" || p === "bottom_right" ? B - h : (H - h) / 2
         return Math.round(Math.max(T, Math.min(Math.max(T, B - h), y)))
@@ -1154,7 +1202,7 @@ PanelWindow {
     // B72: only the module that asked for the page — a press on any other module in the last 1.5 s is not the origin)
     readonly property string ownKey: contentKind === "quick"
         ? (quickFromModule && openedFrom !== "quick" ? "" : "quick")
-        : (contentKind === "tray" ? (moduleMenuShown ? shownTray : "tray:" + shownTray)
+        : (contentKind === "tray" ? (pointerMenuShown ? "" : moduleMenuShown ? shownTray : "tray:" + shownTray)
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none
     // when its cards come out at the centre)
@@ -1502,6 +1550,7 @@ PanelWindow {
     }
     onShownChanged: {
         if (!shown) {
+            frameH = 0
             run.reset()
             // I493 (session 30, `bar.card_keep_loaded`; as the sidebars, K139): the view a card showed stays made for a
             // minute after it closed — the window keeps it, unseen — so the same card opens again at once, at its size.
@@ -2089,7 +2138,7 @@ PanelWindow {
                 color: Theme.fg
                 font.pixelSize: Theme.fsTitle
                 font.family: Theme.fam(text, Theme.families)
-                text: stage.moduleKey !== "" ? moduleMenu.title : (stage.trayItem(stage.trayKey).title || I18n.tr("frontend.tray.menu"))
+                text: stage.ctxMenu ? stage.ctxMenu.title : (stage.trayItem(stage.trayKey).title || I18n.tr("frontend.tray.menu"))
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -2106,11 +2155,11 @@ PanelWindow {
             TrayMenu {
                 id: trayMenu
                 width: trayCol.width
-                tree: stage.moduleKey !== "" ? moduleMenu.tree : stage.trayTree
+                tree: stage.ctxMenu ? stage.ctxMenu.tree : stage.trayTree
                 errText: stage.trayErr
                 onChosen: item => {
-                    if (stage.moduleKey !== "") {
-                        if (moduleMenu.choose(item)) Store.act("ui.close")
+                    if (stage.ctxMenu) {
+                        if (stage.ctxMenu.choose(item)) Store.act("ui.close")
                         return
                     }
                     Store.act("tray.menu_event", {id: stage.trayKey, item: item})

@@ -12,6 +12,7 @@ import "../components/bar/barfit.js" as Fit
 import "../components/modules" as M
 import "../components/decor" as Decor
 import "../components/motion"
+import "../components/menus"
 
 // The bar on one edge of one output (K71, docs/ux/layout.md): there while `runtime.layout` has `edges.<edge>.bar` for this
 // output, its rows (top, bottom) or columns (left, right) the edge's zones `start`, `center`, `end`, each entry a module
@@ -547,6 +548,12 @@ Scope {
                 }
                 property bool hadFocus: false
                 HoverHandler { onHoveredChanged: bar.pointerOn = hovered }
+                // W82 (docs/ux/context-menus.md): a right click on an empty part of the bar opens the bar's own menu at the
+                // pointer. A module (or its overflow button) under the pointer answers it itself (I408).
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: point => bar.backgroundMenu(body, point.position)
+                }
 
                 Item {
                     id: bb
@@ -854,6 +861,22 @@ Scope {
         }
     }
     function putAway() { if (forced) Store.act("layout.toggle", {target: "bar:" + edge, output: outName}) }
+    // The bar's menu (W82), unless the press was on a module or an overflow button: they keep their own right click.
+    function backgroundMenu(item, pos) {
+        var hosts = hostsIn(zoneRoot, [])
+        if (zoneRoot) {
+            var zs = ["start", "center", "end"]
+            for (var z = 0; z < zs.length; z++) { var ob = zoneRoot.overflowItemOf ? zoneRoot.overflowItemOf(zs[z]) : null; if (ob) hosts.push(ob) }
+        }
+        for (var i = 0; i < hosts.length; i++) {
+            var h = hosts[i]
+            if (!h.visible || (h.present === false)) continue
+            var q = h.mapFromItem(item, pos.x, pos.y)
+            if (q.x >= 0 && q.y >= 0 && q.x < h.width && q.y < h.height) return
+        }
+        var g = item.mapToItem(null, pos.x, pos.y)
+        MenuAt.open("bar:" + outName + "/" + edge, outName, winOrigin.x + g.x, winOrigin.y + g.y)
+    }
 
     // How far a group's row sits in from the bar's end (the group's padding); 0 under flat chrome.
     readonly property real groupInset: Theme.groups ? Theme.gap + 2 + Theme.xs : 0
