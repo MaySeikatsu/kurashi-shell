@@ -33,7 +33,7 @@ dragging them into columns again.
 ## The flow
 1. **Find** — the launcher (no prefix by default; `launcher_prefix` gives the provider a prefix of its own, `@` for
    example): noren's sessions and folders as rows — the name, the path as the second line (`~` for home), a state icon
-   (attached ▣ `terminal`, running `play_circle`, exited `history`, folder `folder`, configured `settings`, pinned
+   (attached ▣ `terminal`, running `play_arrow`, exited `history`, folder `folder`, configured `settings`, pinned
    `push_pin` in front) and the state in words in the second line. Ranked by the mod's own frecency (opens through the
    shell, decayed per day) and then match quality; without a prefix at most five rows join the apps' results, and only
    for a query that matches a name; with the prefix every match (up to 30). A missing folder: the row says "Folder not
@@ -76,7 +76,7 @@ dragging them into columns again.
 
 ## Glances
 - **Bar module** (`widget:sessions`): the current project's name (the last one opened through the shell that still
-  exists) with the `folder_code` icon; nothing yet → the icon alone with "No project yet" as its name; noren missing →
+  exists) with the `work` icon; nothing yet → the icon alone with "No project yet" as its name; noren missing →
   the icon dimmed, its name says why. A click opens the card with the sessions list (the panel); right click is the
   module's menu.
 - **Sidebar section / bar card** (`panel:sessions`): the sessions with their state; per row Enter/click opens (the
@@ -126,6 +126,41 @@ are the user's own programs; restore runs them as saved, from the saved folder.
 ## Multi-output
 The step opens on the output the request came from (the launcher's, the module's); "In Kurashi" opens the drop-down
 there. "Save desk" takes the focused output's active workspace.
+
+## As built (W86)
+- **The step is a card apart, not a launcher step** (CONTRACT-CHANGE 811): the launcher closes when a mod row's action
+  succeeds, so `sessions.open` answers `{ask: true}` and the mod's own `surface:chooser` maps on the focused output (or
+  the output the request names): the look's card (`MenuCard`: elevation, corners, outline or pen, material), the
+  launcher's rows (`MenuRowFace`, its tonal highlight where the look leaves it), a fade and a 0.96 → 1 scale (a cut with
+  motion off). The same card serves the section and the bar module, so it stays after a launcher step exists.
+- **Handoffs** (CONTRACT-CHANGE 810): a native mod cannot invoke another mod's action, so "In Kurashi" (`terminal.run`),
+  a desk's terminal tabs (`terminal.open_dir`) and web page (`webdock.open`), and the Settings page without noren
+  (`settings.open`) ride `handoff: [{seq, action, args}]` in `mod.sessions`; the first screen's chooser sends each while
+  that mod is on and answers `sessions.handed {seq}`. A desk just saved asks the shell for those mods' parts the same way
+  (`collect` → `sessions.desk.extras`).
+- **The line typed into the terminal** names noren by its absolute path, both words quoted
+  (`'/nix/store/…/bin/noren' connect 'kurashi'`): the tab's shell may have another PATH, and a name cannot run a command.
+- **Without noren** the mod enables (no manifest `requires` yet, CONTRACT-CHANGE 813): `noren {state: missing, reason}`,
+  the launcher's row "Sessions need noren (programs.kurashi.sessions.enable)" (Enter: the mod's Settings page), the
+  section's reason in the error colour, the bar module dimmed with its name saying why. `command` (a setting) names
+  noren; the tests point it at a stub by path, so the user's own noren is never run.
+- **The launcher's second line is the folder**; the state is the icon (`terminal` attached, `play_arrow` running,
+  `history` exited, `folder`, `settings` configured, `push_pin` pinned). State words in the second line need a
+  translated `sub` with arguments (CONTRACT-CHANGE 815); ranking is the mod's own frecency (opens halved per week), then
+  the match (prefix, a word's start, a substring, the letters in order).
+- **Terminal window** is the mod's `window_command` (empty: `$TERMINAL`, else the first installed terminal), not
+  `launcher.terminal` (a mod cannot read core keys yet, CONTRACT-CHANGE 816); the step names the program. The terminal
+  that the window row already runs is not listed again.
+- **The desk** is niri's IPC read by the mod itself (CONTRACT-CHANGE 812): the focused workspace's windows, tiled ones
+  in column order; restore moves each to the saved named workspace (else the focused one), sets its width (and height
+  and place when floating), floats or tiles it, and moves its column back to its index (which focuses it); a missing
+  window is launched from `/proc/<pid>/cmdline` in its folder and awaited 8 s (250 ms polls only then). Nothing is
+  closed. Saved per project in `$XDG_STATE_HOME/kurashi/sessions/state.json` with the frecency and the current project.
+- **The desktop menu's "Open project…"** is not built: `DesktopMenu` is W82's (CONTRACT-CHANGE 814).
+- **No `i18n` provide**: two mods that both declare `i18n` refuse each other's enable as a provide conflict (the
+  terminal's and the web dock's did too); the files load by domain without it.
+- A fresh list ends old news (a failure, "Desk saved", "Desk restored"); kill asks once more ("Kill again to confirm",
+  3 s); the section reads the list again when it opens.
 
 ## Definition of done
 Each line is reported met / not met.

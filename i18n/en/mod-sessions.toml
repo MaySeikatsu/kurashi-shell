@@ -75,7 +75,7 @@
 "sessions.panel.restoring" = "Restoring the desk…"
 "sessions.panel.current" = "Current: {name}"
 "sessions.panel.no_current" = "Open a project to save its desk"
-"sessions.panel.desk" = "Desk saved · {n} windows"
+"sessions.panel.desk" = "Desk saved · windows: {n}"
 "sessions.panel.row.a11y" = "{name}, {state}, {dir}"
 
 "sessions.notice.saved" = "Desk saved."
