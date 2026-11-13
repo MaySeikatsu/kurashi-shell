@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/island"
+import "../components/menus"
 
 // Desktop widgets (K43; SekaiPop's desk): cards on the bottom layer, under the windows, on one side of each output —
 // the time as four keys with the date and the day's progress, this month with today marked, what is playing (hidden
@@ -110,6 +111,19 @@ PanelWindow {
         Region { item: editKey }
     }
     onOnChanged: if (!on) cancelEdit()
+
+    // W82 (docs/ux/context-menus.md): a right click on the cards opens the desktop's menu at the pointer, as one on the
+    // wallpaper does (menus/DeskCatch); not while editing (the edit mode's own keys and drags hold the cards then).
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        enabled: !desk.editing
+        onTapped: point => {
+            var sw = desk.screen ? desk.screen.width : desk.width
+            var wx = desk.anchors.left ? desk.margins.left : sw - desk.width - desk.margins.right
+            MenuAt.open("desktop:" + (desk.screen ? desk.screen.name : ""), desk.screen ? desk.screen.name : "",
+                        wx + point.position.x, desk.margins.top + point.position.y)
+        }
+    }
 
     Watch { doc: "svc.clock"; active: desk.visible }
     Watch { doc: "svc.media"; active: desk.visible && (desk.showsNow("media") || desk.editing) }
