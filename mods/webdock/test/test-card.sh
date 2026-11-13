@@ -27,10 +27,16 @@
 #   6e. W76: the edge card's grip (drag, Ctrl+arrows, double click) and its keep-open key;
 #   7. a bottom bar: the same geometry checks; shots mods/webdock/shots/card-{top,bottom}.png;
 #   8. no pin: the well says how to add one; no QML error or warning in the shell or the host.
-#   nix develop -c mods/webdock/test/test-card.sh [sandbox-name]
+#   Part "local" alone (W78, docs/ux/webdock.md "Local mode"; `test-card.sh local [sandbox-name]`): the timer and tasks
+#   mods on, two sites; the edge strip's switch flips `mods.webdock.content` to local (the strip lists no site); "+" lists
+#   the mods' views (timer's panel, tasks' panel, the notes desk card), a press pins and opens one (its panel in the card);
+#   "+" again marks it pinned; the switch back lists every pin; `kurashi undo` steps the add back.
+#   nix develop -c mods/webdock/test/test-card.sh [local] [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+PART=all
+if [ "${1:-}" = local ]; then PART=local; shift; fi
 NAME=${1:-${KURASHI_SB_PREFIX:-}w72-webdock-card}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 SHOTS=$ROOT/mods/webdock/shots
@@ -85,6 +91,8 @@ style = "washi"
 profile = "none"
 [mods]
 enabled = ["webdock"]'
+# (part "local": mods with views — the timer's panel, the tasks' panel and its notes desk card)
+[ "$PART" = local ] && base=${base/'enabled = ["webdock"]'/'enabled = ["webdock", "timer", "tasks"]'}
 top_bar='[edges.top]
 start = ["workspaces"]
 center = ["island"]
@@ -167,6 +175,55 @@ env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 wait_frontend "$R/qs.log" || fail "the frontend did not load ($R/qs.log)"
 mv_to $(( W_OUT / 2 )) $(( H_OUT / 2 ))
+
+# ---- local (W78): the strip's switch, the local chooser, a view pin opened in Local mode ----
+if [ "$PART" = local ]; then
+  # Tiles and controls in the dock's window (right edge, the usable height under the top bar): <x> <y> <win w> <win h>.
+  at() { { grep -F "webdock-debug $1 " "$R/qs.log" || true; } | tail -1 | sed "s/.*webdock-debug $1 //"; }
+  screen_of() { read -r SX SY SWW SWH <<< "$(at "$1")"; TX=$(( W_OUT - SWW + SX )); TY=$(( H_OUT - SWH + SY )); }
+  press() { screen_of "$1"; mv_to "$TX" "$TY"; ptr "$TX" "$TY"; }
+  wait_until 5 doc_is "'content' not in d and 'strip' not in d" || fail "online is not the default ($(doc "d.get('content')"))"
+  K act webdock.pin '{"on":true}' >/dev/null
+  K act webdock.toggle "{\"output\":\"$OUT\"}" >/dev/null
+  wait_until 10 eval '[ -n "$(at strip\ ctl:content)" ]' || fail "the strip logged no switch"
+  wait_until 5 eval '[ "$(at rows)" = "online site,other" ]' || fail "online: the strip lists $(at rows)"
+  press "strip ctl:content"
+  wait_until 5 doc_is "d.get('content') == 'local' and d.get('strip') == []" || fail "the switch did not go local ($(doc "(d.get('content'), d.get('strip'))"))"
+  K get mods.webdock.content | grep -qF '= "local"' || fail "mods.webdock.content is $(K get mods.webdock.content)"
+  wait_until 5 eval '[ "$(at rows)" = "local " ]' || fail "local: the strip lists '$(at rows)'"
+  ok "the switch: mods.webdock.content local, the strip lists no site"
+  press "strip ctl:add"
+  wait_until 5 eval '[ -n "$(at local\ count)" ]' || fail "\"+\" in Local did not open the chooser"
+  for t in mod:timer:timer mod:tasks:tasks mod:tasks:notes; do
+    wait_until 3 eval '[ -n "$(at "local $t")" ]' || fail "the chooser does not offer $t ($(grep -F 'webdock-debug local' "$R/qs.log" | tail -5 | tr '\n' ' '))"
+  done
+  [ -z "$(at 'local mod:webdock:webdock')" ] || fail "the chooser offers the dock's own panel"
+  [ -z "$(at 'local mod:timer:timer' | grep -v '^- ')" ] || fail "timer is marked pinned before it is"
+  ok "\"+\" in Local lists the mods' views: the timer's and tasks' panels, the notes desk card; not the dock's own"
+  read -r _ LX LY SWW SWH <<< "$(at 'local mod:timer:timer')"
+  mv_to $(( W_OUT - SWW + LX )) $(( H_OUT - SWH + LY )); ptr $(( W_OUT - SWW + LX )) $(( H_OUT - SWH + LY ))
+  wait_until 5 doc_is "[p['target'] for p in d['pins'] if p['id'] == 'timer'] == ['mod:timer:timer'] and d.get('strip') == ['timer']" \
+    || fail "the timer's view was not pinned ($(doc "(d['pins'], d.get('strip'))"))"
+  wait_until 5 doc_is "d['mode'] == 'extended' and d.get('shown') == 'timer'" || fail "the new view pin did not open ($(doc "(d['mode'], d.get('shown'))"))"
+  wait_until 5 grep -qF 'webdock-debug view panel:timer true' "$R/qs.log" || fail "the view card did not load the timer's panel"
+  wait_until 5 eval '[ "$(at rows)" = "local timer" ]' || fail "local: the strip lists '$(at rows)' after the add"
+  ok "a press pins mod:timer:timer and opens it: the card shows the timer's panel in Local mode"
+  press "strip ctl:add"
+  wait_until 5 eval '[ "$(at "local mod:timer:timer" | cut -d" " -f1)" = timer ]' || fail "\"+\" does not mark the timer pinned ($(at 'local mod:timer:timer'))"
+  keys escape
+  ok "\"+\" again marks the timer's view pinned"
+  press "strip ctl:content"
+  wait_until 5 doc_is "'content' not in d and 'strip' not in d" || fail "the switch did not go back online"
+  wait_until 5 eval '[ "$(at rows)" = "online site,other,timer" ]' || fail "online: the strip lists '$(at rows)'"
+  ok "the switch back: online lists every pin (the sites, then the view)"
+  K undo >/dev/null; K undo >/dev/null
+  wait_until 5 doc_is "[p['id'] for p in d['pins']] == ['site', 'other'] and d.get('content') == 'local'" \
+    || fail "two undo steps did not take back the switch and the add ($(doc "([p['id'] for p in d['pins']], d.get('content'))"))"
+  ok "kurashi undo: the switch and the add are one step each"
+  qml_errors
+  echo "test-card: PASS (local)"
+  exit 0
+fi
 
 # check_geometry <pin> <bar edge>: the host's window is the well the panel reported, inside the card, under the pins row.
 check_geometry() {

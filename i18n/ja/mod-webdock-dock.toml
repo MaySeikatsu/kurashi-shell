@@ -36,3 +36,14 @@
 "webdock.dock.widget.open" = "表示中"
 "webdock.dock.widget.closed" = "非表示"
 "webdock.dock.widget.pinned" = "表示を維持"
+
+# W78: ローカルモード — ストリップの切り替えキー、ローカルの選択 (ローカルの「+」) とその状態。
+"webdock.content.online" = "オンラインのピン：ローカルの内容を表示"
+"webdock.content.local" = "ローカルの内容：オンラインのピンを表示"
+"webdock.local.title" = "ローカルの内容を追加"
+"webdock.local.pinned" = "ピン留め済み"
+"webdock.local.none" = "オンのモッドに表示できるビューがありません。設定 › モッドでメモ、タスク、タイマーをオンにしてください。"
+"webdock.local.mods" = "設定 › モッドを開く"
+"webdock.local.empty" = "メモ、タスク、タイマーをピン留めして手元に置きましょう"
+"webdock.local.empty.add" = "ローカルの内容を追加"
+"webdock.local.close" = "閉じる"

@@ -879,6 +879,197 @@ shell's own cards' title row; the bar card's navigation row).
 - [ ] Left / right bars, a second output, HiDPI: per output by construction (the row's key is the output's name), not
       measured.
 
+## Local mode (W78, session 32; I499, the user's 3c)
+**User (session 32, 3c):** a switch in the dock's strip between **Online** (the site pins) and **Local** (the shell's own
+content: notes, tasks, timer, lyrics, any mod's panel or desk card), so the dock can be a local, shell-integrated dock.
+View pins (`mod:<id>:<panel>`) exist since W20; the mode filters the strip and the "+" offers the local choices.
+
+### How others do it (from the products; not re-checked online for this card — the sandbox keeps agents off the net)
+- **Opera / Vivaldi panels:** one sidebar mixes web panels with the browser's own (bookmarks, notes, downloads, history;
+  Vivaldi's Mail, Calendar, Feeds); the "+" offers both — the built-in panels as toggles above a URL field. No switch:
+  the two kinds sit side by side.
+- **Edge's sidebar (removed in 149) / Floorp:** apps (Outlook, Office, Tools) beside sites; "+" a site picker with
+  suggested apps on top. Floorp's sidebar also hosts its own notes and the bookmarks/history panels.
+- **KDE Plasma:** a panel takes widgets (notes, a timer) and web pages (the "Web Browser" widget) through one "Add
+  widgets" sheet: what is installed, grouped, with a search field. **GNOME** has no such dock; **macOS / Windows** docks
+  hold apps only — the "local" half alone.
+- **Quickshell shells (Caelestia, end-4, DankMaterialShell, Noctalia):** sidebars of shell widgets (notes, todo, timer,
+  calendar, media); web is never in them.
+- **Taken:** Opera's / Vivaldi's two kinds in one dock, but behind a *switch* (the user's ask), so each strip stays short;
+  KDE's "Add widgets" as a list of what the mods that are on offer (the "+" in Local).
+
+### Design
+- **The switch** is a key at the start of the dock's controls (before "keep open", "+" and settings). It shows the mode
+  in effect — `travel_explore` for Online, `widgets` for Local — and a press switches (`webdock.content {content?}`; no
+  argument flips). The mode is a setting, `mods.webdock.content` (`online` | `local`, default `online`): remembered,
+  undoable (`kurashi undo`), in Settings › Web dock, forcible (then inert, the reason in its tip and description, I91).
+  The document carries `content` and `strip` (the ids of the pins the strip lists) while `local`; both are absent while
+  `online`, so the document is as before (the frozen fixture, rule 6). The daemon decides (rule 1); the strip draws it.
+- **Online** lists every pin, as before W78 — the sites, then the views after a divider; **Local** lists the view pins.
+  (A sites-only Online, the user's word "the site pins", needs `strip` in the fixture and test-dock's fake documents:
+  CONTRACT-CHANGE row, one line in `Content::lists` flips it.) Temporary pages are listed in neither (W76). A pin of the
+  other kind opened by name (the keybind's last page, `webdock.open {pin}`, the bar module) still shows: the mode filters
+  the strip, never what is shown. Switching while the card shows a pin of the other kind puts the card away (the strip
+  of the new mode stays; a site's page stays loaded by the dock's rules).
+- **"+" in Local** opens a side panel beside the strip (where the add form and a pin's menu open): "Add local content",
+  every view the enabled mods offer — each mod's `panel:<name>` (but the dock's own) and its desk cards `desk:<name>`
+  that have no panel of that name (notes, lyrics: the sidebar's rule since session 30). One row per view: the mod's name,
+  the view's name when it differs from the mod's id, and "pinned" on a view the strip lists already (a press then opens
+  it instead of adding it twice). A press adds the pin (`webdock.add {url: "mod:<id>:<name>", title}`: the daemon now
+  takes a view target; its id is the view's name, slugged, `-2`… when taken) at the end of the strip and opens it.
+- **The view card** shows the mod's panel, or its desk card where it has no panel of that name (the sidebar's rule).
+- **Online's "+"** is unchanged (the temporary page and its address field, W76).
+- **Not in this card:** the launcher and the full Settings as local pins — they are core sections, not `mod:` targets;
+  a target for core sections is a contract change (CONTRACT-CHANGE row). The sidebar's and the bar card's pin rows stay
+  unfiltered (they list every pin, as before).
+
+### States
+- **Online:** sites listed; none → the empty card ("Pin a site or a view…", "Add a site"), as before.
+- **Local:** views listed; none → the strip holds its controls only, and "+" is named "Add local content"; where the
+  dock is extended without a page (as Online's empty card), the card says "Pin notes, tasks or a timer to keep them at
+  hand" with "Add local content" (opens the chooser).
+- **Chooser:** the list; a view already pinned ("pinned", a press opens it); empty — no enabled mod offers a view ("No mod
+  that is on offers a view. Turn on notes, tasks or the timer in Settings › Mods", with a key to Settings › Mods); an add
+  refused (the daemon's reason under the list). The `mods` document is the shell's own, there from its first frame:
+  no loading state.
+- **A view whose mod is off:** the card's "This view is not available: its mod is off" (as before).
+- **Forced** `content`: the switch is inert at half strength, its tip and description name the source; the daemon
+  refuses `webdock.content` (`webdock.error.forced`).
+
+### Keyboard and a11y
+- The switch is a Tab stop and an arrow stop in the strip (Enter, Space press it); role button, name "Online pins: show
+  local content" / "Local content: show online pins", description the forced reason when forced.
+- The chooser: Up/Down between rows, Enter adds (or opens), Esc closes it (the keyboard returns to "+"); each row role
+  button, name "<mod> — <view>", and ", pinned" when it is.
+
+### Motion, outputs, budget
+- Motion: the strip's rows change in place (no animation per tile, the strip's rule); the chooser opens as the add form
+  does (the panel's form, K83). Reduced motion: as the panel.
+- Outputs: one mode for the dock (it is on one output at a time). HiDPI: logical px.
+- Ma: the switch is one setting write; the chooser reads the `mods` document the shell already holds (no new
+  subscription, no process) and unloads when it closes.
+
+## Desktop apps (experimental) — an evaluation, not a build (W78, session 32; the user's 3g)
+**Ask.** A desktop app as a pin, its window held in the card's frame. The user's lead: "it should be possible to use an
+OS-installed browser instead of the embedded one, so other apps too?" This section compares the routes on Wayland /
+niri with a verdict and a cost each, and names a first spike. No product code was written for it.
+
+**What the shell has today (read from the code):** the card is a layer-shell surface on the Top layer (`DockWindow`,
+the host's `WebCard`); the daemon's compositor adapter (`crates/kurashi-compositor`, `Action`) can focus a window, close
+it and move it to a workspace on niri, sway and Hyprland — nothing places or sizes one. niri 26.04's IPC (`niri msg
+action --help`, read in the dev shell) has, each with a window id: `move-window-to-floating --id`,
+`move-floating-window --id -x -y` (absolute or `+n`/`-n`), `set-window-width --id` / `set-window-height --id`
+(px or %), `move-window-to-workspace --window-id <ref> --focus <bool>`, `focus-window --id`; the event stream tells
+window opened / changed / closed and layouts. It has **no** "keep above", no minimise/hide, no per-window input
+passthrough, and floating windows draw *under* layer-shell surfaces of the Top and Overlay layers. Window capture for
+clients is whole-output only (`zwlr_screencopy_manager_v1`; `screenshot-window` overwrites the clipboard —
+`docs/ux/hover-previews.md`, measured there). Claims about other compositors, QtWaylandCompositor and the browsers are from their documentation as known to the agent, not re-checked online (the sandbox keeps agents off the net).
+
+### (a) Compositor placement — a real window moved onto the card's rect
+How: the app runs as an ordinary toplevel; a window rule (`open-floating true`, matched by app id / a title the shell
+sets) makes it float; the daemon moves and sizes it onto the card's rect (`move-floating-window`, `set-window-*`) when
+the card opens, and parks it on a workspace of its own (`move-window-to-workspace --focus false`) when the card closes.
+- **The layer problem decides the frame.** The card is on the Top layer, so a floating window placed "inside" it is
+  *under* the card. The card must leave a hole: draw only a frame around the rect and set its input mask to exclude it
+  (the host already masks its windows). Then the window shows and takes input through the hole; the card's shadow and
+  frame stay above it. Rounded corners and blur cannot clip another client's pixels: the window's corners show square
+  (niri's `geometry-corner-radius` + `clip-to-geometry` window rule rounds them — config, not IPC).
+- **Focus:** niri focuses the window on a click into it — fine — but the dock's hide rules (K40: focus leaving the
+  dock hides it) see focus *leave* the shell. The daemon must treat "the pinned app has focus" as "in the dock" (the
+  event stream gives the focused window id). Keyboard: the app's own; Esc reaches the app, not the dock.
+- **Workspaces / outputs:** a floating window belongs to one workspace. When the user switches workspace while the card
+  shows, the window stays behind — the daemon must move it with the user (`move-window-to-workspace` on each workspace
+  change: a visible jump, niri animates it) or close the card. Another output: `move-window-to-monitor`.
+- **Resizes:** apps with a minimum size (most GTK/Qt apps ≥ 360 px, Electron apps often ≥ 400–500 px) refuse the
+  card's phone width: the window is then larger than the hole. Apps that resize themselves (a dialog, a "compact mode")
+  drift out; the daemon re-applies the size on every `WindowLayoutsChanged` and gives up honestly (a chip "this app does
+  not fit the card") rather than fight.
+- **Parking:** no hide in niri: a parked window lives on a named workspace (`workspace "kurashi-dock"` in niri's config,
+  or a dynamic one at the end) — it shows in niri's overview and the shell's own workspace strip unless filtered, and
+  Alt-Tab-like pickers list it. Popups and dialogs of the app open where the app is (on the hidden workspace while
+  parked: the app's notification still reaches the user through the notification server).
+- **Other compositors:** Hyprland can (`movewindowpixel`, `resizewindowpixel`, `pin` = keep on all workspaces, special
+  workspaces hide it — the best fit of the four); sway can (`floating enable`, `move position`, `resize set`,
+  `sticky`, the scratchpad hides it); MangoWM: unknown, likely as dwl (scratchpad). Each needs adapter actions.
+- **Cost:** adapter actions `MoveFloating`, `ResizeWindow`, `SetFloating` (niri/sway/Hyprland: ~150 lines + tests, a
+  CONTRACT-CHANGE row for `crates/kurashi-compositor`), a daemon state machine per app pin (spawn, find the window by
+  app id/pid from the event stream, place, park, follow workspaces, focus counts as "in the dock"), a card mode that
+  is a frame with a hole, a niri window rule shipped by the Home-Manager module. ~2–3 cards. Ma: no cost at rest (the
+  app is the user's process; the daemon reacts to events only).
+- **Verdict: feasible, the only route that works for any app today; rough edges are honest limits, not bugs** (square
+  corners without the rule, min sizes, workspace jumps). Recommended as the spike.
+
+### (b) A nested compositor in the shell (QtWayland Compositor in QML)
+How: the shell (or a helper process like the web host) runs a `WaylandCompositor` with `XdgShell`; apps started with
+`WAYLAND_DISPLAY=kurashi-dock-0` draw into a `ShellSurfaceItem` inside the card. Real clipping, rounded corners, our
+blur and motion, and the window never leaves the card.
+- **What the app loses** (QtWayland gives the protocols, not the plumbing; each is ours to write): **clipboard** —
+  `wl_data_device` between the nested display and the real one must be bridged both ways (a copy in the app does not
+  reach the desktop otherwise); **IME** — `text-input-v3` / `input-method` are not relayed (CJK input — the user writes
+  Japanese — breaks); **portals** — xdg-desktop-portal talks to the *real* compositor: file pickers open outside, screen
+  sharing shares the wrong thing; **dmabuf** — QtWaylandCompositor supports `linux-dmabuf` with the right EGL setup, else
+  shm copies (GPU apps and video get slow); **popups** — `xdg_popup` works but cannot leave the card's rect (menus are
+  clipped at the card's edge); **XWayland** — none unless we run one (Xwayland -rootless on our display: another
+  process, more plumbing); **fractional scale, cursor shapes, drag and drop to the desktop, activation tokens,
+  idle-inhibit, foreign-toplevel** — each absent until written. Qt 6's QtWaylandCompositor in QML is maintained but
+  thin on these (xdg-decoration, presentation-time present; text-input v2/v3 partly).
+- **Cost:** a helper process per display (like `qs-webengine`: K39's pattern), a nix-packaged QtWaylandCompositor QML
+  module, then a long tail of protocol bridges; months to "an app behaves". Ma: the nested compositor renders only
+  while the card shows, but every app on it keeps running.
+- **Verdict: the best-looking result and the worst cost; not now.** Reconsider only for apps the shell itself ships
+  (a kurashi-made app that knows it is nested), never for "any app".
+
+### (c) The system browser in app mode, placed by (a)
+How: `chromium --app=<url> --class=kurashi-dock-<pin> --user-data-dir=…` (Brave, Vivaldi, Edge the same: one window, no
+tabs or toolbar, its own profile dir), placed and parked by (a). Firefox: no `--app` since the SSB was removed (2021);
+`--kiosk` is full screen; a separate profile with `userChrome.css` hiding the toolbar is the known workaround (Zen the
+same). Epiphany has real web apps (`--application-mode`).
+- **For:** the user's own browser engine, extensions, password manager, sign-ins, DRM (Widevine: Netflix, Spotify Web)
+  which the embedded QtWebEngine lacks, hardware video; no engine of ours to keep (K38/K39's patched build stays for the
+  privacy-proved default).
+- **Against:** everything of (a) (layers, focus, workspaces), plus: a browser process per pin (~150–300 MB each vs.
+  the shared QtWebEngine process), start time 0.5–1.5 s cold, mobile view only through the browser's own devtools
+  emulation (no per-pin user agent switch from us), no `webdock.host.*` reports (loaded, audible, title, icon, address)
+  unless the browser runs with a debugging port — a security hole we must not open; the dock's privacy proof (K38: the
+  engine sends nothing on its own) does not hold for the user's browser. Firefox/Zen (the user's default, `xdg-open`
+  opens Zen): only the userChrome workaround, fragile across updates.
+- **Verdict: worth it as a per-pin option once (a) exists** ("open in: dock engine | <browser> app window"), Chromium
+  family first; not for Firefox/Zen until they ship app windows again. Honest copy: "Your browser's window, placed in
+  the dock: its own memory, no page reports".
+
+### (d) A live view only (capture one window), input in the real window
+How: show the app's pixels in the card (a capture of its toplevel) while the real window stays elsewhere.
+- On niri 26.04 there is no per-window capture for clients: `ext-image-copy-capture-v1` with
+  `ext-foreign-toplevel-image-capture-source` is not offered, no `hyprland-toplevel-export`; screencast of a window goes
+  through the portal (PipeWire) with the user picking it, once per session (niri's `set-dynamic-cast-window` targets the
+  dynamic cast to the focused window — still a portal stream, and it only shows what is on screen).
+- Input cannot follow a picture: clicks in the card would need forwarding to the window (no protocol for that; a
+  virtual pointer moving the real cursor is a hack that fights the user).
+- **Verdict: not viable on niri today; on Hyprland (toplevel export) a preview is possible, an interactive one is not.**
+  Useful later only as a *peek* (a still of a parked app's window), with `docs/ux/hover-previews.md`'s whole-output crop.
+
+### (e) Other routes
+- **xdg-foreign (`zxdg_exporter_v2` / importer):** lets a client make another client's toplevel its *child*
+  (a dialog over a foreign window); niri supports it. It parents, it does not place or embed: a dock card cannot become
+  the parent of an app (the card is a layer surface, not a toplevel). Not a route.
+- **The card as a toplevel instead of a layer surface,** the app's window placed beside it by (a): the stacking problem
+  goes (both are windows), but the dock would scroll with niri's columns and lose its edge position. No.
+- **Layer-shell apps:** an app that can draw as a layer surface itself (foot `--app-id`? no: only a few: `wlogout`,
+  `nwg-*`) could be anchored by the shell's own rules. Too few apps.
+- **Waypipe / RDP-style:** remote-display a local app into the card (waypipe over a socket, decoded into a QML item):
+  (b)'s plumbing with worse latency. No.
+- **Hyprland's `pin` + special workspace / sway's sticky + scratchpad:** what (a) is on those compositors, and better
+  than niri for it (a pinned floating window follows workspaces natively).
+
+### Recommended first spike
+**(a) on niri with `foot`, read-only of the product:** a script that spawns `foot --app-id kurashi-dock-probe`, a niri
+window rule making it float, then `move-window-to-floating`, `set-window-width/height`, `move-floating-window` onto the
+edge card's rect (the dock's own document has the card's box), parks it with `move-window-to-workspace --focus false`,
+and brings it back — measuring: does it land on the pixel (grim + a pixel read, as the suites), how long the move takes
+with and without niri's animations, what focus does to the dock's hide, and how it looks under the card's Top-layer
+frame. Then (c) with `chromium --app` in the same script. If the joins and focus hold, the cards are: adapter actions
+(CONTRACT-CHANGE), the app-pin state machine in the daemon, the framed card with a hole, the Home-Manager window rule.
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on
