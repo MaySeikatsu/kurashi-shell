@@ -8,6 +8,8 @@ import "../components/launcher"
 import "../components/island"
 import "../components/sidebar"
 import "../components/decor"
+import "../components/appearance"
+import "../components/appearance/appearance.js" as Appear
 
 // Launcher (M5): centred overlay with exclusive keyboard focus while open. The daemon owns the
 // open state (runtime.ui.launcher), the index, ranking and launching; this only renders results
@@ -57,10 +59,10 @@ PanelWindow {
         for (var i = 0; i < results.length && h < maxListH; i++) h += heightOf(results[i])
         return h
     }
-    readonly property int listH: sysMenu ? sysH : startGrid ? startH : mode === "emoji"
+    readonly property int listH: menuOn ? menuH : sysMenu ? sysH : startGrid ? startH : mode === "emoji"
         ? Math.max(1, Math.min(Math.ceil(results.length / cols), gridRows)) * cellH
         : Math.max(rowH, Math.min(contentH, maxListH))
-    readonly property bool footer: mode !== "apps"
+    readonly property bool footer: mode !== "apps" && !menuOn
     readonly property bool shown: morph.shown
     property var results: []
     property int sel: 0
@@ -94,6 +96,33 @@ PanelWindow {
             t[id] = done && done.data && done.data.text !== undefined ? done.data.text : null
             lp.clipTexts = t
         })
+    }
+    // ---- W84 (docs/ux/appearance-menu.md): the appearance menu as the launcher's card. Words find it (`appearance:<pane>`
+    // rows); Enter shows it on that pane in place of the rows (the field stays, holding the query), Esc goes back to the
+    // search. A state beside the prefix modes, not one of them. `launcher.appearance_opens = card` opens it as a Stage card
+    // instead (`appearance.open`, CONTRACT-CHANGE row 791); a daemon that lacks the action leaves it here, with a note.
+    property string menuPane: ""
+    readonly property bool menuOn: menuPane !== ""
+    property string menuNote: ""
+    readonly property int menuH: 540
+    readonly property int menuW: 760
+    function openMenu(pane) {
+        if (String(bars.valueOf("launcher.appearance_opens", "launcher")) === "card") {
+            Store.act("appearance.open", { pane: pane, output: scr ? scr.name : "" }, function (done, e) {
+                if (!e || !lp.want) return
+                lp.menuNote = I18n.tr("appearance-menu.card_unavailable")
+                lp.menuPane = pane
+            })
+            return
+        }
+        menuNote = ""
+        menuPane = pane
+        if (placeLog) console.log("launcher-menu " + pane)
+    }
+    function closeMenu() {
+        menuPane = ""
+        menuNote = ""
+        field.forceActiveFocus()
     }
     // The dress, made only while the menu is open, for its skin's url (it is not shown here).
     StartHost { id: dressOf; visible: false; active: has && lp.skin && lp.want }
@@ -176,7 +205,7 @@ PanelWindow {
     // their names (11's Start) — the dock's pinned apps where there are any ("Pinned"), else the most used ("Apps") — and
     // under it the most used of the rest in two columns ("Recommended"). Typing gives the ranked rows, as before.
     readonly property int startCols: skin ? Math.max(0, Theme.decor("start.grid", 0)) : 0
-    readonly property bool startGrid: startCols > 0 && mode === "apps" && field.text === "" && field.preeditText === ""
+    readonly property bool startGrid: startCols > 0 && mode === "apps" && field.text === "" && field.preeditText === "" && !menuOn
     readonly property int startRows: 3
     readonly property int startCellH: 84
     readonly property int recRowH: 52
@@ -228,7 +257,7 @@ PanelWindow {
     // Lock Screen, Log Out…; the arrows move, Return runs a row, a row ending in "…" asks again first (the session
     // menu's own confirm words), Esc steps back. Typing turns it into the search (Spotlight's way). Rows only for what
     // acts (Shōjiki): no About (no page says it), no Force Quit (no intent).
-    readonly property bool sysMenu: skin && Theme.decor("start.form", "search") === "menu" && mode === "apps"
+    readonly property bool sysMenu: skin && Theme.decor("start.form", "search") === "menu" && mode === "apps" && !menuOn
         && field.text === "" && field.preeditText === ""
     property int sysSel: 0
     property int armed: -1
@@ -357,7 +386,8 @@ PanelWindow {
             // around that row's passing place — rows that stayed were scrolled out and made again)
             list.currentIndex = -1
             grid.currentIndex = -1
-            lp.show(items || [])
+            // W84 stand-in (CONTRACT-CHANGE row 790): the appearance menu's rows first, until the daemon offers them.
+            lp.show(Appear.mergeRows(q, items || [], I18n.tr))
             // A row the user chose (the arrows) stays chosen by key while it stays in the list, wherever it moves; else
             // today's rule: the first selectable row — the best hit, which Enter opens — or the same place after a
             // clipboard action.
@@ -484,6 +514,7 @@ PanelWindow {
         }
         if (!r.id) return
         var id = r.id
+        if (id.indexOf("appearance:") === 0) { openMenu(id.substring("appearance:".length)); return }
         // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first. So does
         // a Settings link (`settings:<page>`, row 387): Settings is a window of its own.
         if (id.indexOf("cmd:") === 0 || id.indexOf("settings:") === 0) {
@@ -574,6 +605,7 @@ PanelWindow {
             openedFrom = startAt
             if (placeLog) placeLogTimer.restart()
             clearRows(); sel = 0; err = ""; confirmClear = false
+            menuPane = ""; menuNote = ""
             thumbs = ({}); asked = ({})
             // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
             if (field.text === openQuery) run(openQuery)
@@ -611,14 +643,14 @@ PanelWindow {
             !lp.footAnchored ? lp.openedFrom.y - lp.margins.top
                 : lp.openedFrom.y - (lp.scr.height - lp.margins.bottom - lp.implicitHeight),
             lp.openedFrom.w, lp.openedFrom.h) : Qt.rect(0, 0, 0, 0)
-        onHidden: { lp.clearRows(); lp.thumbs = ({}); lp.clipTexts = ({}); lp.clipAsked = ({}) }
+        onHidden: { lp.clearRows(); lp.thumbs = ({}); lp.clipTexts = ({}); lp.clipAsked = ({}); lp.menuPane = "" }
 
         // The card's content. In the morph the shape is its chrome; sliding in, it is a Block (K42, K45): a flat panel with a
         // hairline, a keycap panel with an ink outline and hard shadow, a soft glass panel with a rim and a drop shadow, or a
         // panel outlined in ink (line).
         Item {
             id: card
-            width: lp.skin ? lp.skinW + lp.skinBand : (lp.clipSplit ? 880 : 600)
+            width: lp.menuOn ? lp.menuW + lp.skinBand : lp.skin ? lp.skinW + lp.skinBand : (lp.clipSplit ? 880 : 600)
             // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
             TextSpawnAll { root: card; shown: lp.shown }
             // I458: a launcher a hover opened stays while the pointer is on it, and is the user's once they press in it.
@@ -779,6 +811,8 @@ PanelWindow {
                     selectByMouse: true
                     clip: true
                     onTextChanged: { if (text !== "") Peeks.hoverKeep(); if (lp.want) lp.run(text) }
+                    // W84: back in the field (a click), back to the search.
+                    onActiveFocusChanged: if (activeFocus && lp.menuOn) { lp.menuPane = ""; lp.menuNote = "" }
                     Keys.onEscapePressed: {
                         if (lp.confirmClear) lp.confirmClear = false
                         else if (lp.armed >= 0) lp.armed = -1
@@ -984,12 +1018,30 @@ PanelWindow {
                     }
                 }
             }
+            // W84: the appearance menu in place of the rows, made only while shown (Ma); it takes the keyboard from the field.
+            Loader {
+                id: menuHost
+                active: lp.menuOn && lp.want
+                visible: active
+                x: card.l0
+                y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
+                width: card.w0
+                height: lp.listH
+                sourceComponent: AppearanceMenu {
+                    host: "launcher"
+                    pane: lp.menuPane
+                    output: lp.scr ? lp.scr.name : ""
+                    note: lp.menuNote
+                    onBack: lp.closeMenu()
+                }
+                onLoaded: item.forceActiveFocus()
+            }
             // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
             ScrollEdge { view: list }
             ListView {
                 id: list
                 KineticWheel { view: list }
-                visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
+                visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu && !lp.menuOn
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
                 width: lp.clipSplit ? lp.clipListW : card.w0 - (listBar.shown ? listBar.width + 4 : 0)
@@ -1153,9 +1205,9 @@ PanelWindow {
                                 border.color: Theme.outlineColor
                                 Icon {
                                     anchors.centerIn: parent
-                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb
+                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb || row.kind === "appearance"
                                     name: row.isCalc ? "calculate"
-                                        : ((row.isCommand || row.isWeb) ? (row.entry.icon || "bolt") : "info")
+                                        : ((row.isCommand || row.isWeb || row.kind === "appearance") ? (row.entry.icon || "bolt") : "info")
                                     glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i"))
                                     filled: true
                                     color: row.isCalc ? Theme.fgOnAccent : Theme.dim

@@ -125,6 +125,9 @@ fn row(m: &KeyMeta) -> Value {
     if !m.modules.is_empty() {
         r.insert("modules".into(), json!(m.modules));
     }
+    if !m.appearance.is_empty() {
+        r.insert("appearance".into(), json!(m.appearance));
+    }
     r.insert("since".into(), json!(m.since));
     let couplings: Vec<Value> = m
         .couplings

@@ -1600,6 +1600,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "style"
+              ],
               "choices": [],
               "choices_from": "styles",
               "control": "select",
@@ -1615,6 +1618,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "style"
+              ],
               "choices": [],
               "choices_from": "looks",
               "control": "select",
@@ -1630,6 +1636,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "colours"
+              ],
               "choices": [],
               "choices_from": "palettes",
               "control": "select",
@@ -1645,6 +1654,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "colours"
+              ],
               "choices": [
                 {
                   "label": "config.choice.scheme.auto",
@@ -1679,6 +1691,10 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "wallpaper",
+                "colours"
+              ],
               "choices": [
                 {
                   "label": "config.choice.extraction.tone_matched",
@@ -1812,6 +1828,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "control": "toggle",
               "couplings": [],
               "default": false,
@@ -2072,6 +2091,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "colours"
+              ],
               "choices": [
                 {
                   "label": "config.choice.contrast.standard",
@@ -2150,6 +2172,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "control": "toggle",
               "couplings": [],
               "default": false,
@@ -2286,6 +2311,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "wallpaper"
+              ],
               "control": "toggle",
               "couplings": [],
               "default": false,
@@ -2390,6 +2418,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "colours"
+              ],
               "control": "toggle",
               "couplings": [
                 {
@@ -2479,6 +2510,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "colours"
+              ],
               "choices": [],
               "choices_from": "theme.export",
               "control": "pick_list",
@@ -2763,6 +2797,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "control": "toggle",
               "couplings": [
                 {
@@ -2999,6 +3036,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "style"
+              ],
               "choices": [
                 {
                   "label": "config.choice.corners.none",
@@ -3460,6 +3500,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "choices": [
                 {
                   "label": "config.choice.material.solid",
@@ -3496,6 +3539,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "control": "slider",
               "couplings": [
                 {
@@ -3526,6 +3572,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "control": "toggle",
               "couplings": [
                 {
@@ -3786,6 +3835,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "choices": [
                 {
                   "label": "config.choice.scroll_edges.blur",
@@ -3915,6 +3967,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "style"
+              ],
               "choices": [
                 {
                   "label": "config.choice.density.compact",
@@ -3948,6 +4003,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "material"
+              ],
               "choices": [
                 {
                   "label": "config.choice.texture.none",
@@ -4687,6 +4745,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "choices": [
                 {
                   "label": "config.choice.light.static",
@@ -5423,6 +5484,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "choices": [
                 {
                   "label": "config.choice.cursor_decoration.off",
@@ -5470,6 +5534,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "motion"
+              ],
               "choices": [],
               "choices_from": "motion.profiles",
               "control": "select",
@@ -5492,6 +5559,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "motion"
+              ],
               "control": "slider",
               "couplings": [
                 {
@@ -6472,6 +6542,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "motion"
+              ],
               "choices": [
                 {
                   "label": "config.choice.motion_content.profile",
@@ -6623,6 +6696,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "fonts"
+              ],
               "choices": [
                 {
                   "label": "config.choice.font_mix_preset.off",
@@ -6707,6 +6783,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "choices": [
                 {
                   "label": "config.choice.text_effect.none",
@@ -6746,6 +6825,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "effects"
+              ],
               "choices": [
                 {
                   "label": "config.choice.text_spawn.none",
@@ -6850,6 +6932,9 @@
           "rows": [
             {
               "advanced": false,
+              "appearance": [
+                "fonts"
+              ],
               "control": "font",
               "couplings": [],
               "default": [
@@ -6885,6 +6970,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "fonts"
+              ],
               "control": "font",
               "couplings": [],
               "default": [
@@ -6900,6 +6988,9 @@
             },
             {
               "advanced": false,
+              "appearance": [
+                "fonts"
+              ],
               "control": "slider",
               "couplings": [
                 {
@@ -7533,6 +7624,45 @@
               "step": 5,
               "type": "int",
               "unit": "%"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.appearance_opens.launcher",
+                  "value": "launcher"
+                },
+                {
+                  "label": "config.choice.appearance_opens.card",
+                  "value": "card"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "launcher",
+              "help": "config.launcher.appearance_opens.help",
+              "key": "launcher.appearance_opens",
+              "label": "config.launcher.appearance_opens.label",
+              "modules": [
+                "launcher"
+              ],
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.launcher.appearance_preview.help",
+              "key": "launcher.appearance_preview",
+              "label": "config.launcher.appearance_preview.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             },
             {
               "advanced": false,

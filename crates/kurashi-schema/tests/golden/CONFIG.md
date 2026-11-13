@@ -2395,6 +2395,21 @@ How far down the screen it stands: 0 at the top edge, 100 at the bottom.
 - only while `launcher.place == "fixed"`
 - since schema v7
 
+#### `launcher.appearance_opens` — Appearance menu opens
+
+Where the menu of wallpaper, colours and style that the launcher finds opens: in the launcher, whose card turns into the menu, or as a card of its own.
+
+- type: `choice` · default: `"launcher"`
+- choices: `"launcher"` | `"card"`
+- since schema v7
+
+#### `launcher.appearance_preview` — Appearance menu preview
+
+A miniature of the desktop at the top of the appearance menu, showing a choice before it is kept.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 #### `launcher.terminal` — Terminal command
 
 Prefix for apps that need a terminal, e.g. foot -e.

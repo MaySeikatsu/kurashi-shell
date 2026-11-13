@@ -1437,6 +1437,16 @@
 #   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
 # place_y = 50
 #
+# Appearance menu opens — Where the menu of wallpaper, colours and style that the launcher
+# finds opens: in the launcher, whose card turns into the menu, or as a card of its own.
+#   choices: "launcher" | "card" · since schema v7
+# appearance_opens = "launcher"
+#
+# Appearance menu preview — A miniature of the desktop at the top of the appearance menu,
+# showing a choice before it is kept.
+#   since schema v7
+# appearance_preview = true
+#
 # Terminal command — Prefix for apps that need a terminal, e.g. foot -e.
 #   restart required
 # terminal = ["foot", "-e"]
