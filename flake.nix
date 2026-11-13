@@ -25,6 +25,9 @@
         quickshell-webengine = pkgs.callPackage ./nix/quickshell-webengine.nix { };
         # The web dock's package (K38): the host plus xdg-open. Home-Manager and NixOS install it with the dock on.
         kurashi-webdock = pkgs.callPackage ./nix/webdock.nix { inherit quickshell-webengine; };
+        # The terminal mod's QML terminal (W83) and its host's Quickshell, `qs-terminal`; not in the base closure.
+        qmltermwidget = pkgs.callPackage ./nix/qmltermwidget.nix { };
+        quickshell-terminal = pkgs.callPackage ./nix/quickshell-terminal.nix { inherit qmltermwidget; };
         default = kurashi;
       });
 
