@@ -93,9 +93,15 @@ fn pin_rows() -> Value {
 async fn enable(values: Values, browser: Arc<Browser>, root: &Path) -> Enabled {
     let rec = Arc::new(Recorder::default());
     let (settings, rx) = watch::channel(values);
-    let provides: Vec<String> = ["service:webdock", "action:webdock.*", "host:web", "i18n"]
-        .map(String::from)
-        .to_vec();
+    let provides: Vec<String> = [
+        "service:webdock",
+        "action:webdock.*",
+        "host:web",
+        "launcher:web",
+        "i18n",
+    ]
+    .map(String::from)
+    .to_vec();
     let caps: Vec<String> = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]
         .map(String::from)
         .to_vec();

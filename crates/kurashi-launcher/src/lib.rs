@@ -4,6 +4,10 @@
 //! from launches (frecency) and start apps per the Desktop Entry spec. The daemon owns the
 //! `Launcher`; the frontend only sends queries and a launch intent.
 
+/// The launcher's own prefix modes (K150): `:` emoji, `;` the clipboard, `?` the keys, `>` the shell's commands. The
+/// daemon's query dispatches them; a mod's launcher prefix may not take one (`kurashid::launcher_mods`).
+pub const BUILTIN_PREFIXES: [&str; 4] = [":", ";", "?", ">"];
+
 pub mod calc;
 pub mod clip;
 pub mod commands;

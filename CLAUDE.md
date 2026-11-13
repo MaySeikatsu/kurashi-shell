@@ -30,6 +30,9 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 - `main` is always green. Work on `feat/<milestone>-<topic>` (e.g. `feat/m1-protocol`).
 - Merge with `git merge --no-ff` only after the step's verification checklist passes
   (tests, clippy, bench where relevant). Update `docs/PROGRESS.md` in the same branch.
+- **Versioning (K151):** every PR to `main` bumps `[workspace.package] version` in `Cargo.toml` (SemVer 0.x: features →
+  MINOR, fixes only → PATCH) and moves `CHANGELOG.md`'s Unreleased into that version (Breaking called out). After the user
+  merges, tag `vX.Y.Z` on `main` and push the tag.
 - Commit messages: conventional (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`).
   **No AI attribution / Co-Authored-By lines.**
 - New architectural choices → `docs/DECISIONS.md` (K-ids, cite the lesson/evidence + URLs).

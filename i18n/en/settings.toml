@@ -274,3 +274,4 @@
 
 "settings.slider.auto" = "Auto"
 "settings.ui.mod_open" = "Open"
+"settings.ui.version" = "Kurashi {v}"

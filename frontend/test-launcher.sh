@@ -218,8 +218,8 @@ for DECOR in $DECORS; do
   sleep 1
   kp semicolon
   sleep 2.5
-  check "$([ -s "$CLIP_CACHE/14.png" ] && [ -s "$CLIP_CACHE/12.png" ] && echo 1 || echo 0)" "$DECOR the visible images got thumbnails"
-  check "$([ ! -e "$CLIP_CACHE/1.png" ] && echo 1 || echo 0)" "$DECOR the image far down was not decoded"
+  check "$([ -s "$CLIP_CACHE/14.l.png" ] && [ -s "$CLIP_CACHE/12.l.png" ] && echo 1 || echo 0)" "$DECOR the visible images got thumbnails"
+  check "$([ ! -e "$CLIP_CACHE/1.l.png" ] && echo 1 || echo 0)" "$DECOR the image far down was not decoded"
   # Ctrl+P pins the newest entry (the URL); it is listed first and its history row is not listed twice.
   kp ctrl+p
   sleep 1
@@ -246,7 +246,7 @@ for DECOR in $DECORS; do
   for _ in $(seq 16); do echo down >&3; sleep 0.12; done
   kp return
   shot "clip-confirm-$DECOR"
-  check "$([ -s "$CLIP_CACHE/1.png" ] && echo 1 || echo 0)" "$DECOR the old image was decoded once its row came into view"
+  check "$([ -s "$CLIP_CACHE/1.l.png" ] && echo 1 || echo 0)" "$DECOR the old image was decoded once its row came into view"
   check "$([ "$(has "$R/cliphist.log" '^wipe')" = 0 ] && echo 1 || echo 0)" "$DECOR the first Enter only asked"
   kp return
   sleep 1

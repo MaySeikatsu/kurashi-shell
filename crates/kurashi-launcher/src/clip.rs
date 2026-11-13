@@ -17,7 +17,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Longest side of a thumbnail.
-pub const THUMB_PX: u32 = 256;
+/// Session 33 (the user: the clipboard's preview beside the list, as Noctalia v5 has it): the thumbnail is also the
+/// preview pane's picture, so it is large enough for it (the list draws it small, `sourceSize`).
+pub const THUMB_PX: u32 = 640;
+/// The most of an entry's text the preview shows (`text`), in bytes.
+pub const TEXT_PREVIEW_BYTES: usize = 16 * 1024;
 /// Larger entries are not decoded for a thumbnail or kept as a pin.
 pub const MAX_BYTES: usize = 32 << 20;
 /// Larger images (pixels) are not decoded.
@@ -109,6 +113,8 @@ pub enum ClipError {
     TooLarge,
     #[error("not an image")]
     NotImage,
+    #[error("not text")]
+    NotText,
     #[error("too many pins")]
     PinsFull,
     #[error("{0}")]
@@ -224,7 +230,8 @@ impl Clip {
     }
 
     fn thumb_path(&self, id: &str) -> PathBuf {
-        self.cache.join(format!("{id}.png"))
+        // (`.l`: the preview-sized thumbnail of session 33; an older small one is pruned)
+        self.cache.join(format!("{id}.l.png"))
     }
 
     /// Drops cached thumbnails of entries no longer in `live` (the history changed, or was wiped).
@@ -234,8 +241,8 @@ impl Clip {
         };
         for f in dir.flatten() {
             let name = f.file_name().to_string_lossy().into_owned();
-            let id = name.strip_suffix(".png").unwrap_or(&name);
-            if !live.iter().any(|e| e.id == id) {
+            let id = name.strip_suffix(".l.png");
+            if !id.is_some_and(|id| live.iter().any(|e| e.id == id)) {
                 let _ = std::fs::remove_file(f.path());
             }
         }
@@ -329,6 +336,28 @@ impl Clip {
         let bytes = self.decode(id)?;
         write_thumb(&bytes, &path)?;
         Ok(path)
+    }
+
+    /// The text of history entry `id` for the preview (session 33): at most [`TEXT_PREVIEW_BYTES`], cut on a character,
+    /// `…` after a cut. An image or binary entry is [`ClipError::NotText`].
+    pub fn text(&self, id: &str) -> Result<String, ClipError> {
+        let bytes = self.decode(id)?;
+        let cut = bytes.len() > TEXT_PREVIEW_BYTES;
+        let head = &bytes[..bytes.len().min(TEXT_PREVIEW_BYTES)];
+        let text = match std::str::from_utf8(head) {
+            Ok(t) => t.to_string(),
+            // (a cut inside a character: up to the last whole one)
+            Err(e) if cut && e.error_len().is_none() => {
+                std::str::from_utf8(&head[..e.valid_up_to()])
+                    .unwrap_or_default()
+                    .to_string()
+            }
+            Err(_) => return Err(ClipError::NotText),
+        };
+        if text.contains('\0') {
+            return Err(ClipError::NotText);
+        }
+        Ok(if cut { format!("{text}…") } else { text })
     }
 
     /// Removes history entry `id` (`cliphist delete`), or the pin `pin:<key>`.
@@ -619,7 +648,18 @@ esac
 
         let t = c.thumb("2").unwrap();
         let small = image::open(&t).unwrap();
-        assert_eq!((small.width(), small.height()), (256, 128));
+        // (session 33: the thumbnail is the preview pane's picture, up to THUMB_PX; a 600 px picture stays as it is)
+        assert_eq!((small.width(), small.height()), (600, 300));
+        assert_eq!(
+            c.text("3").as_deref(),
+            Ok("third\nline"),
+            "the whole text, not the list's line"
+        );
+        assert_eq!(
+            c.text("2"),
+            Err(ClipError::NotText),
+            "a picture is not text"
+        );
         assert_eq!(c.rows("", 40)[1]["thumb"], t.display().to_string());
         assert_eq!(c.thumb("1"), Err(ClipError::NotImage));
         assert_eq!(c.thumb("99"), Err(ClipError::Gone));

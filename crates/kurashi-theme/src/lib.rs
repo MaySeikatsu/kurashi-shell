@@ -121,6 +121,20 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
     for (k, v) in stages::wash_tokens(&palette, input.wash.as_ref()) {
         tokens.insert(k, v);
     }
+    // W85 (CONTRACT-CHANGE 785): the terminal's colours, `term.*` — the authors' table of the palette the shell wears,
+    // else derived from it by hue. The high contrast and the colour-blind aids keep the derived ones: they are made from
+    // the roles those stages made legible (as the apps' palette steps aside for them, K123).
+    let own = match &input.source {
+        Source::Palette(n)
+            if input.contrast != ContrastLevel::High && input.colorblind == Colorblind::None =>
+        {
+            apps_palette::own_table(n, palette.dark)
+        }
+        _ => None,
+    };
+    for (k, c) in apps_palette::term_tokens(&palette, own.as_ref()) {
+        tokens.insert(format!("term.{k}"), serde_json::json!(c.hex()));
+    }
     Ok(ThemeOutput {
         tokens,
         palette,

@@ -2327,6 +2327,44 @@ How many notifications are kept.
 - restart required
 - advanced
 
+### OSD
+
+#### `osd.place` — Where it shows
+
+The OSD answers a key that changes the volume, the brightness, the microphone or the keyboard layout. In the island: the island shows volume and brightness as it did before (the layout and the microphone show at the bottom).
+
+- type: `choice` · default: `"bottom"`
+- choices: `"bottom"` | `"top"` | `"center"` | `"island"`
+- since schema v7
+
+#### `osd.timeout_ms` — How long it stays (ms)
+
+- type: `int` · default: `1500`
+- range: `600..=5000`, step `100`
+- since schema v7
+
+#### `osd.volume` — Volume
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.mic` — Microphone mute
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.brightness` — Brightness
+
+- type: `bool` · default: `true`
+- since schema v7
+
+#### `osd.layout` — Keyboard layout
+
+Shown when the layout changes and there is more than one.
+
+- type: `bool` · default: `true`
+- since schema v7
+
 ## Launcher
 
 ### Apps
@@ -2355,6 +2393,21 @@ How far down the screen it stands: 0 at the top edge, 100 at the bottom.
 - type: `int` · default: `50`
 - range: `0..=100`, step `5` (%)
 - only while `launcher.place == "fixed"`
+- since schema v7
+
+#### `launcher.appearance_opens` — Appearance menu opens
+
+Where the menu of wallpaper, colours and style that the launcher finds opens: in the launcher, whose card turns into the menu, or as a card of its own.
+
+- type: `choice` · default: `"launcher"`
+- choices: `"launcher"` | `"card"`
+- since schema v7
+
+#### `launcher.appearance_preview` — Appearance menu preview
+
+A miniature of the desktop at the top of the appearance menu, showing a choice before it is kept.
+
+- type: `bool` · default: `true`
 - since schema v7
 
 #### `launcher.terminal` — Terminal command

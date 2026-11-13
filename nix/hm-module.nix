@@ -4,6 +4,8 @@ self:
 let
   cfg = config.programs.kurashi;
   wd = cfg.webdock;
+  term = cfg.terminal;
+  ses = cfg.sessions;
   toml = pkgs.formats.toml { };
   envList = lib.mapAttrsToList (k: v: "${k}=${v}") cfg.extraEnvironment;
   exportsTo = app: cfg.themeExport.includes && lib.elem app cfg.themeExport.apps;
@@ -64,11 +66,16 @@ let
   # kurashid starts the web host and opens links by name (K38: `exec:qs-webengine` and `exec:xdg-open` are looked up
   # in its PATH, which a user manager may not carry). With the dock on, the daemon's PATH starts with the dock
   # package's commands, by store path, as the other units name their tools (KURASHI_QS).
+  # W83: the terminal's host (`exec:qs-terminal`) likewise.
+  # W86: the sessions' noren and the tools it runs (zellij, zoxide, fzf, git, eza) likewise, only with the option on.
+  sessionPackages = [ ses.package ] ++ (with pkgs; [ zellij zoxide fzf git eza ]);
+  hostPackages = lib.optional wd.enable wd.package ++ lib.optional term.enable term.package
+    ++ lib.optionals ses.enable sessionPackages;
   daemonPackage =
-    if wd.enable then
-      pkgs.runCommand "kurashid-webdock" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
+    if hostPackages != [ ] then
+      pkgs.runCommand "kurashid-hosts" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
         mkdir -p $out/bin
-        makeWrapper ${cfg.package}/bin/kurashid $out/bin/kurashid --prefix PATH : ${lib.makeBinPath [ wd.package ]}
+        makeWrapper ${cfg.package}/bin/kurashid $out/bin/kurashid --prefix PATH : ${lib.makeBinPath hostPackages}
       ''
     else
       cfg.package;
@@ -254,6 +261,46 @@ in
           `XF86MonBrightnessUp` and `XF86MonBrightnessDown` brightness.up and brightness.down.
           The niri defaults for the same keys are replaced (see docs/niri-binds.kdl).
           The web dock adds its own key, {option}`programs.kurashi.webdock.keybind`.
+        '';
+      };
+    };
+
+    terminal = {
+      enable = lib.mkEnableOption "the terminal (W83, docs/ux/terminal.md): its host package (`qs-terminal`) and the mod turned on; its settings are the mod's own keys (`programs.kurashi.settings.mods.terminal`)";
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-terminal;
+        description = ''
+          The terminal's host: `qs-terminal` (Quickshell with QMLTermWidget). Installed only while
+          {option}`programs.kurashi.terminal.enable` is set.
+        '';
+      };
+
+      keybind = lib.mkOption {
+        type = lib.types.nullOr (lib.types.strMatching "[A-Za-z0-9_+-]+");
+        default = "Mod+Grave";
+        description = ''
+          Niri key that drops the terminal out or puts it away on the focused output (`terminal.toggle`, run through
+          `kurashi act`; Yakuake's F12 without taking F12). Written only while
+          {option}`programs.kurashi.niri.binds.enable` is set. `null` adds no bind.
+        '';
+      };
+    };
+
+    sessions = {
+      enable = lib.mkEnableOption ''
+        work sessions (W86, docs/ux/sessions.md): noren (the zellij session manager) with zellij, zoxide, fzf, git and
+        eza on the daemon's PATH and in home.packages, and the mod `sessions` turned on. Off by default: nothing of it
+        is installed without this option. Its settings are the mod's own keys (`programs.kurashi.settings.mods.sessions`)'';
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.noren;
+        defaultText = lib.literalExpression "kurashi.packages.\${system}.noren";
+        description = ''
+          The noren package (github:MaySeikatsu/noren, its `noren` binary). Installed only while
+          {option}`programs.kurashi.sessions.enable` is set.
         '';
       };
     };
@@ -459,6 +506,41 @@ in
           ];
         };
         Install.WantedBy = [ "graphical-session.target" ];
+      };
+    })
+
+    (lib.mkIf term.enable {
+      assertions = [
+        {
+          assertion = cfg.enable;
+          message = "programs.kurashi.terminal.enable needs programs.kurashi.enable = true.";
+        }
+      ];
+      warnings = lib.optional (term.keybind != null && !cfg.niri.binds.enable) ''
+        programs.kurashi.terminal.keybind (${term.keybind}) writes no bind: binds go to niri/kurashi-binds.kdl,
+        which needs programs.kurashi.niri.binds.enable = true (or set keybind to null).
+      '';
+      home.packages = [ term.package ];
+      programs.kurashi.niri.binds.keys = lib.mkIf (term.keybind != null) {
+        ${term.keybind} = lib.mkDefault "terminal.toggle";
+      };
+      programs.kurashi.settings.mods = {
+        loaded = [ "terminal" ];
+        enabled = [ "terminal" ];
+      };
+    })
+
+    (lib.mkIf ses.enable {
+      assertions = [
+        {
+          assertion = cfg.enable;
+          message = "programs.kurashi.sessions.enable needs programs.kurashi.enable = true.";
+        }
+      ];
+      home.packages = sessionPackages;
+      programs.kurashi.settings.mods = {
+        loaded = [ "sessions" ];
+        enabled = [ "sessions" ];
       };
     })
 

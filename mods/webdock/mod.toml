@@ -15,6 +15,8 @@ provides = [
     "widget:webdock",
     # W30: the dock as a sidebar tab or section (`mod:webdock:webdock`): pins on top, the page filling the pane.
     "panel:webdock",
+    # Session 33 (K150): the launcher's prefix (`launcher_prefix`, `/`): open or search in the dock.
+    "launcher:web",
     "i18n",
 ]
 capabilities = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]
@@ -149,6 +151,14 @@ type = "string"
 default = "https://duckduckgo.com/?q={q}"
 label = "mods.webdock.search"
 help = "mods.webdock.search.help"
+
+# Session 33 (K150): the launcher prefix that opens an address or a search in the dock; empty: none.
+[[setting]]
+key = "launcher_prefix"
+type = "string"
+default = "/"
+label = "mods.webdock.launcher_prefix"
+help = "mods.webdock.launcher_prefix.help"
 
 [[setting]]
 key = "edge"

@@ -216,7 +216,7 @@ impl Mod {
                 Registration::Service { run, .. } => service = Some(run),
                 Registration::Action { id, handler, .. } => actions.push((id, handler)),
                 Registration::Choices { options, .. } => choices = Some(options),
-                Registration::Face { .. } => {}
+                Registration::Face { .. } | Registration::Launcher { .. } => {}
             }
         }
         Ok(Self {

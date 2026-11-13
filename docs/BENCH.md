@@ -864,3 +864,9 @@ the K82 tree (feat/s18-depth-and-joins). The user's own session ran beside it (l
 - **Ma findings (BACKLOG I344):** aqua, glass, luna, ps2, vibrancy and win95 wake ~12 times a second at rest (the others
   0.1); hallownest, kanso, sekai, souls and vibrancy commit ~1 frame a second at rest (the budget allows the minute flip).
 - Frame on (test-frame, same tree): washi + paper +22–26 MiB against frame off (two frontends), kanso +10 (I342).
+
+## Terminal host (`qs-terminal`, session 33, W85; machine A, nested niri)
+One tab: **140 MiB PSS hidden, 151 MiB shown**; 0 voluntary context switches in 15 s hidden or idle (the pty and the
+widget sleep). The host is a separate process (QMLTermWidget on Quickshell), so the shell's own budgets do not carry it;
+it runs only while the terminal mod is enabled.
+

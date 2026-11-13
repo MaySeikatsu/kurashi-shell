@@ -1437,6 +1437,16 @@
 #   range: 0..=100, step 5 (%) · only while launcher.place == "fixed" · since schema v7
 # place_y = 50
 #
+# Appearance menu opens — Where the menu of wallpaper, colours and style that the launcher
+# finds opens: in the launcher, whose card turns into the menu, or as a card of its own.
+#   choices: "launcher" | "card" · since schema v7
+# appearance_opens = "launcher"
+#
+# Appearance menu preview — A miniature of the desktop at the top of the appearance menu,
+# showing a choice before it is kept.
+#   since schema v7
+# appearance_preview = true
+#
 # Terminal command — Prefix for apps that need a terminal, e.g. foot -e.
 #   restart required
 # terminal = ["foot", "-e"]
@@ -1996,3 +2006,31 @@
 # Power shows the charge — The battery's charge beside the power mark on the bar.
 #   since schema v7
 # power = true
+
+# [osd]
+#
+# Where it shows — The OSD answers a key that changes the volume, the brightness, the
+# microphone or the keyboard layout. In the island: the island shows volume and brightness
+# as it did before (the layout and the microphone show at the bottom).
+#   choices: "bottom" | "top" | "center" | "island" · since schema v7
+# place = "bottom"
+#
+# How long it stays (ms)
+#   range: 600..=5000, step 100 · since schema v7
+# timeout_ms = 1500
+#
+# Volume
+#   since schema v7
+# volume = true
+#
+# Microphone mute
+#   since schema v7
+# mic = true
+#
+# Brightness
+#   since schema v7
+# brightness = true
+#
+# Keyboard layout — Shown when the layout changes and there is more than one.
+#   since schema v7
+# layout = true

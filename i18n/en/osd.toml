@@ -1,0 +1,10 @@
+# The OSD (session 33, I527; docs/ux/osd.md).
+"osd.volume" = "Volume"
+"osd.muted" = "Muted"
+"osd.mic_muted" = "Microphone muted"
+"osd.mic_on" = "Microphone on"
+"osd.brightness" = "Brightness"
+"osd.layout" = "Keyboard layout"
+"action.osd.show" = "Show an OSD"
+"osd.error.label" = "An OSD needs a label"
+"osd.error.value" = "The value is a fraction from 0 to 1"

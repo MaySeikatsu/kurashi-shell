@@ -210,3 +210,8 @@
 "mods.webdock.content.local" = "ローカル"
 "action.webdock.content" = "ウェブドックをオンラインのピンとローカルの内容で切り替える"
 "webdock.error.content" = "ストリップはオンラインかローカルです"
+"mods.webdock.launcher_prefix" = "ランチャーの接頭辞"
+"mods.webdock.launcher_prefix.help" = "ランチャーで最初に入力すると、アドレスを開くか Web ドックで検索します（\"/ github.com\"）。一致するピンが先に並びます。空欄：なし。ランチャー自身の : ; ? > は使えません。"
+"webdock.launcher.open" = "Web ドックで開く"
+"webdock.launcher.search" = "Web ドックで検索"
+"action.webdock.launch" = "ピンまたはアドレスを Web ドックで開く"

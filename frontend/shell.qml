@@ -4,6 +4,7 @@ import "core"
 import "core/mods.js" as Mods
 import "surfaces"
 import "components/island"
+import "components/menus"
 
 // Thin view (CLAUDE.md rule 1): the bars of each output; Quickshell.screens follows hotplug.
 // A single content-sized Stage serves the focused output only (K16).
@@ -33,7 +34,8 @@ ShellRoot {
     // its screen was never picked again and it opened where the last card had been)
     readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true
         : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray" || ui.panel === "quick"
-            || String(ui.panel || "").indexOf("mod:") === 0)
+            || String(ui.panel || "").indexOf("mod:") === 0
+            || String(ui.panel || "").indexOf("appearance:") === 0)
     // B126: where a card opens — the screen whose bar module was pressed just now (a press on a bar does not move the
     // compositor's focus to that screen), else the focused one (a key, the command line).
     function openScreen() {
@@ -201,6 +203,8 @@ ShellRoot {
         model: Quickshell.screens
         delegate: EdgeStripHost {}
     }
+    // The desktop's right click (W82, docs/ux/context-menus.md): one empty window per output over the wallpaper.
+    DeskCatches {}
     // A click elsewhere closes an open card, the launcher or the notification centre (I279): per output, only while one is open.
     Variants {
         model: Quickshell.screens
@@ -232,6 +236,8 @@ ShellRoot {
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
     Toasts { screen: root.focusedScreen() }
+    // I527 (session 33): the OSD, on the focused output (docs/ux/osd.md).
+    Osd { screen: root.focusedScreen() }
     Launcher {}
     // The polkit agent (K47 (5)): its dialog exists only while a request is up.
     PolkitDialog {}

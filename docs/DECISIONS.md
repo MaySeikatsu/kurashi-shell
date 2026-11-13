@@ -1608,3 +1608,34 @@ goes after its grace when the pointer leaves both. Mock parity; fixture `snap_ru
 **Why.** W77's gap: the dock is another process's window over the sidebar's well, so the column saw the pointer leave
 and closed under the user's pointer. The web dock's page solved the same for cards through `Peeks.hoverOverlay` inside
 one process tree; across processes the daemon carries it (rule 1). Not solved here: a key into the dock (B129).
+
+## K150 — Mods offer launcher results through providers with an optional prefix (session 33)
+**Decision.** A native mod registers a launcher provider (manifest `launcher:<name>`, `ModCtx::launcher`): a prefix it
+reads from its own settings, and a function from the text to rows; each row runs one of the mod's own actions with its
+arguments. The daemon keeps the providers in one table (on the hub, filled by the mod host, read by the launcher's
+query), routes a query that starts with a provider's prefix to it alone, adds prefix-less providers' rows after the
+apps, refuses prefixes the launcher's own modes hold (`kurashi_launcher::BUILTIN_PREFIXES`, the one list) or another
+provider holds, and says so in `runtime.launcher` (Shōjiki). The web dock is the first: `/` opens an address or a
+search in its edge card (and lists the pins it matches); the terminal (W83) follows with `!`.
+**Why.** The user (session 33): "open/search something directly in the web panel from the launcher", and the terminal's
+launcher entries. MODS.md promised launcher providers since K26 and the manifest accepted `launcher:`, but no code path
+existed; one mechanism serves both and any later mod, with no second hand-kept list of prefixes (rule 3).
+
+## K151 — Versioning: SemVer 0.x, one source, a changelog, a tag per release (session 33)
+**Decision.** The version is `[workspace.package] version` in `Cargo.toml` (every crate inherits it; `nix/package.nix`
+reads it). Until 1.0: a release with features bumps MINOR, fixes only bump PATCH; a break of a user's config, a mod
+manifest (`kurashi = ">=…"`) or the IPC protocol goes under **Breaking** in `CHANGELOG.md` with the way through. Each PR
+to `main` bumps the version and adds its changelog section (Unreleased → the version); after the user merges it, the lead
+tags `vX.Y.Z` on `main` and pushes the tag. Shown by `kurashi --version`, the first line of `kurashi doctor` (the CLI's),
+the daemon's `daemon` document, and at the end of Settings' page list. Starts at 0.1.0 (sessions 1–33).
+**Why.** The user (session 33): "please also start using the versioning of the shell". They chose SemVer 0.x over
+numbering by session or CalVer.
+
+## K152 — One OSD surface, decided by the daemon (session 33, I527)
+**Decision.** `crates/kurashid/src/osd.rs` turns edges of `svc.audio` (volume, mute, mic mute), a brightness key and a
+keyboard layout change (`svc.keyboard`) into `runtime.osd`; `frontend/surfaces/Osd.qml` draws it as one pill in the look on
+the focused output for `osd.timeout_ms`, unmapped when hidden, never taking input. `osd.place` (bottom, top, centre, the
+island — where the island keeps volume and brightness as before), one switch per kind. `osd.show` lets scripts show their own.
+**Why.** The user: "a proper OSD, we don't really have it yet" — the island's faces showed only volume and brightness and
+nothing at all without the island. GNOME, KDE, Windows 11 and SwayOSD show one transient pill near the bottom; the
+daemon decides (rule 1), the frontend draws.

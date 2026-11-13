@@ -24,6 +24,9 @@ fail() { echo "test-sidebar: FAIL: $*" >&2; exit 1; }
 ok() { echo "test-sidebar: ok: $*"; }
 command -v qs-webengine >/dev/null || fail "qs-webengine not on PATH (nix develop)"
 
+# (session 33: the dev shell's python has dbus-python and pygobject, so the stand-in portal runs by default)
+FAKE_PORTAL_PY=${FAKE_PORTAL_PY:-$(python3 -c 'import dbus, gi' 2>/dev/null && command -v python3)}
+[ -n "${FAKE_PORTAL_PY:-}" ] && export KURASHI_SB_FAKE_PORTAL=1   # (session 33: the stand-in portal may own its name)
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR
 W=$R/work
@@ -43,6 +46,15 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8 \
        KURASHI_WEBDOCK_DEBUG=1
 mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+# Session 33: the desktop's light or dark, as the portal tells it (a stand-in portal on the sandbox's bus when a python with
+# dbus-python and pygobject is given: FAKE_PORTAL_PY); the shell's own scheme reaches it through the gsettings export.
+SCHEME_FILE=$R/scheme
+echo light > "$SCHEME_FILE"
+if [ -n "${FAKE_PORTAL_PY:-}" ]; then
+  "$FAKE_PORTAL_PY" "$ROOT/tools/bench/fake_portal.py" "$SCHEME_FILE" > "$R/portal.log" 2>&1 &
+  pids+=("$!")
+  for _ in $(seq 20); do grep -q 'fake_portal: up' "$R/portal.log" 2>/dev/null && break; sleep 0.25; done
+fi
 printf 'theme.style = "washi"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 HOSTLOG=$XDG_STATE_HOME/kurashi/webdock/host-web.log
 K() { timeout 10 "$W/kurashi" "$@"; }
@@ -325,5 +337,39 @@ ptr move $(( SW / 2 )) $(( SH / 2 ))
 wait_window down
 ok "hover: off the page and the column, the sidebar goes"
 K set sidebar.left.visibility '"hidden"' >/dev/null
+wait_window down
+
+if [ -z "${FAKE_PORTAL_PY:-}" ]; then
+  echo "test-sidebar: note: step 8 (light or dark) needs FAKE_PORTAL_PY (a python with dbus-python and pygobject); skipped"
+  qml_errors
+  echo "test-sidebar: PASS"
+  exit 0
+fi
+# ---- 8. light or dark (session 33, the user: the scheme "is not shared with the embedded browser"): a page's
+# `prefers-color-scheme` follows the desktop's scheme — the portal's, which the shell's gsettings export sets (here a
+# stand-in portal: the scheme file) — live, with no reload ----
+K set mods.webdock.pins "[{\"id\":\"site\",\"title\":\"Site\",\"target\":\"$PAGES/site.html#sidebar\"},{\"id\":\"other\",\"title\":\"Other\",\"target\":\"$PAGES/other.html\"},{\"id\":\"scheme\",\"title\":\"Scheme\",\"target\":\"$PAGES/scheme.html\"}]" >/dev/null \
+  || fail "the scheme pin was refused"
+K set theme.colors.scheme '"light"' >/dev/null || fail "theme.colors.scheme light"
+sleep 1.5
+K act sidebar.toggle '{"side":"left","output":"HEADLESS-1"}' >/dev/null
+wait_window up
+K act webdock.sidebar_select '{"pin":"scheme"}' >/dev/null || fail "webdock.sidebar_select scheme"
+wait_doc "[p for p in d['pins'] if p['id'] == 'scheme'][0].get('loaded') == True" 30 || fail "the scheme page never loaded"
+for _ in $(seq 40); do [ -n "$(panel_place)" ] && break; sleep 0.25; done
+read -r _ _ IN TOP WW WH _ <<< "$(panel_place)"
+SX=$(( IN + WW / 2 )); SY=$(( TOP + WH / 2 ))
+wait_px "$SX" "$SY" '#f2f0e6' 15
+ok "light: the page is light (prefers-color-scheme: light)"
+K set theme.colors.scheme '"dark"' >/dev/null || fail "theme.colors.scheme dark"
+echo dark > "$SCHEME_FILE"
+wait_px "$SX" "$SY" '#14161a' 15
+ok "dark: the same page turns dark, live, with no reload"
+K set theme.colors.scheme '"light"' >/dev/null
+echo light > "$SCHEME_FILE"
+wait_px "$SX" "$SY" '#f2f0e6' 15
+ok "and light again"
+K act sidebar.close >/dev/null
+wait_window down
 qml_errors
 echo "test-sidebar: PASS"

@@ -1,0 +1,21 @@
+[package]
+name = "kurashi-mod-sessions"
+description = "Work sessions native mod (W86, docs/ux/sessions.md): noren's sessions in the launcher, the \"Open in…\" step, the desk saved and restored with a project"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+serde = { workspace = true }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["process", "time", "rt"] }
+# The desk's windows and their places: a stand-in for the compositor adapter until it carries them (CONTRACT-CHANGE 812).
+niri-ipc = { version = "26.4.0", default-features = false }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

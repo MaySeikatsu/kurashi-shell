@@ -134,7 +134,13 @@ case $action in
     # real xdg-desktop-portal (and its backends) inside the sandbox — scheme `auto` (K55) then has no preference here,
     # the same on every machine.
     conf="$(dirname "$(readlink -f "$(command -v dbus-daemon)")")/../share/dbus-1/session.conf"
-    if [ -f "$conf" ]; then
+    if [ "${KURASHI_SB_FAKE_PORTAL:-}" = 1 ]; then
+      # Session 33 (a test's stand-in portal, tools/bench/fake_portal.py): a bus with no service directories at all —
+      # nothing can be activated, so no real portal starts either — where the stand-in may own the portal's name.
+      printf '<busconfig><type>session</type><listen>unix:path=%s/bus</listen><auth>EXTERNAL</auth><policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy></busconfig>\n' \
+        "$R" > "$R/bus.conf"
+      busargs=(--config-file="$R/bus.conf")
+    elif [ -f "$conf" ]; then
       printf '<busconfig><include>%s</include><policy context="mandatory"><deny send_destination="org.freedesktop.portal.Desktop"/></policy></busconfig>\n' \
         "$conf" > "$R/bus.conf"
       busargs=(--config-file="$R/bus.conf")

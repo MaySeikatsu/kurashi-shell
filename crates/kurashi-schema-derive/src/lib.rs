@@ -13,7 +13,7 @@ use syn::{
 };
 
 const FIELD_ATTRS: &str = "default, range, step, unit, choices, choices_from, label, help, page, section, \
-    per_output, requires, capability, overridden_by, module, restart, advanced, hidden, since, nested";
+    per_output, requires, capability, overridden_by, module, appearance, restart, advanced, hidden, since, nested";
 const CONTAINER_ATTRS: &str = "page, section, input_slots";
 const SLOTS: &[&str] = &[
     "left",
@@ -81,6 +81,7 @@ struct FieldAttrs {
     capability: Vec<LitStr>,
     overridden_by: Vec<OverriddenBy>,
     module: Vec<LitStr>,
+    appearance: Vec<LitStr>,
     since: Option<LitInt>,
     /// Span of every attribute that only makes sense on a leaf (for the `nested` check).
     leaf_only: Vec<(proc_macro2::Span, &'static str)>,
@@ -220,6 +221,18 @@ fn parse_field_attrs(attrs: &[Attribute]) -> syn::Result<FieldAttrs> {
                 "module" => {
                     leaf_only(&mut a, "module");
                     a.module.push(meta.value()?.parse()?);
+                }
+                // W84: the appearance menu's pane that shows this key (docs/ux/appearance-menu.md); repeatable.
+                "appearance" => {
+                    leaf_only(&mut a, "appearance");
+                    let lit: LitStr = meta.value()?.parse()?;
+                    if !is_ident_like(&lit.value()) {
+                        return Err(syn::Error::new(
+                            lit.span(),
+                            "appearance panes are lowercase words like `colours`",
+                        ));
+                    }
+                    a.appearance.push(lit);
                 }
                 "requires" => {
                     leaf_only(&mut a, "requires");
@@ -558,6 +571,9 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
         }
         for module in &a.module {
             body.push(quote!(__m.modules.push(#module.to_owned());));
+        }
+        for pane in &a.appearance {
+            body.push(quote!(__m.appearance.push(#pane.to_owned());));
         }
         for (key, forces, except) in &a.overridden_by {
             let forces = match forces {

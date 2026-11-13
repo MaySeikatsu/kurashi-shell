@@ -13,6 +13,12 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
+  # W86: noren (the zellij session manager) for the sessions mod; built only with `programs.kurashi.sessions.enable`.
+  inputs.noren = {
+    url = "github:MaySeikatsu/noren";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   outputs = { self, nixpkgs, crane, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
@@ -25,6 +31,11 @@
         quickshell-webengine = pkgs.callPackage ./nix/quickshell-webengine.nix { };
         # The web dock's package (K38): the host plus xdg-open. Home-Manager and NixOS install it with the dock on.
         kurashi-webdock = pkgs.callPackage ./nix/webdock.nix { inherit quickshell-webengine; };
+        # The terminal mod's QML terminal (W83) and its host's Quickshell, `qs-terminal`; not in the base closure.
+        qmltermwidget = pkgs.callPackage ./nix/qmltermwidget.nix { };
+        quickshell-terminal = pkgs.callPackage ./nix/quickshell-terminal.nix { inherit qmltermwidget; };
+        # The sessions mod's noren (W86); not in the base closure.
+        noren = self.inputs.noren.packages.${pkgs.stdenv.hostPlatform.system}.default;
         default = kurashi;
       });
 
@@ -47,8 +58,9 @@
             # Rust
             cargo rustc clippy rustfmt rust-analyzer cargo-nextest
             # Workflow
-            # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font
-            just jq (python3.withPackages (ps: [ ps.fonttools ])) git
+            # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font;
+            # dbus-python and pygobject: tools/bench/fake_portal.py, a stand-in desktop portal for the tests (session 33)
+            just jq (python3.withPackages (ps: [ ps.fonttools ps.dbus-python ps.pygobject3 ])) git
             # Shader checks (the ghostty material shader, W37 row 402)
             glslang
             # Frontend default (K3 candidate 1) + headless test compositor; niri nested in it is the lead platform for
@@ -59,6 +71,8 @@
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
             self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine
+            # The terminal mod's host (W83), so the sandbox daemon finds `qs-terminal` on PATH
+            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-terminal
             # I331: `wtype` types only into a sandbox (its runtime dir under /tmp/kurashi-sb-*), never into the session's
             # own focused window: an agent once ran it from its own shell and its keys reached the user's display.
             (writeShellScriptBin "wtype" ''

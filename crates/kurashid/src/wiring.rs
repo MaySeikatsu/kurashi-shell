@@ -171,6 +171,39 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             refuse_under_polkit(refused)
         }
     });
+    // Session 33 (W84, CONTRACT-CHANGE 791): the Wallpaper & Theming menu as a Stage card, `appearance:<pane>` (the
+    // launcher shows the same menu in itself unless `launcher.appearance_opens = card`). Toggles like quick.toggle.
+    let h = hub.clone();
+    actions.register("appearance.open", "action.appearance.open", move |a| {
+        let hub = h.clone();
+        async move {
+            let pane = a["pane"]
+                .as_str()
+                .filter(|p| !p.is_empty())
+                .unwrap_or("wallpaper");
+            if !APPEARANCE_PANES.contains(&pane) {
+                return Err(ActionError::Invalid("ui.error.unknown_pane".into()));
+            }
+            let name = format!("appearance:{pane}");
+            let mut refused = false;
+            hub.update("runtime.ui", None, |d| {
+                if polkit_up(d) {
+                    refused = true;
+                    return;
+                }
+                let open = d["panel"].as_str() == Some(name.as_str());
+                d["panel"] = json!(if open { "" } else { name.as_str() });
+                d["popup"] = json!(!open);
+                d["tray"] = json!("");
+                d["face"] = json!("");
+                clear_peek(d);
+                clear_sidebar(d);
+                d["launcher"] = json!(false);
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            refuse_under_polkit(refused)
+        }
+    });
     actions.register(
         "notifications.center",
         "action.notifications.center",
@@ -370,16 +403,32 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             Ok(None)
         }
     });
+    // Session 33 (I527): a script's own OSD, and the tests' way to draw every kind (osd.rs `custom`).
+    let h = hub.clone();
+    actions.register("osd.show", "action.osd.show", move |a| {
+        let hub = h.clone();
+        async move {
+            hub.osd
+                .custom(&hub, &a)
+                .map_err(|k| ActionError::Invalid(k.into()))?;
+            Ok(None)
+        }
+    });
     // What `kurashi act --list` shows for the ones that take arguments (PROTOCOL §6).
     for (id, args) in [
         ("island.expand", "{island?, face?}"),
         ("mod.panel.open", "{id, panel}"),
+        ("appearance.open", "{pane?, output?}"),
         ("tray.menu.open", "{id}"),
         ("sidebar.toggle", "{side, output?}"),
         ("sidebar.open", "{side, output?}"),
         ("ui.peek", "{source?, output, x, w}"),
         ("ui.polkit", "{active}"),
         ("ui.keep", "{on}"),
+        (
+            "osd.show",
+            "{label, icon?, value?, muted?, sub?, short?, kind?}",
+        ),
     ] {
         actions.describe(id, args);
     }
@@ -614,6 +663,16 @@ fn mod_panel_rows(hub: &Hub, q: &str) -> Vec<Value> {
 }
 
 /// `mod.panel.open` of a panel the mod does not offer, or whose mod is off.
+/// The Wallpaper & Theming menu's panes (W84; frontend/components/appearance/appearance.js `panes`).
+const APPEARANCE_PANES: [&str; 7] = [
+    "wallpaper",
+    "colours",
+    "style",
+    "material",
+    "motion",
+    "effects",
+    "fonts",
+];
 const PANEL_UNAVAILABLE: &str = "mods.error.panel_unavailable";
 
 /// Whether the `mods` document lists mod `id` as enabled, providing `panel:<panel>`.
@@ -939,7 +998,31 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     let labels: Arc<Mutex<CommandLabels>> = Arc::default();
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
+    let q_hub = hub.clone();
+    // K150: the prefixes in effect, for Settings (a refused provider says why) and the frontend.
+    q_hub.register(
+        crate::launcher_mods::DOC,
+        q_hub.launcher_mods.document(),
+        None,
+    );
     let query: QueryFn = Arc::new(move |q: &str| {
+        // K150: a mod's launcher provider whose prefix starts the query answers it alone; providers without a prefix
+        // add their rows after the apps.
+        let mut mod_rows = Vec::new();
+        let strings = q_hub
+            .snapshot("i18n")
+            .map(|(_, d)| d["strings"].clone())
+            .unwrap_or_default();
+        let tr = |k: &str| {
+            strings
+                .get(k)
+                .and_then(Value::as_str)
+                .unwrap_or(k)
+                .to_string()
+        };
+        if let Some(rows) = q_hub.launcher_mods.query(q, &tr, &mut mod_rows) {
+            return rows;
+        }
         // Prefix modes: `:` emoji (recent first), `;` the clipboard history, `>` commands (I126), `?` the keys (W26).
         if let Some(rest) = q.strip_prefix(':') {
             let f = q_emoji.lock().expect("emoji frecency");
@@ -1033,6 +1116,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         row
                     }),
             )
+            .chain(mod_rows)
             .chain(kurashi_launcher::commands::web_row(q, &template))
             .collect()
     });
@@ -1045,6 +1129,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             ClipError::Gone => ActionError::Invalid("launcher.clip.error.gone".into()),
             ClipError::TooLarge => ActionError::Invalid("launcher.clip.error.too_large".into()),
             ClipError::NotImage => ActionError::Invalid("launcher.clip.error.not_image".into()),
+            ClipError::NotText => ActionError::Invalid("launcher.clip.error.not_text".into()),
             ClipError::PinsFull => ActionError::Invalid("launcher.clip.error.pins_full".into()),
             ClipError::Failed(m) => ActionError::Unavailable(m),
         }
@@ -1075,6 +1160,20 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 let id = clip_id(&args)?;
                 let path = blocking(move || c.thumb(&id)).await?;
                 Ok(Some(json!({"path": path.display().to_string()})))
+            }
+        },
+    );
+    // Session 33: the preview pane's text — the whole entry (capped), the list shows its first line only.
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.text",
+        "action.launcher.clip.text",
+        move |args: Value| {
+            let c = c.clone();
+            async move {
+                let id = clip_id(&args)?;
+                let text = blocking(move || c.text(&id)).await?;
+                Ok(Some(json!({ "text": text })))
             }
         },
     );
@@ -1155,6 +1254,10 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                     .as_str()
                     .ok_or_else(|| ActionError::Invalid("launcher.launch needs id".into()))?
                     .to_string();
+                // K150: a mod's row runs the mod's own action (the query kept only those).
+                if let Some((action, args)) = crate::launcher_mods::parse_row(&id) {
+                    return actions.invoke(&action, args).await;
+                }
                 // A `>` command runs its action; the web row opens its address in the default browser.
                 if let Some(action) = id.strip_prefix("cmd:") {
                     return actions.invoke(action, json!({})).await;
@@ -1842,10 +1945,14 @@ struct AudioSink {
 
 impl kurashi_services::DocSink for AudioSink {
     fn set(&self, doc: Value) {
-        // The volume OSD and a moved default output are the island's edges (island.rs).
-        if let Some(island) = &self.island {
+        // The volume OSD and a moved default output are the island's edges (island.rs) while the OSD is the island's
+        // (`osd.place = island`); else the OSD's (osd.rs, I527), and the mic mute is always the OSD's.
+        if let Some(island) = &self.island
+            && self.hub.osd.in_island()
+        {
             island.observe_audio(&doc);
         }
+        self.hub.osd.observe_audio(&self.hub, &doc);
         let origin = self
             .last_origin
             .lock()
@@ -2264,12 +2371,21 @@ impl BrightnessWriter {
             .apply(&conn)
             .await
             .map_err(|e| ActionError::Internal(e.to_string()))?;
+        // I527: the OSD's, unless it is the island's (`osd.place = island`).
+        if let Some(percent) = doc["percent"].as_f64() {
+            self.hub.osd.brightness(&self.hub, percent / 100.0);
+        }
         // A running service keeps its document in step with the level now in effect.
         if self.provider.commands().is_some() {
             let _ = self.hub.set("svc.brightness", doc, origin);
         }
+
         // The OSD is a system event: none while `island.main.system_events` is off (K65).
-        if let Some(island) = self.island.as_ref().filter(|i| i.system_events()) {
+        if let Some(island) = self
+            .island
+            .as_ref()
+            .filter(|i| i.system_events() && self.hub.osd.in_island())
+        {
             island.signal(kurashi_island::FaceSignal {
                 face: "brightness".into(),
                 relevance: 0,
@@ -4628,6 +4744,8 @@ mod tests {
         let (_bus, _srv, sysfs, connect) = backlight_rig().await;
         let dev = sysfs.join("intel_backlight");
         let hub = Hub::new();
+        // (these check the island's faces: the OSD is the island's here, `osd.place = island`)
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "brightness"]);
         let mut actions = ActionRegistry::default();
         brightness_with(
@@ -4688,6 +4806,7 @@ mod tests {
         let (_bus, _srv, sysfs, connect) = backlight_rig().await;
         let dev = sysfs.join("intel_backlight");
         let hub = Hub::new();
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "brightness"]);
         let mut actions = ActionRegistry::default();
         let mut intents = crate::Intents::default();
@@ -4782,6 +4901,8 @@ mod tests {
     #[tokio::test]
     async fn volume_keys_step_through_the_audio_path_and_signal_the_osd() {
         let hub = Hub::new();
+        // (these check the island's faces: the OSD is the island's here, `osd.place = island`)
+        hub.osd.set_place("island");
         let island = island_host(&hub, &["clock", "volume"]);
         let mut actions = ActionRegistry::default();
         let volume = Arc::new(Mutex::new(0.5));
@@ -4990,12 +5111,17 @@ impl<C: kurashi_compositor::Compositor + 'static> crate::hub::Provider for Keybo
         let task = tokio::spawn(async move {
             let mut events = compositor.events();
             if let Ok(s) = compositor.snapshot().await {
-                let _ = hub.set(KEYBOARD_DOC, keyboard_doc(s.keyboard.as_ref()), None);
+                let doc = keyboard_doc(s.keyboard.as_ref());
+                // (I527: the OSD learns the layout in effect; a later change is its edge)
+                hub.osd.observe_keyboard(&hub, &doc);
+                let _ = hub.set(KEYBOARD_DOC, doc, None);
             }
             while let Some(ev) = events.next().await {
                 match ev {
                     kurashi_compositor::Event::Keyboard(k) => {
-                        let _ = hub.set(KEYBOARD_DOC, keyboard_doc(k.as_ref()), None);
+                        let doc = keyboard_doc(k.as_ref());
+                        hub.osd.observe_keyboard(&hub, &doc);
+                        let _ = hub.set(KEYBOARD_DOC, doc, None);
                     }
                     kurashi_compositor::Event::Resync => {
                         if let Ok(s) = compositor.snapshot().await {

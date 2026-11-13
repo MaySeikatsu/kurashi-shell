@@ -1,0 +1,69 @@
+diff -ru a/lib/TerminalDisplay.cpp b/lib/TerminalDisplay.cpp
+--- a/lib/TerminalDisplay.cpp	2026-11-13 14:20:18.203322580 +0100
++++ b/lib/TerminalDisplay.cpp	2026-11-13 14:22:04.958541011 +0100
+@@ -762,6 +762,39 @@
+     _opacity = qBound(static_cast<qreal>(0), opacity, static_cast<qreal>(1));
+ }
+ 
++void TerminalDisplay::setColors(const QVariantList &colors)
++{
++    if (colors.size() < 18)
++        return;
++    ColorEntry table[TABLE_COLORS];
++    for (int i = 0; i < TABLE_COLORS; i++)
++        table[i] = _colorTable[i];
++    const QColor fg = colors.at(0).value<QColor>();
++    const QColor bg = colors.at(1).value<QColor>();
++    table[DEFAULT_FORE_COLOR] = ColorEntry(fg, false);
++    table[DEFAULT_BACK_COLOR] = ColorEntry(bg, true);
++    table[DEFAULT_FORE_COLOR + BASE_COLORS] = ColorEntry(fg, false);
++    table[DEFAULT_BACK_COLOR + BASE_COLORS] = ColorEntry(bg, true);
++    for (int i = 0; i < 8; i++) {
++        table[2 + i] = ColorEntry(colors.at(2 + i).value<QColor>(), false);
++        table[2 + i + BASE_COLORS] = ColorEntry(colors.at(10 + i).value<QColor>(), false);
++    }
++    setColorTable(table);
++    QColor fill(bg);
++    fill.setAlphaF(_opacity);
++    setFillColor(fill);
++    update();
++}
++
++void TerminalDisplay::setBackgroundOpacity(qreal opacity)
++{
++    setOpacity(opacity);
++    QColor fill(_colorTable[DEFAULT_BACK_COLOR].color);
++    fill.setAlphaF(_opacity);
++    setFillColor(fill);
++    update();
++}
++
+ void TerminalDisplay::setBackgroundImage(const QString& backgroundImage)
+ {
+     if (!backgroundImage.isEmpty())
+diff -ru a/lib/TerminalDisplay.h b/lib/TerminalDisplay.h
+--- a/lib/TerminalDisplay.h	2026-11-13 14:20:18.203222610 +0100
++++ b/lib/TerminalDisplay.h	2026-11-13 14:20:29.852087377 +0100
+@@ -23,6 +23,7 @@
+ 
+ // Qt
+ #include <QColor>
++#include <QVariantList>
+ #include <QPointer>
+ #include <QQuickPaintedItem>
+ #include <QString>
+@@ -137,6 +138,14 @@
+     /** Sets the opacity of the terminal display. */
+     void setOpacity(qreal opacity);
+ 
++    /**
++     * kurashi (W83): set the palette from QML: [foreground, background, colour 0 … colour 15], each a colour or a
++     * colour string. The intense foreground/background repeat the plain ones. Repaints.
++     */
++    Q_INVOKABLE void setColors(const QVariantList &colors);
++    /** kurashi (W83): the background fill's alpha (0 lets the item below show through). Repaints. */
++    Q_INVOKABLE void setBackgroundOpacity(qreal opacity);
++
+     /** 
+      * This enum describes the location where the scroll bar is positioned in the display widget.
+      */

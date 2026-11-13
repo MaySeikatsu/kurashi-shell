@@ -125,6 +125,9 @@ fn row(m: &KeyMeta) -> Value {
     if !m.modules.is_empty() {
         r.insert("modules".into(), json!(m.modules));
     }
+    if !m.appearance.is_empty() {
+        r.insert("appearance".into(), json!(m.appearance));
+    }
     r.insert("since".into(), json!(m.since));
     let couplings: Vec<Value> = m
         .couplings
@@ -428,6 +431,10 @@ pub fn i18n_en(reg: &Registry) -> String {
 
 /// `motion_profile` → `Motion profile`.
 pub fn humanize(id: &str) -> String {
+    // (an initialism stays one)
+    if matches!(id, "osd") {
+        return id.to_uppercase();
+    }
     let s = id.replace(['_', '-'], " ");
     let mut c = s.chars();
     match c.next() {

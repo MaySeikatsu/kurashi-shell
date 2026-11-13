@@ -101,7 +101,15 @@ let
   kurashiBin = plain "${stub}/bin/kurashi";
   niriFile = c: c.config.xdg.configFile."niri/kurashi-binds.kdl";
   niriText = c: plain (niriFile c).text;
-  bindLines = text: lib.filter (l: lib.hasPrefix "    " l) (lib.splitString "\n" text);
+  # The `binds { … }` block's lines only (the file also carries a layer-rule since the depth work, which is no bind).
+  bindLines = text:
+    let
+      ls = lib.splitString "\n" text;
+      start = lib.lists.findFirstIndex (l: l == "binds {") null ls;
+      rest = if start == null then [ ] else lib.drop (start + 1) ls;
+      block = lib.take (lib.lists.findFirstIndex (l: l == "}") (builtins.length rest) rest) rest;
+    in
+    lib.filter (l: lib.hasPrefix "    " l) block;
   lineFor = key: lib.findFirst (l: lib.hasPrefix "    ${key} " l) "" (bindLines (niriText hm));
   snippetLine = l: lib.replaceStrings [ kurashiBin ] [ "kurashi" ] (plain l);
   docs = builtins.readFile ../../docs/niri-binds.kdl;

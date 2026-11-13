@@ -1,0 +1,233 @@
+# Terminal (W83, docs/ux/terminal.md): a drop-down out of the bar or an edge (Yakuake), the same session in the bar's
+# card, a sidebar section and the web dock's Local pin. Off by default. Daemon code: crates/kurashi-mod-terminal (linked in
+# native.rs); the host (`host:terminal`, `qs-terminal`: Quickshell with QMLTermWidget, nix/quickshell-terminal.nix) owns
+# the ptys and draws the text over the place's well (mods/terminal/host/); the shell draws the places (qml/).
+id = "terminal"
+name = "Terminal"
+description = "mods.terminal.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = [
+    "service:terminal",
+    "action:terminal.*",
+    "host:terminal",
+    # The drop-down: one window per output, drawn while the drop-down is out on that output.
+    "surface:dropdown",
+    # The bar module (icon / status / input) and its card; the panel is the sidebar section and the Local pin too.
+    "widget:terminal",
+    "panel:terminal",
+    # The launcher (K150): "Terminal" and the favourite folders among its results; the run prefix (`run_prefix`).
+    "launcher:terminal",
+    "launcher:run",
+    "i18n",
+]
+# The host runs the user's own shell as the user; no network of its own.
+capabilities = ["exec:qs-terminal"]
+cost = "medium"
+
+[[setting]]
+key = "shell"
+type = "string"
+default = ""
+label = "mods.terminal.shell"
+help = "mods.terminal.shell.help"
+
+[[setting]]
+key = "start_dir"
+type = "string"
+default = "~"
+label = "mods.terminal.start_dir"
+help = "mods.terminal.start_dir.help"
+
+[[setting]]
+key = "favourites"
+type = "records"
+default = []
+unique = "path"
+item_label = "path"
+label = "mods.terminal.favourites"
+help = "mods.terminal.favourites.help"
+  [[setting.field]]
+  key = "path"
+  type = "string"
+  required = true
+  label = "mods.terminal.favourites.path"
+  [[setting.field]]
+  key = "label"
+  type = "string"
+  default = ""
+  label = "mods.terminal.favourites.label"
+
+[[setting]]
+key = "place"
+type = "enum"
+choices = ["bar", "edge", "center", "position"]
+default = "bar"
+label = "mods.terminal.place"
+help = "mods.terminal.place.help"
+
+[[setting]]
+key = "edge"
+type = "enum"
+choices = ["top", "bottom", "left", "right"]
+default = "top"
+label = "mods.terminal.edge"
+help = "mods.terminal.edge.help"
+
+[[setting]]
+key = "length"
+type = "int"
+default = 100
+range = [20, 100]
+unit = "%"
+label = "mods.terminal.length"
+help = "mods.terminal.length.help"
+
+[[setting]]
+key = "width"
+type = "int"
+default = 60
+range = [20, 100]
+unit = "%"
+label = "mods.terminal.width"
+help = "mods.terminal.width.help"
+
+[[setting]]
+key = "height"
+type = "int"
+default = 45
+range = [20, 95]
+unit = "%"
+label = "mods.terminal.height"
+help = "mods.terminal.height.help"
+
+[[setting]]
+key = "anchor"
+type = "enum"
+choices = ["top-left", "top", "top-right", "left", "center", "right", "bottom-left", "bottom", "bottom-right"]
+default = "top-left"
+label = "mods.terminal.anchor"
+help = "mods.terminal.anchor.help"
+
+[[setting]]
+key = "offset_x"
+type = "int"
+default = 0
+range = [-4000, 4000]
+unit = "px"
+label = "mods.terminal.offset_x"
+
+[[setting]]
+key = "offset_y"
+type = "int"
+default = 0
+range = [-4000, 4000]
+unit = "px"
+label = "mods.terminal.offset_y"
+
+# The height dragged on the drop-down's free edge, per output (% of the output).
+[[setting]]
+key = "sizes"
+type = "records"
+default = []
+unique = "output"
+item_label = "output"
+label = "mods.terminal.sizes"
+help = "mods.terminal.sizes.help"
+  [[setting.field]]
+  key = "output"
+  type = "string"
+  required = true
+  label = "mods.terminal.sizes.output"
+  [[setting.field]]
+  key = "height"
+  type = "int"
+  required = true
+  range = [20, 95]
+  label = "mods.terminal.sizes.height"
+
+[[setting]]
+key = "pinned"
+type = "bool"
+default = false
+label = "mods.terminal.pinned"
+help = "mods.terminal.pinned.help"
+
+[[setting]]
+key = "hide_on_blur"
+type = "bool"
+default = false
+label = "mods.terminal.hide_on_blur"
+help = "mods.terminal.hide_on_blur.help"
+
+[[setting]]
+key = "font"
+type = "string"
+default = ""
+label = "mods.terminal.font"
+help = "mods.terminal.font.help"
+
+[[setting]]
+key = "font_size"
+type = "int"
+default = 13
+range = [6, 48]
+unit = "px"
+label = "mods.terminal.font_size"
+
+[[setting]]
+key = "opacity"
+type = "int"
+default = 60
+range = [0, 100]
+unit = "%"
+label = "mods.terminal.opacity"
+help = "mods.terminal.opacity.help"
+
+[[setting]]
+key = "scrollback"
+type = "int"
+default = 10000
+range = [100, 1000000]
+label = "mods.terminal.scrollback"
+help = "mods.terminal.scrollback.help"
+
+[[setting]]
+key = "bar_mode"
+type = "enum"
+choices = ["icon", "status", "input"]
+default = "icon"
+label = "mods.terminal.bar_mode"
+help = "mods.terminal.bar_mode.help"
+
+[[setting]]
+key = "input_target"
+type = "enum"
+choices = ["show", "quiet"]
+default = "show"
+label = "mods.terminal.input_target"
+help = "mods.terminal.input_target.help"
+
+[[setting]]
+key = "run_in"
+type = "enum"
+choices = ["current", "new"]
+default = "current"
+label = "mods.terminal.run_in"
+help = "mods.terminal.run_in.help"
+
+[[setting]]
+key = "dir_opens"
+type = "enum"
+choices = ["new", "current"]
+default = "new"
+label = "mods.terminal.dir_opens"
+help = "mods.terminal.dir_opens.help"
+
+[[setting]]
+key = "run_prefix"
+type = "string"
+default = "!"
+label = "mods.terminal.run_prefix"
+help = "mods.terminal.run_prefix.help"
