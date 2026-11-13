@@ -206,11 +206,11 @@ impl Content {
         }
     }
 
-    /// Whether the strip lists a pin of this kind in this mode. Online lists every pin, as before W78 (sites and views):
-    /// a sites-only Online needs `strip` in the frozen document fixture (CONTRACT-CHANGE, W78), and flips here.
+    /// Whether the strip lists a pin of this kind in this mode: Online the sites, Local the shell's own views (the
+    /// user, session 32: "sites only"; CONTRACT-CHANGE 760).
     fn lists(self, kind: Kind) -> bool {
         match self {
-            Self::Online => true,
+            Self::Online => kind == Kind::Web,
             Self::Local => kind == Kind::View,
         }
     }
@@ -1558,10 +1558,14 @@ impl Dock {
         if self.config.card_size != CardSize::Dock {
             doc["card_size"] = json!(self.config.card_size.name());
         }
-        // W78: the strip's mode, absent while online (the default), so a document from before it reads the same.
+        // W78: the strip's mode, absent while online (the default); `strip` while it lists fewer than every pin (Online
+        // with a view pinned, or Local), so a document with sites only reads as before.
         if self.config.content != Content::Online {
             doc["content"] = json!(self.config.content.name());
-            doc["strip"] = json!(self.strip());
+        }
+        let strip = self.strip();
+        if strip.len() != self.pins.iter().filter(|p| p.temp.is_none()).count() {
+            doc["strip"] = json!(strip);
         }
         // I495 (session 30): the bar module's views, named only while on.
         if self.config.bar_site {
@@ -3873,13 +3877,15 @@ mod tests {
     }
 
     #[test]
-    fn the_strip_lists_every_pin_online_and_the_views_local_never_a_temporary_page() {
+    fn the_strip_lists_the_sites_online_and_the_views_local_never_a_temporary_page() {
         let mut d = dock(&[]);
-        assert_eq!(d.strip(), ["mail", "chat", "weather"]);
+        assert_eq!(d.strip(), ["mail", "chat"]);
         let doc = d.doc();
-        assert!(
-            doc.get("content").is_none() && doc.get("strip").is_none(),
-            "online is the default: both absent, the document as before"
+        assert!(doc.get("content").is_none(), "online is the default");
+        assert_eq!(
+            doc["strip"],
+            json!(["mail", "chat"]),
+            "a view pinned: the strip names the sites"
         );
         let temp = d.browse(Spot::Edge, Some("DP-1"));
         assert!(
@@ -3895,11 +3901,9 @@ mod tests {
             json!(["weather"]),
             "{temp} is not listed in Local either"
         );
-        assert!(
-            dock(&[("content", json!("x"))])
-                .doc()
-                .get("strip")
-                .is_none(),
+        assert_eq!(
+            dock(&[("content", json!("x"))]).doc()["strip"],
+            json!(["mail", "chat"]),
             "unknown: online"
         );
     }
@@ -3922,9 +3926,9 @@ mod tests {
         assert_eq!(d.doc()["shown"], "weather");
         d.apply_settings(&settings_with(rows(), &[]), Instant::now());
         assert_eq!(
-            d.doc()["shown"],
-            "weather",
-            "Online lists every pin: a view's card stays"
+            d.doc()["mode"],
+            "compact",
+            "Online lists the sites (session 32): a view's card goes"
         );
         d.apply_settings(&local, Instant::now());
         // a pin of the other kind opened by name still shows: the mode filters the strip, not what is shown

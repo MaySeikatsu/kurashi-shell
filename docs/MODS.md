@@ -295,11 +295,11 @@ width?, height?}` (writes `sizes`; none removes the row) · `webdock.retarget {p
 (`https://duckduckgo.com/?q={q}` by default), `bar_site`, `bar_playing` (I495).
 
 **Local mode (W78, session 32; CONTRACT-CHANGE 760):** setting `content` (`online` | `local`, default `online`); while
-it is `local` the document carries `content: "local"` and `strip: [<pin id>…]` (the ids the strip lists: the shell's own
-views), both absent otherwise (the fixture's default state is unchanged). Action `webdock.content {content?}` (no
+it is `local` the document carries `content: "local"`; `strip: [<pin id>…]` names the ids the strip lists whenever
+that is fewer than every pin (Online lists the sites, Local the shell's own views — the user, session 32), absent when it
+is every pin (sites only, no view pinned). Action `webdock.content {content?}` (no
 argument flips; one undo step; `webdock.error.forced` while the configuration forces it). `webdock.add {url}` takes a
-view target `mod:<id>:<name>` too. A card of the other kind is put away when the mode changes. Online still lists every
-pin (sites, then views): sites only is the user's call (row 760).
+view target `mod:<id>:<name>` too. A card of the other kind is put away when the mode changes.
 
 **Shell side (K40, rows 88, 109–111):** the shell draws the indicator, the strip and the card of a view pin
 (`surface:dock` → `qml/surfaces/dock.qml`, one per output, required property `screen`); the bar widget
