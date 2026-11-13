@@ -140,6 +140,13 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   refused: `runtime.launcher {builtin, providers: [{id, prefix} | {id, refused: {reason, prefix?, by?}}]}` says which
   and why. The web dock's is `/` (`mods.webdock.launcher_prefix`): its pins, the address the text names, or a search,
   opened in the edge card (`webdock.launch {pin} | {url}, output?`).
+- **Terminal (W83, session 33; CONTRACT-CHANGE 784; docs/ux/terminal.md):** the mod `terminal` — a Yakuake-like terminal
+  in its own host process (`qs-terminal`: Quickshell with the Qt 6 QMLTermWidget, packaged in `nix/qmltermwidget.nix` with
+  a palette patch), one pty per tab owned by the host, the tabs and places owned by the daemon (`mod.terminal`,
+  `terminal.*`). Places: the drop-down (`place` = bar | edge | center | position; the toggle `terminal.toggle`, Mod+Grave
+  from the Home-Manager module), the panel `panel:terminal` (sidebar section, bar card, web dock Local pin), the bar
+  widget (`icon` / `status` / `input`). Launcher providers `launcher:terminal` (entries, favourite folders) and
+  `launcher:run` (`!`, `run_prefix`), on K150. Settings: 23 keys in `mods/terminal/mod.toml`.
 - **Background jobs (I23):** `ctx.background(name, reason, wanted_by, run)` declares `job:<name>`. The
   body is `Fn(JobCtx)` (the daemon starts it again when the setting turns it on), `JobCtx::settings()`
   is the mod's settings feed, and `wanted_by` names a bool setting of the same mod. The enable hands the
