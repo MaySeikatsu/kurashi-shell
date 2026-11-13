@@ -486,15 +486,10 @@ Scope {
                     // A toggled column (hidden mode) takes the usable area's input: a click outside closes it.
                     readonly property bool catcher: col.toggledHere && !col.pinned
                     anchors { top: true; bottom: true; left: sb.side === "left"; right: sb.side === "right" }
-                    // The column's part of the output: as wide as the widest column while it can grow (a drag, a spring's
-                    // overshoot, flyouts), the whole width while it catches clicks.
-                    // W81 (B120, measured on nested niri with the user's profile): a pinned column at rest is only as wide
-                    // as itself and its shadow. Every step of the colour flow redraws the whole window, and the slack for a
-                    // 640 px column was ~40 % of a 390 px column's window — drawn, swapped and blurred for nothing. The
-                    // column's place on the screen does not depend on this width (realX), so it never moves when it changes.
-                    readonly property bool snug: col.pinned && !col.resizing && !flyouts && !catcher && !wide && col.p === 1
-                    readonly property real boxW: Math.min(col.sw, (snug ? col.colW : 640) + col.inset + col.joinR + Theme.gap
-                        + Theme.softR + Math.abs(Theme.sinkX) + 12)
+                    // The column's part of the output: as wide as the widest column (a drag never resizes the window, so
+                    // the pointer's place stays put), the whole width while it catches clicks.
+                    readonly property real boxW: Math.min(col.sw, 640 + col.inset + col.joinR + Theme.gap + Theme.softR
+                        + Math.abs(Theme.sinkX) + 12)
                     // (once it is the whole width it stays so until the window goes: a toggled column that closes stops
                     // catching clicks at once, and a window that shrank at that moment drew one frame with the column
                     // out of place or missing before its form began — session 29, seen on nested niri)
@@ -1072,18 +1067,15 @@ Scope {
                             preventStealing: true
                             property real startX: 0
                             property int startW: 0
-                            // (from the window's anchored edge: a pinned column's window widens when the drag begins, W81,
-                            // and a right column's window then grows to the left under the pointer)
-                            function edgeX(x) { var s = mapToItem(null, x, 0).x; return sb.side === "right" ? win.width - s : s }
                             onPressed: ev => {
-                                startX = edgeX(ev.x)
+                                startX = mapToItem(null, ev.x, 0).x
                                 startW = col.colW
                                 col.resizing = true
                                 col.liveW = startW
                             }
                             onPositionChanged: ev => {
                                 if (!pressed) return
-                                var dx = (sb.side === "right" ? -1 : 1) * (edgeX(ev.x) - startX)
+                                var dx = mapToItem(null, ev.x, 0).x - startX
                                 if (Math.abs(dx) >= 2) moved = true
                                 if (moved) col.liveW = col.clampW(startW + (sb.side === "right" ? -dx : dx))
                             }
