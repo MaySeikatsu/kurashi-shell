@@ -729,7 +729,21 @@ impl State {
                     Some(_) => json!({"docked": true, "opened": "launched"}),
                     None => json!({"docked": false}),
                 };
-                self.patch(kurashid::config::SETTINGS_RUNTIME_DOC, json!({"dock": dock}), None);
+                // The whole document is diffed, not merged: a merge patch would keep the `radius` of an earlier rect
+                // that the new one leaves out (`runtime.layout` is diffed the same way, `relayout`).
+                let old = self.data(kurashid::config::SETTINGS_RUNTIME_DOC).clone();
+                let mut next = old.clone();
+                match dock {
+                    Some(dock) => next["dock"] = dock,
+                    None => {
+                        if let Some(o) = next.as_object_mut() {
+                            o.remove("dock");
+                        }
+                    }
+                }
+                if let Some(ops) = kurashi_ipc::diff_patch(&old, &next) {
+                    self.patch(kurashid::config::SETTINGS_RUNTIME_DOC, ops, None);
+                }
                 return Ok(Some(answer));
             }
             // Without a confirm the daemon refuses; with one it acts, and the mock does nothing.
@@ -1991,6 +2005,13 @@ mod tests {
             Some(json!({"docked": true, "opened": "launched"}))
         );
         assert_eq!(dock(&st)["dock"], rect);
+        // A rect without `radius` after one with it keeps none, as kurashid replaces the whole rect.
+        let rounded =
+            json!({"output": "DP-1", "x": 0, "y": 0, "width": 320, "height": 600, "radius": 12});
+        st.act("settings.dock", &rounded).unwrap();
+        assert_eq!(dock(&st)["dock"]["radius"], 12);
+        st.act("settings.dock", &rect).unwrap();
+        assert!(dock(&st)["dock"].get("radius").is_none(), "{}", dock(&st));
         assert_eq!(
             st.act("settings.dock", &none()).unwrap(),
             Some(json!({"docked": false}))
