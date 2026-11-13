@@ -133,6 +133,8 @@ pub struct Model {
     notice: Option<(String, String)>,
     /// The pointer is on the host's window (a hover-opened card holds while it is).
     pointer: bool,
+    /// The drop-down holds the keyboard (exclusively): from its coming out until a click elsewhere releases it.
+    keys: bool,
 }
 
 impl Model {
@@ -157,6 +159,7 @@ impl Model {
             stopping: false,
             notice: None,
             pointer: false,
+            keys: false,
         }
     }
 
@@ -415,10 +418,12 @@ impl Model {
         self.raise(Place::Dropdown);
         self.ensure_tab();
         self.focus += 1;
+        self.keys = true;
     }
 
     pub fn hide(&mut self) {
         self.dropdown = false;
+        self.keys = false;
         self.open.retain(|q| *q != Place::Dropdown);
         self.rests.remove(&Place::Dropdown);
     }
@@ -433,10 +438,13 @@ impl Model {
         }
     }
 
-    /// The drop-down's window lost the keyboard: it hides when `hide_on_blur` is on and it is not pinned.
+    /// A click elsewhere while the drop-down is out: it hides when `hide_on_blur` is on and it is not kept open;
+    /// else it stays out and gives the keyboard back (a click in the terminal takes it again).
     pub fn blur(&mut self) {
         if self.dropdown && self.cfg.hide_on_blur && !self.cfg.pinned {
             self.hide();
+        } else {
+            self.keys = false;
         }
     }
 
@@ -468,6 +476,7 @@ impl Model {
         if self.open.contains(&p) {
             self.raise(p);
             self.focus += 1;
+            self.keys = p == Place::Dropdown;
         }
     }
 
@@ -540,6 +549,10 @@ impl Model {
         let t = text.trim();
         let lower = t.to_lowercase();
         let mut rows = Vec::new();
+        // (one letter matches too much among the apps' results)
+        if !run && t.chars().count() < 2 {
+            return rows;
+        }
         if run {
             if !t.is_empty() {
                 rows.push(LaunchRow::Run(t.to_string()));
@@ -660,6 +673,9 @@ impl Model {
         d.insert("focus".into(), json!(self.focus));
         if self.pointer {
             d.insert("pointer".into(), json!(true));
+        }
+        if self.keys && self.dropdown {
+            d.insert("keys".into(), json!(true));
         }
         if let Some((key, path)) = &self.notice {
             d.insert("notice".into(), json!({"key": key, "path": path}));
@@ -914,8 +930,11 @@ mod tests {
     fn blur_hides_unless_pinned() {
         let (_h, mut m) = model();
         m.show(None);
+        assert_eq!(m.doc()["keys"], true);
         m.blur();
         assert!(m.dropdown_open());
+        // (kept out, the keyboard goes back)
+        assert!(m.doc().get("keys").is_none());
         let cfg = Cfg {
             hide_on_blur: true,
             ..Cfg::default()

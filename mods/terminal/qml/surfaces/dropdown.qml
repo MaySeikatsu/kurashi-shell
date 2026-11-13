@@ -22,7 +22,27 @@ PanelWindow {
     readonly property string outName: screen ? screen.name : ""
     readonly property bool firstHere: Quickshell.screens.length > 0 && Quickshell.screens[0].name === outName
     readonly property var drop: d.dropdown || ({})
-    readonly property bool want: drop.open === true && (drop.output !== undefined ? drop.output === outName : firstHere)
+    // Out without a named output (the niri bind sends none): on the focused output (the output whose workspaces hold
+    // the focused one, as shell.qml picks the Stage's), latched while it is out.
+    Watch { doc: "svc.workspaces" }
+    function focusedHere() {
+        var o = (Store.docs["svc.workspaces"] && Store.docs["svc.workspaces"].outputs) || {}
+        var any = false
+        for (var n in o) {
+            var l = o[n] || []
+            for (var j = 0; j < l.length; j++) if (l[j].focused) { any = true; if (n === outName) return true }
+        }
+        return !any && firstHere
+    }
+    readonly property bool openNow: drop.open === true
+    property bool latched: false
+    onOpenNowChanged: latched = openNow && focusedHere()
+    readonly property bool want: openNow && (drop.output !== undefined ? drop.output === outName : latched)
+    // (made while it is out — a reload, a new output: it takes its place at once, without the slide)
+    Component.onCompleted: {
+        latched = openNow && focusedHere()
+        if (want) { out = 1; Qt.callLater(settle) }
+    }
     readonly property real scrW: screen ? screen.width : 1920
     readonly property real scrH: screen ? screen.height : 1080
 
@@ -93,9 +113,10 @@ PanelWindow {
     // (the keyboard is the host's window's, over the well; the sheet takes it only while a tab's name is edited)
     WlrLayershell.keyboardFocus: row.editing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    // `hide_on_blur`: a click anywhere else on this output hides it (unless kept open). The terminal holds the keyboard
-    // while it is out, so a click — not a focus change — is what "elsewhere" means here; the click is spent on hiding.
-    readonly property bool awayOn: want && out >= 1 && s.hide_on_blur === true && s.pinned !== true
+    // A click elsewhere on this output while the terminal holds the keyboard (exclusively, so a click — not a focus
+    // change — is what "elsewhere" means): `hide_on_blur` hides it unless kept open; otherwise it gives the keyboard back
+    // and stays out. The click is spent on that (the next one reaches the window under it).
+    readonly property bool awayOn: want && out >= 1 && d.keys === true
     PanelWindow {
         id: away
         screen: dd.screen

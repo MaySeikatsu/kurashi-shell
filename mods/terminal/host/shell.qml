@@ -104,18 +104,10 @@ ShellRoot {
         Component.onCompleted: if (root.rest) last = root.rest
         screen: screenFor(last.output)
         readonly property bool mapped: root.rest !== null && root.active !== "" && Store.connected
-        // The shown tab paints again once the window is back (and once more when its scene graph has come back).
-        onMappedChanged: if (mapped) { repaint(); repaintLater.restart() }
-        Timer { id: repaintLater; interval: 120; onTriggered: place.repaintViews() }
-        function repaintViews() {
-            var v = viewOf(root.active)
-            if (v) v.term.update()
-        }
-        function repaint() {
+        // The text arrives with the place at rest: a short fade, a cut under reduced motion.
+        onMappedChanged: if (mapped) {
             content.opacity = 1
             if (Theme.motionKind !== "none") fadeIn.restart()
-            var v = viewOf(root.active)
-            if (v) v.term.update()
         }
         visible: mapped
         color: "transparent"
@@ -131,12 +123,12 @@ ShellRoot {
         implicitHeight: Math.max(1, last.height)
 
         // The keyboard. Out as the drop-down it is the terminal's while it shows (Yakuake): exclusive, so no click on a
-        // window steals the shell's keys; the toggle takes it back (and `hide_on_blur` hides it on a click elsewhere, through
-        // the sheet's click-away). In the card and the sidebar it is on demand: a click in the terminal takes it. niri drops
-        // a layer's keyboard when it turns from exclusive to on demand, so the drop-down does not pulse.
+        // window steals the shell's keys (`keys`), until a click elsewhere (the sheet's click-away) hides it (`hide_on_blur`)
+        // or gives the keyboard back (kept open): then on demand, a click in the terminal takes it again. In the card and the
+        // sidebar it is on demand. (niri drops a layer's keyboard when it turns from exclusive to on demand: no pulse.)
         readonly property bool dropdown: root.shownIn === "dropdown"
         property bool winActive: false
-        WlrLayershell.keyboardFocus: visible && dropdown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+        WlrLayershell.keyboardFocus: visible && dropdown && root.doc.keys === true ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
         function viewOf(id) {
             for (var i = 0; i < views.count; i++) {
@@ -152,8 +144,7 @@ ShellRoot {
             // with it)
             width: Math.max(1, place.last.width)
             height: Math.max(1, place.last.height)
-            // The text arrives with the place at rest: a short fade, a cut under reduced motion.
-            // (started on the map, not bound to it: an animation in an unmapped window does not run, and a bound fade
+            // (the fade: started on the map, not bound to it: an animation in an unmapped window does not run, and a bound fade
             // to 0 on the unmap was left there)
             NumberAnimation {
                 id: fadeIn

@@ -102,8 +102,50 @@ sleep 1
 type_line "echo kurashi > $OUT/echo.txt; echo kurashi; echo \$\$ > $OUT/pid1.txt"
 wait_until 10 file_has "$OUT/echo.txt" kurashi || fail "typed 'echo kurashi' did not run (the keyboard is not the terminal's)"
 ok "$S: out of the bar, typed echo kurashi ran"
+# The host's own variables never reach the shell (the scope token above all).
+type_line "env | grep -c -E 'KURASHI_SCOPE|COLORSCHEMES_DIR|KB_LAYOUT_DIR|NIXPKGS_QT6_QML' > $OUT/scope.txt"
+wait_until 10 file_has "$OUT/scope.txt" . || fail "the env check did not run"
+[ "$(cat "$OUT/scope.txt")" = 0 ] || fail "the host's variables reached the shell ($(cat "$OUT/scope.txt") of them)"
+ok "$S: the scope token and the host's paths are not in the shell's environment"
+# Tabs by Yakuake's keys: Ctrl+Shift+T a new one, Ctrl+PgDown the next, Ctrl+Shift+W closes.
+"$SB" spawn wtype -M ctrl -M shift -k t -m shift -m ctrl
+wait_until 5 doc_is "len(d['tabs']) == 2 and d['active'] != '$TAB'" || fail "Ctrl+Shift+T made no tab ($(doc "d['tabs']"))"
+sleep 0.5
+"$SB" spawn wtype -M ctrl -k Next -m ctrl
+wait_until 5 doc_is "d['active'] == '$TAB'" || fail "Ctrl+PgDown did not switch to the next tab"
+"$SB" spawn wtype -M ctrl -k Next -m ctrl
+wait_until 5 doc_is "d['active'] != '$TAB'" || fail "Ctrl+PgDown did not wrap"
+"$SB" spawn wtype -M ctrl -M shift -k w -m shift -m ctrl
+wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the tab"
+ok "$S: Ctrl+Shift+T, Ctrl+PgDown, Ctrl+Shift+W"
 sleep 0.5
 shot "dropdown-bar-$S"
+# Kept out (hide_on_blur off): a click elsewhere gives the keyboard back, the terminal stays; on: it hides.
+"$SB" click 960 900
+wait_until 5 doc_is "d['dropdown']['open'] == True and not d.get('keys')" || fail "a click elsewhere did not give the keyboard back"
+"$SB" niri layers | grep -A1 '"kurashi-terminal"' | grep -q on-demand || fail "the host still holds the keyboard exclusively"
+K set mods.terminal.hide_on_blur true > /dev/null
+K act terminal.toggle > /dev/null; K act terminal.toggle > /dev/null
+wait_until 10 doc_is "d.get('keys') == True and 'dropdown' in d.get('rests', {})" || fail "the drop-down did not take the keyboard again"
+"$SB" click 960 900
+wait_until 5 doc_is "d['dropdown']['open'] == False" || fail "hide_on_blur: a click elsewhere did not hide it"
+K act terminal.pin '{"on":true}' > /dev/null
+K act terminal.toggle > /dev/null
+wait_until 10 doc_is "d['settings']['pinned'] == True and d.get('keys') == True" || fail "terminal.pin did not keep it"
+"$SB" click 960 900
+wait_until 5 doc_is "d['dropdown']['open'] == True and not d.get('keys')" || fail "kept open, a click elsewhere hid it"
+K act terminal.pin '{"on":false}' > /dev/null
+K set mods.terminal.hide_on_blur false > /dev/null
+ok "$S: a click elsewhere gives the keyboard back; hide_on_blur hides; kept open stays"
+# The height per output (the grip's write).
+OUTN=$(doc "d['rests']['dropdown']['output']")
+H0=$(doc "d['rests']['dropdown']['height']")
+K act terminal.resize "{\"output\":\"$OUTN\",\"height\":30}" > /dev/null
+wait_until 10 doc_is "d['settings']['sizes'].get('$OUTN') == 30 and d['rests']['dropdown']['height'] < $H0" || fail "terminal.resize did not shrink it"
+K act terminal.resize "{\"output\":\"$OUTN\"}" > /dev/null
+ok "$S: the height per output"
+K act terminal.toggle > /dev/null; K act terminal.toggle > /dev/null
+wait_until 10 doc_is "d.get('keys') == True and 'dropdown' in d.get('rests', {})" || fail "the drop-down did not come back"
 
 # 2. hidden: no window; shown again: the same session
 K act terminal.toggle > /dev/null
@@ -208,6 +250,19 @@ RX=$(doc "d['rests']['dropdown']['y']")
 sleep 0.5
 shot "dropdown-center-$S"
 ok "$S: place = center floats it"
+# A screen edge (Yakuake): the bottom one; and a position (bottom-right).
+K set mods.terminal.place '"edge"' > /dev/null
+K set mods.terminal.edge '"bottom"' > /dev/null
+wait_until 10 doc_is "'dropdown' in d.get('rests', {}) and d['rests']['dropdown']['y'] > 400" || fail "place = edge (bottom) did not rest at the bottom"
+sleep 0.5
+shot "dropdown-edge-$S"
+K set mods.terminal.place '"position"' > /dev/null
+K set mods.terminal.anchor '"bottom-right"' > /dev/null
+wait_until 10 doc_is "'dropdown' in d.get('rests', {}) and d['rests']['dropdown']['x'] > 600 and d['rests']['dropdown']['y'] > 400" \
+  || fail "place = position (bottom-right) did not rest there ($(doc "d.get('rests')"))"
+shot "dropdown-position-$S"
+K set mods.terminal.place '"center"' > /dev/null
+ok "$S: place = edge and position"
 
 # 8. the host killed
 HP=""
