@@ -18,7 +18,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-11-13 — session 33 (machine A): 0.1.0 — terminal, work sessions, Wallpaper & Theming, OSD, menus, launcher
-**State.** `main` = #60 (session 32). **PR <PR> (branch `feat/s33-context-menus`) is open, not merged** — the user merges;
+**State.** `main` = #60 (session 32). **PR #61 (branch `feat/s33-context-menus`) is open, not merged** — the user merges;
 after the merge tag `v0.1.0` on `main` and push the tag (K151). No worktree or agent build dir is left (all removed).
 Disk ~145 GB free.
 **Done** (K150–K152; CONTRACT-CHANGE 764, 782–819 decided or deferred with BACKLOG rows):
@@ -41,7 +41,7 @@ choosing. Work sessions: a first-party plugin, "Open in…" after choosing, HM s
 after the core. Ideas I517–I537 in BACKLOG (the user liked them).
 **Verified.** `just check` green; `just suites` (50): 48 pass, `bar-fit` only under load, `quick-modules` as on `main` (B92); `nix build .#kurashi` green (0.1.0); HM evals (hm, terminal, webdock, sessions) pass. Each feature seen on nested niri with shots, light and dark, in several looks; nothing seen on the user's screen yet (they rebuilt #60 earlier; read-only CPU at rest 0 %).
 **Next steps (in order; ask the user where a step says so):**
-1. Check PR <PR>; after the merge: `git tag v0.1.0` on `main`, push the tag (the user said to start versioning).
+1. Check PR #61; after the merge: `git tag v0.1.0` on `main`, push the tag (the user said to start versioning).
 2. Live read with the user: their on-screen list in the PR; the CPU reading with music (postponed: they were in a call).
 3. Ask: B119 (Qt's basic render loop as an experiment on their session).
 4. The backlog's open ends of this session: terminal 801/802 (module-menu rows from mods; OSC 133 patch), sessions
