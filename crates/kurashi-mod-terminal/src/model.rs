@@ -471,6 +471,7 @@ impl Model {
     /// went away. `fresh` (its first rest after opening) makes it the one that shows the terminal.
     pub fn place(&mut self, p: Place, rest: Option<Rest>, closed: bool, fresh: bool) {
         if closed {
+            self.held = false;
             self.open.retain(|q| *q != p);
             self.rests.remove(&p);
             if p == Place::Dropdown {
@@ -658,6 +659,8 @@ impl Model {
         }
         if !self.host_stills.is_empty() && self.host.is_running() {
             host.insert("stills".into(), json!(self.host_stills));
+        }
+        if self.still_gen > 0 && self.host.is_running() {
             host.insert("still_gen".into(), json!(self.still_gen));
         }
         d.insert("host".into(), Value::Object(host));

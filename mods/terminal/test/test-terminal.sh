@@ -149,6 +149,17 @@ wait_until 10 file_has "$OUT/menu.txt" "$FAV" || fail "after the menu the keys d
 "$SB" spawn wtype -M ctrl -M shift -k w -m shift -m ctrl
 wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the menu's tab"
 ok "$S: the tab row's menu: keys walk it, Enter opens the favourite, the keyboard comes back to the terminal"
+# A double click on the tab renames it in place (the row takes the keyboard: `held`), Return keeps the name.
+"$SB" click $((WX + 30)) $((WY + WH + 23)); "$SB" click $((WX + 30)) $((WY + WH + 23))
+wait_until 5 doc_is "d.get('held') == True" || fail "a double click on the tab did not start its rename"
+sleep 0.3
+"$SB" spawn wtype -k BackSpace "w85name" -k Return
+wait_until 5 doc_is "d['tabs'][0]['title'] == 'w85name' and d['tabs'][0].get('renamed') and not d.get('held')" \
+  || fail "the rename did not stick or kept the keyboard ($(doc "d['tabs'], d.get('held')"))"
+sleep 0.5
+type_line "echo renamed > $OUT/rename.txt"
+wait_until 10 file_has "$OUT/rename.txt" renamed || fail "after the rename the keys did not reach the terminal"
+ok "$S: a double click renames the tab; the keyboard comes back"
 sleep 0.5
 shot "dropdown-bar-$S"
 # Kept out (hide_on_blur off): a click elsewhere gives the keyboard back, the terminal stays; on: it hides.
@@ -390,7 +401,7 @@ for L in ${TERM_LOOKS:-washi kami material}; do
     wait_until 20 doc_is "'dropdown' in d.get('rests', {}) and d['host']['state'] == 'ready' and d['host'].get('shows') == 'dropdown'" \
       || fail "$L $S: the drop-down did not rest with its text"
     sleep 0.5
-    type_line "clear; printf 'kurashi \\e[31mred \\e[32mgreen \\e[33myellow \\e[34mblue \\e[35mmagenta \\e[36mcyan \\e[90mgrey\\e[0m $L $S\\n'; ls -la /"
+    type_line "clear; printf 'kurashi \\e[31mred \\e[32mgreen \\e[33myellow \\e[34mblue \\e[35mmagenta \\e[36mcyan \\e[90mgrey \\e[37msilver \\e[97mwhite \\e[30;47mblack\\e[0m $L $S\\n'; ls -la /"
     sleep 1.5
     shot "look-$L-$S"
     read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
@@ -429,6 +440,18 @@ for L in ${TERM_LOOKS:-washi kami material}; do
     wait_until 10 doc_is "d.get('host', {}).get('shows') == 'card'" || fail "$L $S: the card did not show the text"
     sleep 0.5
     shot "card-$L-$S" "960,0 960x560" 1
+    read -r CX CY CW CH < <(doc "' '.join(str(d['rests']['card'][k]) for k in ('x', 'y', 'width', 'height'))")
+    K act ui.close > /dev/null
+    wait_until 10 doc_is "d.get('shown_in') != 'card'" || fail "$L $S: the card's place stayed"
+    # the card again, in a burst (its still is there now): at rest, the text is there (its tab row 40 px over the well)
+    sleep 1
+    GC="$CX,$((CY - 40)) ${CW}x$((CH + 40))"
+    frames ci "$GC" 14 0.02 -- "$SB" act act mod.panel.open '{"id":"terminal","panel":"terminal"}'
+    wait_until 10 doc_is "d.get('host', {}).get('shows') == 'card'" || fail "$L $S: the card did not show the text again"
+    sleep 0.5
+    (. "$OUT/sway-env.sh"; timeout 5 grim -s 1 -g "$GC" "$OUT/ref-card.png")
+    at_rest_has_text ci "$OUT/ref-card.png" 14 "100x22+0+4" "200x16+0+41" || { burst_strip ci "burst-card-$L-$S"; fail "$L $S: the card came to rest before its text"; }
+    burst_strip ci "burst-card-$L-$S"
     K act ui.close > /dev/null
     wait_until 10 doc_is "d.get('shown_in') != 'card'" || fail "$L $S: the card's place stayed"
     ok "$L $S: shots, the menu, the notice, the card; the text comes and goes with its sheet"

@@ -61,8 +61,9 @@ Item {
             anchors.fill: parent
             doc: panel.d
             place: panel.where
+            // (arriving — before its first rest, which makes it the place that shows the terminal — it holds too)
             keep: panel.where !== "" && panel.d.shown_in === panel.where
-            hold: panel.where !== "" && panel.d.shown_in === panel.where
+            hold: panel.where !== "" && (panel.d.shown_in === panel.where || panel.sent === "")
                 && !(panel.wellPlace !== null && panel.d.host && panel.d.host.shows === panel.where)
         }
         // Outside a card and a sidebar (a place that hands no placement): the terminal cannot be laid here; say so and

@@ -143,6 +143,17 @@ ShellRoot {
         property bool stillsNew: false
         property int stillGen: 0
         // (said at once while the text shows: the place keeps the newest still loaded, to draw it the moment it leaves)
+        // A theme change: the stills are in the old colours; none is offered until the next is taken.
+        Connections {
+            target: Theme
+            function onTokensChanged() {
+                if (place.stillKeys.length === 0) return
+                place.stillKeys = []
+                place.stillGen++
+                place.stillsNew = true
+                place.reportShown()
+            }
+        }
         function wroteStill(k) {
             stillKeys = [k].concat(stillKeys.filter(function (x) { return x !== k })).slice(0, 16)
             stillGen++

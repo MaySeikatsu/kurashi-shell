@@ -117,6 +117,8 @@ Item {
                 tr.editing = editing
                 Store.act("terminal.hold", { on: editing })
             }
+            // (a key gone mid-edit — its tab closed, its place gone — gives the keyboard back)
+            Component.onDestruction: if (editing) { tr.editing = false; Store.act("terminal.hold", { on: false }) }
             readonly property real closeW: 18
             width: Math.min(220, Math.max(72, label.implicitWidth + 2 * Theme.pad + (closeW + Theme.xs)))
             height: tr.keyH + Theme.shadowDy

@@ -321,9 +321,11 @@ pub fn ansi_of(p: &Palette) -> [Rgb; 16] {
         )
     };
     out[0] = black;
-    out[7] = silver;
+    // (on a light ground "white" and "silver" are its lighter greys, as light terminal themes keep them; still readable
+    // enough for a prompt that prints in white: 1.6:1 and 2:1 at least)
+    out[7] = crate::color::ensure_contrast(silver, ground, if p.dark { 1.0 } else { 2.0 });
     out[8] = crate::color::ensure_contrast(grey, ground, 3.0);
-    out[15] = white;
+    out[15] = crate::color::ensure_contrast(white, ground, if p.dark { 1.0 } else { 1.6 });
     for (i, want) in HUES.iter().enumerate() {
         let (h, c) = hue(*want);
         // (yellow is the light hue: a light ground needs it darker to read)
