@@ -53,3 +53,6 @@ the terminal or quietly with a result glance, a choice; history, Esc, a11y, neve
 directory and a list of favourite directories offered as quick keys (tab bar, "+", the module's menu and field, the
 right-click menu): a click opens a new tab there or changes to it (a choice); `~` expands; a missing path says so.
 All of it user settings (schema keys).
+**And the launcher (the user, session 33):** through a mod launcher provider: "Terminal" opens the drop-down; a run prefix
+(a setting, e.g. `>`) runs the typed command in the session and shows it; the favourite directories as entries that open a
+tab there.
