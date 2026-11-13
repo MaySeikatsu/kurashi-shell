@@ -130,6 +130,15 @@ doc_is "d.get('notice', {}).get('key') == 'terminal.error.no_dir'" || fail "the 
 shot "dropdown-tabs-$S"
 ok "$S: the favourite opened a tab there (pwd), a missing folder is said"
 
+# 4b. the bar module's status: the program in the foreground of the active tab
+K set mods.terminal.bar_mode '"status"' > /dev/null || fail "bar_mode status refused"
+K act terminal.run '{"text":"sleep 6"}' > /dev/null
+wait_until 8 doc_is "[t for t in d['tabs'] if t['id'] == d['active']][0].get('program') == 'sleep'" \
+  || fail "the status does not name the running program ($(doc "d['tabs']"))"
+shot "bar-status-$S" "1500,0 420x40" 2
+K set mods.terminal.bar_mode '"icon"' > /dev/null
+ok "$S: the bar's status names the running program"
+
 # 5. the bar card on hover, the same session
 K act terminal.hide > /dev/null
 sleep 1
