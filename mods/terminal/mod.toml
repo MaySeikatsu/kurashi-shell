@@ -17,6 +17,9 @@ provides = [
     # The bar module (icon / status / input) and its card; the panel is the sidebar section and the Local pin too.
     "widget:terminal",
     "panel:terminal",
+    # The launcher (K150): "Terminal" and the favourite folders among its results; the run prefix (`run_prefix`).
+    "launcher:terminal",
+    "launcher:run",
     "i18n",
 ]
 # The host runs the user's own shell as the user; no network of its own.

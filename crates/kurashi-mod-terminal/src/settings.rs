@@ -4,6 +4,8 @@
 use std::collections::BTreeMap;
 
 use kurashi_mod_api::Settings;
+#[cfg(test)]
+use kurashi_mod_api::Values;
 use serde_json::Value;
 
 /// The keys whose provenance the document carries (`forced`), so a control the configuration forces is drawn inert.
@@ -32,11 +34,6 @@ pub const KEYS: &[&str] = &[
     "dir_opens",
     "run_prefix",
 ];
-
-/// The launcher's own query prefixes (`:` emoji, `;` clipboard, `?` keys, `>` the shell's commands; kurashid's launcher
-/// query). A local stand-in until the launcher publishes them from its one place (CONTRACT-CHANGE, W83 row): then this
-/// list is read from there and never kept by hand.
-pub const LAUNCHER_PREFIXES: &[&str] = &[":", ";", "?", ">"];
 
 /// A favourite directory (records `favourites`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,30 +144,6 @@ impl Cfg {
             run_prefix: s(settings, "run_prefix", &d.run_prefix),
         }
     }
-
-    /// Why `run_prefix` is not in effect, or `None`: empty or blank, or one the launcher uses itself. The prefix in
-    /// effect is then the default (Shōjiki: the document says both, the value set and why it is not the one used).
-    pub fn prefix_problem(&self) -> Option<&'static str> {
-        let p = self.run_prefix.trim();
-        if p.is_empty() || p.chars().any(char::is_whitespace) {
-            return Some("terminal.error.prefix_blank");
-        }
-        if LAUNCHER_PREFIXES
-            .iter()
-            .any(|t| p.starts_with(t) || t.starts_with(p))
-        {
-            return Some("terminal.error.prefix_taken");
-        }
-        None
-    }
-
-    pub fn prefix_in_effect(&self) -> String {
-        if self.prefix_problem().is_some() {
-            Cfg::default().run_prefix
-        } else {
-            self.run_prefix.trim().to_string()
-        }
-    }
 }
 
 fn favourites_of(v: Option<&Value>) -> Vec<Favourite> {
@@ -202,18 +175,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn prefix_refused_when_blank_or_taken() {
-        let mut c = Cfg::default();
-        assert_eq!(c.prefix_problem(), None);
-        c.run_prefix = " ".into();
-        assert_eq!(c.prefix_problem(), Some("terminal.error.prefix_blank"));
-        c.run_prefix = ">".into();
-        assert_eq!(c.prefix_problem(), Some("terminal.error.prefix_taken"));
-        // (a prefix that begins with one of the launcher's would never reach the terminal)
-        c.run_prefix = ">>".into();
-        assert_eq!(c.prefix_problem(), Some("terminal.error.prefix_taken"));
-        assert_eq!(c.prefix_in_effect(), "!");
-        c.run_prefix = "$".into();
-        assert_eq!(c.prefix_in_effect(), "$");
+    fn records_read() {
+        let (_tx, rx) = tokio::sync::watch::channel(Values::from([
+            (
+                "favourites".to_string(),
+                serde_json::json!([{"path": "~/p", "label": ""}, {"path": " "}]),
+            ),
+            (
+                "sizes".to_string(),
+                serde_json::json!([{"output": "A", "height": 30}]),
+            ),
+        ]));
+        let c = Cfg::read(&Settings::new(rx));
+        assert_eq!(c.favourites.len(), 1);
+        assert_eq!(c.sizes.get("A"), Some(&30));
+        assert_eq!(c.run_prefix, "!");
     }
 }

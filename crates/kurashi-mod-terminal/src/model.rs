@@ -70,6 +70,22 @@ pub struct Run {
     pub text: String,
 }
 
+/// A launcher row (K150), before the mod gives it its words and its action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LaunchRow {
+    /// "Terminal": the drop-down out.
+    Show,
+    /// A line to run (the run prefix's rest).
+    Run(String),
+    /// A favourite folder: a tab there.
+    Dir {
+        path: String,
+        label: String,
+        dir: String,
+        missing: bool,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Argument,
@@ -285,7 +301,13 @@ impl Model {
 
     // ---- the host's reports ----
 
-    pub fn host_title(&mut self, tab: &str, title: Option<&str>, cwd: Option<&str>, program: Option<&str>) {
+    pub fn host_title(
+        &mut self,
+        tab: &str,
+        title: Option<&str>,
+        cwd: Option<&str>,
+        program: Option<&str>,
+    ) {
         if let Some(t) = self.tabs.iter_mut().find(|t| t.id == tab) {
             if let (Some(title), false) = (title, t.renamed) {
                 t.title = title.to_string();
@@ -509,6 +531,53 @@ impl Model {
         Ok(tab)
     }
 
+    // ---- the launcher (K150) ----
+
+    /// The rows for a launcher query. `run` (the prefix's provider): the text as a line to run, then the favourites it
+    /// matches (all of them for an empty text). Otherwise (the unprefixed provider): "Terminal" and the favourites whose
+    /// label or path hold the text; nothing for an empty text (the launcher's own list is not padded).
+    pub fn launcher_rows(&self, text: &str, run: bool) -> Vec<LaunchRow> {
+        let t = text.trim();
+        let lower = t.to_lowercase();
+        let mut rows = Vec::new();
+        if run {
+            if !t.is_empty() {
+                rows.push(LaunchRow::Run(t.to_string()));
+            }
+        } else if t.is_empty() {
+            return rows;
+        } else if ["terminal", "shell", "console", "ターミナル"]
+            .iter()
+            .any(|w| w.starts_with(&lower) || lower.starts_with(w))
+        {
+            rows.push(LaunchRow::Show);
+        }
+        for f in &self.cfg.favourites {
+            let dir = self.expand(&f.path);
+            let label = if f.label.is_empty() {
+                tail(&dir)
+            } else {
+                f.label.clone()
+            };
+            let hit = lower.is_empty()
+                || label.to_lowercase().contains(&lower)
+                || f.path.to_lowercase().contains(&lower)
+                || (!run
+                    && ["terminal", "ターミナル"]
+                        .iter()
+                        .any(|w| w.starts_with(&lower)));
+            if hit && (run || !t.is_empty()) {
+                rows.push(LaunchRow::Dir {
+                    path: f.path.clone(),
+                    label,
+                    dir: dir.to_string_lossy().into_owned(),
+                    missing: !dir.is_dir(),
+                });
+            }
+        }
+        rows
+    }
+
     // ---- the document ----
 
     pub fn doc(&self) -> Value {
@@ -620,7 +689,7 @@ impl Model {
                 "input_target": one_of(&c.input_target, &["show", "quiet"], "show"),
                 "run_in": one_of(&c.run_in, &["current", "new"], "current"),
                 "dir_opens": one_of(&c.dir_opens, &["new", "current"], "new"),
-                "run_prefix": c.prefix_in_effect(),
+                "run_prefix": c.run_prefix.trim(),
                 "favourites": c.favourites.iter().map(|f| {
                     let p = self.expand(&f.path);
                     let mut o = Map::new();
@@ -635,9 +704,6 @@ impl Model {
             }),
         );
         let mut problems = Map::new();
-        if let Some(p) = c.prefix_problem() {
-            problems.insert("run_prefix".into(), json!(p));
-        }
         if !self.expand(&c.start_dir).is_dir() {
             problems.insert("start_dir".into(), json!("terminal.error.no_dir"));
         }
@@ -812,6 +878,36 @@ mod tests {
         m.note_stopping();
         assert!(!m.set_host(HostState::Off));
         assert!(m.doc()["host"].get("crashed").is_none());
+    }
+
+    #[test]
+    fn launcher_rows_match() {
+        let (h, mut m) = model();
+        let cfg = Cfg {
+            favourites: vec![crate::settings::Favourite {
+                path: "~/proj".into(),
+                label: String::new(),
+            }],
+            ..Cfg::default()
+        };
+        m.set_cfg(cfg, BTreeMap::new());
+        assert!(m.launcher_rows("", false).is_empty());
+        assert_eq!(m.launcher_rows("term", false)[0], LaunchRow::Show);
+        let rows = m.launcher_rows("pro", false);
+        assert_eq!(rows.len(), 1);
+        let proj = h.path().join("proj").to_string_lossy().into_owned();
+        assert_eq!(
+            rows[0],
+            LaunchRow::Dir {
+                path: "~/proj".into(),
+                label: "proj".into(),
+                dir: proj,
+                missing: false
+            }
+        );
+        let run = m.launcher_rows("htop", true);
+        assert_eq!(run[0], LaunchRow::Run("htop".into()));
+        assert_eq!(m.launcher_rows("", true).len(), 1);
     }
 
     #[test]

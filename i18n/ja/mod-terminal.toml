@@ -106,13 +106,15 @@
 "terminal.input.placeholder" = "{prefix} コマンド"
 "terminal.input.a11y" = "ターミナルで実行"
 
+"terminal.launcher.show" = "ターミナルを開く"
+"terminal.launcher.run" = "ターミナルで実行"
+"terminal.launcher.dir_missing" = "このフォルダーはありません"
+
 "terminal.error.argument" = "ターミナルへの依頼がわかりませんでした"
 "terminal.error.unknown_tab" = "そのタブはありません"
 "terminal.error.no_dir" = "{path} はありません"
 "terminal.error.crashed" = "ターミナルが止まりました"
 "terminal.error.runtime" = "ターミナルにはデーモンのランタイムが要ります"
-"terminal.error.prefix_blank" = "接頭辞は空や空白入りにできません。! を使います"
-"terminal.error.prefix_taken" = "この接頭辞はランチャー自身が使っています。! を使います"
 
 "action.terminal.toggle" = "ターミナルを表示／隠す"
 "action.terminal.show" = "ターミナルを表示"

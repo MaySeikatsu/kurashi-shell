@@ -36,6 +36,21 @@ layers() { "$SB" niri layers 2>/dev/null; }
 has_layer() { layers | grep -q "$1"; }
 type_line() { "$SB" spawn wtype "$1" -k Return; }
 file_has() { [ -f "$1" ] && grep -q "$2" "$1"; }
+# The launcher's rows for a query, as JSON lines (one request on the sandbox daemon's socket).
+rows() {
+  ( . "$OUT/niri-env.sh"; python3 -I -c '
+import json, os, socket, sys
+s = socket.socket(socket.AF_UNIX); s.settimeout(10); s.connect(os.environ["KURASHI_SOCKET"]); f = s.makefile("rwb")
+def send(m): f.write((json.dumps(m) + "\n").encode()); f.flush()
+send({"t": "hello", "v": 1, "client": "test", "caps": []}); f.readline()
+send({"t": "query", "id": "q", "kind": "launcher", "q": sys.argv[1]})
+while True:
+    m = json.loads(f.readline())
+    if m.get("id") == "q":
+        for r in m.get("items", []): print(json.dumps(r, ensure_ascii=False))
+        break
+' "$1" )
+}
 shot() { cp "$("$SB" shot "$1" ${2:+"$2"} ${3:+"$3"})" "$SHOTS/$1.png"; }
 
 FAV=$OUT/fav
@@ -98,6 +113,11 @@ K act terminal.toggle > /dev/null
 wait_until 10 doc_is "d.get('shown_in') == 'dropdown' and 'dropdown' in d.get('rests', {})" || fail "the third toggle did not show it"
 [ "$(doc "d['active']")" = "$TAB" ] || fail "the session changed across a hide ($TAB → $(doc "d['active']"))"
 sleep 1
+# The screen is still there (a window shrunk while hidden once came back blank): the well's first line has ink, its foot not.
+read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
+sd() { (. "$OUT/sway-env.sh"; timeout 8 grim -g "$1" -t png - | magick - -colorspace gray -format "%[fx:standard_deviation]" info:); }
+TOP=$(sd "$WX,$((WY + 2)) ${WW}x22"); FOOT=$(sd "$WX,$((WY + WH - 40)) ${WW}x22")
+python3 -c "import sys; sys.exit(0 if $TOP > 1.5 * $FOOT + 0.01 else 1)" || fail "the terminal came back blank after a hide (ink $TOP vs $FOOT)"
 type_line "echo \$\$ > $OUT/pid2.txt"
 wait_until 10 file_has "$OUT/pid2.txt" . || fail "the shown-again terminal does not take keys"
 [ "$(cat "$OUT/pid1.txt")" = "$(cat "$OUT/pid2.txt")" ] || fail "a new shell after a hide ($(cat "$OUT/pid1.txt") → $(cat "$OUT/pid2.txt"))"
@@ -119,6 +139,15 @@ K act terminal.run "{\"text\":\"echo launcher > $OUT/launcher.txt\"}" > /dev/nul
 wait_until 10 file_has "$OUT/launcher.txt" launcher || fail "terminal.run (the launcher's prefix) did not run"
 ok "$S: terminal.run (the launcher's prefix) ran"
 K set mods.terminal.bar_mode '"icon"' > /dev/null
+# The launcher (K150): `! echo kurashi` is the run prefix's row; launching it runs the line. "term" offers the terminal,
+# "fav" the favourite folder.
+ROW=$(rows "! echo kurashi > $OUT/prefix.txt" | python3 -c "import json,sys; r=[json.loads(l) for l in sys.stdin]; print(json.dumps({'id': next(x['id'] for x in r if x.get('key') == 'run')}))") \
+  || fail "the launcher offers no run row for '! echo kurashi' ($(rows '! echo kurashi'))"
+K act launcher.launch "$ROW" > /dev/null || fail "launching the run row was refused"
+wait_until 10 file_has "$OUT/prefix.txt" kurashi || fail "the launcher's ! echo kurashi did not run"
+rows term | grep -q '"modact:' || fail "the launcher offers no Terminal row for 'term'"
+rows fav | grep -q '"key": "dir:' || fail "the launcher offers no favourite row for 'fav'"
+ok "$S: the launcher's ! echo kurashi ran; term and fav offer the terminal and the folder"
 
 # 4. a favourite, a missing folder
 K act terminal.open_dir "{\"path\":\"$FAV\"}" > /dev/null || fail "open_dir refused"

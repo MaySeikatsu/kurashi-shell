@@ -15,10 +15,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use kurashi_mod_api::{
-    ActionError, HostHandle, HostSpec, HostState, ModCtx, ModError, NativeMod, Publish, Settings,
-    SettingsError, SettingsWriter,
+    ActionError, HostHandle, HostSpec, HostState, LauncherRow, LauncherSpec, ModCtx, ModError,
+    NativeMod, Publish, Settings, SettingsError, SettingsWriter,
 };
-use model::{Error, Model, Place, Rest};
+use model::{Error, LaunchRow, Model, Place, Rest};
 use serde_json::{Value, json};
 use settings::{Cfg, KEYS};
 use tokio::runtime::Handle;
@@ -111,6 +111,35 @@ impl NativeMod for TerminalMod {
             }
         })?;
         register_actions(ctx, &shared)?;
+        // The launcher (K150): "Terminal" and the favourite folders among its results, and the run prefix (`run_prefix`,
+        // `!` by default) whose rest runs in the terminal. The daemon refuses a prefix the launcher or another mod holds
+        // and says why in `runtime.launcher`.
+        let rows = shared.clone();
+        ctx.launcher(
+            "terminal",
+            LauncherSpec {
+                prefix: Arc::new(|| None),
+                query: Arc::new(move |text| launcher_rows(&rows, text, false)),
+            },
+        )?;
+        let (pre, rows) = (shared.clone(), shared.clone());
+        ctx.launcher(
+            "run",
+            LauncherSpec {
+                prefix: Arc::new(move || {
+                    let p = pre
+                        .model
+                        .lock()
+                        .expect("model lock")
+                        .cfg()
+                        .run_prefix
+                        .trim()
+                        .to_string();
+                    (!p.is_empty()).then_some(p)
+                }),
+                query: Arc::new(move |text| launcher_rows(&rows, text, true)),
+            },
+        )?;
         runtime.spawn(supervise(shared, settings, host_rx));
         Ok(())
     }
@@ -126,7 +155,10 @@ struct Shared {
 
 impl Shared {
     /// Runs `change` on the model, then starts or stops the host as the model wants and publishes the document.
-    fn with_model<T>(&self, change: impl FnOnce(&mut Model) -> Result<T, Error>) -> Result<T, ActionError> {
+    fn with_model<T>(
+        &self,
+        change: impl FnOnce(&mut Model) -> Result<T, Error>,
+    ) -> Result<T, ActionError> {
         let result = {
             let mut m = self.model.lock().expect("model lock");
             let r = change(&mut m);
@@ -177,10 +209,7 @@ impl Shared {
     }
 
     async fn write(&self, key: &str, value: Value) -> Result<Option<Value>, ActionError> {
-        self.writer
-            .set(key, value)
-            .await
-            .map_err(settings_error)?;
+        self.writer.set(key, value).await.map_err(settings_error)?;
         Ok(None)
     }
 }
@@ -223,7 +252,12 @@ fn rest_arg(args: &Value) -> Result<Option<Rest>, Error> {
     if args["on"].as_bool() != Some(true) {
         return Ok(None);
     }
-    let n = |k: &str| args[k].as_f64().map(|v| v.round() as i64).ok_or(Error::Argument);
+    let n = |k: &str| {
+        args[k]
+            .as_f64()
+            .map(|v| v.round() as i64)
+            .ok_or(Error::Argument)
+    };
     let (width, height) = (n("width")?, n("height")?);
     if width <= 0 || height <= 0 {
         return Err(Error::Argument);
@@ -421,7 +455,52 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     Ok(())
 }
 
-async fn supervise(shared: Arc<Shared>, mut settings: Settings, mut host: watch::Receiver<HostState>) {
+fn launcher_rows(s: &Shared, text: &str, run: bool) -> Vec<LauncherRow> {
+    let rows = s.model.lock().expect("model lock").launcher_rows(text, run);
+    rows.into_iter()
+        .map(|r| match r {
+            LaunchRow::Show => LauncherRow {
+                key: "show".into(),
+                name: "Terminal".into(),
+                sub: "terminal.launcher.show".into(),
+                icon: "terminal".into(),
+                action: "terminal.show".into(),
+                args: json!({}),
+            },
+            LaunchRow::Run(line) => LauncherRow {
+                key: "run".into(),
+                name: line.clone(),
+                sub: "terminal.launcher.run".into(),
+                icon: "terminal".into(),
+                action: "terminal.run".into(),
+                args: json!({"text": line, "show": true}),
+            },
+            LaunchRow::Dir {
+                path,
+                label,
+                dir,
+                missing,
+            } => LauncherRow {
+                key: format!("dir:{path}"),
+                name: label,
+                sub: if missing {
+                    "terminal.launcher.dir_missing".into()
+                } else {
+                    dir
+                },
+                icon: "folder".into(),
+                action: "terminal.open_dir".into(),
+                args: json!({"path": path, "in": "new"}),
+            },
+        })
+        .collect()
+}
+
+async fn supervise(
+    shared: Arc<Shared>,
+    mut settings: Settings,
+    mut host: watch::Receiver<HostState>,
+) {
     // (a state the daemon set before this ran is taken now)
     shared.host_changed();
     loop {

@@ -106,13 +106,15 @@
 "terminal.input.placeholder" = "{prefix} command"
 "terminal.input.a11y" = "Run in the terminal"
 
+"terminal.launcher.show" = "Open the terminal"
+"terminal.launcher.run" = "Run in the terminal"
+"terminal.launcher.dir_missing" = "This folder does not exist"
+
 "terminal.error.argument" = "The terminal did not understand that request"
 "terminal.error.unknown_tab" = "There is no such tab"
 "terminal.error.no_dir" = "{path} does not exist"
 "terminal.error.crashed" = "The terminal stopped"
 "terminal.error.runtime" = "The terminal needs the daemon's runtime"
-"terminal.error.prefix_blank" = "The prefix cannot be empty or hold a space; ! is used"
-"terminal.error.prefix_taken" = "The launcher uses this prefix itself; ! is used"
 
 "action.terminal.toggle" = "Show or hide the terminal"
 "action.terminal.show" = "Show the terminal"
