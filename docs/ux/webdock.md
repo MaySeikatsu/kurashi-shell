@@ -957,7 +957,11 @@ View pins (`mod:<id>:<panel>`) exist since W20; the mode filters the strip and t
 - **Switching closes a side panel** (the chooser or a pin's menu) and puts away a card of the other kind (daemon,
   `content_changed`).
 - **A chooser row opens its pin with `webdock.open`** (never `select`, which would put away a pin already shown).
-- **The view card takes a desk card** where the mod has no panel of that name (notes, lyrics), as the sidebar does.
+- **The view card takes a desk card** where the mod has no panel of that name (notes, lyrics), as the sidebar does; a
+  desk card with nothing to show (no notes yet: its height is 0) says "Nothing to show here yet" instead of a blank card
+  (shot `local-notes-empty-light`). A view named apart from its mod is named by its view ("Notes", "Tasks" beside it).
+- **The card is put away on a real change of the mode however it comes** (the switch, `kurashi undo`, Settings, the
+  file: `apply_settings` compares the old and new `content`); any other write keeps a site opened by name in Local.
 - **Debug lines** (KURASHI_WEBDOCK_DEBUG=1): `webdock-debug rows <mode> <ids>`, `strip ctl:<name> x y w h`,
   `local <target> <pinned|-> x y w h`, `view <provide> <loaded>` — test-card's part "local" reads them.
 
@@ -1069,8 +1073,8 @@ same). Epiphany has real web apps (`--application-mode`).
 
 ### (d) A live view only (capture one window), input in the real window
 How: show the app's pixels in the card (a capture of its toplevel) while the real window stays elsewhere.
-- On niri 26.04 there is no per-window capture for clients: `ext-image-copy-capture-v1` with
-  `ext-foreign-toplevel-image-capture-source` is not offered, no `hyprland-toplevel-export`; screencast of a window goes
+- On niri 26.04 there is no per-window capture for clients (measured: `wayland-info` on the nested niri lists 42 globals,
+  among them `zwlr_screencopy_manager_v1`, `ext_foreign_toplevel_list_v1`, `zwlr_foreign_toplevel_manager_v1`, `zxdg_exporter_v2` — no `ext_image_copy_capture_manager_v1`, no `ext_foreign_toplevel_image_capture_source_manager_v1`, no `hyprland_toplevel_export`); screencast of a window goes
   through the portal (PipeWire) with the user picking it, once per session (niri's `set-dynamic-cast-window` targets the
   dynamic cast to the focused window — still a portal stream, and it only shows what is on screen).
 - Input cannot follow a picture: clicks in the card would need forwarding to the window (no protocol for that; a
@@ -1080,7 +1084,7 @@ How: show the app's pixels in the card (a capture of its toplevel) while the rea
 
 ### (e) Other routes
 - **xdg-foreign (`zxdg_exporter_v2` / importer):** lets a client make another client's toplevel its *child*
-  (a dialog over a foreign window); niri supports it. It parents, it does not place or embed: a dock card cannot become
+  (a dialog over a foreign window); niri offers `zxdg_exporter_v2` and `zxdg_importer_v2` (measured). It parents, it does not place or embed: a dock card cannot become
   the parent of an app (the card is a layer surface, not a toplevel). Not a route.
 - **The card as a toplevel instead of a layer surface,** the app's window placed beside it by (a): the stacking problem
   goes (both are windows), but the dock would scroll with niri's columns and lose its edge position. No.

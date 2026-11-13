@@ -38,7 +38,10 @@ Rectangle {
             for (var n = 0; n < names.length; n++) {
                 var target = "mod:" + m.id + ":" + names[n]
                 var label = I18n.tr(String(m.name || m.id))
-                out.push({ target: target, title: label, sub: names[n] !== m.id ? names[n] : "", pinned: pinOf(target) })
+                // (a view named apart from its mod — tasks' notes — is named by its view, its mod beside it)
+                var own = names[n] !== m.id
+                out.push({ target: target, title: own ? names[n].charAt(0).toUpperCase() + names[n].substring(1) : label,
+                    sub: own ? label : "", pinned: pinOf(target) })
             }
         }
         return out

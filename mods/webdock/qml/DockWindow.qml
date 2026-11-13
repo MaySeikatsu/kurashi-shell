@@ -523,8 +523,10 @@ PanelWindow {
             // The view's mod is off (or its panel is gone): said in words, the card stays (view pins still work).
             Notice {
                 anchors.fill: parent
-                visible: viewBody.item === null
-                text: I18n.tr("webdock.view.gone")
+                // (W78: a desk card with nothing to show — no notes yet — has no height: said in words, not a blank card)
+                readonly property bool blank: viewBody.item !== null && vcard.asDesk && !(viewBody.item.implicitHeight > 0)
+                visible: viewBody.item === null || blank
+                text: I18n.tr(blank ? "webdock.view.empty" : "webdock.view.gone")
             }
         }
     }

@@ -685,6 +685,7 @@ impl Dock {
     /// Takes the settings in effect: pins, and the values the dock reads. A pin that is gone takes its state with it.
     /// A changed `hover` or `pinned` brings the pending deadline in line with the state (K40).
     pub fn apply_settings(&mut self, settings: &Settings, now: Instant) {
+        let content = self.config.content;
         self.config = Config::read(settings);
         self.pins = pins_of(&rows_of(settings));
         // W76: the temporary pages stay after the rows; a row of the same id (an undone unpin) takes its page back.
@@ -738,6 +739,11 @@ impl Dock {
             self.card.pin = None;
         }
         self.default_card_pin();
+        // W78: the strip's mode changed (the switch, `kurashi undo`, Settings, the file): a card of the other kind goes.
+        // Only on a change — a site opened by name in Local stays through any other write.
+        if self.config.content != content {
+            self.content_changed();
+        }
         self.sanitize();
         self.settle(now);
     }
@@ -3903,26 +3909,38 @@ mod tests {
         let mut d = dock(&[]);
         d.set_host(HostState::Ready);
         d.open("mail", Some("DP-1")).unwrap();
-        d.apply_settings(
-            &settings_with(rows(), &[("content", json!("local"))]),
-            Instant::now(),
-        );
-        assert!(
-            d.content_changed(),
+        let local = settings_with(rows(), &[("content", json!("local"))]);
+        // the settings alone (the switch, an undo, Settings, the file) put a site's card away in Local
+        d.apply_settings(&local, Instant::now());
+        assert_eq!(
+            d.doc()["mode"],
+            "compact",
             "a site's card goes when the strip lists views"
         );
-        assert_eq!(d.doc()["mode"], "compact");
         d.open("weather", Some("DP-1")).unwrap();
         assert!(!d.content_changed(), "a view's card stays in Local");
         assert_eq!(d.doc()["shown"], "weather");
         d.apply_settings(&settings_with(rows(), &[]), Instant::now());
-        assert!(
-            !d.content_changed(),
+        assert_eq!(
+            d.doc()["shown"],
+            "weather",
             "Online lists every pin: a view's card stays"
         );
+        d.apply_settings(&local, Instant::now());
         // a pin of the other kind opened by name still shows: the mode filters the strip, not what is shown
         d.open("chat", Some("DP-1")).unwrap();
         assert_eq!(d.doc()["shown"], "chat");
+        assert!(
+            d.content_changed(),
+            "content_changed puts it away when asked"
+        );
+        d.open("chat", Some("DP-1")).unwrap();
+        d.apply_settings(&local, Instant::now());
+        assert_eq!(
+            d.doc()["shown"],
+            "chat",
+            "a write that does not change the mode keeps a site opened by name"
+        );
     }
 
     #[test]
