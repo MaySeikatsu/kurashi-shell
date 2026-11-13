@@ -17,7 +17,7 @@ Item {
     // The bar's fit (docs/ux/bar-fit.md): the name shrinks to `minWidth`, compact is the symbol alone.
     property bool compact: false
     property real room: 100000
-    readonly property real fullWidth: label.text !== "" ? Theme.barH + Math.min(180, label.implicitWidth) + Theme.gap : Theme.barH
+    readonly property real fullWidth: label.text !== "" ? Theme.barH + Math.min(180, Math.ceil(tm.advanceWidth)) + Theme.gap : Theme.barH
     readonly property real compactWidth: Theme.barH
     readonly property bool elastic: label.text !== ""
     readonly property real minWidth: Theme.barH
@@ -48,12 +48,15 @@ Item {
         color: w.missing ? Theme.dim : Theme.fg
         opacity: w.missing ? 0.6 : 1
     }
+    // (measured apart from the label: an elided Text sized to its slot reports no natural width)
+    TextMetrics { id: tm; font: label.font; text: label.text }
     Text {
         id: label
         visible: !w.iconOnly && text !== ""
         x: Theme.barH
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.max(0, w.width - Theme.barH - Theme.gap)
+        // (into the gap: the fit rounds the room down, and a pixel short would elide the whole name)
+        width: Math.max(0, w.width - Theme.barH - Theme.xs)
         elide: Text.ElideRight
         text: w.missing ? "" : w.current
         color: Theme.fg

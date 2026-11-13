@@ -176,7 +176,7 @@ ok "$S: a closed window is launched again from its command line"
 # 6. the glances
 K act sidebar.toggle '{"side":"right"}' > /dev/null
 sleep 1.5
-shot "sidebar-$S"
+shot "sidebar-$S" "1500,70 420x280" 2
 K act sidebar.close > /dev/null
 shot "bar-$S" "1400,0 520x40" 2
 "$SB" stop > /dev/null
@@ -189,7 +189,7 @@ doc_is "d['available'] == False and d['noren']['reason'] == 'sessions.state.miss
 rows noren | grep -q '"generic": "Sessions need noren' || fail "the launcher does not say noren is needed ($(rows noren))"
 K act sidebar.toggle '{"side":"right"}' > /dev/null
 sleep 1.5
-shot "missing-$S"
+shot "missing-$S" "1500,70 420x160" 2
 ok "$S: without noren the mod is on and says why (document, launcher, section)"
 "$SB" stop > /dev/null
 }

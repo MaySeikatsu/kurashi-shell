@@ -176,7 +176,9 @@ impl Model {
             Ok(e) => {
                 self.entries = e;
                 self.noren = Noren::Ready;
-                if matches!(&self.notice, Some((k, _)) if k == "sessions.notice.failed") {
+                // (a fresh list ends the old news: the failure it replaces, a desk saved or restored a while ago)
+                if matches!(&self.notice, Some((k, _)) if k == "sessions.notice.failed" || k == "sessions.notice.saved" || k == "sessions.notice.restored")
+                {
                     self.notice = None;
                 }
             }
