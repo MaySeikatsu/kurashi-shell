@@ -39,30 +39,33 @@ free after removing 154 GB of suite sandboxes and build dirs (B124).
 **The user's answers this session.** Bar card keep-open: the card itself stays open. Colour flow while music plays: leave
 as is (I506 closed). Live checks: read-only only — read `top`/documents on their session, they look at the visual things
 and tell you; never open anything on their display.
-**Next steps (in order; ask the user where a step says so, and whenever unsure — batch the questions in one
-AskUserQuestion):**
-1. Check #58's state. If merged: fetch, remove its worktree and `~/.cache/kurashi-agents-target/w77`. If not: ask.
-2. **B128** (the user, live): a pinned edge web dock must stay on the monitor where it was pinned and not follow the
-   focus to the other one. Ask first: should an unpinned dock keep following? Fix in `crates/kurashi-mod-webdock/src/
-   dock.rs` (the paths that set `output`), a unit test, and a two-output check in `mods/webdock/test/test-dock.sh` or a
-   new step. Small: do it yourself.
-3. Live read with the user (read-only): `top -H` on the frontend with music playing (expect single digits after #57),
-   then ask them to look at the cards on the clicked monitor, the site icons (open each page once), the kept bar card,
-   docked Settings, the OSD, WhatsApp in the dock. File what they report.
-4. **B127** (W77's gaps): a hover-opened sidebar closing under the docked Settings (a pointer-in-dock signal into the
-   hover hold; the web dock's sidebar page likely has the same gap), a key from the sidebar into the dock, the
-   double-start race, a crash leaving `dock` set, doctor's KNOWN_DOCS and mock parity, `settings/test-dock.sh` into the
-   merge set. A Haiku card for the mechanical parts; the hover hold is a contract change (row + K-id).
-5. **W78** (card `docs/tasks/W78-webdock-local-mode.md`): the web dock's Local mode and desktop apps as an experiment.
-   Ask the user the experiment's scope before spawning (which apps, what "done" means for an experiment). Opus.
-6. **Groups, round two** (I502): drag and drop in Settings and "Group with…" in a module's menu. Write the UX section
-   in `docs/ux/groups.md` first and ask the user the open choices (where the drag happens: the bar preview or a list;
-   what a drop on another group does).
-7. Performance: B119 (any animation wakes every window), B120 (a pinned sidebar ~11 ms a frame). Measure on nested
-   niri first; the user's two monitors amplify both.
-8. Web dock rough edges: B122, B123 (`test-dock`'s two checks red on its base), B117, B110.
-9. Older: B92 (`quick-modules` red on `main`), B113, B112/B100 (warm start), B114 (keep loaded round two), B115, B116,
-   B121, I483 (connections round two).
+**Next steps — session 32 is time-boxed: the user reviews at 13:00.** Plan backwards from it: a review-ready PR with
+a summary by 12:45; the merge set and `just check` on the combined branch from ~12:00; nothing new started after 11:45.
+1. **First 10 minutes:** fetch; check #58 and #59 are merged (if not, ask). Then ask the user ALL of these at once
+   (one AskUserQuestion, recommended option first) so no step waits later:
+   - B128: when the edge web dock is *not* pinned, does it still follow the focus to the other monitor?
+   - W78: the desktop-apps experiment's scope (which apps; what "done" means for an experiment), or leave W78 for later?
+   - Groups round two (I502): where the drag happens (the bar preview in Settings, or the list) and what a drop on
+     another group does — or leave it for later?
+2. **Right after the questions, start at most two subagents** (worktrees, cards in `docs/tasks/`, own target dirs):
+   - B127 mechanical parts (Haiku, max effort): `runtime.settings` in doctor's KNOWN_DOCS and the mock, the double-start
+     race, a crash clearing `dock`, `settings/test-dock.sh` in the merge set. Not the hover hold (a contract change).
+   - W78 (Opus) only if the user said yes and gave a scope; otherwise the hover hold of B127 (Opus; contract change
+     authorised by the lead: row + K-id).
+3. **Meanwhile, yourself — B128:** a pinned edge dock stays on its output (`crates/kurashi-mod-webdock/src/dock.rs`, the
+   paths that set `output`; the dock's window follows `mod.webdock.output`, `mods/webdock/qml/surfaces/dock.qml`).
+   A unit test plus a two-output step in a web dock suite. Then the keyboard path from a sidebar into the docked
+   Settings (B127; `SideWindow`'s `focusAsks` is the pattern).
+4. **~12:00:** merge the agents' branches into one session branch; `just check` and `just suites` (the merge set; only
+   a failure alone counts; `quick-modules` is red on `main`, B92); `nix build .#kurashi`.
+5. **By 12:45:** push, open ONE PR. Its body is the review: what changed, by the user's points; what was seen on niri
+   (shot paths); what the user should look at live after the rebuild (cards on the clicked monitor, site icons, the
+   kept bar card, docked Settings, CPU with music); what is not done and why. Update this handover.
+Not in this time box (leave in BACKLOG unless time is left): B119/B120 performance, B122/B123/B117/B110 web dock rough
+edges, B92, B113, B112/B100, B114, B115, B116, B121, I483.
+**Efficiency.** While iterating use `just suites --changed` (never suites one by one); batch builds; Haiku for clear
+mechanical cards, Opus only for judgement; do small things yourself; terse agent reports; no idle waiting — review or
+fix something while suites run; check `df -h /` before a merge set. Live checks on the user's session are read-only.
 **Risks.** B126's fix keys on a press within 1.5 s; a card opened by key still uses the compositor's focused output.
 `mods.webdock.site_icons` on means one request per site the page did not make itself (the user asked for the images;
 off restores K38's strict proof). Two subagents at most; check `df -h /` before a merge set.
