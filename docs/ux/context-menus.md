@@ -83,14 +83,36 @@ options of the thing under the pointer, in one look and one keyboard path.
   kept clear of the bars and the frame (the Stage's `placed` path, as a mod panel's `panel_place`). On the output that was
   pressed (`IslandGeom.notePress`); opened by key (no press in the last 1.5 s): centred on the focused output.
 - `page:` — at the pointer inside the page's window, turned and kept inside it.
+- **Again elsewhere** (as desktops and browsers do): a right click elsewhere while a menu is open opens it there.
+  - The desktop: the click-away layer (I279, over the windows' area) takes the press. While no window stands on that
+    output's workspace (`svc.workspaces` `tasks`), everything under it is the desktop, so it opens the desktop's menu
+    there. Over a window it closes what is open, as before: the layer cannot see what lies under it.
+  - The bar: the same target moves to the new press (`MenuAt`); the daemon is not asked again, since the same id would
+    close it. Another bar, or the desktop, switches to that menu.
+  - A web page: the press goes on to the page, which raises a new request.
+- **Several outputs**: a press notes its output (`IslandGeom.notePress`), and shell.qml hands the Stage that screen.
+  Tested on two outputs (`test-context-menus.sh`).
+
+## Look
+- The desktop's and the bar's menus are the Stage's card, in the look's form and material.
+- The page menu is drawn inside the web host's window by `MenuCard`: the same chrome as a card apart, for the look —
+  elevation (level 3), the look's corners, outline or pen, banded fill and frame, wash, material and pattern. It is opaque,
+  because nothing blurs behind it there.
+- Its title is the page's own (elided), or "Page".
+- Shots: `mods/webdock/shots/page-menu-{washi,sekai}-{light,dark}.png`.
 
 ## States
 - **Inert** (rule 2): a row another setting holds stays visible and grey, with one line saying what it needs (I408's).
 - **Forced**: a row a layer above the user holds (`_managed.enforce`, a Nix value) is grey with "forced: <who>" under it.
 - **Empty**: the desktop's and a bar's menus always have rows (Dark mode; the edge's own); a module without options says
   "No options of its own" (I408). A page's menu always has Back, Forward, Reload.
-- **Loading**: until the schema document arrives (the first frames of the first open) the fixed rows stand alone; the
-  schema's rows follow and the card grows in place.
+- **Loading**: the card never opens short.
+  - `MenuAt` asks for the schema document at the press and asks the daemon for the menu only once the document is here
+    (a few tens of ms; after 800 ms it opens anyway). The card is drawn at its full height from its first frame
+    (`stage-menu-frame`, tested).
+  - Ma: the document is watched from the press until the menu's own watch holds it, never while no menu is wanted. The
+    other way, keeping it warm, would hold the whole schema for every right click that might come.
+  - The action without a press (`kurashi act tray.menu.open`) still opens first and fills in.
 - **Error**: an action refused (the daemon's answer) shows nothing new — the document is the truth and the row keeps
   showing the value in effect.
 - **Offline / daemon gone**: the daemon names the open menu, so without it no desktop, bar or module menu opens (as no
@@ -139,15 +161,18 @@ Settings rows and page actions close it.
 - [x] Web page: the menu at the pointer with the request's rows; Copy link copies (pasted back into a field); Back works;
       the page's own menu wins; edge card, bar card and sidebar.
 - [x] Keyboard: arrows, Enter, Esc work right after a right click (sway and niri); the action opens desktop and bar menus
-      without a pointer. [ ] The page's Menu key / Shift+F10: Chromium's own path, not driven (the test keyboard has no
-      such key).
-- [x] States: inert and forced rows say why; loading; shots light and dark. [ ] Several outputs: not run (one output
-      in the sandboxes).
-- [x] Seen on nested niri (desktop light and dark, bar); the suites in the merge set.
+      without a pointer; the page's Menu key and Shift+F10 open its menu at the focus (driven, `wl_keys.py menu`, `shift+f10`).
+- [x] States: inert and forced rows say why; no jump while loading; shots light and dark, the page menu in washi and sekai.
+- [x] A right click elsewhere opens the menu there (desktop on an empty workspace, bar, page).
+- [x] Several outputs: the desktop's and the bar's menus open on the output pressed (two sway outputs).
+- [x] Seen on nested niri (desktop light and dark, bar, page); the suites in the merge set.
 
 ## Later
 - A compositor binding for the desktop menu in the default keys (`keys.toml`) once the lead decides the chord.
 - Desktop "Edit widgets…" (the desk's edit mode, K48) as a row.
-- A right click elsewhere while a menu is open closes it (the click-away layer, I279) rather than moving it there.
+- A right click on the desktop between windows while a menu is open: the click-away layer cannot tell it from a window,
+  so it closes. Window geometry in `svc.workspaces` would let it open the desktop's menu there too.
+- A module's menu (I408) still opens first and fills in, and takes the keys on a click. It could use `MenuAt`'s schema
+  wait, but hover-opened menus must not take the keyboard.
 - A marker for the bar's and the desktop's menu rows if the namespace selection proves too long (CONTRACT-CHANGE 781).
 - Window menus on the window list stay their own (I408).
