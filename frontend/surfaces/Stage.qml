@@ -12,6 +12,7 @@ import "../components/decor"
 import "../components/motion"
 import "../components/quick" as Q
 import "../components/menus"
+import "../components/appearance" as Appearance
 import "../core/motion"
 import "../components/bar/framegeom.js" as FG
 
@@ -68,6 +69,9 @@ PanelWindow {
     readonly property bool trayWanted: ui.panel === "tray"
     // shell.qml's `want` does not cover the quick panel (K24), so the Stage follows runtime.ui for it.
     readonly property bool quickWanted: ui.panel === "quick"
+    // W84 (docs/ux/appearance-menu.md): the appearance menu as a card, panel `appearance:<pane>` (CONTRACT-CHANGE row 791).
+    readonly property bool appearanceWanted: String(ui.panel || "").indexOf("appearance:") === 0
+    property string shownAppearance: "wallpaper"
     // A native mod's panel (K26): `mod:<id>:<panel>` shows its Panel.qml, for as long as the mods document names it.
     // Always watched, not by a binding on runtime.ui: the mods document is what says whether the panel exists, and
     // it starts no service.
@@ -79,7 +83,7 @@ PanelWindow {
     // no keyboard focus. The daemon closes an open panel when the dialog comes up and refuses the Stage's panel and peek
     // actions while it is up (row 381, `ui.error.polkit`); these gates only cover the frame before its patch arrives.
     readonly property bool polkit: ui.polkit === true
-    readonly property bool asked: want || quickWanted || modWanted
+    readonly property bool asked: want || quickWanted || modWanted || appearanceWanted
     // Session 28 (`bar.popups_follow`): held back while the card changes screens — it folds here, shell.qml hands it
     // the other screen once it is gone, and it opens there as it would have (the module it came from stays latched).
     property bool hold: false
@@ -90,7 +94,7 @@ PanelWindow {
     readonly property var expandedFaces: ["media", "notifications", "clock", "volume", "brightness", "power", "bluetooth"]
     readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : (ui.face ? "modface" : "island")
     readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray"
-        : (quickWanted ? "quick" : (modWanted ? "mod" : (want ? islandKind : ""))))
+        : (quickWanted ? "quick" : (appearanceWanted ? "appearance" : (modWanted ? "mod" : (want ? islandKind : "")))))
     // The same, read from the document itself at the moment it is called (I192): `onOpenChanged` runs while the bindings
     // above may still hold the previous runtime.ui, and a stale "" made the generic view first and then the face's.
     function kindNow() {
@@ -98,6 +102,7 @@ PanelWindow {
         if (u.panel === "session") return "session"
         if (u.panel === "tray") return "tray"
         if (u.panel === "quick") return "quick"
+        if (String(u.panel || "").indexOf("appearance:") === 0) return "appearance"
         var p = Mods.panelOf(u.panel)
         if (p !== null && Mods.qmlOf(modsDoc, "panel:" + p.panel, p.mod) !== "") return "mod"
         if (!want) return ""
@@ -114,6 +119,8 @@ PanelWindow {
         if (p !== null) { shownPanelMod = p.mod; shownPanel = "panel:" + p.panel }
         if (ui.face) shownFaceView = "island-face:" + ui.face + ":expanded"
         if (ui.tray) shownTray = String(ui.tray)
+        var ap = String(ui.panel || "")
+        if (ap.indexOf("appearance:") === 0) shownAppearance = ap.substring("appearance:".length) || "wallpaper"
     }
     // The tray item whose menu is (or was last) shown: its icon is where the menu folds back to (W34).
     property string shownTray: ""
@@ -179,8 +186,9 @@ PanelWindow {
     readonly property var views: ({
         island: genericView, media: mediaView, notifications: notificationsView, clock: clockView,
         volume: volumeView, brightness: brightnessView, quick: quickView, mod: modPanelView, modface: modFaceView,
-        power: powerView, bluetooth: bluetoothView
+        power: powerView, bluetooth: bluetoothView, appearance: appearanceView
     })
+    Component { id: appearanceView; Appearance.AppearanceMenu { host: "card"; pane: stage.shownAppearance; output: stage.outName } }
     readonly property bool viewing: views[contentKind] !== undefined
     // A view that draws its own chrome (`ownChrome`, the quick settings phone): no card fill, border, padding or Close row
     // around it; the island's shape (or the slide) still brings it in. Known per kind before the view is made (I192: the
