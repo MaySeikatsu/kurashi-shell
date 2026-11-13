@@ -47,3 +47,9 @@ each (out of the bar or edge, a calm fade/scale when floating). The test covers 
 **And a bar module (the user, session 33):** like the web dock's, pinned anywhere on a bar; hovering (or clicking) it opens
 the terminal's card from where the module sits, joined to the bar on that output — the shell's hover-open cards (grace,
 `ui.keep`), the web dock's bar-card placement pattern — on the same session as the drop-down. In the brief and the test.
+**And the bar module's modes and default directories (the user, session 33):** the module shows an `icon`, a `status`
+(running / finished / failed, cwd or title), or an `input` field (type a command, Enter runs it in the session — showing
+the terminal or quietly with a result glance, a choice; history, Esc, a11y, never wider than its fit). A default start
+directory and a list of favourite directories offered as quick keys (tab bar, "+", the module's menu and field, the
+right-click menu): a click opens a new tab there or changes to it (a choice); `~` expands; a missing path says so.
+All of it user settings (schema keys).
