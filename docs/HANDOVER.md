@@ -17,6 +17,43 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-13 — session 33 (machine A): 0.1.0 — terminal, work sessions, Wallpaper & Theming, OSD, menus, launcher
+**State.** `main` = #60 (session 32). **PR <PR> (branch `feat/s33-context-menus`) is open, not merged** — the user merges;
+after the merge tag `v0.1.0` on `main` and push the tag (K151). No worktree or agent build dir is left (all removed).
+Disk ~145 GB free.
+**Done** (K150–K152; CONTRACT-CHANGE 764, 782–819 decided or deferred with BACKLOG rows):
+1. Dark/light for web pages (the host on Qt's portal theme; a stand-in portal `tools/bench/fake_portal.py`, sandbox
+   `KURASHI_SB_FAKE_PORTAL=1`); the docked Settings holds a hover-opened sidebar on its drawer and menus too (B136).
+2. W82 right-click menus everywhere (one system on TrayMenu; desktop, bar background, web page; I512).
+3. K150 launcher providers for mods; the web dock's `/`; the launcher's clipboard in two columns (I514, I515).
+4. W83 + W85 the terminal mod (`qs-terminal`, QMLTermWidget Qt 6, packaged in nix/), Yakuake-like, every place (I516).
+5. W84 the Wallpaper & Theming menu (icon rail; launcher or card, `appearance.open`) — the user chose prototype C.
+6. K152 the OSD (`runtime.osd`, `Osd.qml`, `osd.*`, `osd.show`) (I527).
+7. W86 the `sessions` mod over noren, HM option off by default (I517).
+8. K151 versioning (0.1.0, CHANGELOG, `kurashi --version`); `config.toml.example` generated and tested.
+9. Fixes found on the way: mods sharing `i18n` / launcher provides refused each other (B137); `hm-eval` had been red on
+   `main` (B138); ScrollEdge takes no room and is on every scrolling view (B135).
+**The user's answers this session.** No key handover into docked Settings (B129, click only). Online lists sites only.
+The apps spike in the web dock: yes, later (I510). Groups: both list and bar preview (built in #60's W80). Terminal:
+native QML, everywhere, Yakuake-like, places as a setting, bar module modes, favourite folders, `!` in the launcher.
+Versioning: SemVer 0.x. Wallpaper & Theming: prototype C, the preview a switchable section, the wallpaper pane about
+choosing. Work sessions: a first-party plugin, "Open in…" after choosing, HM ships noren only when enabled. OSD next
+after the core. Ideas I517–I537 in BACKLOG (the user liked them).
+**Verified.** `just check` green; `just suites` (50): 48 pass, `bar-fit` only under load, `quick-modules` as on `main` (B92); `nix build .#kurashi` green (0.1.0); HM evals (hm, terminal, webdock, sessions) pass. Each feature seen on nested niri with shots, light and dark, in several looks; nothing seen on the user's screen yet (they rebuilt #60 earlier; read-only CPU at rest 0 %).
+**Next steps (in order; ask the user where a step says so):**
+1. Check PR <PR>; after the merge: `git tag v0.1.0` on `main`, push the tag (the user said to start versioning).
+2. Live read with the user: their on-screen list in the PR; the CPU reading with music (postponed: they were in a call).
+3. Ask: B119 (Qt's basic render loop as an experiment on their session).
+4. The backlog's open ends of this session: terminal 801/802 (module-menu rows from mods; OSC 133 patch), sessions
+   810–816, appearance 792 (a bar module/quick tile), OSD caps lock and media, B139.
+5. The user's picks among I517–I537 (one search for everything, I518, was the lead's next suggestion).
+6. Older: B120, B123/B131, B92, I508's open ends, I509, I510 (the web dock apps spike, approved).
+**Risks.** The terminal and sessions add two Nix packages (qmltermwidget from upstream master, noren as a flake input):
+check `nix flake update` keeps building them. The appearance menu's preview applies real config values while previewing
+(put back on Esc/close): a crash mid-preview leaves the previewed value — undo restores it.
+
+---
+
 ## 2026-11-13 — session 32 (machine A): B128, the travelling workspace mark, Local mode, groups round two, the user's live bugs
 **State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR #60 is open, not merged**
 (the user merges; it closes #58 and #59). After the merge remove #58's worktree `.claude/worktrees/agent-ac748735f1e82a580`
