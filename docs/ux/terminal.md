@@ -183,7 +183,7 @@ afterthought"). Seen on nested niri in washi, kami and material, light and dark 
   Order on a hide: the place draws the still and holds the sheet two frames at rest; the host's window goes a frame after
   its last still; then the sheet slides. The host maps as a cut where a still lies under it (the same pixels), else with
   the 90 ms fade. Measured (bursts at 20 ms, `burst-{in,out}-<look>-<scheme>.png`): every frame in which the sheet stands
-  at rest shows the text, in and out, in each look. Costs: one PNG (~1128 × 424, a few ms) after a burst of output while
+  at rest shows the text, in and out, in each look, and the card's arrival too (`burst-card-<look>-<scheme>`). The check fails without the still (control run, kami light: 1 of 9 resting frames of the drop-down's arrival and 7 of 14 of the card's without text). Limits: a still exists only for a tab and a well size shown before — the first show, a new tab or a resized place still bring the text at rest — and output that arrived while hidden shows a frame late; a theme change drops the stills (they are in the old colours). Costs: one PNG (~1128 × 424, a few ms) after a burst of output while
   shown; ~2 MB of decoded still in the shell while the drop-down is out; the stills are cleared when a host starts.
   The bar card and the sidebar draw the still too; their slides are the Stage's and the sidebar's, so the hide is not
   held there (the host still waits a frame).

@@ -150,7 +150,9 @@ wait_until 10 file_has "$OUT/menu.txt" "$FAV" || fail "after the menu the keys d
 wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctrl+Shift+W did not close the menu's tab"
 ok "$S: the tab row's menu: keys walk it, Enter opens the favourite, the keyboard comes back to the terminal"
 # A double click on the tab renames it in place (the row takes the keyboard: `held`), Return keeps the name.
-"$SB" click $((WX + 30)) $((WY + WH + 23)); "$SB" click $((WX + 30)) $((WY + WH + 23))
+# (one pointer for both presses: two `click` runs are too far apart for a double click)
+(. "$OUT/sway-env.sh"; printf 'click %s %s left\nclick %s %s left\n' $((WX + 30)) $((WY + WH + 23)) $((WX + 30)) $((WY + WH + 23)) \
+  | python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve)
 wait_until 5 doc_is "d.get('held') == True" || fail "a double click on the tab did not start its rename"
 sleep 0.3
 "$SB" spawn wtype -k BackSpace "w85name" -k Return
