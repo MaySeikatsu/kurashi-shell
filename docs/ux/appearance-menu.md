@@ -73,28 +73,32 @@ heading carries a small "Show preview" button instead. Ma: the preview loads the
 
 ### Panes (what each holds — the schema decides, rule 3)
 Every config row a pane shows carries `appearance = "<pane>"` in the schema (`#[kurashi(appearance = "colours")]`,
-published on the `schema.settings` row like `modules`); a pane draws its marked rows in schema order by control kind
-(choice → chips, or a segmented row for ≤ 4 choices; toggle → switch row; slider → slider row; font → the installed
-fonts as a chip list of the five in use plus "More in Settings…"). Rows the schema marks `advanced` are not shown.
+repeatable, published on the `schema.settings` row like `modules`); a pane draws its marked rows in schema order by
+control kind: a choice → a row of chips (a radio group: Left/Right move *and preview*); a choice whose options the theme
+previews (`choices_from` = a list of `theme.previews`: palettes, styles, looks) → a strip of pictured tiles, each in its
+own tokens (a palette as five dots, a style or look as a small card), scrolling sideways so the pane's other rows stay in
+view, the chosen one kept in view; a toggle → a switch row with its help; a range → a slider with its value; a list
+(`pick_list`) → toggle chips; a font → its families in their own face (Space opens Settings on that key: the installed
+fonts are a long list). Rows the schema marks `advanced` are not shown.
 - **Wallpaper** — the wallpaper mod's compact picker (`mods/wallpaper/qml/Picker.qml`, loaded beside its `Panel.qml`
-  from the `mods` document, so it exists only while the mod is on): the **sources** as a segmented row — Local, Wallhaven
-  (when `mods.wallpaper.wallhaven` is on) — then for Local the **folders** (each a chip with its path and ×; "+ Add
-  folder" opens a path field: `~/…` or absolute, Enter adds, the daemon refuses a non-path), search, the grid (4
-  columns), and one row: Shuffle now · Rotate every [off/15/30/60 min] · Order (A–Z / shuffle). Wallhaven: its search,
-  categories and sorting (the mod's `Wallhaven.qml`, unchanged). Below the picker, the wallpaper recolouring rows the
-  schema marks `wallpaper` (`theme.colors.extraction`, `theme.colors.wallpaper_grade.enabled`).
-- **Colours** — the mode as a segmented row (Auto / Light / Dark / From wallpaper: `theme.colors.scheme`), the palettes
-  as tiles of five dots and a name (`theme.previews` palettes: each tile in its own tokens; "From wallpaper" first when the
-  mod is on), then the marked rows: recolouring, OLED black, contrast, "Apps follow the colours" (`theme.export` as one
-  switch: on = every target the daemon offers, off = none; the list itself stays in Settings).
-- **Style** — the styles and looks as pictured tiles (`theme.previews` styles/looks: a card in their own tokens), then
-  corners and density.
-- **Material** — paper/glass/solid as three pictured tiles (`theme.material.kind` + `theme.texture.kind`: Paper = solid +
-  paper texture, Glass = translucent + blur, Solid = solid without texture — one change of two or three keys, kept as one
-  step), then texture, blur, scroll edges, colour flow.
+  from the `mods` document, so it exists only while the mod is on): the **sources** — Local, Wallhaven (while
+  `mods.wallpaper.wallhaven` is on) — with the count, then for Local the **folders** (each a chip with its path, middle
+  elided, and ×; Delete on a focused chip removes it; a click or Space browses that folder alone; "+ Add folder" opens a
+  path field: `~/…` or absolute, Enter adds, the daemon refuses a non-path), search, the grid (4 columns, three rows,
+  its own scroll; a dot marks a picture on a screen now), and one row: Shuffle now · Rotate every [Off/15/30/60 min, and
+  the configured one] · the order (In order / Shuffled, while rotating). Wallhaven: the mod's `Wallhaven.qml`, unchanged.
+  Below the picker, the recolouring rows the schema marks `wallpaper` (`theme.colors.extraction`,
+  `theme.colors.wallpaper_grade.enabled`). The folders and rotation are the mod's library settings, applied at once
+  (not part of the preview session, which is for the look).
+- **Colours** — the palettes (tiles; "From wallpaper" among them as a plain tile), the mode (`theme.colors.scheme`:
+  Auto / From wallpaper / Dark / Light), the recolouring, contrast, OLED black, and "Apps follow the colours"
+  (`theme.export`: one toggle chip per target the daemon offers).
+- **Style** — the styles and looks as tiles (`theme.previews`), corners, density.
+- **Material** — colour flow, texture, the material (solid / translucent), its opacity, blur, scroll edges. (Prototype C
+  had pictured Paper/Glass/Solid tiles; they would be a hand mapping of three keys, so the rows stand on their own.)
 - **Motion** — the profile (`theme.motion.profile`, the packs the daemon offers), speed, how content comes in.
-- **Effects** — gradient, light, text effect and how text comes in, the pointer's decoration, media colours.
-- **Fonts** — the interface font, the Japanese font, the monospace font, the scale, the font mix.
+- **Effects** — the gradient, dynamic media colour, light, the text effect and how text comes in, the pointer's decoration.
+- **Fonts** — the font mix, the interface font, the monospace font, the text scale (the Japanese font is `advanced`).
 
 ### Preview session (one undo step, Esc puts back)
 Settings' machinery (`settings/core/Changes.qml`) ported to the shell's Store (`components/appearance/PreviewSession.qml`):
@@ -106,8 +110,9 @@ that was not kept is not left in effect (Shōjiki). A wallpaper is an action, no
 (the mod's `wallpaper.set`, with the theme image), as the mod's picker does.
 
 ### Keyboard
-- Rail: Up/Down move and show the pane; Ctrl+1…7 jump; Tab or Right enters the pane.
-- Pane: Tab / Shift+Tab move between controls (Shift+Tab from the first goes to the rail); in a choice row Left/Right move
+- Rail: Up/Down move and show the pane; Ctrl+1…7 jump (from anywhere in the menu); Tab or Right enters the pane.
+- Pane: Tab / Shift+Tab — and Up/Down where the control does not use them — move between controls (back from the first
+  reaches the rail); in a choice row Left/Right move
   *and preview*; Space or a click chooses; Enter keeps the session (in the wallpaper grid: sets the picture); Esc puts
   back when something is previewed, else (launcher) goes back to the search with the query kept, (card) closes.
 - Every control has an accessible name (the schema label) and description (its help); choice rows are radio groups
@@ -125,26 +130,27 @@ without the mod says "Pictures need the wallpaper mod" with a button that enable
 
 ## States
 - **No wallpaper mod** (off or not loaded): the Wallpaper pane shows the note and "Turn on the wallpaper mod"; the live
-  preview shows the theme's surface with the bar and card (no picture); Colours hides "From wallpaper".
+  preview shows the theme's surface with the bar and card (no picture); Colours keeps "From wallpaper" (a choice the
+  daemon offers; it judges it).
 - **Wallpaper backend missing** (awww/swww not installed): the mod's own empty state ("Wallpapers need awww or swww")
   inside the pane; folders and rotation still editable.
 - **No Wallhaven key / Wallhaven off**: the Wallhaven source is listed only while `mods.wallpaper.wallhaven` is on; without
   a key Wallhaven works SFW without one (its API allows it) — the mod's tab says so.
 - **Offline**: the Wallhaven tab's own offline state ("Wallhaven cannot be reached", Retry).
-- **Empty folder**: "No pictures in ~/Pictures/Wallpapers" with "Add folder". **Missing folder**: the chip is struck and
-  dim with "not found"; the grid says "That folder is gone" and offers to remove it.
-- **No folders at all**: "Add a folder of pictures" with the path field open.
-- **Loading** (documents not yet there): the pane's skeleton (rows at their place, dim), never an empty card.
+- **Empty folder**: "No images yet — No pictures in <path>" beside "+ Add folder". **Missing folder**: the chip is struck,
+  with a warning mark and "not found" (its × removes it); the grid says the folder is missing and how to fix it.
+- **No folders at all**: "Add a folder of pictures — choose + Add folder and type its path".
+- **Loading** (documents not yet there): "Reading the settings…" in the pane; the picker says "Looking at the backend…".
 - **Daemon refuses a change**: the row says why (the apply's error code, translated) and the session drops that step.
 - **Card host unavailable** (a daemon without `appearance.open`): the menu opens in the launcher instead, with one line
-  "Opened here: the card needs a newer daemon".
+  "Opened here: a card of its own needs a newer kurashid".
 - **Previewing**: the keep bar, and the rail entry of each pane with a pending change carries a dot.
 
 ## Fit
 - **Launcher**: a mode beside the prefix modes, not a prefix — words find it (the daemon's rows, `appearance:<pane>`;
   CONTRACT-CHANGE row 790). The field stays on top showing the query; the clipboard's two columns are untouched.
-  Start-menu looks (`decor.start`): the menu is shown at the menu's width inside the start menu's chrome; the system menu
-  form steps aside while it is shown.
+  Start-menu looks (`decor.start`): the menu is shown at the menu's width inside the start menu's chrome (the card widens
+  to 760 px); the system-menu form and the start grid step aside while it is shown.
 - **Stage**: `appearance:<pane>` is one more panel kind (row 791: `appearance.open {pane?, output?}`, `runtime.ui.panel`),
   one at a time with the others, click-away and polkit as they are; a quick tile and a bar module open it (row 792).
 - **Settings**: "More in Settings…" opens the page; the keys are the same keys (one schema), so both show the same

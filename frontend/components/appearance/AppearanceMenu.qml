@@ -112,7 +112,26 @@ FocusScope {
             else event.accepted = false     // the Stage closes the card
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             if (previewSession.active) { previewSession.keep(); event.accepted = true }
+        } else if ((event.key === Qt.Key_Down || event.key === Qt.Key_Up) && !rail.activeFocus) {
+            // In the pane, Up/Down a control does not use go from row to row, as Tab and Shift+Tab do.
+            var it = am.Window.window ? am.Window.window.activeFocusItem : null
+            var next = it ? it.nextItemInFocusChain(event.key === Qt.Key_Down) : null
+            if (next && next !== rail && !isAncestor(rail, next)) next.forceActiveFocus()
+            event.accepted = true
         }
+    }
+    function isAncestor(a, b) {
+        for (var p = b; p; p = p.parent) if (p === a) return true
+        return false
+    }
+    // The control with the keyboard stays in view (the keep bar coming up shortens the pane).
+    function revealFocus() {
+        var it = am.Window.window ? am.Window.window.activeFocusItem : null
+        if (!it || !it.mapToItem || !isAncestor(paneCol, it)) return
+        var p = it.mapToItem(paneCol, 0, 0)
+        if (p.y < paneFlick.contentY) paneFlick.contentY = Math.max(0, p.y - 8)
+        else if (p.y + it.height > paneFlick.contentY + paneFlick.height)
+            paneFlick.contentY = Math.min(Math.max(0, paneFlick.contentHeight - paneFlick.height), p.y + it.height - paneFlick.height + 8)
     }
 
     // ---- the rail ------------------------------------------------------------------------------------------------
@@ -288,16 +307,9 @@ FocusScope {
             // keep the focused row in view
             Connections {
                 target: am.Window.window
-                function onActiveFocusItemChanged() {
-                    var it = am.Window.window ? am.Window.window.activeFocusItem : null
-                    if (!it || !paneCol || !it.mapToItem) return
-                    var p = it.mapToItem(paneCol, 0, 0)
-                    if (!p || p.x < -1 || p.x > paneCol.width) return
-                    if (p.y < paneFlick.contentY) paneFlick.contentY = Math.max(0, p.y - 8)
-                    else if (p.y + it.height > paneFlick.contentY + paneFlick.height)
-                        paneFlick.contentY = Math.min(Math.max(0, paneFlick.contentHeight - paneFlick.height), p.y + it.height - paneFlick.height + 8)
-                }
+                function onActiveFocusItemChanged() { am.revealFocus() }
             }
+            onHeightChanged: Qt.callLater(am.revealFocus)
             Item {
                 id: body
                 width: paneFlick.width - 10

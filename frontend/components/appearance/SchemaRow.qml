@@ -79,15 +79,6 @@ FocusScope {
         else { event.accepted = false; return }
         event.accepted = true
     }
-    // Tiles stand in rows: Up/Down move by one (Tab goes from row to row).
-    Keys.onUpPressed: event => {
-        if (tileSource !== "" && indexOfValue() >= tiles.cols) moveChoice(-tiles.cols)
-        else event.accepted = false
-    }
-    Keys.onDownPressed: event => {
-        if (tileSource !== "" && indexOfValue() + tiles.cols < choices.length) moveChoice(tiles.cols)
-        else event.accepted = false
-    }
     // A font is chosen in Settings (the installed fonts are a long list): Space opens it on the row's key.
     signal wantsSettings(string key)
     Keys.onSpacePressed: event => {
