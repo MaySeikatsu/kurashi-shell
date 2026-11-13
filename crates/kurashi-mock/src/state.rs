@@ -195,6 +195,8 @@ impl State {
                 "runtime.lock",
                 json!({"locked": false, "busy": false, "failures": 0, "face": "plain"}),
             ),
+            // W77/W79 (K146): Settings' dock; absent while no sidebar section shows Settings (`dock` is set by `settings.dock`).
+            (kurashid::config::SETTINGS_RUNTIME_DOC, json!({})),
             // W53.0b parity (contract row 565): sounds off, no cursor theme or decoration, as kurashid starts. A test turns
             // the decoration on with `mock.doc` (`svc.cursor.decoration`) and moves the pointer the same way
             // (`svc.pointer`: `{available, output, x, y}`, W58).
@@ -716,6 +718,19 @@ impl State {
                     (key, page) => tracing::info!(?key, ?page, "settings.open: not started in the mock"),
                 }
                 return Ok(Some(json!({"opened": "launched"})));
+            }
+            // W77/W79 (K146), as kurashid: `{}` takes the dock away, a rect (`output`, `x`, `y`, `width`, `height`,
+            // `radius?`) sets it, checked by the daemon's own `settings_dock_of`. The mock starts no Settings process,
+            // so a dock answers `launched` as `settings.open` does.
+            "settings.dock" => {
+                let dock = kurashid::config::settings_dock_of(args)
+                    .map_err(|_| Fail::invalid(ARGS_INVALID))?;
+                let answer = match dock {
+                    Some(_) => json!({"docked": true, "opened": "launched"}),
+                    None => json!({"docked": false}),
+                };
+                self.patch(kurashid::config::SETTINGS_RUNTIME_DOC, json!({"dock": dock}), None);
+                return Ok(Some(answer));
             }
             // Without a confirm the daemon refuses; with one it acts, and the mock does nothing.
             "session.suspend" | "session.reboot" | "session.poweroff" | "session.logout" => {
@@ -1962,6 +1977,31 @@ mod tests {
             msg(st.act("settings.open", &json!({"page": 3}))).as_deref(),
             Some(ARGS_INVALID)
         );
+    }
+
+    #[test]
+    fn settings_dock_sets_and_takes_the_rect_as_kurashid() {
+        let mut st = state();
+        let rect = json!({"output": "DP-1", "x": 0, "y": 0, "width": 320, "height": 600});
+        let msg = |r: Result<Option<Value>, Fail>| r.err().map(|f| f.msg);
+        let dock = |st: &State| st.data(kurashid::config::SETTINGS_RUNTIME_DOC).clone();
+        assert_eq!(dock(&st), json!({}), "undocked at start");
+        assert_eq!(
+            st.act("settings.dock", &rect).unwrap(),
+            Some(json!({"docked": true, "opened": "launched"}))
+        );
+        assert_eq!(dock(&st)["dock"], rect);
+        assert_eq!(
+            st.act("settings.dock", &none()).unwrap(),
+            Some(json!({"docked": false}))
+        );
+        assert_eq!(dock(&st), json!({}));
+        let bad = json!({"output": "DP-1", "x": -1, "y": 0, "width": 10, "height": 10});
+        assert_eq!(
+            msg(st.act("settings.dock", &bad)).as_deref(),
+            Some(ARGS_INVALID)
+        );
+        assert_eq!(dock(&st), json!({}), "a refused rect is not written");
     }
 
     #[test]

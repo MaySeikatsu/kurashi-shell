@@ -52,6 +52,7 @@ impl From<DoctorFacts> for SharedFacts {
 const KNOWN_DOCS: &[&str] = &[
     crate::config::DOC,
     crate::config::SETTINGS_DOC,
+    crate::config::SETTINGS_RUNTIME_DOC,
     crate::workspaces::DOC,
     "svc.media",
     "svc.power",
