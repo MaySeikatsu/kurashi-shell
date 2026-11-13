@@ -112,8 +112,9 @@ Column {
         l.dragging = ""
     }
     function setGroupField(id, field, value) {
+        // Only the records change: the zone's list is not written (a default list stays the default).
         var g = G.setField(groups, id, field, value)
-        if (g) send({ list: items.slice(), groups: g }, G.entryOf(id))
+        if (g) regrouped({ list: null, groups: g })
     }
     // The row of `v` takes the focus; null means the add control. A member's focus goes to its row inside its group.
     function focusRow(v) {
@@ -234,7 +235,7 @@ Column {
                 } else if ((event.modifiers & Qt.AltModifier) && event.key === Qt.Key_Down) {
                     l.moveBy(entry.chosen, 1)
                     event.accepted = true
-                } else if (entry.isGroup && event.key === Qt.Key_Delete) {
+                } else if (entry.isGroup && (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)) {
                     l.ungroup(entry.gid)
                     event.accepted = true
                 } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {

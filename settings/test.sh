@@ -1017,7 +1017,16 @@ groups_part() {
     echo "groups G8: a pointer drag grouped volume with clock"
     Q undo
   else
-    echo "groups G8: skipped (the window has no rect hook yet: CONTRACT-CHANGE W80)"
+    # Until the hook (CONTRACT-CHANGE 764): this sandbox's fixed geometry (2560x1440 at scale 1, the zone list scrolled to
+    # the top: row 2 Keyboard layout at y 199, row 3 Clock at y 245; the names at x 650).
+    Q scrollTo "pick:edges.top.end"
+    sleep 1
+    echo "draw 650,199 652,205 655,215 655,225 652,235 650,245" | python3 -I tools/bench/wl_pointer.py --serve
+    gwait layout.groups '[{"accordion":false,"id":"g1","members":"keyboard,clock","name":""}]' "a pointer drag of Keyboard layout onto Clock did not group"
+    gwait edges.top.end '["volume","group:g1","tray","recorder"]' "the drag's group is not where Clock stood"
+    echo "groups G8: a pointer drag (fixed coordinates) grouped keyboard with clock"
+    Q undo
+    gwait edges.top.end '["volume","keyboard","clock","tray","recorder"]' "undo after the drag"
   fi
   # P1/P2: the bar preview (the top edge, every output): Ctrl+Right on a chip groups it with the next; Ctrl+Down on a member
   # takes it out (a group of one stays, the bar draws it plain).

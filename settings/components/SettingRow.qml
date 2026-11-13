@@ -513,9 +513,11 @@ Item {
             enabled: r.editable
             refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)
-            // A list whose offers include the named groups (the daemon's `modules` and sidebar sources, I502) holds them
-            // (W80): drag, Ctrl+arrows and the group rows edit `layout.groups` and this list in one apply.
-            groupable: ["modules", "sidebar.sections", "sidebar.tabs"].indexOf(r.row.choices_from) >= 0
+            // A bar zone's or a sidebar's list holds the named groups (I502, W80): drag, Ctrl+arrows and the group rows
+            // edit `layout.groups` and this list in one apply. Other lists of modules (the hover lists, "open the other
+            // way") take no groups, so the zones are told by their key until the schema marks them (CONTRACT-CHANGE 765).
+            groupable: r.row.choices_from === "modules" && /^edges\.[a-z]+\.(start|center|end)$/.test(r.row.key)
+                || ["sidebar.sections", "sidebar.tabs"].indexOf(r.row.choices_from) >= 0
             groups: { var g = groupable ? Store.valueOf("layout.groups") : null; return Array.isArray(g) ? g : [] }
             onRegrouped: res => Store.apply(Groups.ops(res, r.row.key, r.out))
         }

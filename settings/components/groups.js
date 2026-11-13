@@ -132,8 +132,12 @@ function setField(groups, id, field, value) {
 }
 
 // The apply ops of a result: the records (global) and the list (on `output` when the list is an output's own).
+// A result without a list (a group's name or Accordion) writes the records only.
 function ops(res, listKey, output) {
+    var out = [{ set: "layout.groups", value: res.groups }]
+    if (res.list === null) return out
     var l = { set: listKey, value: res.list }
     if (output) l.output = output
-    return [{ set: "layout.groups", value: res.groups }, l]
+    out.push(l)
+    return out
 }
