@@ -40,3 +40,7 @@ colours and the look's fonts, light and dark, no branch on look names); Yakuake'
 allows, a size per output by dragging, keep open, hide on focus loss as a setting, the toggle on the focused output); its
 settings as schema keys (Settings page, module menu), en/ja, a quick toggle or bar module, the island saying a command
 finished while hidden if cheap.
+**And its place (the user, session 33):** a setting — attached to the centre of the "main" bar (joined to it as cards are),
+floating in the centre of the screen, floating at a defined position, or attached to a screen edge (Yakuake). One schema
+setting (`place` = bar | center | position | edge, with the edge, the position, and a size per output); the motion fits
+each (out of the bar or edge, a calm fade/scale when floating). The test covers at least bar-attached and floating centre.
