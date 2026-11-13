@@ -75,7 +75,8 @@ group is named "Group: <name>"); "Leave group" while the module is in one. Both 
 
 **The bar preview.** Under the zone lists: the selected output's bar as it draws (start · center · end), small, each
 module a chip by its name, a group one framed chip of its members. The same drops work on it (a chip onto a chip, onto a
-group, a member out to the zone's gap); Tab walks the chips and Ctrl+arrows act as in the list.
+group, a member out to the zone's gap), within one zone; Tab walks the chips, Ctrl+Left/Right drops the focused chip onto
+its neighbour (the bar runs sideways), Ctrl+Down takes a member out; a group onto a group asks under the bar.
 
 **A11y names.** A group row: "Group: <name>, <n> modules"; a member: "<module>, in <group>"; buttons "Leave <group>",
 "Ungroup <group>", "Accordion for <group>"; the drop zones announce "Drop to group with <module>".

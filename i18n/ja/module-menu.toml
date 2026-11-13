@@ -1,0 +1,4 @@
+# モジュールメニューのグループ項目 (I502, W80; docs/ux/groups.md「Round two」)。
+"frontend.module.group_with" = "グループにまとめる…"
+"frontend.module.group_named" = "グループ: {name}"
+"frontend.module.leave_group" = "グループから外す（{name}）"

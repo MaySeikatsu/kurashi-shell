@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
 import "../core"
+// The one set of group edits (W80): Settings' list and this menu write the same ops.
+import "../../settings/components/groups.js" as G
 
 // What a module's right-click menu lists (I408, docs/ux/module-menu.md): the settings the schema gives the module
 // (`#[kurashi(module = "<id>")]`; a mod's whole page), as a tree TrayMenu draws, the same card and keys as a tray item's menu. A pure view of `schema.settings` and `config`: a toggle
@@ -112,6 +114,51 @@ Scope {
         out.push({ id: 900003, separator: true })
         return out
     }
+    // Groups (I502, W80; docs/ux/groups.md "Round two"): the zone list this module stands in (its own entry, or a group's
+    // members there), on this output: {key, list, groups, group, output} or null.
+    readonly property var zone: {
+        if (!active || !bars) return null
+        var groups = bars.valueOf("layout.groups", [])
+        if (!Array.isArray(groups)) groups = []
+        var edges = ["top", "bottom", "left", "right"], zones = ["start", "center", "end"]
+        for (var e = 0; e < edges.length; e++)
+            for (var z = 0; z < zones.length; z++) {
+                var key = "edges." + edges[e] + "." + zones[z], list = bars.valueOf(key, [])
+                if (!Array.isArray(list)) continue
+                var g = list.indexOf(module) >= 0 ? "" : G.groupOf(list, groups, module)
+                if (list.indexOf(module) < 0 && g === "") continue
+                var c = bars.config, out = bars.outName
+                var own = out !== "" && c && c.outputs && c.outputs[out] && c.outputs[out][key] !== undefined
+                return { key: key, list: list, groups: groups, group: g, output: own ? out : "" }
+            }
+        return null
+    }
+    function groupName(groups, id) {
+        var r = G.recordOf(groups, id)
+        return r && r.name ? r.name : id
+    }
+    // "Group with…" (the zone's other modules and groups) and "Leave group": each one apply of the records and the list.
+    function groupRows() {
+        var zn = zone
+        if (!zn) return []
+        var out = [], ch = []
+        for (var i = 0; i < zn.list.length; i++) {
+            var v = zn.list[i]
+            if (v === module || (zn.group !== "" && v === G.entryOf(zn.group))) continue
+            var res = G.dropOnto(zn.list, zn.groups, module, v)
+            if (!res) continue
+            var label = G.isGroup(v) ? I18n.tr("frontend.module.group_named").replace("{name}", groupName(zn.groups, G.idOf(v)))
+                                     : I18n.tr("layout.module." + v)
+            ch.push({ id: 960010 + i, label: label, act: { ops: G.ops(res, zn.key, zn.output) } })
+        }
+        if (ch.length > 0) out.push({ id: 960000, label: I18n.tr("frontend.module.group_with"), children: ch })
+        if (zn.group !== "") {
+            var lv = G.leave(zn.list, zn.groups, module)
+            if (lv) out.push({ id: 960001, label: I18n.tr("frontend.module.leave_group").replace("{name}", groupName(zn.groups, zn.group)),
+                               act: { ops: G.ops(lv, zn.key, zn.output) } })
+        }
+        return out
+    }
     // Each entry carries what it does (`act`: `{key, value}` to set, `{action, args}` to send, or `{open: true}` for
     // Settings); TrayMenu ignores it.
     readonly property var tree: {
@@ -164,6 +211,11 @@ Scope {
             if (kids.length > 0) kids.push({ id: 950000, separator: true })
             kids.push({ id: 950010, label: I18n.tr("frontend.module.hover") + ": "
                 + I18n.tr("frontend.module.hover." + (own || "bar")), children: hk })
+        }
+        var gr = groupRows()
+        if (gr.length > 0) {
+            if (kids.length > 0) kids.push({ id: 960099, separator: true })
+            kids = kids.concat(gr)
         }
         if (kids.length > 0) kids.push({ id: 999997, separator: true })
         kids.push({ id: settingsId, label: I18n.tr("frontend.module.settings"), act: { open: true } })
