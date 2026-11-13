@@ -268,6 +268,8 @@ Item {
         interactive: contentWidth > width + 1
         clip: true
         visible: panel.listed.length > 0
+        // Session 32 (the user): the wheel scrolls the pins as it scrolls a sidebar's tabs (vertical notches move sideways)
+        KineticWheel { view: row; horizontal: true }
         Row {
             id: pinRow
             spacing: Theme.gap
@@ -288,6 +290,8 @@ Item {
             }
         }
     }
+    // (its cut end blends out as any scroll edge does)
+    ScrollEdge { view: row; horizontal: true }
     // W76: "+" after the pins: a new temporary page here, its address field where the title is (the host's window).
     IconButton {
         id: addKey

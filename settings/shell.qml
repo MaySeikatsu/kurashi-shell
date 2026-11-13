@@ -1019,6 +1019,7 @@ ShellRoot {
                             }
                         }
                     }
+                    ScrollEdge { view: navFlick }
                     }
                 }
                 }
@@ -1040,6 +1041,7 @@ ShellRoot {
                         onPageRequested: id => win.page = id
                     }
                     ChangedPage {
+                        id: changedPage
                         anchors.fill: parent
                         visible: !win.searching && win.current === "@changed"
                         onJumpRequested: (targetPage, row) => win.jump(targetPage, row, false)
@@ -1054,6 +1056,12 @@ ShellRoot {
                         anchors.fill: parent
                         visible: !win.searching && win.current === "@profiles"
                     }
+                    // Session 32 (the user: the scroll edges' blur "should apply to all scroll views"): each page's cut
+                    // edge blends out as the shell's lists do (K142; a page that fits draws as it is).
+                    ScrollEdge { view: settingsPages }
+                    ScrollEdge { view: changedPage }
+                    ScrollEdge { view: modsPage }
+                    ScrollEdge { view: profiles }
                 }
             }
         }

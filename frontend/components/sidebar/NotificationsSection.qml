@@ -173,6 +173,7 @@ Item {
             onInvoked: key => ns.act("notify.invoke", {id: modelData.id, key: key})
         }
     }
+    ScrollEdge { view: list }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         antialiasing: !Theme.pixelType

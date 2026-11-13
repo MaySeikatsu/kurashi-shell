@@ -36,6 +36,8 @@ Flickable {
 
     clip: true
     boundsBehavior: Flickable.StopAtBounds
+    // Session 32 (the user): the wheel scrolls the pins along the edge, sideways too on a top or bottom edge
+    KineticWheel { view: strip; horizontal: !strip.vertical }
     contentWidth: vertical ? width : grid.width + 8
     contentHeight: vertical ? grid.height + 8 : height
 

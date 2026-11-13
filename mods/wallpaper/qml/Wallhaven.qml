@@ -411,5 +411,6 @@ Item {
                 }
             }
         }
+        ScrollEdge { view: grid }
     }
 }
