@@ -1584,3 +1584,18 @@ count as cards, and a card asked for on another screen while one is open moves t
 monitor … even when clicked there"; measured read-only on their session with music playing: the frontend at ~115 % of a
 core, ~6 % with the desktop's media card hidden — its bars redrew the full-screen desktop on both outputs at 15 frames a
 second (the colour flow, off, changed it by a few percent only).
+
+## K148 — The focused workspace is one travelling mark (session 32, I507)
+**Decision.** The workspaces module draws the focused workspace as one shape over the row's keys
+(`components/bar/WorkspaceMark.qml`) instead of each key lighting itself. It moves by `modules.workspaces.motion`: `goo`
+(default: the leading end runs ahead, the trailing one follows, and the middle thins to a neck while it is drawn out,
+never into two pieces), `stretch` (the same without a neck), `slide` (both ends together) or `off` (as before). The
+numbers are drawn over the mark and take its ink by how much of their key it covers. The wobble is the motion profile's:
+springs use `motion.spring.*` (a low damping overshoots), timed motion `stdMs` with `motion.spring.overshoot`, motion
+off or reduced snaps. No renderer branches on a look (rule 4): the mark takes the accent (keys, dots) or `selected`
+(the M3 indicator) as the row would. Rows only; a side bar's column keeps its dots.
+**Why.** The user (session 32), with close-ups of the bar: the mark should "fluently morph over to the other workspace
+… with a little wobble if the default motion profile has that", at least three animations; they chose liquid as the
+default. A shape path (Qt Quick Shapes, curve renderer) needs no shader build and repaints only while the ends move (Ma).
+Other shells: end-4 and Caelestia slide an indicator, Android's page indicators stretch ("worm") or pinch ("liquid");
+docs/ux/workspace-motion.md.

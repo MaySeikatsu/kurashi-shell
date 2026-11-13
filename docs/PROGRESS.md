@@ -399,4 +399,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S30.7 | Web dock: the sites' own images, the open site and what plays in the bar, a user agent without QtWebEngine (I495, I498) | 🟡 functional (unit tests; not seen on screen; WhatsApp needs the user's network) · 🟡 UX | feat/s30-webdock |
 | S30.8 | Named groups: `layout.groups` (a core records key), a bar group a block of its own that can fold, a group as one sidebar tab or one stack (K145, I502) | ✅ functional (layout unit test, offers test) · 🟡 UX (bar and sidebar seen on nested niri; no drag and drop in Settings yet: the records editor) | feat/s30-groups |
 | S30.9 | A sidebar's "+" chooses what it shows; the launcher's search and mods' desk cards (notes, lyrics) as sections (I500 c, I501) | ✅ functional · 🟡 UX (seen on niri; Settings docked in a sidebar is W77, the web dock's Local mode W78) | feat/s30-groups |
+| S32.1 | A kept card stays on its screen; one not kept follows the focus (B128, the user's bar card) | ✅ functional (`test-follow`, two sway outputs) · 🟡 UX (nested niri has one output; the user checks live) |
+| S32.2 | The focused workspace's mark travels: liquid, stretch, slide, off (K148, I507) | ✅ functional (`test-ws-motion` on nested niri, in the merge set) · ✅ UX (bursts on niri: washi keys, dots, Material's indicator; the user's own eyes pending) |
+| S32.3 | Settings dock: one process per start, a crash clears the dock, doctor and mock (W79, B127 mechanical) | ✅ functional (unit tests; `settings-dock` in the merge set) · — UX (no visible change) |
 
