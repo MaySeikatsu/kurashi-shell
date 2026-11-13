@@ -63,9 +63,6 @@ PanelWindow {
         anchors.fill: parent
         radius: dh.radius
         color: Theme.surface
-        // B127 (session 32, K149): the pointer on the dock, reported on change (`settings.dock_hover {inside}`): a
-        // sidebar opened by hover holds while it rests here, as it does while it rests on its own column.
-        HoverHandler { id: dockHover }
     }
     readonly property bool pointerIn: dockHover.hovered && visible
     property bool hoverSent: false
@@ -79,5 +76,14 @@ PanelWindow {
         opacity: dh.shownP
         Accessible.role: Accessible.Pane
         Accessible.name: I18n.tr("settings.ui.title")
+    }
+    // B127 (session 32, K149): the pointer on the dock, reported on change (`settings.dock_hover {inside}`), so a sidebar
+    // opened by hover holds while it rests here as on its own column. Over everything Settings draws (session 33, the
+    // user: the page drawer and the menus closed the sidebar — their rows take the hover, so a handler under them lost
+    // it): a passive handler on an item with no input of its own, so every row still gets its hover.
+    Item {
+        anchors.fill: parent
+        z: 1000
+        HoverHandler { id: dockHover }
     }
 }

@@ -183,6 +183,20 @@ if wait_until 6 host_is "dock *"; then
     || fail "a hover-opened sidebar closed with the pointer on the docked Settings (B127; $(Q host))"
   [ "$(K sub runtime.settings --count 0 | jq -r '.data.hover // false')" = true ] \
     || fail "runtime.settings has no hover with the pointer on the dock"
+  # Session 33 (the user: the drawer and the menus in Settings closed the sidebar): the pages' drawer open, the pointer on
+  # its rows (they take the hover), the sidebar still stays.
+  if [ "$(Q compact)" != false ]; then
+    Q drawer true >/dev/null
+    sleep 0.6
+    for dy in 120 160 200 240; do
+      "$SB" move "$(( $(jq .x <<<"$LD") + 60 ))" "$(( $(jq .y <<<"$LD") + dy ))" >/dev/null
+      sleep 0.5
+    done
+    sleep 1.5
+    host_is "dock *" && ok "hover: the sidebar stays with the pointer on the drawer's rows" \
+      || fail "a hover-opened sidebar closed with the pointer on Settings' drawer ($(Q host))"
+    Q drawer false >/dev/null
+  fi
   # The pointer leaves the dock and the column: the sidebar goes after its grace.
   "$SB" move 960 540 >/dev/null
   wait_until 6 host_is "" && ok "hover: off the dock and the column, the sidebar goes" \
