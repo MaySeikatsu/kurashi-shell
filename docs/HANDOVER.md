@@ -18,7 +18,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-11-13 — session 32 (machine A): B128, the travelling workspace mark, Local mode, groups round two, the user's live bugs
-**State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR <PR> is open, not merged**
+**State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR #60 is open, not merged**
 (the user merges; it closes #58 and #59). After the merge remove #58's worktree `.claude/worktrees/agent-ac748735f1e82a580`
 (branch `feat/s31-settings-dock`), `~/.cache/kurashi-agents-target/w77`, and W80's worktree
 `.claude/worktrees/agent-ae7eda47dcd83e6c3` (locked by its agent's process: `git worktree remove -f -f`). W78, W79, W81's
@@ -46,7 +46,7 @@ Settings' page edges and the notifications' edge, groups on the bar and the modu
 On sway only: the web dock sidebar (pinned, hover), B128 (two outputs). Live on the user's session: frontend 0.0 % CPU at
 rest (music paused); nothing visual yet.
 **Next steps (in order; ask the user where a step says so — batched, one AskUserQuestion):**
-1. Check PR <PR>'s state; after the merge clean the worktrees above.
+1. Check PR #60's state; after the merge clean the worktrees above.
 2. Live read with the user (read-only): `top -H` with music playing; ask them to look at the PR's "check live" list. File
    what they report.
 3. Ask: try `QSG_RENDER_LOOP=basic` as an experiment card on the real session (B119)?
