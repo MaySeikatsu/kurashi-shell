@@ -1562,10 +1562,10 @@ drag and drop of the brief (docs/ux/groups.md) is the next step.
 `settings.dock {output, x, y, width, height, radius?}` (`{}` when it goes); the daemon keeps it in the new document
 `runtime.settings.dock` and starts Settings for it (`KURASHI_SETTINGS_DOCK=1`) when none runs, tracking the process it
 started so a rest while it starts never starts a second. Settings adds a host `dock` beside window and sheet: a layer
-surface on the Overlay layer, zones ignored, anchored top-left at `x, y` of the output. The shell measures the well there
+surface on the Top layer (as the sidebar, mapped after it), zones ignored, anchored top-left at `x, y` of the output. The shell measures the well there
 (the sidebar window's origin, Light.originOf, plus the well's place in it). Measured in session 31: the web dock's frame
 (top + side, `inset`/`top` from the usable area, exclusive zone 0) lands one sidebar width off under a pinned sidebar,
-whose own zone pushes a Normal-mode surface; and on the Top layer sway stacked the dock under a pinned sidebar. A dock
+whose own zone pushes a Normal-mode surface. A dock
 that moves to another output is made anew there (a mapped layer surface did not follow its screen). One content item: a window
 the user opened keeps it and the dock offers "Show here" (and the other way round). A process started only for the dock
 ends a minute after the dock goes, so a slide or a scroll (each withdraws the rect) never restarts it. Under 720 px the

@@ -27,9 +27,9 @@ PanelWindow {
     visible: !!place && target !== null
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    // (Overlay, as the web dock's sidebar page: on Top, the layer of the sidebar's own window, sway stacked it under a
-    // pinned sidebar)
-    WlrLayershell.layer: WlrLayer.Overlay
+    // (Top, the sidebar's own layer: mapped after the sidebar's window, it stands over it; under the Stage's cards and the
+    // launcher, which are Overlay)
+    WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "kurashi-settings-dock"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     anchors.top: true
@@ -68,5 +68,7 @@ PanelWindow {
         id: slot
         anchors.fill: parent
         opacity: dh.shownP
+        Accessible.role: Accessible.Pane
+        Accessible.name: I18n.tr("settings.ui.title")
     }
 }

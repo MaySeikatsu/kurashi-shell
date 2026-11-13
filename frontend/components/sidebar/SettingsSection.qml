@@ -126,5 +126,17 @@ Card {
         if (same(d, was)) Store.act("settings.dock", {})
     }
     onPlaceChanged: report(false)
+    // The dock went while this well still rests and only this section takes it away (a daemon that started again has an
+    // empty document): it is asked for again.
+    function reclaim() {
+        if (ss.dock === null && ss.place !== null && ss.sentPlace !== null && Store.live) ss.report(true)
+    }
+    onDockChanged: if (dock === null) Qt.callLater(reclaim)
+    Connections {
+        target: Store
+        function onLiveChanged() { if (Store.live) reclaimLater.restart() }
+    }
+    // (once the documents have come back after a reconnect)
+    Timer { id: reclaimLater; interval: 600; onTriggered: ss.reclaim() }
     Component.onDestruction: withdraw(sentPlace)
 }

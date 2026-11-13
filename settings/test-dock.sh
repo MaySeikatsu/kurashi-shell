@@ -61,7 +61,10 @@ keys() { ( . "$OUT/sway-env.sh"; python3 -I "$ROOT/tools/bench/wl_keys.py" "$@" 
 dock() { K sub runtime.settings --count 0 | jq -c '.data.dock // empty'; }
 host_is() { case "$(Q host)" in $1) return 0;; esac; return 1; }
 # The Settings processes the daemon started (`<qs> -p <this checkout>/settings`, nothing after).
-procs() { pgrep -fc -- " -p $ROOT/settings\$" || true; }
+RT=$(. "$NENV"; echo "$XDG_RUNTIME_DIR")
+procs() { local n=0 p; for p in $(pgrep -f -- " -p $ROOT/settings\$"); do
+  tr "\0" "\n" < "/proc/$p/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$RT" && n=$((n + 1)); done; echo "$n"; }
+q_is() { [ "$(Q "$1")" = "$2" ]; }
 # The dock's rect on the screen (x, y from the output's corner; niri's output is 1080 high).
 shot_dock() { local d; d=$(dock); [ -n "$d" ] || return 1
   local x w; w=$(jq .width <<<"$d")
@@ -82,21 +85,23 @@ jq -e "has(\"radius\")" <<<"$D" >/dev/null && ok "the well's radius goes with it
 [ "$(Q userOpen)" = false ] && ok "no window of its own (started for the dock)" || fail "a dock-only Settings opened its window"
 [ "$(Q compact)" = true ] && ok "the chrome is compact at 420 px" || fail "not compact at 420 ($(Q compact))"
 sleep 0.5; shot_dock dock-light-420
+F0=$(Q frames); sleep 1.5
+[ "$(Q frames)" = "$F0" ] && ok "docked and still: no frames (Ma)" || fail "frames while docked and still ($F0 → $(Q frames))"
 
 # A click in the dock (its left margin, half way down: the page's ground) gives it the keyboard; typing searches.
 X=$(( $(jq .x <<<"$D") + 5 ))
 Y=$(( $(jq .y <<<"$D") + $(jq .height <<<"$D") / 2 ))
 "$SB" click "$X" "$Y" >/dev/null
 keys r a d i u s
-wait_until 5 test "$(Q query)" = radius && ok "a key typed in the dock lands in its search" || fail "typed keys did not reach the search ($(Q query))"
+wait_until 5 q_is query radius && ok "a key typed in the dock lands in its search" || fail "typed keys did not reach the search ($(Q query))"
 sleep 0.4; shot_dock dock-search
 keys escape
-wait_until 3 test "$(Q query)" = "" || fail "Esc did not clear the search"
+wait_until 3 q_is query "" || fail "Esc did not clear the search"
 keys escape
 wait_until 5 host_is "" && ok "Esc then closes the sidebar and the dock goes" || fail "Esc did not take the dock away ($(Q host))"
 [ -z "$(dock)" ] && ok "runtime.settings has no dock" || fail "the dock stayed in the document: $(dock)"
 Q current >/dev/null && ok "Settings stays (kept a minute)" || fail "Settings ended with the dock"
-F0=$(Q frames); sleep 1; [ "$(Q frames)" = "$F0" ] && ok "no frames while undocked" || fail "frames while undocked ($F0 → $(Q frames))"
+# (undocked there is no window to draw: the frames counted are the host's, so this only says nothing is hosted)
 
 K act sidebar.toggle '{"side":"right"}' >/dev/null
 wait_until 8 host_is "dock *" && ok "the toggle brings it back" || fail "the dock did not come back ($(Q host))"
@@ -130,19 +135,61 @@ sleep 1; "$SB" shot in-sidebar >/dev/null
 WID=$( ( . "$NENV"; niri msg -j windows ) | jq -r '.[] | select(.title == "Kurashi settings") | .id' | head -1)
 if [ -n "$WID" ]; then
   ( . "$NENV"; niri msg action close-window --id "$WID" ) >/dev/null
-  wait_until 5 test "$(Q userOpen)" = false && ok "closing the window leaves it in the dock" || fail "the window's close ($(Q userOpen))"
+  wait_until 5 q_is userOpen false && ok "closing the window leaves it in the dock" || fail "the window's close ($(Q userOpen))"
   host_is "dock *" || fail "the dock lost it when the window closed ($(Q host))"
 else
   fail "no Settings window found in niri's list"
 fi
 K act sidebar.close >/dev/null
 wait_until 5 host_is "" && ok "sidebar.close takes it away" || fail "sidebar.close ($(Q host))"
+
+# Pinned (the column keeps a zone: a Normal-mode surface would be pushed off the well by it), then the top bar off from
+# under it (the window moves on the output, the well in it does not), then the dock taken away under it.
+K set sidebar.right.visibility always >/dev/null
+wait_until 10 host_is "dock *" && ok "a pinned sidebar docks it ($(Q host))" || fail "pinned: no dock ($(Q host))"
+sleep 1; shot_dock dock-pinned
+Y0=$(dock | jq .y)
+K set edges.top.bar false >/dev/null
+dock_moved() { local y; y=$(dock | jq '.y // -1'); [ "$y" != -1 ] && [ "$y" != "$Y0" ]; }
+wait_until 10 dock_moved && ok "the top bar gone, the dock follows the well ($Y0 → $(dock | jq .y))" || fail "the dock stayed at y $Y0 with the bar gone ($(dock))"
+wait_until 5 host_is "dock *" || fail "no dock after the bar went ($(Q host))"
+sleep 1; shot_dock dock-pinned-nobar
+K set edges.top.bar true >/dev/null
+sleep 1
+# The dock goes from under a resting section (as after a daemon restart: an empty document): the section asks again.
+K act settings.dock '{}' >/dev/null
+has_dock() { [ -n "$(dock)" ]; }
+wait_until 8 has_dock && wait_until 5 host_is "dock *" && ok "a dock taken away under a resting section is asked for again ($(Q host))" || fail "not docked again ($(Q host); $(dock))"
+[ "$(procs)" = 1 ] && ok "still one process" || fail "Settings processes: $(procs)"
+
+# The left sidebar (anchored to the other edge).
+K set sidebar.right.visibility hidden >/dev/null
+K set sidebar.left.sections '["settings"]' >/dev/null || fail "sidebar.left.sections = [settings] was refused"
+K act sidebar.toggle '{"side":"left"}' >/dev/null
+wait_until 10 host_is "dock *" && ok "the left sidebar docks it ($(Q host))" || fail "left: no dock ($(Q host))"
+LD=$(dock); [ "$(jq .x <<<"$LD")" -lt 960 ] && ok "on the left ($LD)" || fail "the left dock is not on the left: $LD"
+sleep 1; "$SB" shot dock-left "0,0 $(( $(jq .x <<<"$LD") + $(jq .width <<<"$LD") + 8 ))x1080" 1 >/dev/null
+K act sidebar.close >/dev/null
+wait_until 5 host_is "" || fail "left: sidebar.close ($(Q host))"
+
+# Known gap (docs/ux/settings.md): a sidebar opened by hover holds on the pointer over its own window only.
+K set sidebar.left.visibility hover >/dev/null
+"$SB" move 1 540 >/dev/null; sleep 0.3; "$SB" move 0 540 >/dev/null
+if wait_until 6 host_is "dock *"; then
+  LD=$(dock)
+  "$SB" move "$(( $(jq .x <<<"$LD") + $(jq .width <<<"$LD") / 2 ))" "$(( $(jq .y <<<"$LD") + 200 ))" >/dev/null
+  sleep 2
+  host_is "dock *" && ok "hover: the sidebar stays with the pointer on Settings" \
+    || echo "test-dock: KNOWN GAP: a hover-opened sidebar closes with the pointer on the docked Settings ($(Q host))"
+else
+  echo "test-dock: KNOWN GAP: the hover reveal did not open the left sidebar here (not measured)"
+fi
 "$SB" stop >/dev/null 2>&1
 
 # ---- part 2: two outputs (headless sway) ----
 SWAY2=${KURASHI_SB_PREFIX:-}settings-dock2
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$SWAY2")"
-R=$XDG_RUNTIME_DIR
+R=$XDG_RUNTIME_DIR; RT=$R
 "$ROOT/tools/bench/sandbox.sh" output-add "$SWAY2" >/dev/null || die "no second output"
 swaymsg output HEADLESS-1 pos 0 0 >/dev/null 2>&1
 W1=$(swaymsg -t get_outputs -r | jq '.[] | select(.name == "HEADLESS-1") | .rect.width')

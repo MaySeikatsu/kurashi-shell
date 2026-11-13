@@ -226,7 +226,7 @@ KDE's KCMs-in-another-host and the side panels' reflow, and both are what this d
   width, height, radius}` — the well on its output, from the output's corner — while at rest, and `settings.dock {}` when
   it goes (closed, sliding, scrolled, under the "+" picker or a tile's page). The daemon keeps that rect in
   `runtime.settings.dock` (absent while undocked) and starts Settings for it if it does not run (never twice).
-- Settings maps a layer surface exactly over the well (Overlay layer, zones ignored, top-left at x, y), no backdrop, the
+- Settings maps a layer surface exactly over the well (Top layer as the sidebar, zones ignored, top-left at x, y), no backdrop, the
   well's radius, keyboard on demand (a click in it gives it the keyboard). Its content is the same item the window and the
   sheet hold.
 - Narrow: under 720 px the chrome goes compact — the header is the search field across the width with a pages key
@@ -241,8 +241,8 @@ KDE's KCMs-in-another-host and the side panels' reflow, and both are what this d
 - Two outputs: one dock at a time, the last section to rest wins (as the web dock's "last opened wins"); the other
   section's well says "Settings is shown on <output>" with **Show here**.
 - Esc in the dock: what a control takes first (a field, a preview, the drawer), then it closes the sidebar, as the
-  sidebar's own Esc. Tab cannot cross from the sidebar's surface into the dock's (two surfaces); a click or the section's
-  key moves the keyboard there.
+  sidebar's own Esc. Tab cannot cross from the sidebar's surface into the dock's (two surfaces); a click in it moves the
+  keyboard there. Still to do: a key from the sidebar into the dock (as the web dock's card asks for the keyboard once).
 
 **States.** Starting (the well: "Opening Settings…"), docked, not at rest (the well's own plate, empty: the surface is
 unmapped), unavailable (the well names the reason: Settings not installed, no `qs`), open in its window / shown here,
@@ -250,7 +250,8 @@ shown on another output, disconnected (Settings' veil), kept after the dock went
 
 **Known gaps.** A sidebar opened by hover holds open on the pointer over its own window; the pointer on the dock's surface
 is not over that window (as with the web dock's page), so a hover-opened sidebar closes when the pointer rests on
-Settings. Toggled and pinned sidebars are not affected.
+Settings (to be measured by `settings/test-dock.sh`, which reports it). Toggled and pinned sidebars are not affected. A fix needs
+a signal from Settings that the pointer is in the dock (a contract change: the shell's hover hold, as `Peeks.hoverOverlay`).
 
 **Definition of done.** The section opens Settings in place on nested niri; a key typed lands in its search; the
 sidebar's close takes it away (0 frames); the window/dock hand-over both ways; the other output's well; light and dark
