@@ -1061,6 +1061,21 @@ How: show the app's pixels in the card (a capture of its toplevel) while the rea
 - **Hyprland's `pin` + special workspace / sway's sticky + scratchpad:** what (a) is on those compositors, and better
   than niri for it (a pinned floating window follows workspaces natively).
 
+### The probe (nested niri 26.04, session 32; a scratch script, nothing kept)
+`foot --app-id kurashi-dock-probe` spawned on the sandbox's niri with the dock open (pinned, a view card at the right
+edge, a top bar); then by window id: `move-window-to-floating`, `set-window-width 412`, `set-window-height 600`,
+`move-floating-window -x 1400 -y 200` — four IPC calls in 145 ms, each rc 0; `niri msg -j windows` then said
+`window_size [412, 600]`, `tile_pos_in_workspace_view [1400, 232]`: **the position is in the working area** (the top
+bar's 32 px exclusive zone added) — the daemon must place in that frame, not the output's. The shot shows the window
+**under the dock's card** (the card, a Top-layer surface, covers it; only its left strip shows beside the card): (a)'s
+"frame with a hole" is required, not optional. `move-window-to-workspace --window-id … --focus false 3` with two
+workspaces parked it on the last (empty) one — niri clamps the index and keeps an empty workspace at the end, so a park
+workspace exists without config (a named one is steadier). Back with `--focus false 1`: the window came back at the
+same floating position (niri keeps floating positions per workspace), **and took focus** (it was the workspace's only
+window) — so "back" can steal focus from what the user had; the daemon then focuses the card or the previous window
+deliberately. The dock's state did not change through any of it (`engaged` false, the card stayed): niri's window
+focus does not reach the dock's hide logic by itself.
+
 ### Recommended first spike
 **(a) on niri with `foot`, read-only of the product:** a script that spawns `foot --app-id kurashi-dock-probe`, a niri
 window rule making it float, then `move-window-to-floating`, `set-window-width/height`, `move-floating-window` onto the

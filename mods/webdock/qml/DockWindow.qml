@@ -56,6 +56,20 @@ PanelWindow {
     readonly property bool wantFocus: d.engaged === true && open
     // W78 (docs/ux/webdock.md "Local mode"): the strip lists the shell's own views; `strip` names them (the daemon's).
     readonly property bool local: d.content === "local"
+    // The switch shows while a mod that is on offers a view (a panel or a desk card), or while Local is on (the way back):
+    // no inert key on a shell without local content (Kanso).
+    Watch { doc: "mods" }
+    readonly property bool hasLocal: {
+        var list = (Store.docs["mods"] && Store.docs["mods"].mods) || []
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].id === "webdock" || list[i].state !== "enabled") continue
+            for (var key in (list[i].qml || ({})))
+                if (key.indexOf("panel:") === 0 || key.indexOf("desk:") === 0) return true
+        }
+        return false
+    }
+    readonly property bool showSwitch: local || hasLocal
+    onShowSwitchChanged: refreshRows()
 
     // ---- the pins and the card's subject ----
     readonly property var pins: d.pins || []
@@ -111,8 +125,8 @@ PanelWindow {
             out.push({ kind: "pin", pin: ps[i] })
         }
         if (ps.length > 0) out.push({ kind: "divider" })
-        out.push({ kind: "ctl", ctl: "content" }, { kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" },
-            { kind: "ctl", ctl: "settings" })
+        if (showSwitch) out.push({ kind: "ctl", ctl: "content" })
+        out.push({ kind: "ctl", ctl: "pin" }, { kind: "ctl", ctl: "add" }, { kind: "ctl", ctl: "settings" })
         if (JSON.stringify(out) !== JSON.stringify(rowList)) {
             rowList = out; listed = ps
             if (debugLog && open) stripLog.restart()
