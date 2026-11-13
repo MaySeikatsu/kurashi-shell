@@ -298,6 +298,12 @@ width?, height?}` (writes `sizes`; none removes the row) · `webdock.retarget {p
 `webdock.add {url, title?, from?}` (from a temporary page: it is adopted). Settings `sizes` (records) and `search`
 (`https://duckduckgo.com/?q={q}` by default), `bar_site`, `bar_playing` (I495).
 
+**Light or dark (session 33):** the pages see the desktop's scheme (`prefers-color-scheme`): the host runs on Qt's
+portal platform theme (`QT_QPA_PLATFORMTHEME=xdgdesktopportal`, set by the daemon) and follows
+`org.freedesktop.appearance color-scheme`, which the shell sets through its `gsettings` export (`theme.export`); an open
+page follows a change at once (PrivateView re-applies its settings). Without that export the pages see the portal's own
+scheme, whatever set it.
+
 **Local mode (W78, session 32; CONTRACT-CHANGE 760):** setting `content` (`online` | `local`, default `online`); while
 it is `local` the document carries `content: "local"`; `strip: [<pin id>…]` names the ids the strip lists whenever
 that is fewer than every pin (Online lists the sites, Local the shell's own views — the user, session 32), absent when it

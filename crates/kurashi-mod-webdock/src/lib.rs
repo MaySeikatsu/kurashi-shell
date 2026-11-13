@@ -114,7 +114,14 @@ impl NativeMod for Webdock {
             HostSpec {
                 binary: "qs-webengine".into(),
                 args: vec!["-p".into(), "{mod_dir}/host/shell.qml".into()],
-                env: BTreeMap::new(),
+                // Session 33 (the user: the pages should see the shell's light or dark): Qt takes the colour scheme
+                // from the desktop portal (`org.freedesktop.appearance color-scheme`, which the shell's gsettings export
+                // sets) and follows its changes; Chromium's `prefers-color-scheme` follows Qt. The host draws its own
+                // chrome, so a platform theme such as qt6ct has nothing else to give it.
+                env: BTreeMap::from([(
+                    "QT_QPA_PLATFORMTHEME".to_string(),
+                    "xdgdesktopportal".to_string(),
+                )]),
             },
         )?;
         let writer = ctx.settings_writer();

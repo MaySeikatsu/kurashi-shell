@@ -47,8 +47,9 @@
             # Rust
             cargo rustc clippy rustfmt rust-analyzer cargo-nextest
             # Workflow
-            # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font
-            just jq (python3.withPackages (ps: [ ps.fonttools ])) git
+            # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font;
+            # dbus-python and pygobject: tools/bench/fake_portal.py, a stand-in desktop portal for the tests (session 33)
+            just jq (python3.withPackages (ps: [ ps.fonttools ps.dbus-python ps.pygobject3 ])) git
             # Shader checks (the ghostty material shader, W37 row 402)
             glslang
             # Frontend default (K3 candidate 1) + headless test compositor; niri nested in it is the lead platform for

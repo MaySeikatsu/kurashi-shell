@@ -34,6 +34,18 @@ WebEngineView {
     property bool siteIcons: false
     settings.autoLoadIconsForPage: siteIcons
     settings.touchIconsEnabled: false
+    // Session 33 (the user: the shell's light or dark for the pages): Chromium takes the colour scheme (`prefers-color-
+    // scheme`) from Qt when it works out a page's preferences — at load, or when any setting changes. A change of the
+    // scheme (the desktop portal's, which the shell's gsettings export sets) flips a setting with no effect on screen
+    // twice, so an open page follows at once, with no reload.
+    Connections {
+        target: Qt.styleHints
+        function onColorSchemeChanged() {
+            var v = view.settings.printElementBackgrounds
+            view.settings.printElementBackgrounds = !v
+            view.settings.printElementBackgrounds = v
+        }
+    }
 
     function send(action, args) {
         if (report) report(action, args)

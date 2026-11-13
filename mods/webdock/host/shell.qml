@@ -30,6 +30,10 @@ ShellRoot {
     readonly property var sizes: doc.sizes || ({})
     readonly property var forced: doc.forced || ({})
     function forcedBy(key) { return forced[key] !== undefined && forced[key] !== null ? String(forced[key]) : "" }
+    // Session 33 (the user: "dark/light mode is not shared with the embedded browser"): the pages see the desktop's light or
+    // dark through Qt's colour scheme — the daemon starts this host on the portal's platform theme, and the shell's gsettings
+    // export tells the portal (PrivateView pushes a change to open pages). Logged for the tests.
+    Connections { target: Qt.styleHints; function onColorSchemeChanged() { if (root.debugLog) console.log("webdock-debug scheme " + Qt.styleHints.colorScheme) } }
     // Test-only switch (test-host.sh): the intents and the card's state are logged.
     readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
 
