@@ -157,7 +157,8 @@ help = "mods.terminal.pinned.help"
 [[setting]]
 key = "hide_on_blur"
 type = "bool"
-default = false
+# (session 33, the user: it should go when clicked elsewhere — Yakuake's default; the pin keeps it out)
+default = true
 label = "mods.terminal.hide_on_blur"
 help = "mods.terminal.hide_on_blur.help"
 

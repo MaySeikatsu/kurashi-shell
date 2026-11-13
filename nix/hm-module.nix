@@ -483,12 +483,14 @@ in
         Install.WantedBy = [ "graphical-session.target" ];
       };
 
-      # Requires (not BindsTo): a daemon restart must not kill the frontend; it reconnects itself.
+      # Wants (not Requires or BindsTo): a daemon restart must not take the frontend down; it reconnects itself. (Session 33,
+      # the user's shell did not come back after a rebuild: with Requires, Home-Manager's switch stopped kurashid — its
+      # unit had changed — which stopped the frontend too, and started only the daemon again.)
       systemd.user.services.kurashi-frontend = lib.mkIf (cfg.systemd.enable && cfg.frontend.enable) {
         Unit = {
           Description = "Kurashi shell frontend (Quickshell)";
           PartOf = [ "graphical-session.target" ];
-          Requires = [ "kurashid.service" ];
+          Wants = [ "kurashid.service" ];
           After = [ "graphical-session.target" "kurashid.service" ];
         };
         Service = {

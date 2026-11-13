@@ -150,3 +150,4 @@
 "action.terminal.host.shown" = "Where the terminal's text is shown"
 "action.terminal.dismiss" = "Put the terminal's notice away"
 "action.terminal.hold" = "The shell's chrome holds the keyboard"
+"terminal.hide" = "Put away ({key})"

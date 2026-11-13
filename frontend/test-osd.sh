@@ -66,6 +66,15 @@ show '{"kind":"volume","label":"Speakers","icon":"volume_up","value":0.7}'; slee
 "$SB" shot osd-top "660,0 600x140" 1 > /dev/null
 d=$(magick "$OUT/shots/osd-top.png" -format '%[fx:standard_deviation]' info: 2>/dev/null || echo 0)
 ok "place top (shot)"; sleep 1.6
+# Session 33 (the user: "an attached mode, as Caelestia has"): joined to the right edge, upright; then the bottom edge.
+K set osd.place='"edge"' osd.edge='"right"' > /dev/null; sleep 0.6
+show '{"kind":"volume","label":"Speakers","icon":"volume_up","value":0.62}'; sleep 0.7
+"$SB" shot osd-edge-right "1760,240 160x600" 1 > /dev/null
+wait_until 5 sh -c "[ \"\$(\"$SB\" niri layers 2>/dev/null | grep -c kurashi-osd)\" = 0 ]" || fail "the attached OSD stayed"
+K set osd.edge='"bottom"' > /dev/null; sleep 0.6
+show '{"kind":"brightness","label":"Brightness","icon":"brightness_6","value":0.4}'; sleep 0.7
+"$SB" shot osd-edge-bottom "640,960 640x120" 1 > /dev/null
+ok "attached: right (upright) and bottom (shots), gone after its timeout"; sleep 1.6
 K set osd.place='"bottom"' theme.colors.scheme='"dark"' > /dev/null; sleep 1
 show '{"kind":"volume","label":"Speakers","icon":"volume_up","value":0.7}'; sleep 0.6
 "$SB" shot osd-dark "660,940 600x110" 1 > /dev/null; sleep 1.6

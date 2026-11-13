@@ -21,7 +21,9 @@ material, outline, shadow; the level in `LevelMeter`, the island's own). The dae
 `crates/kurashid/src/osd.rs`): an *edge* of the audio, brightness or keyboard documents (never their first report), each
 kind on or off (`osd.volume`, `osd.mic`, `osd.brightness`, `osd.layout`). `osd.place`: bottom centre (default), top
 centre (under the top bar), centre of the screen, or the island (the island's faces show volume and brightness as before;
-the layout and the microphone still show at the bottom). `osd.timeout_ms` (1500).
+the layout and the microphone still show at the bottom). `osd.timeout_ms` (1500). **Attached** (session 33, the user: "as Caelestia has"; `osd.place = edge`, `osd.edge`, right by
+default): one sheet joined to the screen edge with the shell's fillets (JoinedCard), sliding out of it; upright on the left
+or right (the level as a vertical bar, the percentage above, the icon below), lying along the top or bottom.
 - **Volume**: icon by level (off / down / up), the level and its percentage, the device's name; muted: the struck icon,
   "Muted", the level dimmed.
 - **Microphone**: mic or mic off, "Microphone muted" / "Microphone on", the device's name.

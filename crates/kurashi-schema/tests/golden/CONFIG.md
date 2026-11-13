@@ -2334,7 +2334,15 @@ How many notifications are kept.
 The OSD answers a key that changes the volume, the brightness, the microphone or the keyboard layout. In the island: the island shows volume and brightness as it did before (the layout and the microphone show at the bottom).
 
 - type: `choice` · default: `"bottom"`
-- choices: `"bottom"` | `"top"` | `"center"` | `"island"`
+- choices: `"bottom"` | `"top"` | `"center"` | `"island"` | `"edge"`
+- since schema v7
+
+#### `osd.edge` — Edge
+
+Attached: the edge it slides out of, joined to it as the shell's cards join their bar (on the left or right it stands upright).
+
+- type: `choice` · default: `"right"`
+- choices: `"right"` | `"left"` | `"top"` | `"bottom"`
 - since schema v7
 
 #### `osd.timeout_ms` — How long it stays (ms)

@@ -19,6 +19,7 @@ pub const DOC: &str = "runtime.osd";
 #[derive(Debug, Clone, PartialEq)]
 struct Prefs {
     place: String,
+    edge: String,
     timeout_ms: u64,
     volume: bool,
     mic: bool,
@@ -30,6 +31,7 @@ impl Default for Prefs {
     fn default() -> Self {
         Self {
             place: "bottom".into(),
+            edge: "right".into(),
             timeout_ms: 1500,
             volume: true,
             mic: true,
@@ -69,6 +71,7 @@ impl Osd {
         };
         let p = Prefs {
             place: s("osd.place", &d.place),
+            edge: s("osd.edge", &d.edge),
             timeout_ms: cfg
                 .get("osd.timeout_ms", None)
                 .and_then(|p| p.value.as_u64())
@@ -237,6 +240,9 @@ impl Osd {
             p.place.as_str()
         });
         event["timeout_ms"] = json!(p.timeout_ms);
+        if p.place == "edge" {
+            event["edge"] = json!(p.edge);
+        }
         let _ = hub.update(DOC, None, |d| *d = event);
     }
 }
