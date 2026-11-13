@@ -1,6 +1,7 @@
 import QtQuick
 import "../core"
 import "../components"
+import "groups.js" as Groups
 
 // One schema row (DESIGN-SYSTEM §7; UX brief, settings "Design"). The label and its help sit on the left. The control
 // sits on the right, and under it the provenance chip with Reset (or, while a preview is open, Keep and Put back). Then
@@ -512,6 +513,13 @@ Item {
             enabled: r.editable
             refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)
+            // A bar zone's or a sidebar's list holds the named groups (I502, W80): drag, Ctrl+arrows and the group rows
+            // edit `layout.groups` and this list in one apply. Other lists of modules (the hover lists, "open the other
+            // way") take no groups, so the zones are told by their key until the schema marks them (CONTRACT-CHANGE 765).
+            groupable: r.row.choices_from === "modules" && /^edges\.[a-z]+\.(start|center|end)$/.test(r.row.key)
+                || ["sidebar.sections", "sidebar.tabs"].indexOf(r.row.choices_from) >= 0
+            groups: { var g = groupable ? Store.valueOf("layout.groups") : null; return Array.isArray(g) ? g : [] }
+            onRegrouped: res => Store.apply(Groups.ops(res, r.row.key, r.out))
         }
     }
     // A list of records (K38): rows named by their item_label, a form with one control per declared field. Its changes are

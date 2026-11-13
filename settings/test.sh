@@ -55,6 +55,8 @@ ROOT=$PWD
 # W77 (K146): Settings docked in a sidebar section runs on nested niri with the shell, not in this sway sandbox:
 # `SETTINGS_PART=dock settings/test.sh` is settings/test-dock.sh.
 if [ "${SETTINGS_PART:-}" = dock ]; then exec "$ROOT/settings/test-dock.sh" "$@"; fi
+# W80: the groups on nested niri (the bar draws a group, the module menu's Group with…): settings/test-groups.sh.
+if [ "${SETTINGS_PART:-}" = groups-niri ]; then exec "$ROOT/settings/test-groups.sh" "$@"; fi
 if ! command -v qs >/dev/null || ! command -v sway >/dev/null; then
   exec nix develop -c "$0" "$@"
 fi
@@ -929,6 +931,148 @@ palettes_ja() {
   pwait palette-editor "ja: Escape did not leave the editor" no
   Q category theme.colors.palette kurashi
 }
+# --- W80 (I502, I508; docs/ux/groups.md "Round two"): editing named groups in a zone's list. -----------------------------
+# G1 Ctrl+Down on a module groups it with the next (one apply: the record and the zone list); G2 Ctrl+Up on the module after
+# the group joins it; G3 Ctrl+Left on a member leaves (it stands after the group); G4 undo puts it back (one step); G5 the
+# group's name typed and Accordion switched (the record holds both); G6 a group dropped onto a group asks, Escape keeps
+# both, Return merges; G7 Delete on a group row ungroups; G8 a drag with the pointer (wl_pointer draw) of a module onto
+# another makes a group, when the window answers `rect` (the lead's hook, CONTRACT-CHANGE); G9 Japanese row names.
+# Shots: settings/shots/groups/ (light and dark). SETTINGS_PART=groups runs only this.
+gshot() { sleep 1; mkdir -p "$SHOTS/groups"; grim -o HEADLESS-1 "$SHOTS/groups/$1.png"; [ -s "$SHOTS/groups/$1.png" ]; }
+gwait() { val_is "$1" "$2" || fail "groups: $3 ($1 is $(val "$1"))"; }
+groups_part() {
+  mkeys
+  K '{"t":"apply","id":"g0","ops":[{"set":"layout.groups","value":[]},{"set":"edges.top.end","value":["volume","keyboard","clock","tray"]},{"set":"edges.top.start","value":["workspaces","recorder"]}]}' \
+    | grep -q applied || fail "groups: the seed was refused"
+  Q goto layout
+  sleep 1
+  Q scrollTo "pick:edges.top.end"
+  Q focusList >/dev/null
+  mtab_to "pickrow:volume"
+  gshot list-before
+  # G1
+  mkp ctrl+down
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,keyboard","name":""}]' "Ctrl+Down did not make a group"
+  gwait edges.top.end '["group:g1","clock","tray"]' "Ctrl+Down did not put the group in the zone"
+  for _ in $(seq 25); do [ "$(Q focused)" = "groupmember:volume" ] && break; sleep 0.2; done
+  [ "$(Q focused)" = "groupmember:volume" ] || fail "groups: the focus did not follow the grouped module ($(Q focused))"
+  echo "groups G1: Ctrl+Down grouped volume with keyboard"
+  # G2
+  Q focusList >/dev/null
+  mtab_to "pickrow:clock"
+  mkp ctrl+up
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,keyboard,clock","name":""}]' "Ctrl+Up did not join the group"
+  gwait edges.top.end '["group:g1","tray"]' "the joined module stayed in the zone"
+  echo "groups G2: Ctrl+Up joined clock to the group"
+  gshot list-group
+  # G3, G4
+  Q focusList >/dev/null
+  mtab_to "groupmember:keyboard"
+  mkp ctrl+left
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,clock","name":""}]' "Ctrl+Left did not leave"
+  gwait edges.top.end '["group:g1","keyboard","tray"]' "the member that left does not stand after the group"
+  Q undo
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,keyboard,clock","name":""}]' "undo did not restore the member"
+  gwait edges.top.end '["group:g1","tray"]' "undo did not restore the zone (one step for both)"
+  echo "groups G3/G4: Ctrl+Left left the group; one undo put it back"
+  # G5
+  Q focusList >/dev/null
+  mtab_to "Name of g1"
+  mkp t i m e return
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,keyboard,clock","name":"time"}]' "the typed name was not kept"
+  mtab_to "groupaccordion:g1"
+  mkp space
+  gwait layout.groups '[{"accordion":true,"id":"g1","members":"volume,keyboard,clock","name":"time"}]' "Accordion did not switch"
+  echo "groups G5: name and Accordion"
+  # G6: a second group (tray with nothing next: Ctrl+Up onto the group would join; make one in the start zone instead).
+  K '{"t":"apply","id":"g6","ops":[{"set":"layout.groups","value":[{"id":"g1","name":"time","members":"volume,keyboard,clock","accordion":true},{"id":"g2","name":"","members":"tray,recorder","accordion":false}]},{"set":"edges.top.end","value":["group:g1","group:g2"]},{"set":"edges.top.start","value":["workspaces"]}]}' \
+    | grep -q applied || fail "groups: the second group was refused"
+  Q focusList >/dev/null
+  mtab_to "pickrow:group:g2"
+  mkp ctrl+up
+  for _ in $(seq 25); do [ "$(Q present groupmerge:g1)" = yes ] && break; sleep 0.2; done
+  [ "$(Q present groupmerge:g1)" = yes ] || fail "groups: a group onto a group did not ask"
+  gshot list-merge-ask
+  mkp escape
+  for _ in $(seq 25); do [ "$(Q present groupmerge:g1)" = no ] && break; sleep 0.2; done
+  [ "$(val edges.top.end)" = '["group:g1","group:g2"]' ] || fail "groups: Escape merged"
+  mkp ctrl+up return
+  gwait layout.groups '[{"accordion":true,"id":"g1","members":"volume,keyboard,clock,tray,recorder","name":"time"}]' "Return did not merge"
+  gwait edges.top.end '["group:g1"]' "the merged group stayed in the zone"
+  echo "groups G6: a group onto a group asks; Escape keeps both, Return merges"
+  # G7
+  Q focusList >/dev/null
+  mtab_to "pickrow:group:g1"
+  mkp delete
+  gwait layout.groups '[]' "Delete did not ungroup"
+  gwait edges.top.end '["volume","keyboard","clock","tray","recorder"]' "Ungroup did not put the members back in order"
+  echo "groups G7: Delete ungrouped"
+  # G8: the pointer (needs the window's `rect` hook).
+  r=$(Q rect "pickrow:volume" 2>/dev/null || true)
+  if [ "${r#\{}" != "$r" ]; then
+    t=$(Q rect "pickrow:clock")
+    pts=$(python3 -I -c 'import json,sys; a=json.loads(sys.argv[1]); b=json.loads(sys.argv[2]); print("%d,%d %d,%d %d,%d" % (a["x"]+40, a["y"]+a["h"]/2, a["x"]+60, (a["y"]+b["y"])/2+a["h"]/2, b["x"]+40, b["y"]+b["h"]/2))' "$r" "$t")
+    echo "draw $pts" | python3 -I tools/bench/wl_pointer.py --serve
+    gwait layout.groups '[{"accordion":false,"id":"g1","members":"volume,clock","name":""}]' "a drag of volume onto clock did not group"
+    echo "groups G8: a pointer drag grouped volume with clock"
+    Q undo
+  else
+    # Until the hook (CONTRACT-CHANGE 764): this sandbox's fixed geometry (2560x1440 at scale 1, the zone list scrolled to
+    # the top: row 2 Keyboard layout at y 199, row 3 Clock at y 245; the names at x 650).
+    Q scrollTo "pick:edges.top.end"
+    sleep 1
+    echo "draw 650,199 652,205 655,215 655,225 652,235 650,245" | python3 -I tools/bench/wl_pointer.py --serve
+    gwait layout.groups '[{"accordion":false,"id":"g1","members":"keyboard,clock","name":""}]' "a pointer drag of Keyboard layout onto Clock did not group"
+    gwait edges.top.end '["volume","group:g1","tray","recorder"]' "the drag's group is not where Clock stood"
+    echo "groups G8: a pointer drag (fixed coordinates) grouped keyboard with clock"
+    Q undo
+    gwait edges.top.end '["volume","keyboard","clock","tray","recorder"]' "undo after the drag"
+  fi
+  # P1/P2: the bar preview (the top edge, every output): Ctrl+Right on a chip groups it with the next; Ctrl+Down on a member
+  # takes it out (a group of one stays, the bar draws it plain).
+  gwait edges.top.end '["volume","keyboard","clock","tray","recorder"]' "the preview's start state"
+  Q focusList >/dev/null
+  mtab_to "previewchip:clock" 300
+  mkp ctrl+right
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"clock,tray","name":""}]' "preview: Ctrl+Right did not group"
+  gwait edges.top.end '["volume","keyboard","group:g1","recorder"]' "preview: the zone does not hold the group"
+  Q scrollTo barpreview
+  gshot preview-group
+  Q focusList >/dev/null
+  mtab_to "previewmember:tray" 300
+  mkp ctrl+down
+  gwait layout.groups '[{"accordion":false,"id":"g1","members":"clock","name":""}]' "preview: Ctrl+Down did not take the member out"
+  gwait edges.top.end '["volume","keyboard","group:g1","tray","recorder"]' "preview: the member does not stand after its group"
+  echo "groups P1/P2: the preview grouped clock with tray and took tray out again"
+  # Shots: a group with an accordion, light and dark.
+  K '{"t":"apply","id":"gs","ops":[{"set":"layout.groups","value":[{"id":"g1","name":"time","members":"volume,keyboard,clock","accordion":true}]},{"set":"edges.top.end","value":["group:g1","tray"]}]}' | grep -q applied || fail "groups: shot seed refused"
+  Q scrollTo "pickrow:group:g1"
+  gshot list-light
+  K '{"t":"apply","id":"gd","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' | grep -q applied || fail "groups: dark refused"
+  gshot list-dark
+  K '{"t":"apply","id":"gl","ops":[{"reset":"theme.colors.scheme"}]}' >/dev/null
+}
+groups_ja() {
+  Q goto layout
+  sleep 1
+  Q scrollTo "pickrow:group:g1"
+  gshot ja-list
+}
+if [ "${SETTINGS_PART:-}" = groups ]; then
+  groups_part
+  qml_errors
+  exec 3>&-; kbd_pid=""
+  kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
+  sleep 0.5
+  start_daemon ja_JP.UTF-8
+  start_qs "" layout
+  for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+  sleep 1.5
+  groups_ja
+  qml_errors
+  echo "ok (groups part, $HOST host): $SHOTS/groups/"; ls "$SHOTS/groups"
+  exit 0
+fi
 if [ "${SETTINGS_PART:-}" = palettes ]; then
   palettes_part
   qml_errors

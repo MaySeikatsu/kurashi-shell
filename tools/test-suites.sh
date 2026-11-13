@@ -30,12 +30,13 @@ while [ $# -gt 0 ]; do
 done
 
 # The set the lead runs before a merge (session 16–17); the others run with --all or by name.
-MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion)
+MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion settings-groups)
 path_of() {
   case "$1" in
     */*) echo "$1" ;;
     settings) echo settings/test.sh ;;
     settings-dock) echo settings/test-dock.sh ;;
+    settings-groups) echo settings/test-groups.sh ;;
     greeter) echo greeter/test.sh ;;
     *) echo "frontend/test-$1.sh" ;;
   esac

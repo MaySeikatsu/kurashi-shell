@@ -418,6 +418,14 @@ Flickable {
     // The "differs from the style" line as shown ("" when hidden), and its Reset.
     function differs() { var d = findNamed(col, "differs"); return d ? d.text : "" }
     function resetToStyle() { var b = findNamed(col, "differs-reset"); if (b) b.press() }
+    // An item's rectangle in the window, as JSON {x, y, w, h} ("null" when absent): a pointer test's target (W80's drag).
+    function rectOf(name) {
+        var it = findNamed(col, name)
+        if (!it) return "null"
+        var w = it.Window.window
+        var p0 = it.mapToItem(w ? w.contentItem : null, 0, 0)
+        return JSON.stringify({ x: Math.round(p0.x), y: Math.round(p0.y), w: Math.round(it.width), h: Math.round(it.height) })
+    }
     // The scroll position that brings an item named so into view (shots of a block).
     function scrollTo(name) {
         p.pinKey = ""
@@ -684,6 +692,19 @@ Flickable {
             active: !p.searching && p.pageId === "layout"
             visible: active
             sourceComponent: cLayoutScreen
+        }
+        // The selected edge's bar, small, where the zone lists' drops work too (W80, I508; docs/ux/groups.md).
+        Loader {
+            width: col.width
+            active: !p.searching && p.pageId === "layout"
+            visible: active
+            sourceComponent: Component {
+                BarPreview {
+                    width: col.width
+                    output: p.output
+                    edge: p.layoutEdge
+                }
+            }
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

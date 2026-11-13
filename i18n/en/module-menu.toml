@@ -1,0 +1,4 @@
+# The module menu's group rows (I502, W80; docs/ux/groups.md "Round two").
+"frontend.module.group_with" = "Group with…"
+"frontend.module.group_named" = "Group: {name}"
+"frontend.module.leave_group" = "Leave group ({name})"
