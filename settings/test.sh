@@ -55,6 +55,8 @@ ROOT=$PWD
 # W77 (K146): Settings docked in a sidebar section runs on nested niri with the shell, not in this sway sandbox:
 # `SETTINGS_PART=dock settings/test.sh` is settings/test-dock.sh.
 if [ "${SETTINGS_PART:-}" = dock ]; then exec "$ROOT/settings/test-dock.sh" "$@"; fi
+# W80: the groups on nested niri (the bar draws a group, the module menu's Group with…): settings/test-groups.sh.
+if [ "${SETTINGS_PART:-}" = groups-niri ]; then exec "$ROOT/settings/test-groups.sh" "$@"; fi
 if ! command -v qs >/dev/null || ! command -v sway >/dev/null; then
   exec nix develop -c "$0" "$@"
 fi
