@@ -2,7 +2,7 @@
 # `bar.popups_follow` (session 28, docs/ux/layout.md "Cards follow the pointer"): two outputs (headless sway, against the
 # real kurashid). A card opened on purpose (the command line here, as a key or a click) follows the focused output — the
 # compositor's, which the pointer moves — and opens there; with the setting off it stays where it opened. Read from each
-# output's pixels where the card stands (under the bar's end): nothing else draws there.
+# output's pixels where the card stands (under the bar's end): nothing else draws there. A kept card (B128) stays.
 #   nix develop -c frontend/test-follow.sh
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -81,6 +81,25 @@ swaymsg focus output HEADLESS-1 > /dev/null
 wait_until 6 card_on 1 || fail "the card did not follow back"
 wait_until 6 card_off 2 || fail "the card stayed on the second output"
 ok "and back"
+
+# B128 (session 32): a kept card (`ui.keep`, K147: the web dock's bar card pinned) stays where it was kept; the same card
+# not kept follows again.
+K act ui.keep '{"on":true}' > /dev/null || fail "ui.keep"
+[ "$(K sub runtime.ui --count 0 --json | jq -r .data.kept)" = quick ] || fail "ui.keep did not keep the quick card"
+swaymsg focus output HEADLESS-2 > /dev/null
+sleep 1.5
+card_on 1 || fail "the kept card left its output"
+card_off 2 || fail "the kept card went to the other output"
+ok "a kept card stays on its output when the focus moves"
+K act ui.keep '{"on":false}' > /dev/null || fail "ui.keep off"
+swaymsg focus output HEADLESS-1 > /dev/null
+sleep 0.5
+swaymsg focus output HEADLESS-2 > /dev/null
+wait_until 6 card_on 2 || fail "the card no longer kept did not follow"
+wait_until 6 card_off 1 || fail "the card no longer kept stayed on the first output"
+swaymsg focus output HEADLESS-1 > /dev/null
+wait_until 6 card_on 1 || fail "the card did not follow back after keep off"
+ok "not kept, it follows again"
 
 K set bar.popups_follow false > /dev/null || fail "set bar.popups_follow"
 sleep 0.5
