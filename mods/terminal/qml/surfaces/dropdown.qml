@@ -142,7 +142,17 @@ PanelWindow {
     visible: shown
     onWantChanged: {
         if (want) { reported = false; outAnim.to = 1 } else { withdraw(); outAnim.to = 0 }
-        if (still) { out = outAnim.to; settle() } else outAnim.restart()
+        leaveLater.stop()
+        if (still) { out = outAnim.to; settle() }
+        // Leaving with the text's still on screen: two frames at rest first, while the host's window goes from over it
+        // (the same pixels; else a frame with neither between the host's unmap and the still's first frame).
+        else if (!want && lastFrame.status === Image.Ready && lastFrame.there) leaveLater.start()
+        else outAnim.restart()
+    }
+    Timer {
+        id: leaveLater
+        interval: 34
+        onTriggered: outAnim.restart()
     }
     NumberAnimation {
         id: outAnim
@@ -225,6 +235,16 @@ PanelWindow {
                     y: box.rowTop ? grip.height + Theme.xs : parent.height - height - Theme.xs - grip.height
                     doc: dd.d
                     output: dd.outName
+                    showPin: true
+                }
+                // A refused folder, said over the tab row (never under the terminal's text; the well keeps its size).
+                NoticeStrip {
+                    x: row.x
+                    y: row.y
+                    width: row.width
+                    height: row.keyH
+                    doc: dd.d
+                    owner: dd.want && dd.d.shown_in === "dropdown"
                 }
                 Rectangle {
                     id: well
@@ -240,6 +260,18 @@ PanelWindow {
                         doc: dd.d
                         place: "dropdown"
                     }
+                    // The text's last frame while the sheet moves and until the host's window is over the well.
+                    Still {
+                        id: lastFrame
+                        anchors.fill: parent
+                        doc: dd.d
+                        place: "dropdown"
+                        keep: dd.want && dd.out >= 1
+                        hold: dd.shown && (!dd.want || (dd.d.shown_in === "dropdown"
+                            && !(dd.out >= 1 && dd.d.host && dd.d.host.shows === "dropdown")))
+                    }
+                    onWidthChanged: dd.replace()
+                    onHeightChanged: dd.replace()
                 }
                 // The grip: the free edge, dragged for this output's height (`terminal.resize`).
                 Grip {

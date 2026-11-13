@@ -7,6 +7,7 @@
 //   qs-terminal -p mods/terminal/host/shell.qml
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "core"
 
@@ -38,6 +39,12 @@ ShellRoot {
     function runsOf(id) {
         var r = doc.runs || []
         return r.filter(function (x) { return x.tab === id })
+    }
+
+    // The stills of an earlier host (its tabs are gone; a new tab may take an old id): cleared as this one starts.
+    Process {
+        running: true
+        command: ["sh", "-c", "rm -f \"${XDG_RUNTIME_DIR:-/tmp}\"/kurashi-terminal-*.png"]
     }
 
     // The daemon did not issue this scope: a host it does not know must not linger with the user's shells.
@@ -104,12 +111,74 @@ ShellRoot {
         Component.onCompleted: if (root.rest) last = root.rest
         screen: screenFor(last.output)
         readonly property bool mapped: root.rest !== null && root.active !== "" && Store.connected
-        // The text arrives with the place at rest: a short fade, a cut under reduced motion.
-        onMappedChanged: if (mapped) {
-            content.opacity = 1
-            if (Theme.motionKind !== "none") fadeIn.restart()
+        // Shown: follows `mapped`, but an unmap waits for the last still (one frame), so the place can draw the text as it
+        // leaves. The text arrives with the place at rest: a cut over the still the place drew while it moved (the same
+        // pixels), else (no still of that size yet: the first show) a short fade; a cut under reduced motion.
+        property bool shown: false
+        onMappedChanged: {
+            if (mapped) {
+                var v = viewOf(root.active)
+                var still = v && v.hasStill(last.width, last.height)
+                content.opacity = 1
+                if (!still && Theme.motionKind !== "none") fadeIn.restart()
+                shown = true
+                return
+            }
+            // (a frame after the place drew its still: the same pixels go from over it, never a frame with neither)
+            var cur = viewOf(root.active)
+            if (cur && shown) cur.flush(function () { unmapLater.restart() })
+            else shown = false
         }
-        visible: mapped
+        visible: shown
+        Timer {
+            id: unmapLater
+            interval: 17
+            onTriggered: if (!place.mapped) place.shown = false
+        }
+        // Where the text is now, for the places (they put their still away once it is here): reported after the first
+        // frame of a map, and on the unmap.
+        property string reportedAt: ""
+        // The stills written (newest first; the places draw only these), sent with the next report.
+        property var stillKeys: []
+        property bool stillsNew: false
+        property int stillGen: 0
+        // (said at once while the text shows: the place keeps the newest still loaded, to draw it the moment it leaves)
+        // A theme change: the stills are in the old colours; none is offered until the next is taken.
+        Connections {
+            target: Theme
+            function onTokensChanged() {
+                if (place.stillKeys.length === 0) return
+                place.stillKeys = []
+                place.stillGen++
+                place.stillsNew = true
+                place.reportShown()
+            }
+        }
+        function wroteStill(k) {
+            stillKeys = [k].concat(stillKeys.filter(function (x) { return x !== k })).slice(0, 16)
+            stillGen++
+            stillsNew = true
+            if (shown && visible) reportShown()
+        }
+        function reportShown() {
+            var at = shown && visible ? root.shownIn : ""
+            if (at === reportedAt && !stillsNew) return
+            reportedAt = at
+            var args = at !== "" ? { where: at } : {}
+            if (stillsNew) { args.stills = stillKeys; args.gen = stillGen; stillsNew = false }
+            root.report("terminal.host.shown", args)
+        }
+        onShownChanged: if (!shown) reportShown()
+        Connections {
+            target: root
+            function onShownInChanged() { if (place.visible) shownLater.restart() }
+        }
+        Timer {
+            id: shownLater
+            interval: 32
+            onTriggered: place.reportShown()
+        }
+        onVisibleChanged: if (visible) shownLater.restart()
         color: "transparent"
         exclusionMode: ExclusionMode.Ignore
         exclusiveZone: 0
@@ -128,7 +197,9 @@ ShellRoot {
         // sidebar it is on demand. (niri drops a layer's keyboard when it turns from exclusive to on demand: no pulse.)
         readonly property bool dropdown: root.shownIn === "dropdown"
         property bool winActive: false
-        WlrLayershell.keyboardFocus: visible && dropdown && root.doc.keys === true ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+        // (the shell's chrome holds it now — a menu out of the tab row, a tab's name edited: `held`)
+        WlrLayershell.keyboardFocus: root.doc.held === true ? WlrKeyboardFocus.None
+            : visible && dropdown && root.doc.keys === true ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
         function viewOf(id) {
             for (var i = 0; i < views.count; i++) {
@@ -163,6 +234,8 @@ ShellRoot {
                     anchors.fill: parent
                     tab: root.tabOf(tabId) || ({ id: tabId })
                     active: tabId === root.active
+                    shownNow: place.visible
+                    wrote: place.wroteStill
                     settings: root.settings
                     runs: root.runsOf(tabId)
                     report: root.report

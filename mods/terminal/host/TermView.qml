@@ -15,6 +15,8 @@ Item {
     property bool active: false
     property var settings: ({})
     property var report: null
+    // Called with `<tab>-<w>x<h>` after a still is written.
+    property var wrote: null
     // Lines the daemon asks this tab to type (`runs` for this tab); each is sent once and acknowledged.
     property var runs: []
     readonly property alias term: term
@@ -48,6 +50,46 @@ Item {
         target: Theme
         function onTokensChanged() { view.paint() }
     }
+
+    // The last frame (W85, docs/ux/terminal.md "Drawing"): a still of the text, kept beside the place's well size, which
+    // the places draw in their well while the text is not there — as a place slides in or out, until this window maps —
+    // so the terminal's text comes and goes with its sheet instead of popping in after it. Taken a moment after the
+    // display last changed while it shows (nothing is taken at rest: Ma), and once more before the window unmaps.
+    property bool shownNow: false
+    readonly property string runDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
+    function stillPath(w, h) { return runDir + "/kurashi-terminal-" + tab.id + "-" + Math.round(w) + "x" + Math.round(h) + ".png" }
+    // The sizes a still was written for (so the window knows whether a place has one under it).
+    property var stills: ({})
+    function hasStill(w, h) { return stills[Math.round(w) + "x" + Math.round(h)] === true }
+    function snap(done) {
+        if (!started || !shownNow || term.width < 2 || term.height < 2) { if (done) done(); return }
+        var w = term.width, h = term.height, dpr = Screen.devicePixelRatio || 1
+        var ok = term.grabToImage(function (r) {
+            if (r.saveToFile(view.stillPath(w, h))) {
+                var s = Object.assign({}, view.stills)
+                s[Math.round(w) + "x" + Math.round(h)] = true
+                view.stills = s
+                if (view.wrote) view.wrote(view.tab.id + "-" + Math.round(w) + "x" + Math.round(h))
+            }
+            if (done) done()
+        }, Qt.size(Math.round(w * dpr), Math.round(h * dpr)))
+        if (!ok && done) done()
+    }
+    Timer {
+        id: snapLater
+        interval: 400
+        onTriggered: view.snap(null)
+    }
+    // Pending output not yet in a still when the window is about to unmap: take it now (the caller unmaps after).
+    function flush(done) {
+        if (snapLater.running) { snapLater.stop(); snap(done) } else done()
+    }
+    Connections {
+        target: term
+        enabled: view.active && view.shownNow
+        function onImagePainted() { snapLater.restart() }
+    }
+    onShownNowChanged: if (shownNow && active) snapLater.restart()
 
     QMLTermWidget {
         id: term

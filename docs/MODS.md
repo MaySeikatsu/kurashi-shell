@@ -146,7 +146,10 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   `terminal.*`). Places: the drop-down (`place` = bar | edge | center | position; the toggle `terminal.toggle`, Mod+Grave
   from the Home-Manager module), the panel `panel:terminal` (sidebar section, bar card, web dock Local pin), the bar
   widget (`icon` / `status` / `input`). Launcher providers `launcher:terminal` (entries, favourite folders) and
-  `launcher:run` (`!`, `run_prefix`), on K150. Settings: 23 keys in `mods/terminal/mod.toml`.
+  `launcher:run` (`!`, `run_prefix`), on K150. Settings: 23 keys in `mods/terminal/mod.toml`. W85 (row 800): the document
+  also carries `host.shows`, `stills`, `still_gen` (the text's last frame per well size, drawn through a slide) and `held`
+  (the shell's chrome holds the keyboard); actions `terminal.host.shown`, `terminal.hold`, `terminal.dismiss`. Colours:
+  the theme's `term.*` (the palette's terminal table, else 16 derived by hue, K-theme row 803).
 - **Background jobs (I23):** `ctx.background(name, reason, wanted_by, run)` declares `job:<name>`. The
   body is `Fn(JobCtx)` (the daemon starts it again when the setting turns it on), `JobCtx::settings()`
   is the mod's settings feed, and `wanted_by` names a bool setting of the same mod. The enable hands the

@@ -422,6 +422,33 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
             Ok(None)
         })
     })?;
+    sync_action(ctx, s, "terminal.host.shown", |s, a| {
+        s.with_model(|m| {
+            let stills = a["stills"].as_array().map(|l| {
+                l.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            });
+            m.host_shown(
+                str_arg(&a, "where").and_then(Place::parse),
+                stills,
+                a["gen"].as_u64(),
+            );
+            Ok(None)
+        })
+    })?;
+    sync_action(ctx, s, "terminal.hold", |s, a| {
+        s.with_model(|m| {
+            m.hold_keys(a["on"].as_bool().ok_or(Error::Argument)?);
+            Ok(None)
+        })
+    })?;
+    sync_action(ctx, s, "terminal.dismiss", |s, _| {
+        s.with_model(|m| {
+            m.dismiss();
+            Ok(None)
+        })
+    })?;
     sync_action(ctx, s, "terminal.host.ran", |s, a| {
         s.with_model(|m| {
             m.host_ran(a["run"].as_u64().ok_or(Error::Argument)?);
