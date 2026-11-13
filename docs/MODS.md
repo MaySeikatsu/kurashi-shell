@@ -262,7 +262,11 @@ until the shell's strip exists), `width` the phone width in px, `large` a percen
 {output?}` (hidden → extended(`shown`) or compact; else hidden) · `webdock.size {size?}` (phone|large; no argument
 toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable) · `webdock.open_external {url}`
 (`xdg-open`; http, https only) · `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (the sidebar
-panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`) ·
+panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`; session 32: `inset`
+and `top` count from the output's side edge and top with the zones ignored — a pinned column's own zone included — and
+the host maps the page there ignoring zones) · `webdock.side_page {hover}` (session 32, the host: the pointer on the
+sidebar's page; the document's `sidebar.hover: true` while it is and the page is placed, so a sidebar opened by hover
+holds) ·
 `webdock.sidebar_select {pin}` (the pin the sidebar shows) · `webdock.card_size {size?}` (W74: the bar card's size key;
 a settings write of `card_size`, undoable; no argument steps dock → phone → tablet → wide → dock; a bad size is
 `webdock.error.card_size`, a forced `card_size` is refused with `webdock.error.forced`). An unknown pin is `invalid` with `webdock.error.unknown_pin`.

@@ -154,15 +154,24 @@ Item {
         else Store.act("webdock.open", { pin: id })
     }
 
-    // ---- the page area's place in the sidebar window, reported on change only ----
-    // The well's rect from the window's anchored side edge and top: the panel's placement plus the well's offset.
+    // ---- the page area's place on the output, reported on change only ----
+    // Session 32 (the user: a pinned sidebar "loads forever"): the well's rect from the output's side edge and top, zones
+    // ignored — the sidebar window's origin on the output (Light.originOf: the zones it keeps, a pinned column's own
+    // included) plus the well's place in it, as the docked Settings measures its well (K146). The host maps its window
+    // with the zones ignored, so a pinned column's zone no longer pushes the page one column's width off the well.
+    readonly property var qsw: panel.Window.window ? panel.QsWindow.window : null
     readonly property var wellPlace: {
         if (!placement || well.width < 1 || well.height < 1) return null
         var right = placement.side === "right"
+        var sw = qsw && qsw.screen ? qsw.screen.width : 0
+        if (!qsw || sw <= 0) return null
+        var o = Light.originOf(qsw)
+        var p = well.mapToItem(null, 0, 0)
+        var x = Math.round(o.x + p.x)
         return {
             on: true, output: String(placement.output), side: String(placement.side),
-            inset: Math.round(placement.inset + (right ? panel.width - well.x - well.width : well.x)),
-            top: Math.round(placement.top + well.y),
+            inset: right ? Math.round(sw - x - well.width) : x,
+            top: Math.round(o.y + p.y),
             width: Math.round(well.width), height: Math.round(well.height)
         }
     }

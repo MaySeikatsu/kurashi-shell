@@ -221,6 +221,12 @@ Scope {
                 var r = Store.docs["runtime.settings"] || ({})
                 return col.hoverOn && r.hover === true && !!r.dock && String(r.dock.output) === col.out
             }
+            // Session 32 (the user): the same for the web dock's page over this column (the host's window): `sidebar.hover`.
+            Watch { doc: "mod.webdock"; active: col.hoverOn }
+            readonly property bool onWebPage: {
+                var sd = (Store.docs["mod.webdock"] || ({})).sidebar
+                return col.hoverOn && !!sd && sd.hover === true && !!sd.place && String(sd.place.output) === col.out
+            }
             property bool focusHeld: false
             property bool resizing: false
             EdgeReveal {
@@ -231,7 +237,7 @@ Scope {
                 enabled: col.hoverOn && !col.toggledHere && col.out !== ""
                 from: col.spanStart
                 to: col.sh - col.spanEnd
-                holdIn: col.pointerIn || col.focusHeld || col.resizing || col.onDock
+                holdIn: col.pointerIn || col.focusHeld || col.resizing || col.onDock || col.onWebPage
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
             // Session 28 (colour flow "while something is open", core/ColorFlow.qml): a column that is out and not pinned

@@ -433,6 +433,15 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.side_page {hover}` (session 32, the host): the pointer in its window over the sidebar's page.
+    fn side_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let hover = opt_bool(args, "hover")?.unwrap_or(false);
+        self.with_dock(|d| {
+            d.side_page(hover);
+            Ok(None)
+        })
+    }
+
     /// `webdock.card_page {hover, engaged}` (W72, the host): the pointer in its window over the card, and the user using it.
     fn card_page(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let hover = opt_bool(args, "hover")?.unwrap_or(false);
@@ -868,6 +877,7 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.card", |s, a| s.card(&a))?;
     sync_action(ctx, s, "webdock.card_select", |s, a| s.card_select(&a))?;
     sync_action(ctx, s, "webdock.card_page", |s, a| s.card_page(&a))?;
+    sync_action(ctx, s, "webdock.side_page", |s, a| s.side_page(&a))?;
     sync_action(ctx, s, "webdock.card_close", |s, _| {
         s.with_dock(|d| {
             d.card_close();

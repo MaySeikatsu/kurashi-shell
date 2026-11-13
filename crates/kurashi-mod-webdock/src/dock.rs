@@ -608,6 +608,9 @@ pub struct Dock {
     side_pin: Option<String>,
     /// The sidebar panel's page area while the panel is at rest in an open sidebar; `None` otherwise.
     place: Option<Place>,
+    /// Session 32 (the user): the pointer in the host's window over the sidebar's page (`webdock.side_page`), so a
+    /// sidebar opened by hover holds while it rests there. Only while `place` is set.
+    side_hover: bool,
     pins: Vec<PinSpec>,
     states: BTreeMap<String, PinState>,
     /// Web pins by the time they were last shown, most recent first.
@@ -647,6 +650,7 @@ impl Dock {
             card_at: 0,
             side_pin: None,
             place: None,
+            side_hover: false,
             pins: Vec::new(),
             states: BTreeMap::new(),
             recent: Vec::new(),
@@ -756,6 +760,9 @@ impl Dock {
         if fresh && place.is_some() {
             self.stamp(Spot::Sidebar);
         }
+        if place.is_none() {
+            self.side_hover = false;
+        }
         self.place = place;
         self.default_side_pin();
         match self.side_web() {
@@ -831,6 +838,12 @@ impl Dock {
             self.card.hover = hover;
             self.card.engaged = engaged;
         }
+    }
+
+    /// `webdock.side_page {hover}` (session 32): the pointer in the host's window over the sidebar's page. Only while the
+    /// page area is placed.
+    pub fn side_page(&mut self, hover: bool) {
+        self.side_hover = hover && self.place.is_some();
     }
 
     /// `webdock.card_close {}` (W72): the page asked the card to close (Esc it did not take, "Show at the edge"); the
@@ -1617,6 +1630,9 @@ impl Dock {
             }
             if let Some(at) = self.elsewhere(Spot::Sidebar) {
                 side["elsewhere"] = json!(at.name());
+            }
+            if self.side_hover && self.place.is_some() {
+                side["hover"] = json!(true);
             }
             doc["sidebar"] = side;
         }
@@ -3905,6 +3921,38 @@ mod tests {
             dock(&[("content", json!("x"))]).doc()["strip"],
             json!(["mail", "chat"]),
             "unknown: online"
+        );
+    }
+
+    #[test]
+    fn the_pointer_on_the_sidebars_page_is_named_only_while_the_page_is_placed() {
+        let mut d = dock(&[]);
+        d.side_page(true);
+        assert!(
+            d.doc().get("sidebar").is_none(),
+            "no place: nothing to hold"
+        );
+        let place = Place {
+            output: "DP-1".into(),
+            side: Side::Right,
+            inset: 8,
+            top: 40,
+            width: 360,
+            height: 800,
+        };
+        d.place(Some(place), true);
+        d.side_page(true);
+        assert_eq!(d.doc()["sidebar"]["hover"], true);
+        d.side_page(false);
+        assert!(d.doc()["sidebar"].get("hover").is_none());
+        d.side_page(true);
+        d.place(None, false);
+        assert!(
+            d.doc()
+                .get("sidebar")
+                .and_then(|s| s.get("hover"))
+                .is_none(),
+            "the place going takes the hover with it"
         );
     }
 
