@@ -43,12 +43,10 @@ Item {
             canPaste: (f & ContextMenuRequest.CanPaste) !== 0, canAll: (f & ContextMenuRequest.CanSelectAll) !== 0
         }
         view = v
-        menu.cursor = -1
-        menu.expanded = ({})
         if (debugLog) console.log("webdock-debug menu " + pinId + " at " + Math.round(req.x) + "," + Math.round(req.y)
             + " link=" + (req.link !== "") + " image=" + req.image + " editable=" + req.editable + " rows="
             + JSON.stringify(tree.children.filter(function (e) { return !e.separator }).map(function (e) { return e.id })))
-        Qt.callLater(function () { if (pm.open) box.forceActiveFocus() })
+        Qt.callLater(function () { if (pm.open && body.item) body.item.forceActiveFocus() })
     }
     function close() {
         var v = view
@@ -102,53 +100,65 @@ Item {
         else v.triggerWebAction(a.web)
     }
 
-    // A press outside the card closes it and reaches nothing under it.
-    MouseArea {
+    // Made while open only: a kept page that shows no menu holds none of it.
+    Loader {
+        id: body
         anchors.fill: parent
-        acceptedButtons: Qt.AllButtons
-        onPressed: pm.close()
-    }
-    Rectangle {
-        id: box
-        readonly property real pad: Theme.pad
-        width: Math.min(pm.width - 2 * Theme.xs, 280)
-        height: Math.min(pm.height - 2 * Theme.xs, col.implicitHeight + 2 * pad)
-        // At the pointer, turned left or up where the page ends; kept inside the page.
-        x: !pm.req ? 0 : Math.max(Theme.xs, pm.req.x + width <= pm.width - Theme.xs ? pm.req.x
-            : (pm.req.x - width >= Theme.xs ? pm.req.x - width : pm.width - width - Theme.xs))
-        y: !pm.req ? 0 : Math.max(Theme.xs, Math.min(pm.height - height - Theme.xs, pm.req.y))
-        radius: Theme.rSm
-        color: Theme.surface
-        border.width: 1
-        border.color: Theme.outline
-        clip: true
-        Accessible.role: Accessible.PopupMenu
-        Accessible.name: title.text
-        Keys.onPressed: event => {
-            if (menu.handleKey(event.key)) { event.accepted = true; return }
-            if (event.key === Qt.Key_Escape) { pm.close(); event.accepted = true }
-            else event.accepted = true   // (the page under it gets no key while the menu is open)
-        }
-        Column {
-            id: col
-            x: box.pad
-            y: box.pad
-            width: box.width - 2 * box.pad
-            spacing: Theme.gap
-            Text {
-                id: title
-                width: col.width
-                elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fsTitle
-                font.family: Theme.fam(text, Theme.families)
-                text: pm.view && String(pm.view.title || "") !== "" ? pm.view.title : I18n.tr("menus.page")
+        active: pm.open
+        sourceComponent: Item {
+            // (fades in on the look's quick step; with reduced motion that step is 0: no fade)
+            opacity: 0
+            Component.onCompleted: opacity = 1
+            Behavior on opacity { NumberAnimation { duration: Theme.quickMs } }
+            Keys.onPressed: event => {
+                if (menu.handleKey(event.key)) { event.accepted = true; return }
+                if (event.key === Qt.Key_Escape) pm.close()
+                event.accepted = true   // (the page under it gets no key while the menu is open)
             }
-            TrayMenu {
-                id: menu
-                width: col.width
-                tree: pm.tree
-                onChosen: item => pm.choose(item)
+            // A press outside the card closes it and reaches nothing under it.
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                onPressed: pm.close()
+            }
+            Rectangle {
+                id: box
+                readonly property real pad: Theme.pad
+                width: Math.min(pm.width - 2 * Theme.xs, 280)
+                height: Math.min(pm.height - 2 * Theme.xs, col.implicitHeight + 2 * pad)
+                // At the pointer, turned left or up where the page ends; kept inside the page.
+                x: !pm.req ? 0 : Math.max(Theme.xs, pm.req.x + width <= pm.width - Theme.xs ? pm.req.x
+                    : (pm.req.x - width >= Theme.xs ? pm.req.x - width : pm.width - width - Theme.xs))
+                y: !pm.req ? 0 : Math.max(Theme.xs, Math.min(pm.height - height - Theme.xs, pm.req.y))
+                radius: Theme.rSm
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.outline
+                clip: true
+                Accessible.role: Accessible.PopupMenu
+                Accessible.name: title.text
+                Column {
+                    id: col
+                    x: box.pad
+                    y: box.pad
+                    width: box.width - 2 * box.pad
+                    spacing: Theme.gap
+                    Text {
+                        id: title
+                        width: col.width
+                        elide: Text.ElideRight
+                        color: Theme.fg
+                        font.pixelSize: Theme.fsTitle
+                        font.family: Theme.fam(text, Theme.families)
+                        text: pm.view && String(pm.view.title || "") !== "" ? pm.view.title : I18n.tr("menus.page")
+                    }
+                    TrayMenu {
+                        id: menu
+                        width: col.width
+                        tree: pm.tree
+                        onChosen: item => pm.choose(item)
+                    }
+                }
             }
         }
     }

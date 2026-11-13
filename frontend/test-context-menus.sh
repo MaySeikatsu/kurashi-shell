@@ -49,6 +49,8 @@ end = ["clock"]'
 conf() { printf '%s\n%s\n' "$1" "$base" > "$CONF"; sleep 1.5; }
 printf '%s\n' "$base" > "$CONF"
 swaymsg output '*' bg '#5d7f8f' solid_color >/dev/null 2>&1 || true
+# A layer above the user (K15) forces one of the bar's rows: the menu shows it grey and says who holds it.
+printf '[_managed]\nenforce = true\n\n[bar]\ncard_keep_loaded = true\n' > "$XDG_CONFIG_HOME/kurashi/managed.toml"
 
 env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" PULSE_RUNTIME_PATH="$R/no-pulse" \
   "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
@@ -115,6 +117,10 @@ wait_until 5 ui_is "\"tray\":\"bar:$OUT/top\"" || fail "a right click on the bar
 placed_line "$since"
 [ "$PX" = $(( W_OUT * 3 / 4 )) ] || fail "the bar's menu logged the pointer at $PX"
 ok "a right click on the bar's empty part opens the bar's menu at the pointer"
+rows=$(tail -c +"$(( since + 1 ))" "$R/qs.log" | grep -a 'stage-menu-rows ' | tail -1 | sed 's/.*stage-menu-rows //')
+case "$rows" in *"|-Keep a closed card ready|-forced: "*) ;; *) fail "the forced row is not grey with its reason: $rows" ;; esac
+case "$rows" in *"|+Edit layout…") ;; *) fail "the bar's menu does not end in Edit layout…: $rows" ;; esac
+ok "a forced row stays, grey, and says who holds it ($(echo "$rows" | grep -o 'forced: [^|]*'))"
 shot context-menu-bar "$CX,$CY ${CW}x${CH}"
 # Rows: edges.top.bar, .visibility, .reserve, .draw, bar.height, bar.popups, bar.popups_follow (7th).
 keys down down down down down down down return

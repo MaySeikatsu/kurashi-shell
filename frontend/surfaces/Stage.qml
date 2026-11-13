@@ -601,9 +601,14 @@ PanelWindow {
         ? [shownTray, outName, Math.round(placedX), Math.round(placedY), Math.round(card.width), Math.round(card.height),
            menuPoint ? menuPoint.x : "-", menuPoint ? menuPoint.y : "-"].join(" ") : ""
     onMenuPlaceLineChanged: if (menuPlaceLine !== "") console.log("stage-menu " + menuPlaceLine)
+    // (and its rows, `+` live, `-` grey, separators left out)
+    readonly property string menuRowsLine: debugLog && pointerMenuShown && ctxMenu && shown
+        ? ctxMenu.tree.children.filter(function (e) { return !e.separator })
+            .map(function (e) { return (e.enabled === false ? "-" : "+") + e.label }).join("|") : ""
+    onMenuRowsLineChanged: if (menuRowsLine !== "") console.log("stage-menu-rows " + menuRowsLine)
     // The desktop's right click (menus/DeskCatch: one empty window per output over the wallpaper). Made here, with the
     // panel that draws its menu, as the Stage lives as long as the shell (the lead may move it to shell.qml).
-    property Variants deskCatch: Variants { model: Quickshell.screens; delegate: DeskCatch {} }
+    DeskCatches {}
     property var trayTree: null
     property string trayErr: ""
     property int trayReq: 0

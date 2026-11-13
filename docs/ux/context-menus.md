@@ -56,8 +56,8 @@ options of the thing under the pointer, in one look and one keyboard path.
   1. Wallpaper, while the wallpaper mod is on: *Next wallpaper* (`wallpaper.next {output}`), *Choose wallpaper…* (its
      picker, `mod.panel.open`). Mod off: no rows (never a row that does nothing).
   2. *Dark mode* — a check mark that shows the scheme in effect (`theme.appearance`), a press writes
-     `theme.colors.scheme` dark or light (as the darkmode module does); then the rows the schema gives the `darkmode`
-     module (the scheme's choices).
+     `theme.colors.scheme` dark or light (as the darkmode module does). The scheme's other modes (follow the system, the
+     wallpaper) stay in Settings › Appearance.
   3. The desktop page's rows (`page = "desktop"` in the schema: widgets on this output, their side, how they are posted,
      each card's switch); the rows another one holds stay grey with the reason (Shōjiki).
   4. *Desktop settings…* (`settings.open {page: desktop}`), *Appearance…* (`settings.open {page: appearance}`).
@@ -70,10 +70,11 @@ options of the thing under the pointer, in one look and one keyboard path.
   edge is the layout page's job (its lists), not a row here.
 - **Web page** (`PageMenu`), from what the request offers:
   - always: *Back*, *Forward* (grey when there is no history that way), *Reload*;
-  - a link: *Open link in browser* (`webdock.host.new_window`, the daemon's `open_external`), *Copy link*;
+  - a link: *Open link in browser* (`webdock.open_external`, as the card's own button), *Copy link*;
   - an image: *Copy image address*;
   - a selection: *Copy*; a text field: *Cut*, *Copy*, *Paste*, *Select all* (grey where the engine says it cannot);
-  - last: *Open page in browser*.
+  - last: *Open page in browser*. The browser takes web addresses only (K38): for a `file:` page or link the browser rows
+    are grey and one line says "Web addresses only".
   The page's own menu wins: a page that calls `preventDefault()` on `contextmenu` raises no request.
 
 ## Placement and outputs
@@ -85,13 +86,15 @@ options of the thing under the pointer, in one look and one keyboard path.
 
 ## States
 - **Inert** (rule 2): a row another setting holds stays visible and grey, with one line saying what it needs (I408's).
-- **Forced**: the same — the row is grey and says what holds it.
-- **Empty**: a provider with no rows of its own says "No options of its own" and still offers its Settings row.
-- **Loading**: the schema not there yet: only the fixed rows (actions, Settings).
+- **Forced**: a row a layer above the user holds (`_managed.enforce`, a Nix value) is grey with "forced: <who>" under it.
+- **Empty**: the desktop's and a bar's menus always have rows (Dark mode; the edge's own); a module without options says
+  "No options of its own" (I408). A page's menu always has Back, Forward, Reload.
+- **Loading**: until the schema document arrives (the first frames of the first open) the fixed rows stand alone; the
+  schema's rows follow and the card grows in place.
 - **Error**: an action refused (the daemon's answer) shows nothing new — the document is the truth and the row keeps
   showing the value in effect.
-- **Offline / daemon gone**: the shell's menus are a view of documents, they show the last state grey as the bar does;
-  the page menu's navigation and clipboard rows work without the daemon, *Open in browser* needs it.
+- **Offline / daemon gone**: the daemon names the open menu, so without it no desktop, bar or module menu opens (as no
+  card does); the page menu's navigation and clipboard rows work without it, *Open … in browser* needs it.
 
 ## Keyboard and a11y
 - **Open**: a module — the Menu key on its tab stop (I408). A web page — the Menu key or Shift+F10 in the page (Chromium
@@ -111,9 +114,12 @@ Settings rows and page actions close it.
 ## Budget (Ma)
 - Closed: nothing watched, nothing drawn. The providers watch `schema.settings` (and `mods`, `theme` for the desktop) only
   while their menu is open.
-- The desktop needs a surface under the pointer where the wallpaper is: one empty background-layer window per output
-  (`menus/DeskCatch.qml`), input only, never redrawn after its first frame (0 frames idle). Its cost is measured in the
-  report.
+- The desktop needs a surface under the pointer where the wallpaper is (the wallpaper is awww's, swww's or swaybg's,
+  and takes no input): one empty background-layer window per output (`menus/DeskCatch.qml`). Measured (session 33, nested
+  niri, 1920×1080, live toggle in one shell, 4 pairs): **+4.8 / +3.9 / +4.7 / +5.3 MiB PSS per output** — inside BENCH's
+  +6 MiB per extra output, but most of it; **0 commits in 15 s idle** (WAYLAND_DEBUG, its surface). A fresh-start pair
+  read +15 MiB (two full-output buffers): the method BENCH warns about. Under the desktop widgets (bottom layer) and over
+  the wallpaper; swaybg mapped after it on niri still lets the click through.
 - The host's menu exists only while it is open (a Loader).
 
 ## Fit
@@ -125,19 +131,23 @@ Settings rows and page actions close it.
   sidebar, and the strip's pin menu (W76) stays the pin's.
 
 ## Definition of done
-- [ ] One system: targets → providers → TrayMenu; the module menu runs on it and `test-module-menu.sh` passes.
-- [ ] Desktop: a right click on the wallpaper opens its menu at the pointer on that output; a toggle applies and the menu
-      stays; wallpaper rows only while the mod is on.
-- [ ] Bar: a right click on an empty part opens the bar's menu at the pointer; a right click on a module still opens the
+- [x] One system: targets → providers → TrayMenu; the module menu runs on it and `test-module-menu.sh` passes.
+- [x] Desktop: a right click on the wallpaper opens its menu at the pointer on that output; a toggle applies and the menu
+      stays; wallpaper rows only while the mod is on (the rows not seen with the mod on: no awww in the sandbox).
+- [x] Bar: a right click on an empty part opens the bar's menu at the pointer; a right click on a module still opens the
       module's.
-- [ ] Web page: the menu at the pointer with the request's rows; Copy link copies; Back works; the page's own menu wins;
-      edge card, bar card and sidebar.
-- [ ] Keyboard: arrows, Enter, Esc work right after a right click; the action opens desktop and bar menus without a pointer.
-- [ ] States: inert rows say why; empty; shots light and dark.
-- [ ] Seen on nested niri; the suites in the merge set.
+- [x] Web page: the menu at the pointer with the request's rows; Copy link copies (pasted back into a field); Back works;
+      the page's own menu wins; edge card, bar card and sidebar.
+- [x] Keyboard: arrows, Enter, Esc work right after a right click (sway and niri); the action opens desktop and bar menus
+      without a pointer. [ ] The page's Menu key / Shift+F10: Chromium's own path, not driven (the test keyboard has no
+      such key).
+- [x] States: inert and forced rows say why; loading; shots light and dark. [ ] Several outputs: not run (one output
+      in the sandboxes).
+- [x] Seen on nested niri (desktop light and dark, bar); the suites in the merge set.
 
 ## Later
 - A compositor binding for the desktop menu in the default keys (`keys.toml`) once the lead decides the chord.
 - Desktop "Edit widgets…" (the desk's edit mode, K48) as a row.
+- A right click elsewhere while a menu is open closes it (the click-away layer, I279) rather than moving it there.
 - A marker for the bar's and the desktop's menu rows if the namespace selection proves too long (CONTRACT-CHANGE 781).
 - Window menus on the window list stay their own (I408).

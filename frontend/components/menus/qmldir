@@ -2,3 +2,4 @@ singleton MenuAt 1.0 MenuAt.qml
 DesktopMenu 1.0 DesktopMenu.qml
 BarMenu 1.0 BarMenu.qml
 DeskCatch 1.0 DeskCatch.qml
+DeskCatches 1.0 DeskCatches.qml

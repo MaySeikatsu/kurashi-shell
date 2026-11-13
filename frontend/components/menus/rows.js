@@ -55,7 +55,9 @@ function withUnit(r, v) { return String(v) + (r.unit ? " " + r.unit : "") }
 // with the value it needs where one does. `tr` is I18n.tr.
 function inertWhy(schema, r, p, tr) {
     if (!p) return ""
-    if (!p.forced_by && p.reason !== "settings.inert.requires") return ""
+    // A layer above the user holds it (a Nix value, a pin): who.
+    if (p.forced_by) return tr("settings.source.forced").replace("{name}", String(p.forced_by))
+    if (p.reason !== "settings.inert.requires") return ""
     var by = p.inert_by && rowOf(schema, p.inert_by)
     if (!by) return tr("frontend.module.held")
     var text = tr(by.label), cs = r.couplings || []
