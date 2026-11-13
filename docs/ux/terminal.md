@@ -73,8 +73,9 @@ Splits: **not in this round** (QMLTermWidget has one view per session; noted in 
 - `status`: the symbol plus the active tab's state — the foreground program while one runs ("cargo"), else the cwd's
   last segment; a dot while output arrived in a hidden terminal. (Finished/failed needs the shell's OSC 133 marks: not
   in this round.)
-- `input`: a field in the bar. The bar's layer takes the keyboard only on a click (OnDemand), so a click or Enter on the
-  module's tab stop focuses the field; Enter runs the line, Up/Down walk the history (the last 50, daemon-held),
+- `input`: a field in the bar. The bar's own window takes no keyboard, so the field is a small layer window of the
+  module's own, laid over the field's face on a click (or Enter on the module's tab stop) and gone on Enter or Esc
+  (0 frames otherwise; no change to the bar); Enter runs the line, Up/Down walk the history (the last 50, daemon-held),
   Esc leaves the field and gives the keyboard back. A long line scrolls inside the field; the field never widens the bar
   past its fit (`docs/ux/bar-fit.md`: `elastic`, `minWidth` 120 px, `compactWidth` = the icon). `input_target`:
   `show` (run in the current tab and show the drop-down) or `quiet` (run, then a one-line glance of the last output
@@ -87,11 +88,11 @@ opens a new tab there or `cd`s the current one (`dir_opens` = `new` | `current`)
 directory is refused with `terminal.error.no_dir` and the place says "<path> does not exist" — never a silent cd.
 
 ## The launcher
-Through a mod launcher provider (contract row): "Terminal" (opens the drop-down on the launcher's output), each
-favourite as "Terminal in <label>" (matched by label and path), and a run prefix (`run_prefix`, default `!`):
+Through the launcher's mod providers (K150, `launcher:terminal` and `launcher:run`): "Terminal" (opens the
+drop-down), each favourite (matched by label and path; a missing one says so), and a run prefix (`run_prefix`, default `!`):
 `! htop` + Enter runs it like the bar's field and shows the terminal. The prefix is refused when empty, whitespace, or
-one of the launcher's own prefixes (`:` `;` `?` `>`), read from the launcher's one published list (contract row), and
-Settings shows the reason.
+one of the launcher's own prefixes (`:` `;` `?` `>`, `kurashi_launcher::BUILTIN_PREFIXES`) or another mod's: the daemon
+refuses it and `runtime.launcher` says why (the mod keeps no copy of the list).
 
 ## States
 | state | drop-down / card / section | bar module |
@@ -135,6 +136,16 @@ environment (`KURASHI_SCOPE_TOKEN`, `KURASHI_SCOPE_MOD`, the plugin's `COLORSCHE
 ## Multi-output
 The toggle opens on the focused output (the action's `output`); each output keeps its own size (`sizes`); a second
 toggle on another output moves the drop-down there (one session, one place at a time).
+
+## As built (W83)
+- The drop-down's terminal holds the keyboard exclusively while it shows (niri drops a layer's keyboard when it turns
+  from exclusive to on demand, so there is no "pulse then on demand"); `hide_on_blur` is a click elsewhere on that
+  output (a transparent Top-layer catcher under the sheet; the click is spent on hiding), not a focus change.
+- The host's window keeps the size of the last rest while unmapped: a window shrunk to nothing would resize every shell
+  to one column (a shown-again tab came back blank).
+- The text arrives ~0.3 s after the sheet comes to rest (the rest report, then the map; a 90 ms fade); during the slide
+  the well shows the sheet's material and the terminal's ground.
+- Colours: `term.*` theme tokens when the theme publishes them (CONTRACT-CHANGE 781), else a stand-in from the roles.
 
 ## Definition of done
 Each line is reported met / not met.
