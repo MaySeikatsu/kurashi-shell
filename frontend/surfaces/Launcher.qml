@@ -387,8 +387,7 @@ PanelWindow {
             list.currentIndex = -1
             grid.currentIndex = -1
             // W84 stand-in (CONTRACT-CHANGE row 790): the appearance menu's rows first, until the daemon offers them.
-            var menuRows = Appear.launcherRows(q, I18n.tr)
-            lp.show(menuRows.length > 0 ? menuRows.concat(items || []) : (items || []))
+            lp.show(Appear.mergeRows(q, items || [], I18n.tr))
             // A row the user chose (the arrows) stays chosen by key while it stays in the list, wherever it moves; else
             // today's rule: the first selectable row — the best hit, which Enter opens — or the same place after a
             // clipboard action.

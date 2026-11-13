@@ -16,7 +16,7 @@ FocusScope {
     property var schema: null
     readonly property string key: row.key
     readonly property var prov: session.config.values ? session.config.values[key] : undefined
-    readonly property var value: session.has(key) ? session.shown[key] : (prov ? prov.value : row.default)
+    readonly property var value: { var v = session.valueOf(key); return v !== undefined ? v : row.default }
     readonly property string control: row.control || ""
     readonly property var choices: row.choices || []
     readonly property string tileSource: control === "select" && previews && row.choices_from
@@ -32,7 +32,15 @@ FocusScope {
     Accessible.name: I18n.tr(row.label)
     Accessible.description: row.help ? I18n.tr(row.help) : ""
 
-    function set(v) { if (!inert) session.show(key, v) }
+    // A style or a look is applied by its action (it resets the kind's keys, K53 — Settings' pickPack); "none" (your own)
+    // and everything else is a value.
+    readonly property var packActions: ({ styles: "theme.style.apply", looks: "theme.look.apply" })
+    function set(v) {
+        if (inert) return
+        var action = packActions[row.choices_from || ""]
+        if (action && v !== "none") session.showPack(key, action, v)
+        else session.show(key, v)
+    }
     // Why the row does nothing now: forced (accessibility, a capability), or another key it needs (the module menu's).
     function inertWhy() {
         var p = prov

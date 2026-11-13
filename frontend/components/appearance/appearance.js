@@ -52,7 +52,18 @@ function same(a, b) { return JSON.stringify(a) === JSON.stringify(b) }
 // ---- the launcher's rows (stand-in for CONTRACT-CHANGE row 790) ----------------------------------------------------
 // Until the daemon offers `appearance:<pane>` rows itself, the launcher adds them here: the words of each pane
 // (`appearance-menu.words.<pane>`, every language's words in its own catalogue) against the typed text. A word matches
-// when it starts with the text (3 characters at least) or the text starts with it. At most three rows, first.
+// when it starts with the text (3 characters at least) or the text starts with it. At most three rows. A row whose pane
+// the text names outright (a whole word: "wallpaper", "theme", "dark mode") comes first — Enter opens it, as Spotlight
+// opens "Wallpaper"; a row found by a word's start ("tex", "fon") comes after the apps, so the best hit stays an app.
+function mergeRows(q, items, tr) {
+    var rows = launcherRows(q, tr)
+    if (rows.length === 0) return items
+    var first = rows.filter(function (r) { return r.exact })
+    var later = rows.filter(function (r) { return !r.exact })
+    var at = 0
+    for (var i = 0; i < items.length; i++) if (items[i].kind === "app") at = i + 1
+    return first.concat(items.slice(0, at), later, items.slice(at))
+}
 function launcherRows(q, tr) {
     var t = String(q || "").trim().toLowerCase()
     if (t.length < 3) return []
@@ -61,16 +72,19 @@ function launcherRows(q, tr) {
     var out = []
     for (var i = 0; i < panes.length && out.length < 3; i++) {
         var words = String(tr("appearance-menu.words." + panes[i].id)).toLowerCase().split(/[\s,、]+/)
+        var hit = false, exact = false
         for (var j = 0; j < words.length; j++) {
             var w = words[j]
             if (w === "") continue
             if (w.indexOf(t) === 0 || (t.indexOf(w) === 0 && w.length >= 4)) {
-                out.push({ kind: "appearance", id: "appearance:" + panes[i].id, icon: panes[i].icon,
-                           name: tr("appearance-menu.pane." + panes[i].id),
-                           generic: tr("appearance-menu.row.generic") })
-                break
+                hit = true
+                // (the text is the word, or the word and more after a space: "dark mode")
+                if (t === w || t.indexOf(w + " ") === 0) exact = true
             }
         }
+        if (hit) out.push({ kind: "appearance", id: "appearance:" + panes[i].id, icon: panes[i].icon,
+                            name: tr("appearance-menu.pane." + panes[i].id),
+                            generic: tr("appearance-menu.row.generic"), exact: exact })
     }
     return out
 }

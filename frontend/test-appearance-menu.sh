@@ -3,16 +3,18 @@
 # and frontend, a FAKE awww first on the daemon's PATH (it logs its argv; no real backend runs), a folder of generated
 # pictures. Checks (ok / FAIL; any FAIL or QML error exits 1):
 #   1. launcher: typing "wallpaper" offers the menu's row; Enter shows the menu on the Wallpaper pane (the rows give way);
-#   2. wallpaper: Local's folder is shown; a folder added through the path field lands in `mods.wallpaper.folders`, × on
-#      it removes it again; a picture chosen in the grid and Enter is set (`awww img <path>` and the mod's document);
-#   3. colours: Ctrl+2, Tab into the pane, Left/Right on the mode previews light/dark live (the `theme` document's
-#      scheme_effective), Esc puts it back (the config's own value again, nothing left in effect); again, Enter keeps it
-#      (one undo step: one `kurashi undo` returns to the start);
-#   4. the preview section toggles (`launcher.appearance_preview`) and the pane stays whole without it;
-#   5. Esc with nothing previewed goes back to the search (the rows again, the query kept);
+#   2. wallpaper: a picture chosen in the grid and Enter is set (`awww img <path>` and the mod's document); a folder added
+#      through the path field lands in `mods.wallpaper.folders`, Delete on its chip removes it again;
+#   3. colours: Ctrl+2, Tab into the pane, Right on the mode previews light live (the `theme` document's scheme_effective),
+#      Esc puts it back (the user's own dark again); after a marker change to another key, three moves kept with Enter are
+#      ONE undo step (one undo: the starting mode, the marker kept; a second undo: the marker gone);
+#   4. the eye on the preview hides it (`launcher.appearance_preview`), the heading's "Show the preview" brings it back;
+#   5. closing the launcher while previewing puts back; Esc with nothing previewed goes back to the search, Esc again
+#      closes; "tex" (a word's start) offers Material after the apps, not first;
 #   6. the card host: `appearance.open` (CONTRACT-CHANGE row 791) — skipped with a note while the daemon lacks it;
-#   7. shots: each pane, light and dark, in two looks (kami, sekai), and the states (no mod, empty folder, previewing,
-#      preview off) → frontend/shots/appearance-menu/.
+#   7. shots: each pane, light and dark in two looks (kami, sekai), the states (no mod, empty folder, missing folder,
+#      previewing, preview off), placements (opened by a click, out of the island) and start-menu looks (win95, aqua)
+#      → frontend/shots/appearance-menu/shots/.
 #   nix develop -c frontend/test-appearance-menu.sh        (KURASHI_BIN_DIR=<dir with kurashid, kurashi>)
 #   APPEARANCE_SHOTS=0 skips the per-look shots (7).
 set -uo pipefail
@@ -90,6 +92,7 @@ enabled = [$mods]
 folders = $3
 backend = "awww"
 wallhaven = false
+${5:-}
 TOML
 }
 conf kami dark "[\"$WORK/pics\"]"
@@ -177,9 +180,8 @@ check "$([ "$(cfgval mods.wallpaper.folders)" = "[\"$WORK/pics\"]" ] && echo 1 |
 keys ctrl+2
 sleep 0.8
 shot colours-kami-dark
-# The rail → More in Settings → the palettes → the mode: Right previews the next mode (dark → light).
-R0=$(hist)
-keys tab tab tab
+# The rail → More in Settings → hide the preview → the palettes → the mode: Right previews the next mode (dark → light).
+keys tab tab tab tab
 sleep 0.2
 keys right
 until_eq light scheme_eff || true
@@ -190,42 +192,67 @@ keys escape
 until_eq dark scheme_eff || true
 check "$([ "$(scheme_eff)" = dark ] && [ "$(cfgval theme.colors.scheme)" = '"dark"' ] && [ "$(cfgsrc theme.colors.scheme)" = user ] && echo 1 || echo 0)" \
   "Esc puts it back (dark, the user's own: $(cfgval theme.colors.scheme) $(cfgsrc theme.colors.scheme))"
-keys right
-until_eq light scheme_eff || true
-sleep 0.5
+# One undo step for the visit: a marker change first (another key, outside the menu), then three moves kept with Enter.
+# One undo must give the starting mode with the marker still there; a second undo takes the marker.
+K raw '{"t":"apply","id":"m1","ops":[{"set":"launcher.place_x","value":55}]}' > /dev/null
+until_eq 55 cfgval launcher.place_x || true
+R0=$(hist)
 keys left
-until_eq dark scheme_eff || true
-sleep 0.5
+until_eq '"wallpaper"' cfgval theme.colors.scheme || true
+sleep 0.4
+keys left
+until_eq '"auto"' cfgval theme.colors.scheme || true
+sleep 0.4
 keys right
-until_eq '"light"' cfgval theme.colors.scheme || true
+until_eq '"wallpaper"' cfgval theme.colors.scheme || true
 sleep 0.8
 keys return
 sleep 0.8
-check "$([ "$(cfgval theme.colors.scheme)" = '"light"' ] && echo 1 || echo 0)" "Enter keeps the previewed mode ($(cfgval theme.colors.scheme))"
+check "$([ "$(cfgval theme.colors.scheme)" = '"wallpaper"' ] && echo 1 || echo 0)" "Enter keeps the previewed mode ($(cfgval theme.colors.scheme))"
 R1=$(hist)
-K raw '{"t":"undo","id":"t1"}' > /dev/null
+K raw '{"t":"undo","id":"u1"}' > /dev/null
 until_eq '"dark"' cfgval theme.colors.scheme || true
-check "$([ "$(cfgval theme.colors.scheme)" = '"dark"' ] && echo 1 || echo 0)" \
-  "three steps kept are one undo step (one undo → $(cfgval theme.colors.scheme); revisions $R0 → $R1)"
+check "$([ "$(cfgval theme.colors.scheme)" = '"dark"' ] && [ "$(cfgval launcher.place_x)" = 55 ] && echo 1 || echo 0)" \
+  "three moves kept are one undo step: one undo → $(cfgval theme.colors.scheme), the marker kept ($(cfgval launcher.place_x)); revisions $R0 → $R1"
+K raw '{"t":"undo","id":"u2"}' > /dev/null
+until_eq 50 cfgval launcher.place_x || true
+check "$([ "$(cfgval launcher.place_x)" = 50 ] && [ "$(cfgval theme.colors.scheme)" = '"dark"' ] && echo 1 || echo 0)" \
+  "a second undo takes the marker, nothing of the session's is left ($(cfgval launcher.place_x), $(cfgval theme.colors.scheme))"
 
-# ---- 4. the preview section toggles -----------------------------------------------------------------------------------
-K raw '{"t":"apply","id":"t2","ops":[{"set":"launcher.appearance_preview","value":false}]}' > /dev/null
+# ---- 4. the preview section toggles (the eye on the preview, then the heading's "Show the preview") -------------------
+keys ctrl+2 tab tab return
+until_eq false cfgval launcher.appearance_preview || true
+check "$([ "$(cfgval launcher.appearance_preview)" = false ] && echo 1 || echo 0)" "the eye on the preview hides it (launcher.appearance_preview false)"
 sleep 0.8
 shot colours-preview-off
-# Its way back: the heading's "Show the preview" (Tab from the rail is the first control).
 keys ctrl+2 tab return
 until_eq true cfgval launcher.appearance_preview || true
 check "$([ "$(cfgval launcher.appearance_preview)" = true ] && echo 1 || echo 0)" "\"Show the preview\" brings it back"
 
-# ---- 5. Esc with nothing previewed: back to the search, then closed ---------------------------------------------------
+# ---- 5. a close while previewing puts back; Esc with nothing previewed goes back to the search ------------------------
+keys ctrl+2 tab tab tab tab
+sleep 0.2
+keys right
+until_eq light scheme_eff || true
+close_launcher
+until_eq dark scheme_eff || true
+check "$([ "$(scheme_eff)" = dark ] && [ "$(cfgval theme.colors.scheme)" = '"dark"' ] && [ "$(cfgsrc theme.colors.scheme)" = user ] && echo 1 || echo 0)" \
+  "closing the launcher while previewing puts the mode back ($(cfgval theme.colors.scheme) $(cfgsrc theme.colors.scheme))"
+open_menu wallpaper
 keys escape
 sleep 0.6
-check "$([ "$(ui_launcher)" = true ] && [ "$(qlog | grep -ac 'launcher-menu')" -ge 1 ] && echo 1 || echo 0)" \
-  "Esc goes back to the search (the launcher stays open)"
+check "$([ "$(ui_launcher)" = true ] && echo 1 || echo 0)" "Esc goes back to the search (the launcher stays open)"
 shot back-to-search
 keys escape
 until_eq false ui_launcher || true
 check "$([ "$(ui_launcher)" = false ] && echo 1 || echo 0)" "Esc again closes the launcher"
+# "tex" finds Material by a word's start: after the apps, so Enter still opens the best app hit
+K act launcher.toggle > /dev/null 2>&1; until_eq true ui_launcher || true; sleep 0.4
+typed tex
+sleep 0.8
+check "$(qlog | grep -a 'launcher-rows' | grep -a '"q":"tex"' | tail -1 | python3 -c "import json,sys,re; l=sys.stdin.read(); m=re.search(r'launcher-rows (\{.*\})', l); d=json.loads(m.group(1)) if m else {'keys':[]}; k=d['keys']; print(1 if 'appearance:appearance:material' in k and (k.index('appearance:appearance:material') > 0 or len(k) == 1) else 0)")" \
+  "a word's start (\"tex\") offers Material after the apps"
+close_launcher
 
 # ---- 6. the card host ---------------------------------------------------------------------------------------------------
 if K act appearance.open '{"pane":"colours"}' 2>&1 | grep -q '"t":"done"'; then
@@ -267,6 +294,19 @@ if [ "${APPEARANCE_SHOTS:-1}" = 1 ]; then
   open_menu wallpaper; sleep 0.8; shot state-missing-folder; close_launcher
   conf kami dark "[\"$WORK/pics\"]" ""; "$SB" config "$CFG" > /dev/null; sleep 2
   open_menu wallpaper; sleep 0.8; shot state-no-mod; close_launcher
+  # placements (whole screen): opened by a click on the bar's launcher button (it hangs from it), out of the island, and
+  # in a look whose launcher is a start menu (win95: the start-menu skin's chrome round the menu)
+  conf kami dark "[\"$WORK/pics\"]"; "$SB" config "$CFG" > /dev/null; sleep 2
+  "$SB" click 22 18 > /dev/null
+  if until_eq true ui_launcher; then
+    sleep 0.6; typed colours; sleep 0.8; keys return; sleep 1.2; "$SB" shot place-at > /dev/null; close_launcher
+  else echo "note: the click at the launcher button did not open it (no place-at shot)"; fi
+  conf kami dark "[\"$WORK/pics\"]" '"wallpaper"' $'[launcher]\nplace = "island"'; "$SB" config "$CFG" > /dev/null; sleep 2
+  open_menu colours; "$SB" shot place-island > /dev/null; close_launcher
+  conf win95 light "[\"$WORK/pics\"]"; "$SB" config "$CFG" > /dev/null; sleep 2
+  open_menu colours; "$SB" shot look-win95 > /dev/null; close_launcher
+  conf aqua light "[\"$WORK/pics\"]"; "$SB" config "$CFG" > /dev/null; sleep 2
+  open_menu wallpaper; "$SB" shot look-aqua > /dev/null; close_launcher
 fi
 
 bad=$(qlog | grep -a -E 'appearance/|Picker\.qml|Launcher\.qml|Stage\.qml' | grep -a -E 'TypeError|ReferenceError|Unable to assign|Cannot|binding loop' | sort -u)

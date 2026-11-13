@@ -67,7 +67,8 @@ Enter; the current one elsewhere) with a bar strip and a small card in the colou
 surface, on_surface, secondary), so a previewed palette, scheme or style shows there and on the real shell at once. In
 the Wallpaper pane, when the colours follow the wallpaper (`theme.colors.palette = wallpaper`), the bar and card take the
 selected picture's dry-run roles (`wallpaper.preview`, the picker's machinery) — so a picture's colours show before it
-is set. Caption: "Preview — ↵ applies, Esc puts back". An eye button at its corner switches it off
+is set. Caption: "Preview — ↵ keeps, Esc puts back" ("↵ sets the picture" on Wallpaper). An eye button at its corner
+(a Tab stop) switches it off
 (`launcher.appearance_preview = false`, a config key; one apply, not part of the preview session); while off, the pane
 heading carries a small "Show preview" button instead. Ma: the preview loads the picture at 480 px once per change.
 
@@ -101,6 +102,10 @@ fonts are a long list). Rows the schema marks `advanced` are not shown.
 - **Fonts** — the font mix, the interface font, the monospace font, the text scale (the Japanese font is `advanced`).
 
 ### Preview session (one undo step, Esc puts back)
+A style or a look is an action, not a value (`theme.style.apply` / `theme.look.apply` reset the kind's keys, K53 — as
+Settings' pickPack applies them): a pick is a step of its own, the next pick undoes it while it is still the last change,
+Esc undoes it, Enter keeps it; a key session open is kept first.
+
 Settings' machinery (`settings/core/Changes.qml`) ported to the shell's Store (`components/appearance/PreviewSession.qml`):
 the session holds every key changed in this visit; each change undoes the session's last transaction (only when no one
 committed since: the `config` document's `history.rev`) and applies the whole set as **one** `apply` — the visit is one
@@ -162,8 +167,9 @@ without the mod says "Pictures need the wallpaper mod" with a button that enable
 ## Budget
 Closed: nothing — no Watch, no Loader, no timer (the launcher's mode and the Stage's view are made only while shown).
 Open: `schema.settings`, `config`, `theme` (always watched by the shell), `theme.previews` only in Colours and Style
-(it starts the daemon's swatch work — Settings' cost), `mod.wallpaper` only in the Wallpaper pane; thumbnails only for
-visible cells (the mod's paging). First open of the menu ≤ 100 ms to a frame (the launcher's cold-open budget).
+(it starts the daemon's swatch work — Settings' cost), `mod.wallpaper` while the menu is open (the preview's picture;
+the mod's service runs while the mod is on, watching starts nothing); thumbnails only for visible cells (the mod's
+paging). First open of the menu ≤ 100 ms to a frame (the launcher's cold-open budget) — not measured yet.
 
 ## Definition of done
 - [ ] UX brief (this file) before the code.

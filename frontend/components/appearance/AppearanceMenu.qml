@@ -406,8 +406,8 @@ FocusScope {
                 font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                text: I18n.tr(previewSession.keys.length === 1 ? "appearance-menu.keep.one" : "appearance-menu.keep.many")
-                    .replace("{n}", previewSession.keys.length)
+                text: I18n.tr(previewSession.count === 1 ? "appearance-menu.keep.one" : "appearance-menu.keep.many")
+                    .replace("{n}", previewSession.count)
             }
             Row {
                 id: keepButtons

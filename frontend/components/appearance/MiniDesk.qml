@@ -101,7 +101,7 @@ Item {
             icon: "visibility_off"
             glyph: "×"
             a11y: I18n.tr("appearance-menu.preview.hide")
-            activeFocusOnTab: false
+            objectName: "appearance-preview-hide"
             onClicked: md.hideRequested()
         }
     }
