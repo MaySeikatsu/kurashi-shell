@@ -303,5 +303,27 @@ wait_px $(( SW - IN - WW / 2 )) $(( OY + TOP + WH / 2 )) '#3a2b45' 15 || fail "p
 timeout 20 grim -g "$(( SW - IN - WW - 40 )),0 $(( IN + WW + 40 ))x$SH" "$SHOTS/sidebar-pinned.png" && ok "shot mods/webdock/shots/sidebar-pinned.png"
 ok "a pinned sidebar shows the page in its area (${WW}x$WH, $IN px from the right edge)"
 K set sidebar.right.visibility '"hidden"' >/dev/null
+wait_window down
+
+# ---- 7. hover (session 32, the user: "the sidebar closes as soon as the pointer is on the web content"): a sidebar opened by
+# its edge stays while the pointer rests on the page (another process's window), and goes once the pointer leaves both ----
+K set sidebar.left.visibility '"hover"' >/dev/null || fail "sidebar.left.visibility hover was refused"
+sleep 1
+p0=$(count 'webdock-panel place HEADLESS-1 left ' "$R/qs.log")
+ptr move 1 $(( SH / 2 ))
+sleep 0.3
+ptr move 0 $(( SH / 2 ))
+wait_window up
+for _ in $(seq 60); do [ "$(count 'webdock-panel place HEADLESS-1 left ' "$R/qs.log")" -gt "$p0" ] && break; sleep 0.25; done
+read -r _ _ IN TOP WW WH _ <<< "$(panel_place)"
+ptr move $(( IN + WW / 2 )) $(( TOP + WH / 2 ))
+wait_doc "d['sidebar'].get('hover') == True" 5 || fail "hover: the host did not report the pointer on the page ($(doc "d.get('sidebar')"))"
+sleep 2
+last_window | grep -q 'sidebar-window up' || fail "hover: the sidebar closed with the pointer on its page"
+ok "hover: the sidebar stays while the pointer rests on the web page"
+ptr move $(( SW / 2 )) $(( SH / 2 ))
+wait_window down
+ok "hover: off the page and the column, the sidebar goes"
+K set sidebar.left.visibility '"hidden"' >/dev/null
 qml_errors
 echo "test-sidebar: PASS"

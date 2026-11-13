@@ -270,8 +270,8 @@ PanelWindow {
             id: hoverLayer
             anchors.fill: parent
             z: 100
+            // (session 32: the sidebar's page reports the pointer too — `webdock.side_page`, the sidebar holds on it)
             HoverHandler {
-                enabled: side.cardRole
                 onHoveredChanged: side.reportPage(hovered, side.wantKeys)
             }
             PointHandler {
