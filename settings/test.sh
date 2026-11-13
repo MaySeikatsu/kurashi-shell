@@ -1006,7 +1006,8 @@ groups_part() {
   gwait edges.top.end '["volume","keyboard","clock","tray","recorder"]' "Ungroup did not put the members back in order"
   echo "groups G7: Delete ungrouped"
   # G8: the pointer (needs the window's `rect` hook).
-  if r=$(Q rect "pickrow:volume" 2>/dev/null) && [ -n "$r" ] && [ "$r" != "null" ]; then
+  r=$(Q rect "pickrow:volume" 2>/dev/null || true)
+  if [ "${r#\{}" != "$r" ]; then
     t=$(Q rect "pickrow:clock")
     pts=$(python3 -I -c 'import json,sys; a=json.loads(sys.argv[1]); b=json.loads(sys.argv[2]); print("%d,%d %d,%d %d,%d" % (a["x"]+40, a["y"]+a["h"]/2, a["x"]+60, (a["y"]+b["y"])/2+a["h"]/2, b["x"]+40, b["y"]+b["h"]/2))' "$r" "$t")
     echo "draw $pts" | python3 -I tools/bench/wl_pointer.py --serve

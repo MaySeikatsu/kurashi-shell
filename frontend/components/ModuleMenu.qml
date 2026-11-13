@@ -1,8 +1,6 @@
 import QtQuick
 import Quickshell
 import "../core"
-// The one set of group edits (W80): Settings' list and this menu write the same ops.
-import "../../settings/components/groups.js" as G
 
 // What a module's right-click menu lists (I408, docs/ux/module-menu.md): the settings the schema gives the module
 // (`#[kurashi(module = "<id>")]`; a mod's whole page), as a tree TrayMenu draws, the same card and keys as a tray item's menu. A pure view of `schema.settings` and `config`: a toggle
@@ -114,6 +112,142 @@ Scope {
         out.push({ id: 900003, separator: true })
         return out
     }
+    // The group edits of settings/components/groups.js (W80), the same functions: Quickshell refuses a script from outside
+    // the shell's own folder ("qs-blackhole"), so the menu keeps a copy until the lead moves the one file under frontend/.
+    QtObject {
+        id: grp
+        function isGroup(v) { return typeof v === "string" && v.indexOf("group:") === 0 }
+        function idOf(v) { return String(v).slice("group:".length) }
+        function entryOf(id) { return "group:" + id }
+
+        // A record's members, in order (`members` is comma-separated, K38 records hold strings).
+        function membersOf(rec) {
+            return String(rec && rec.members || "").split(",").map(function (s) { return s.trim() }).filter(function (s) { return s !== "" })
+        }
+        function find(groups, id) {
+            for (var i = 0; i < groups.length; i++) if (groups[i].id === id) return i
+            return -1
+        }
+        function recordOf(groups, id) {
+            var i = find(groups, id)
+            return i < 0 ? null : groups[i]
+        }
+        // The group `m` is a member of, among the groups this list names; "" when none.
+        function groupOf(list, groups, m) {
+            for (var i = 0; i < list.length; i++) {
+                if (!isGroup(list[i])) continue
+                var rec = recordOf(groups, idOf(list[i]))
+                if (rec && membersOf(rec).indexOf(m) >= 0) return rec.id
+            }
+            return ""
+        }
+        // The first free id `g<n>` (a slug, unique among the records).
+        function freeId(groups) {
+            for (var n = 1; ; n++) if (find(groups, "g" + n) < 0) return "g" + n
+        }
+        function copy(groups) { return groups.map(function (g) { return Object.assign({}, g) }) }
+        function setMembers(groups, id, ms) {
+            var i = find(groups, id)
+            if (i >= 0) groups[i].members = ms.join(",")
+        }
+
+        // `m` out of wherever it stands in the list: the list itself, or a group's members (a group left empty goes, record and
+        // entry). Mutates both.
+        function takeOut(list, groups, m) {
+            var at = list.indexOf(m)
+            if (at >= 0) { list.splice(at, 1); return }
+            var g = groupOf(list, groups, m)
+            if (g === "") return
+            var ms = membersOf(recordOf(groups, g)).filter(function (x) { return x !== m })
+            if (ms.length > 0) setMembers(groups, g, ms)
+            else dissolve(list, groups, g, [])
+        }
+        // Group `id` replaced in the list by `keep` (its members after an Ungroup, nothing when it emptied); its record goes.
+        function dissolve(list, groups, id, keep) {
+            var at = list.indexOf(entryOf(id))
+            if (at >= 0) Array.prototype.splice.apply(list, [at, 1].concat(keep))
+            var i = find(groups, id)
+            if (i >= 0) groups.splice(i, 1)
+        }
+
+        // `a` dropped onto `b` (both entries of the list, or a member onto an entry): a module onto a module makes a new group of
+        // both where `b` stood (in the list's order); onto a group, or a group onto a module, joins; a group onto a group merges
+        // (the caller confirms first).
+        function dropOnto(list, groups, a, b) {
+            if (a === b || a === undefined || b === undefined) return null
+            if (isGroup(a) && isGroup(b)) return merge(list, groups, idOf(a), idOf(b))
+            if (isGroup(b)) return join(list, groups, a, idOf(b))
+            if (isGroup(a)) return join(list, groups, b, idOf(a))
+            // b may be a member of a group: a drop on a member joins its group.
+            var bg = list.indexOf(b) < 0 ? groupOf(list, groups, b) : ""
+            if (bg !== "") return join(list, groups, a, bg)
+            var l = list.slice(), g = copy(groups)
+            var ai = l.indexOf(a), bi = l.indexOf(b)
+            var first = ai >= 0 && ai < bi ? a : b, second = first === a ? b : a
+            takeOut(l, g, a)
+            var at = l.indexOf(b)
+            if (at < 0) return null
+            var id = freeId(g)
+            l.splice(at, 1, entryOf(id))
+            g.push({ id: id, name: "", members: [first, second].join(","), accordion: false })
+            return { list: l, groups: g }
+        }
+        // `m` joins group `id` at its end.
+        function join(list, groups, m, id) {
+            var rec = recordOf(groups, id)
+            if (!rec || membersOf(rec).indexOf(m) >= 0) return null
+            var l = list.slice(), g = copy(groups)
+            takeOut(l, g, m)
+            if (find(g, id) < 0) return null
+            setMembers(g, id, membersOf(recordOf(g, id)).concat([m]))
+            return { list: l, groups: g }
+        }
+        // `m` leaves its group: it stands right after the group; the last member out dissolves the group.
+        function leave(list, groups, m) {
+            var id = groupOf(list, groups, m)
+            if (id === "") return null
+            var l = list.slice(), g = copy(groups)
+            var ms = membersOf(recordOf(g, id)).filter(function (x) { return x !== m })
+            if (ms.length === 0) { dissolve(l, g, id, [m]); return { list: l, groups: g } }
+            setMembers(g, id, ms)
+            l.splice(l.indexOf(entryOf(id)) + 1, 0, m)
+            return { list: l, groups: g }
+        }
+        // Group `id` dissolved: its members stand where it stood, in order.
+        function ungroup(list, groups, id) {
+            var rec = recordOf(groups, id)
+            if (!rec) return null
+            var l = list.slice(), g = copy(groups)
+            dissolve(l, g, id, membersOf(rec).filter(function (m) { return l.indexOf(m) < 0 }))
+            return { list: l, groups: g }
+        }
+        // Group `from` merged into `into`: its members appended, its record and entry gone.
+        function merge(list, groups, from, into) {
+            if (from === into) return null
+            var a = recordOf(groups, from), b = recordOf(groups, into)
+            if (!a || !b) return null
+            var l = list.slice(), g = copy(groups)
+            var ms = membersOf(b)
+            membersOf(a).forEach(function (m) { if (ms.indexOf(m) < 0) ms.push(m) })
+            setMembers(g, into, ms)
+            dissolve(l, g, from, [])
+            return { list: l, groups: g }
+        }
+        // One record's field changed (the group row's name or Accordion).
+        function setField(groups, id, field, value) {
+            var g = copy(groups), i = find(g, id)
+            if (i < 0) return null
+            g[i][field] = value
+            return g
+        }
+
+        // The apply ops of a result: the records (global) and the list (on `output` when the list is an output's own).
+        function ops(res, listKey, output) {
+            var l = { set: listKey, value: res.list }
+            if (output) l.output = output
+            return [{ set: "layout.groups", value: res.groups }, l]
+        }
+    }
     // Groups (I502, W80; docs/ux/groups.md "Round two"): the zone list this module stands in (its own entry, or a group's
     // members there), on this output: {key, list, groups, group, output} or null.
     readonly property var zone: {
@@ -125,7 +259,7 @@ Scope {
             for (var z = 0; z < zones.length; z++) {
                 var key = "edges." + edges[e] + "." + zones[z], list = bars.valueOf(key, [])
                 if (!Array.isArray(list)) continue
-                var g = list.indexOf(module) >= 0 ? "" : G.groupOf(list, groups, module)
+                var g = list.indexOf(module) >= 0 ? "" : grp.groupOf(list, groups, module)
                 if (list.indexOf(module) < 0 && g === "") continue
                 var c = bars.config, out = bars.outName
                 var own = out !== "" && c && c.outputs && c.outputs[out] && c.outputs[out][key] !== undefined
@@ -134,7 +268,7 @@ Scope {
         return null
     }
     function groupName(groups, id) {
-        var r = G.recordOf(groups, id)
+        var r = grp.recordOf(groups, id)
         return r && r.name ? r.name : id
     }
     // "Group with…" (the zone's other modules and groups) and "Leave group": each one apply of the records and the list.
@@ -144,18 +278,18 @@ Scope {
         var out = [], ch = []
         for (var i = 0; i < zn.list.length; i++) {
             var v = zn.list[i]
-            if (v === module || (zn.group !== "" && v === G.entryOf(zn.group))) continue
-            var res = G.dropOnto(zn.list, zn.groups, module, v)
+            if (v === module || (zn.group !== "" && v === grp.entryOf(zn.group))) continue
+            var res = grp.dropOnto(zn.list, zn.groups, module, v)
             if (!res) continue
-            var label = G.isGroup(v) ? I18n.tr("frontend.module.group_named").replace("{name}", groupName(zn.groups, G.idOf(v)))
+            var label = grp.isGroup(v) ? I18n.tr("frontend.module.group_named").replace("{name}", groupName(zn.groups, grp.idOf(v)))
                                      : I18n.tr("layout.module." + v)
-            ch.push({ id: 960010 + i, label: label, act: { ops: G.ops(res, zn.key, zn.output) } })
+            ch.push({ id: 960010 + i, label: label, act: { ops: grp.ops(res, zn.key, zn.output) } })
         }
         if (ch.length > 0) out.push({ id: 960000, label: I18n.tr("frontend.module.group_with"), children: ch })
         if (zn.group !== "") {
-            var lv = G.leave(zn.list, zn.groups, module)
+            var lv = grp.leave(zn.list, zn.groups, module)
             if (lv) out.push({ id: 960001, label: I18n.tr("frontend.module.leave_group").replace("{name}", groupName(zn.groups, zn.group)),
-                               act: { ops: G.ops(lv, zn.key, zn.output) } })
+                               act: { ops: grp.ops(lv, zn.key, zn.output) } })
         }
         return out
     }
