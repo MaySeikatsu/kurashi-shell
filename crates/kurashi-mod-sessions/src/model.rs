@@ -406,21 +406,22 @@ impl Model {
         self.handoffs.retain(|h| h.seq > seq);
     }
 
-    /// `sessions.undelivered {seq}`: the shell could not send handoff `seq` (its mod is off). One that opened an entry
-    /// shows the step again for it (where In Kurashi is grey with its reason) instead of nothing happening.
-    pub fn undelivered(&mut self, seq: u64) {
-        let Some(h) = self.handoffs.iter().find(|h| h.seq == seq).cloned() else {
-            return;
-        };
+    /// `sessions.undelivered {seq, action, key?, output?}`: the shell could not send handoff `seq` (its mod is off). One
+    /// that opened an entry shows the step again for it (where In Kurashi is grey with its reason) instead of nothing
+    /// happening. The request carries what it needs: another screen's instance may have answered `handed` first.
+    pub fn undelivered(&mut self, args: &Value) -> Result<(), Error> {
+        let seq = args["seq"].as_u64().ok_or(Error::Argument)?;
+        let action = args["action"].as_str().ok_or(Error::Argument)?.to_string();
         self.handoffs.retain(|x| x.seq != seq);
-        if let Some(entry) = h
-            .key
+        if let Some(entry) = args["key"]
+            .as_str()
             .and_then(|k| self.entries.iter().find(|e| e.key == k).cloned())
         {
-            let output = h.args["output"].as_str().map(String::from);
+            let output = args["output"].as_str().map(String::from);
             self.choosing = Some(Choosing { entry, output });
         }
-        self.notice = Some(("sessions.notice.mod_off".into(), Some(h.action)));
+        self.notice = Some(("sessions.notice.mod_off".into(), Some(action)));
+        Ok(())
     }
 
     /// The project of the current session, for "Save desk" without an argument.
@@ -916,9 +917,11 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
         let mut m = model();
         m.open(&json!({"name": "kurashi", "via": "kurashi"}), 1)
             .unwrap();
-        let seq = m.doc()["handoff"][0]["seq"].as_u64().unwrap();
-        assert_eq!(m.doc()["handoff"][0]["key"], "s:kurashi");
-        m.undelivered(seq);
+        let h = m.doc()["handoff"][0].clone();
+        assert_eq!(h["key"], "s:kurashi");
+        m.handed(h["seq"].as_u64().unwrap());
+        m.undelivered(&json!({"seq": h["seq"], "action": h["action"], "key": h["key"]}))
+            .unwrap();
         let d = m.doc();
         assert!(d.get("handoff").is_none());
         assert_eq!(d["choosing"]["name"], "kurashi");

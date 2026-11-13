@@ -394,8 +394,7 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
         Ok(None)
     })?;
     action(ctx, s, "sessions.undelivered", |s, a| async move {
-        let seq = a["seq"].as_u64().ok_or_else(|| error(Error::Argument))?;
-        s.with_model(|m| m.undelivered(seq));
+        s.with_model(|m| m.undelivered(&a)).map_err(error)?;
         Ok(None)
     })?;
     // noren missing: the launcher's row leads to the mod's Settings page, where the reason and the option are.

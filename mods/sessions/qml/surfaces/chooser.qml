@@ -62,7 +62,12 @@ PanelWindow {
             // (another mod's action only while that mod is on: never an intent that does nothing)
             if (mod === "settings" || modOn(mod)) Store.act(h[i].action, h[i].args || {})
             // (its mod is off: the daemon says so, and brings the step back for an entry it was opening)
-            else Store.act("sessions.undelivered", { seq: h[i].seq })
+            else {
+                var u = { seq: h[i].seq, action: h[i].action }
+                if (h[i].key) u.key = h[i].key
+                if (h[i].args && h[i].args.output) u.output = h[i].args.output
+                Store.act("sessions.undelivered", u)
+            }
         }
         if (top > 0) { sentUpTo = top; Store.act("sessions.handed", { seq: top }) }
     }
