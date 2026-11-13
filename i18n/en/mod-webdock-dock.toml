@@ -36,3 +36,15 @@
 "webdock.dock.widget.open" = "shown"
 "webdock.dock.widget.closed" = "hidden"
 "webdock.dock.widget.pinned" = "kept open"
+
+# W78: Local mode — the strip's switch, the local chooser ("+" in Local) and its states.
+"webdock.content.online" = "Online pins: show local content"
+"webdock.content.local" = "Local content: show online pins"
+"webdock.local.title" = "Add local content"
+"webdock.local.pinned" = "pinned"
+"webdock.local.none" = "No mod that is on offers a view. Turn on notes, tasks or the timer in Settings › Mods."
+"webdock.local.mods" = "Open Settings › Mods"
+"webdock.local.empty" = "Pin notes, tasks or a timer to keep them at hand"
+"webdock.local.empty.add" = "Add local content"
+"webdock.local.close" = "Close"
+"webdock.view.empty" = "Nothing to show here yet"

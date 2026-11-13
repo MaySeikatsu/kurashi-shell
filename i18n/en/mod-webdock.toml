@@ -202,3 +202,11 @@
 "webdock.keep.card_off" = "Let this card close again"
 "mods.webdock.site_icons" = "Show the sites' own icons"
 "mods.webdock.site_icons.help" = "The strip and the bar show each site's icon, which the web engine asks the site for (a request the page itself did not make). Off: letters, and no such request."
+
+# W78: Local mode (the strip's switch between the pins and the shell's own views).
+"mods.webdock.content" = "Strip"
+"mods.webdock.content.help" = "What the dock's strip lists. Online: every pin, the sites and then the views. Local: the shell's own views only (notes, tasks, a timer, any mod's panel or desk card), so the dock is a local dock; its + offers what the mods that are on can show. The switch in the strip changes it."
+"mods.webdock.content.online" = "Online"
+"mods.webdock.content.local" = "Local"
+"action.webdock.content" = "Switch the web dock between online pins and local content"
+"webdock.error.content" = "The strip shows online or local"

@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use dock::{
     CardPlace, Dock, DockError, Part, Place, Side, Spot, View, add_row_with, card_size_step,
-    move_row, records_of, remove_row, retarget_row, rows_of, sizes_rows, view_rows,
+    content_step, move_row, records_of, remove_row, retarget_row, rows_of, sizes_rows, view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -501,6 +501,32 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.content {content?}` (W78, the strip's switch): `online` or `local`, else the other one than the value in
+    /// effect, written through the settings (one undoable step); a card of the other kind is put away. Refused while
+    /// the configuration forces it.
+    async fn content(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let current = self.settings.get("content");
+        let next = content_step(
+            current.as_ref().and_then(Value::as_str),
+            str_arg(args, "content"),
+            self.settings.forced_by("content").is_some(),
+        )
+        .map_err(dock_error)?;
+        self.writer
+            .set("content", json!(next))
+            .await
+            .map_err(settings_error)?;
+        // The feed has the value already (a write reaches it before it returns): the strip and the card change in one
+        // document.
+        let settings = self.settings.clone();
+        self.with_dock(|d| {
+            d.apply_settings(&settings, Instant::now());
+            d.content_changed();
+            Ok(())
+        })?;
+        Ok(None)
+    }
+
     /// `webdock.add {url, title?, from?}` → `{pin}`: a new web pin at the end of the list (K40). W76: `from` a temporary
     /// page ("Pin" in its toolbar): the new pin keeps that page's profile and takes its page (the places that showed
     /// it, no reload: the host renames the page it has).
@@ -739,7 +765,7 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 22] = [
+const SETTING_KEYS: [&str; 23] = [
     "pins",
     "site_icons",
     "sizes",
@@ -762,6 +788,7 @@ const SETTING_KEYS: [&str; 22] = [
     "new_tabs",
     "page_style",
     "card_size",
+    "content",
 ];
 
 fn forced_of(settings: &Settings) -> BTreeMap<String, String> {
@@ -890,6 +917,9 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
         s.card_size(&a).await
     })?;
     write_action(ctx, s, "webdock.add", |s, a| async move { s.add(&a).await })?;
+    write_action(ctx, s, "webdock.content", |s, a| async move {
+        s.content(&a).await
+    })?;
     write_action(ctx, s, "webdock.remove", |s, a| async move {
         s.remove(&a).await
     })?;
