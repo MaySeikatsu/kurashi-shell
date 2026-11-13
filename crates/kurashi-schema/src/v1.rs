@@ -2222,6 +2222,21 @@ pub enum OsdPlace {
     Center,
     /// In the island
     Island,
+    /// Attached to a screen edge
+    Edge,
+}
+
+/// The screen edge an attached OSD stands on (session 33, the user: "an attached mode, as Caelestia has").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum OsdEdge {
+    /// Right
+    Right,
+    /// Left
+    Left,
+    /// Top
+    Top,
+    /// Bottom
+    Bottom,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -2232,6 +2247,11 @@ pub struct Osd {
     /// island: the island shows volume and brightness as it did before (the layout and the microphone show at the bottom).
     #[kurashi(default = OsdPlace::Bottom, since = 7)]
     pub place: OsdPlace,
+    /// Edge
+    /// Attached: the edge it slides out of, joined to it as the shell's cards join their bar (on the left or right it
+    /// stands upright).
+    #[kurashi(default = OsdEdge::Right, since = 7)]
+    pub edge: OsdEdge,
     /// How long it stays (ms)
     #[kurashi(default = 1500, range = 600..=5000, step = 100, since = 7)]
     pub timeout_ms: u32,

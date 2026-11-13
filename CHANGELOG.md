@@ -8,6 +8,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+### Added
+- **Attached OSD** (`osd.place = edge`, `osd.edge`): joined to a screen edge and sliding out of it, upright on the left or
+  right, as Caelestia has.
+
 ## [0.1.0] — 2026-11-13
 
 The first versioned release: everything built in sessions 1–33 (see `docs/PROGRESS.md` and `docs/HANDOVER.md` for the

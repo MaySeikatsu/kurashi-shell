@@ -19,6 +19,13 @@ PanelWindow {
     readonly property bool hasLevel: d.value !== undefined && d.value !== null
     readonly property real level: hasLevel ? Math.max(0, Math.min(1, Number(d.value))) : 0
     readonly property bool muted: d.muted === true
+    // Session 33 (the user: "an attached mode, as Caelestia has"): joined to a screen edge, sliding out of it; upright on
+    // the left or right.
+    readonly property bool attached: place === "edge"
+    readonly property string edge: d.edge || "right"
+    readonly property bool upright: attached && (edge === "left" || edge === "right")
+    // (room for the fillets that join it to the edge)
+    readonly property real jpad: attached ? Math.max(Theme.cardNeck, 2) : 0
 
     // (the first document a start reads is no event)
     property int seenSeq: -2
@@ -47,12 +54,14 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     // Input passes through: nothing here takes a click.
     mask: Region {}
-    anchors.bottom: place === "bottom"
-    anchors.top: place === "top"
+    anchors.bottom: place === "bottom" || (attached && edge === "bottom")
+    anchors.top: place === "top" || (attached && edge === "top")
+    anchors.left: attached && edge === "left"
+    anchors.right: attached && edge === "right"
     margins.bottom: place === "bottom" ? 72 : 0
     margins.top: place === "top" ? 16 : 0
-    implicitWidth: kind === "layout" ? 280 : 340
-    implicitHeight: kind === "layout" ? 88 : 64
+    implicitWidth: upright ? 76 + 2 * jpad : (kind === "layout" ? 280 : 340) + 2 * jpad
+    implicitHeight: upright ? (kind === "layout" ? 150 : 250) + 2 * jpad : (kind === "layout" ? 88 : 64) + (attached ? jpad : 0)
 
     readonly property string title: kind === "volume" ? (muted ? I18n.tr("osd.muted") : I18n.tr("osd.volume"))
         : kind === "mic" ? I18n.tr(muted ? "osd.mic_muted" : "osd.mic_on")
@@ -63,15 +72,89 @@ PanelWindow {
         : kind === "layout" ? I18n.tr("osd.layout") : ""
     readonly property string announceText: title + (hasLevel ? " " + Math.round(level * 100) + " %" : "")
 
+    // Attached: slides out of its edge (the whole sheet moves along the edge's normal), one sheet with the edge.
+    Item {
+        id: slide
+        anchors.fill: parent
+        visible: osd.attached
+        opacity: Math.min(1, osd.s * 1.6)
+        transform: Translate {
+            x: osd.edge === "right" ? (1 - osd.s) * slide.width : (osd.edge === "left" ? -(1 - osd.s) * slide.width : 0)
+            y: osd.edge === "bottom" ? (1 - osd.s) * slide.height : (osd.edge === "top" ? -(1 - osd.s) * slide.height : 0)
+        }
+        JoinedCard {
+            anchors.fill: parent
+            pad: osd.jpad
+            edge: osd.edge
+        }
+        // upright: the percentage, a vertical level, the icon
+        Column {
+            visible: osd.upright
+            anchors.centerIn: parent
+            spacing: 10
+            Text {
+                visible: osd.hasLevel
+                anchors.horizontalCenter: parent.horizontalCenter
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                color: osd.muted ? Theme.dim : Theme.fg
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                font.features: { "tnum": 1 }
+                text: Math.round(osd.level * 100)
+            }
+            Rectangle {
+                visible: osd.hasLevel
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 8
+                height: osd.kind === "layout" ? 0 : 150
+                radius: 4
+                color: Qt.alpha(Theme.fg, 0.14)
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    radius: parent.radius
+                    height: parent.height * osd.level
+                    color: osd.muted ? Theme.dim : Theme.accent
+                    Behavior on height {
+                        enabled: Theme.springOn
+                        SpringAnimation { spring: Theme.spring * 1.5; damping: Theme.damping + 0.2 }
+                    }
+                }
+            }
+            Icon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                name: String(osd.d.icon || "")
+                glyph: "●"
+                size: 22
+                color: osd.muted ? Theme.dim : Theme.fg
+            }
+            Text {
+                visible: osd.kind === "layout" || (!osd.hasLevel && osd.kind !== "mic")
+                anchors.horizontalCenter: parent.horizontalCenter
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                color: Theme.fg
+                font.pixelSize: Theme.fs + 2
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: String(osd.d.short || osd.title).slice(0, 4)
+            }
+        }
+    }
+
     Block {
         id: pill
         anchors.centerIn: parent
-        width: parent.width - 16
-        height: parent.height - 8 - Theme.shadowDy
+        // (attached and lying along a top or bottom edge: the content row inside the joined sheet; no block of its own)
+        visible: !osd.upright
+        bare: osd.attached
+        anchors.verticalCenterOffset: osd.attached ? (osd.edge === "top" ? -osd.jpad / 2 : osd.jpad / 2)
+            + (osd.edge === "bottom" ? (1 - osd.s) * osd.height : (osd.edge === "top" ? -(1 - osd.s) * osd.height : 0)) : 0
+        width: parent.width - 16 - 2 * osd.jpad
+        height: (osd.attached ? parent.height - osd.jpad : parent.height - 8 - Theme.shadowDy)
         radius: Math.min(Theme.rFull, height / 2)
-        fill: Theme.surface
+        fill: osd.attached ? "transparent" : Theme.surface
         opacity: osd.s
-        scale: 0.94 + 0.06 * osd.s
+        scale: osd.attached ? 1 : 0.94 + 0.06 * osd.s
         Accessible.role: Accessible.AlertMessage
         Accessible.name: osd.announceText
 

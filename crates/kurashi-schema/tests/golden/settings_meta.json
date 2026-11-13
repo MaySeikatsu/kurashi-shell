@@ -7446,6 +7446,10 @@
                 {
                   "label": "config.choice.osd_place.island",
                   "value": "island"
+                },
+                {
+                  "label": "config.choice.osd_place.edge",
+                  "value": "edge"
                 }
               ],
               "control": "select",
@@ -7454,6 +7458,37 @@
               "help": "config.osd.place.help",
               "key": "osd.place",
               "label": "config.osd.place.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.osd_edge.right",
+                  "value": "right"
+                },
+                {
+                  "label": "config.choice.osd_edge.left",
+                  "value": "left"
+                },
+                {
+                  "label": "config.choice.osd_edge.top",
+                  "value": "top"
+                },
+                {
+                  "label": "config.choice.osd_edge.bottom",
+                  "value": "bottom"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "right",
+              "help": "config.osd.edge.help",
+              "key": "osd.edge",
+              "label": "config.osd.edge.label",
               "per_output": false,
               "restart": false,
               "since": 7,

@@ -2017,8 +2017,13 @@
 # Where it shows — The OSD answers a key that changes the volume, the brightness, the
 # microphone or the keyboard layout. In the island: the island shows volume and brightness
 # as it did before (the layout and the microphone show at the bottom).
-#   choices: "bottom" | "top" | "center" | "island" · since schema v7
+#   choices: "bottom" | "top" | "center" | "island" | "edge" · since schema v7
 # place = "bottom"
+#
+# Edge — Attached: the edge it slides out of, joined to it as the shell's cards join their
+# bar (on the left or right it stands upright).
+#   choices: "right" | "left" | "top" | "bottom" · since schema v7
+# edge = "right"
 #
 # How long it stays (ms)
 #   range: 600..=5000, step 100 · since schema v7
