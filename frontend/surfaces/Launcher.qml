@@ -77,6 +77,24 @@ PanelWindow {
     // in the look's chrome — or in the dress's own skin (StartBase `menu`, contract start/StartMenuBase.qml) where it
     // brings one. Every other look: today's launcher, unchanged.
     readonly property bool skin: Theme.slot("start") !== ""
+    // Session 33 (the user: "the clipboard section cleaner — text in the list, the image's preview right beside it, as
+    // Noctalia v5 does"): the clipboard mode is two columns — one-line rows on the left, the selected entry on the right
+    // (its picture large, or its whole text). The start-menu skin keeps its one column.
+    readonly property bool clipSplit: mode === "clip" && !skin
+    readonly property int clipListW: 340
+    // The whole text of the selected entry (the list has its first line), asked for once per entry while shown.
+    property var clipTexts: ({})
+    property var clipAsked: ({})
+    function requestText(id) {
+        if (!want || clipAsked[id]) return
+        clipAsked[id] = true
+        Store.act("launcher.clip.text", { id: id }, function (done, e) {
+            if (!lp.want) return
+            var t = Object.assign({}, lp.clipTexts)
+            t[id] = done && done.data && done.data.text !== undefined ? done.data.text : null
+            lp.clipTexts = t
+        })
+    }
     // The dress, made only while the menu is open, for its skin's url (it is not shown here).
     StartHost { id: dressOf; visible: false; active: has && lp.skin && lp.want }
     readonly property url skinUrl: dressOf.ready ? dressOf.item.menu : ""
@@ -265,7 +283,7 @@ PanelWindow {
         switch (r.kind) {
         case "keygroup": return 30
         case "key": return 38
-        case "clip": return r.image ? 72 : 58
+        case "clip": return lp.clipSplit ? 46 : (r.image ? 72 : 58)
         default: return rowH
         }
     }
@@ -593,14 +611,14 @@ PanelWindow {
             !lp.footAnchored ? lp.openedFrom.y - lp.margins.top
                 : lp.openedFrom.y - (lp.scr.height - lp.margins.bottom - lp.implicitHeight),
             lp.openedFrom.w, lp.openedFrom.h) : Qt.rect(0, 0, 0, 0)
-        onHidden: { lp.clearRows(); lp.thumbs = ({}) }
+        onHidden: { lp.clearRows(); lp.thumbs = ({}); lp.clipTexts = ({}); lp.clipAsked = ({}) }
 
         // The card's content. In the morph the shape is its chrome; sliding in, it is a Block (K42, K45): a flat panel with a
         // hairline, a keycap panel with an ink outline and hard shadow, a soft glass panel with a rim and a drop shadow, or a
         // panel outlined in ink (line).
         Item {
             id: card
-            width: lp.skin ? lp.skinW + lp.skinBand : 600
+            width: lp.skin ? lp.skinW + lp.skinBand : (lp.clipSplit ? 880 : 600)
             // I503: all text written in on opening, under `theme.typography.fx.scope = all` (components/TextSpawnAll.qml).
             TextSpawnAll { root: card; shown: lp.shown }
             // I458: a launcher a hover opened stays while the pointer is on it, and is the user's once they press in it.
@@ -850,9 +868,121 @@ PanelWindow {
                 z: 1
                 flick: list
                 visible: shown && list.visible
-                x: card.l0 + card.w0 - width
+                x: lp.clipSplit ? list.x + list.width - width : card.l0 + card.w0 - width
                 y: list.y
                 stepPx: lp.rowH
+            }
+            // Session 33: the clipboard's preview, beside its list — the selected entry's picture, large, or its whole text,
+            // with what it is and the keys under it. Asked for only for the selected entry (Ma).
+            Item {
+                id: clipPane
+                visible: lp.clipSplit && list.visible
+                x: list.x + list.width + Theme.pad
+                y: list.y
+                width: Math.max(0, card.l0 + card.w0 - x)
+                height: lp.listH
+                readonly property var entry: lp.results[lp.sel] || null
+                readonly property bool isClip: !!entry && entry.kind === "clip"
+                readonly property bool isImage: isClip && !!entry.image
+                readonly property bool isPin: isClip && String(entry.id).indexOf("clip:pin:") === 0
+                readonly property string thumb: isImage ? (entry.thumb || lp.thumbs[entry.id] || "") : ""
+                readonly property var full: isClip && !isImage && !entry.binary ? lp.clipTexts[entry.id] : undefined
+                readonly property string shownText: full !== undefined && full !== null ? full : (isClip ? String(entry.name || "") : "")
+                readonly property int lines: shownText === "" ? 0 : shownText.split("\n").length
+                function ask() {
+                    if (!isClip || !lp.clipSplit) return
+                    if (isImage) { if (thumb === "") lp.requestThumb(entry.id) }
+                    else if (!entry.binary && !isPin) lp.requestText(entry.id)
+                }
+                onEntryChanged: Qt.callLater(ask)
+                Accessible.role: Accessible.Pane
+                Accessible.name: I18n.tr("launcher.clip.preview")
+
+                Rectangle {
+                    id: paneGround
+                    anchors.fill: parent
+                    radius: Theme.nested(Theme.rLg, Theme.pad)
+                    color: Theme.container
+                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                    border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+                }
+                // the picture
+                Image {
+                    id: paneImg
+                    visible: clipPane.isImage && status === Image.Ready
+                    anchors { fill: parent; margins: Theme.pad; bottomMargin: paneMeta.height + 2 * Theme.pad }
+                    source: clipPane.thumb !== "" && clipPane.thumb !== "!" ? "file://" + clipPane.thumb : ""
+                    fillMode: Image.PreserveAspectFit
+                    asynchronous: true
+                    cache: false
+                    smooth: !Theme.pixelType
+                }
+                // the text
+                Flickable {
+                    id: paneFlick
+                    visible: clipPane.isClip && !clipPane.isImage
+                    anchors { fill: parent; margins: Theme.pad; bottomMargin: paneMeta.height + 2 * Theme.pad }
+                    contentHeight: paneText.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    KineticWheel { view: paneFlick }
+                    Text {
+                        id: paneText
+                        width: paneFlick.width
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        textFormat: Text.PlainText
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        color: clipPane.entry && clipPane.entry.binary ? Theme.dim : Theme.fg
+                        font.pixelSize: Theme.fs
+                        font.family: Theme.fam(text, Theme.families)
+                        text: clipPane.entry && clipPane.entry.binary ? I18n.tr("launcher.clip.binary") : clipPane.shownText
+                    }
+                }
+                ScrollEdge { view: paneFlick }
+                // nothing to show (the "clear history" row, a note): the pane's mark
+                Icon {
+                    anchors.centerIn: parent
+                    visible: !clipPane.isClip || (clipPane.isImage && !paneImg.visible)
+                    name: clipPane.isImage ? (clipPane.thumb === "!" ? "hide_image" : "image") : "content_paste"
+                    glyph: "⎘"
+                    size: 36
+                    color: Theme.dim
+                    opacity: 0.6
+                }
+                // what it is, and the keys
+                Column {
+                    id: paneMeta
+                    visible: clipPane.isClip
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.pad }
+                    spacing: 2
+                    Row {
+                        spacing: Theme.gap
+                        Icon {
+                            visible: !!(clipPane.entry && clipPane.entry.pinned)
+                            name: "push_pin"; glyph: "●"; filled: true; size: Theme.fs; color: Theme.accent
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            color: Theme.dim
+                            font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
+                            text: !clipPane.isClip ? "" : clipPane.isImage
+                                ? String(clipPane.entry.name || "") + (clipPane.entry.generic ? " · " + clipPane.entry.generic : "")
+                                : I18n.tr(clipPane.lines === 1 ? "launcher.clip.chars_line" : "launcher.clip.chars")
+                                    .replace("{n}", clipPane.shownText.length).replace("{l}", clipPane.lines)
+                        }
+                    }
+                    Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        width: parent.width
+                        elide: Text.ElideRight
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr("launcher.clip.keys")
+                    }
+                }
             }
             // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
             ScrollEdge { view: list }
@@ -862,7 +992,7 @@ PanelWindow {
                 visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
-                width: card.w0 - (listBar.shown ? listBar.width + 4 : 0)
+                width: lp.clipSplit ? lp.clipListW : card.w0 - (listBar.shown ? listBar.width + 4 : 0)
                 height: lp.listH
                 clip: true
                 interactive: false
@@ -1122,6 +1252,7 @@ PanelWindow {
                             ClipRow {
                                 entry: row.entry
                                 selected: row.selected
+                                compact: lp.clipSplit
                                 thumb: row.entry.thumb || lp.thumbs[row.entry.id] || ""
                                 onWantThumb: lp.requestThumb(row.entry.id)
                             }

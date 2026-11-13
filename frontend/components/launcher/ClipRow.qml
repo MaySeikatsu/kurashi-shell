@@ -10,6 +10,9 @@ Item {
     id: cr
     property var entry: ({})
     property bool selected: false
+    // Session 33: one line beside the launcher's preview pane — a small mark or thumbnail, the text; what it is and
+    // the keys are in the pane.
+    property bool compact: false
     // The cached thumbnail's path; "" while unknown, "!" when there is none (decoding refused or failed).
     property string thumb: ""
     signal wantThumb()
@@ -28,8 +31,8 @@ Item {
         x: 10
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: -Theme.shadowDy / 2
-        width: cr.isImage ? 84 : 30
-        height: cr.isImage ? 56 : 30
+        width: cr.isImage && !cr.compact ? 84 : 30
+        height: cr.isImage && !cr.compact ? 56 : 30
         Rectangle {
             id: leadTile
             anchors.fill: parent
@@ -73,7 +76,7 @@ Item {
             width: parent.width
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            maximumLineCount: cr.isImage ? 1 : 2
+            maximumLineCount: cr.isImage || cr.compact ? 1 : 2
             elide: Text.ElideRight
             color: cr.ink
             font.pixelSize: Theme.fs
@@ -86,7 +89,7 @@ Item {
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
-            visible: cr.isImage
+            visible: cr.isImage && !cr.compact
             textFormat: Text.PlainText
             elide: Text.ElideRight
             color: Theme.dim
@@ -117,7 +120,7 @@ Item {
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.verticalCenter: parent.verticalCenter
-            visible: cr.selected
+            visible: cr.selected && !cr.compact
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)

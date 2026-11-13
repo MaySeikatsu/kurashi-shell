@@ -1070,6 +1070,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             ClipError::Gone => ActionError::Invalid("launcher.clip.error.gone".into()),
             ClipError::TooLarge => ActionError::Invalid("launcher.clip.error.too_large".into()),
             ClipError::NotImage => ActionError::Invalid("launcher.clip.error.not_image".into()),
+            ClipError::NotText => ActionError::Invalid("launcher.clip.error.not_text".into()),
             ClipError::PinsFull => ActionError::Invalid("launcher.clip.error.pins_full".into()),
             ClipError::Failed(m) => ActionError::Unavailable(m),
         }
@@ -1100,6 +1101,20 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 let id = clip_id(&args)?;
                 let path = blocking(move || c.thumb(&id)).await?;
                 Ok(Some(json!({"path": path.display().to_string()})))
+            }
+        },
+    );
+    // Session 33: the preview pane's text — the whole entry (capped), the list shows its first line only.
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.text",
+        "action.launcher.clip.text",
+        move |args: Value| {
+            let c = c.clone();
+            async move {
+                let id = clip_id(&args)?;
+                let text = blocking(move || c.text(&id)).await?;
+                Ok(Some(json!({ "text": text })))
             }
         },
     );
