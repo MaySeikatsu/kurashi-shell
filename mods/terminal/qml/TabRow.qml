@@ -14,6 +14,8 @@ Item {
     readonly property var s: doc.settings || ({})
     readonly property bool pinned: s.pinned === true
     readonly property bool pinForced: !!(doc.forced && doc.forced.pinned)
+    // A tab's name is being edited: the place hands this row the keyboard meanwhile.
+    property bool editing: false
     implicitHeight: Theme.barH - 6
     height: implicitHeight
 
@@ -45,6 +47,7 @@ Item {
                     required property int index
                     readonly property bool on: modelData.id === tr.active
                     property bool editing: false
+                    onEditingChanged: tr.editing = editing
                     width: Math.min(220, Math.max(96, label.implicitWidth + 2 * Theme.pad + close.width))
                     height: keys.height
                     activeFocusOnTab: true

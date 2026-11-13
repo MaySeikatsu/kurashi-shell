@@ -217,6 +217,7 @@ impl Model {
             None => None,
         };
         self.crashed = false;
+        self.notice = None;
         Ok(self.new_tab(dir))
     }
 
@@ -243,6 +244,7 @@ impl Model {
 
     pub fn select(&mut self, tab: &str) -> Result<(), Error> {
         self.index(tab)?;
+        self.notice = None;
         self.active = Some(tab.to_string());
         Ok(())
     }
@@ -427,14 +429,12 @@ impl Model {
             }
             return;
         }
-        match rest {
-            Some(r) => {
-                self.rests.insert(p, r);
-            }
-            None => {
-                self.rests.remove(&p);
-            }
-        }
+        let Some(r) = rest else {
+            // Moving (or a late withdrawal of a place already gone): its window unmaps, it stays where it ranks.
+            self.rests.remove(&p);
+            return;
+        };
+        self.rests.insert(p, r);
         if fresh || !self.open.contains(&p) {
             self.raise(p);
             self.ensure_tab();
@@ -724,9 +724,15 @@ mod tests {
         assert_eq!(m.shown_in(), Some(Place::Card));
         m.place(Place::Card, None, true, false);
         assert_eq!(m.shown_in(), Some(Place::Dropdown));
+        // A withdrawal after the drop-down went in does not bring it back.
+        m.hide();
+        m.place(Place::Dropdown, None, false, false);
+        assert_eq!(m.shown_in(), None);
+        m.show(None);
+        m.place(Place::Dropdown, Some(r), false, true);
         assert_eq!(m.doc()["rests"]["dropdown"]["width"], 300);
         m.bring(Place::Dropdown);
-        assert_eq!(m.doc()["focus"], 2);
+        assert_eq!(m.doc()["focus"], 3);
     }
 
     #[test]

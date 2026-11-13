@@ -98,7 +98,7 @@ impl Default for Cfg {
             input_target: "show".into(),
             run_in: "current".into(),
             dir_opens: "new".into(),
-            run_prefix: "$".into(),
+            run_prefix: "!".into(),
         }
     }
 }
@@ -212,8 +212,8 @@ mod tests {
         // (a prefix that begins with one of the launcher's would never reach the terminal)
         c.run_prefix = ">>".into();
         assert_eq!(c.prefix_problem(), Some("terminal.error.prefix_taken"));
-        assert_eq!(c.prefix_in_effect(), "$");
-        c.run_prefix = "!".into();
         assert_eq!(c.prefix_in_effect(), "!");
+        c.run_prefix = "$".into();
+        assert_eq!(c.prefix_in_effect(), "$");
     }
 }

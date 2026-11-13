@@ -88,8 +88,8 @@ directory is refused with `terminal.error.no_dir` and the place says "<path> doe
 
 ## The launcher
 Through a mod launcher provider (contract row): "Terminal" (opens the drop-down on the launcher's output), each
-favourite as "Terminal in <label>" (matched by label and path), and a run prefix (`run_prefix`, default `$`):
-`$ htop` + Enter runs it like the bar's field and shows the terminal. The prefix is refused when empty, whitespace, or
+favourite as "Terminal in <label>" (matched by label and path), and a run prefix (`run_prefix`, default `!`):
+`! htop` + Enter runs it like the bar's field and shows the terminal. The prefix is refused when empty, whitespace, or
 one of the launcher's own prefixes (`:` `;` `?` `>`), read from the launcher's one published list (contract row), and
 Settings shows the reason.
 

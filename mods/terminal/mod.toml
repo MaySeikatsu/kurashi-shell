@@ -225,6 +225,6 @@ help = "mods.terminal.dir_opens.help"
 [[setting]]
 key = "run_prefix"
 type = "string"
-default = "$"
+default = "!"
 label = "mods.terminal.run_prefix"
 help = "mods.terminal.run_prefix.help"

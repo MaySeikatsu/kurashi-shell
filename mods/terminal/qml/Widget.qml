@@ -97,7 +97,7 @@ Item {
             width: parent.width - 2 * Theme.gap
             elide: Text.ElideRight
             visible: !field.visible
-            text: I18n.tr("terminal.input.placeholder").replace("{prefix}", String(w.s.run_prefix || "$"))
+            text: I18n.tr("terminal.input.placeholder").replace("{prefix}", String(w.s.run_prefix || "!"))
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.tok("font.family_mono", "monospace")

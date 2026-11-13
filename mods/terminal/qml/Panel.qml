@@ -112,9 +112,14 @@ Item {
     }
     Component.onDestruction: { close(); Peeks.hoverOverlay("terminal", false) }
     // The card closed (the Stage may keep the panel made a while after): the place is gone, the next rest is fresh.
-    Watch { doc: "runtime.ui"; active: panel.inCard }
+    Watch { doc: "runtime.ui"; active: panel.inCard || panel.sentWhere === "sidebar" }
     readonly property bool cardShown: inCard && (Store.docs["runtime.ui"] || ({})).panel === "mod:terminal:terminal"
     onCardShownChanged: if (!cardShown) close()
+    // The sidebar closed (it keeps its panels made): the place is gone too; a slide or a scroll is only a move.
+    property string side: ""
+    onPlacementChanged: if (placement && placement.side) side = String(placement.side)
+    readonly property bool sideShown: side !== "" && (Store.docs["runtime.ui"] || ({})).sidebar === side
+    onSideShownChanged: if (!sideShown && sentWhere === "sidebar") close()
     // The pointer in the host's window over the well holds a hover-opened card, as the card itself does.
     readonly property bool pageHover: inCard && cardShown && d.pointer === true
     onPageHoverChanged: Peeks.hoverOverlay("terminal", pageHover)

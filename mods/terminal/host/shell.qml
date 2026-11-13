@@ -109,19 +109,13 @@ ShellRoot {
         implicitWidth: root.rest ? Math.max(1, root.rest.width) : 1
         implicitHeight: root.rest ? Math.max(1, root.rest.height) : 1
 
-        // The keyboard: asked once per `focus` (the toggle, "show it here"), as an exclusive pulse until the window has it
-        // (at most a second), then on demand — so a click elsewhere takes it away, which is how `hide_on_blur` sees it.
-        property int focusSeen: -1
-        property bool pulseSpent: true
+        // The keyboard. Out as the drop-down it is the terminal's while it shows (Yakuake): exclusive, so no click on a
+        // window steals the shell's keys; the toggle takes it back (and `hide_on_blur` hides it on a click elsewhere, through
+        // the sheet's click-away). In the card and the sidebar it is on demand: a click in the terminal takes it. niri drops
+        // a layer's keyboard when it turns from exclusive to on demand, so the drop-down does not pulse.
+        readonly property bool dropdown: root.shownIn === "dropdown"
         property bool winActive: false
-        readonly property int focusAsks: root.doc.focus || 0
-        onFocusAsksChanged: {
-            if (focusSeen >= 0 && focusAsks > focusSeen) pulseSpent = false
-            focusSeen = focusAsks
-        }
-        Component.onCompleted: focusSeen = focusAsks
-        Timer { id: pulse; interval: 1000; running: !place.pulseSpent && place.visible; onTriggered: place.pulseSpent = true }
-        WlrLayershell.keyboardFocus: visible && !pulseSpent && !winActive ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
+        WlrLayershell.keyboardFocus: visible && dropdown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
         function viewOf(id) {
             for (var i = 0; i < views.count; i++) {
@@ -158,14 +152,10 @@ ShellRoot {
                 onHoveredChanged: root.report("terminal.host.hover", { on: hovered })
             }
             Window.onActiveChanged: {
-                var was = place.winActive
                 place.winActive = Window.active
                 if (Window.active) {
-                    place.pulseSpent = true
                     var v = place.viewOf(root.active)
                     if (v) v.term.forceActiveFocus()
-                } else if (was && root.shownIn === "dropdown") {
-                    root.report("terminal.blur", {})
                 }
             }
         }

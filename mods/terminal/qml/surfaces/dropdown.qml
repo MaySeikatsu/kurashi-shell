@@ -90,8 +90,29 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "kurashi-terminal-dropdown"
-    // (the keyboard is the host's window's, over the well; the sheet's keys take it on a click)
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    // (the keyboard is the host's window's, over the well; the sheet takes it only while a tab's name is edited)
+    WlrLayershell.keyboardFocus: row.editing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    // `hide_on_blur`: a click anywhere else on this output hides it (unless kept open). The terminal holds the keyboard
+    // while it is out, so a click — not a focus change — is what "elsewhere" means here; the click is spent on hiding.
+    readonly property bool awayOn: want && out >= 1 && s.hide_on_blur === true && s.pinned !== true
+    PanelWindow {
+        id: away
+        screen: dd.screen
+        visible: dd.awayOn
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        exclusiveZone: 0
+        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.namespace: "kurashi-terminal-away"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        anchors { top: true; bottom: true; left: true; right: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onPressed: Store.act("terminal.blur", {})
+        }
+    }
 
     // ---- motion: out of the bar or the edge it hangs from; a calm fade and scale when it floats; a cut when motion is off ----
     readonly property bool still: Theme.motionKind === "none"

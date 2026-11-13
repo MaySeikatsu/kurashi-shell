@@ -73,7 +73,7 @@
 "mods.terminal.dir_opens.new" = "A new tab"
 "mods.terminal.dir_opens.current" = "The current tab"
 "mods.terminal.run_prefix" = "Launcher prefix"
-"mods.terminal.run_prefix.help" = "Typed first in the launcher, the rest runs in the terminal ($ htop). It cannot be empty, hold a space, or be one of the launcher's own (: ; ? >)."
+"mods.terminal.run_prefix.help" = "Typed first in the launcher, the rest runs in the terminal (! htop). It cannot be empty, hold a space, or be one of the launcher's own (: ; ? >)."
 
 "terminal.tab.a11y" = "Tab {n} of {of}, {title}"
 "terminal.tab.rename" = "Tab name"
@@ -111,8 +111,8 @@
 "terminal.error.no_dir" = "{path} does not exist"
 "terminal.error.crashed" = "The terminal stopped"
 "terminal.error.runtime" = "The terminal needs the daemon's runtime"
-"terminal.error.prefix_blank" = "The prefix cannot be empty or hold a space; $ is used"
-"terminal.error.prefix_taken" = "The launcher uses this prefix itself; $ is used"
+"terminal.error.prefix_blank" = "The prefix cannot be empty or hold a space; ! is used"
+"terminal.error.prefix_taken" = "The launcher uses this prefix itself; ! is used"
 
 "action.terminal.toggle" = "Show or hide the terminal"
 "action.terminal.show" = "Show the terminal"
