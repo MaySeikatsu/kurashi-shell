@@ -272,6 +272,11 @@ impl Model {
                 .get(i.min(self.tabs.len().saturating_sub(1)))
                 .map(|t| t.id.clone());
         }
+        // Session 33 (the user: "exit did not work"): the last shell gone, the drop-down goes too (Yakuake, Guake); the next
+        // toggle starts a new shell. (It stood empty before.)
+        if self.tabs.is_empty() {
+            self.hide();
+        }
         Ok(())
     }
 
@@ -817,6 +822,25 @@ pub fn quote(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_last_shell_exiting_puts_the_drop_down_away_and_the_next_toggle_starts_one() {
+        let mut m = Model::new(Cfg::default(), PathBuf::from("/tmp"));
+        m.toggle(None);
+        assert!(m.dropdown, "out");
+        let tab = m.tabs[0].id.clone();
+        m.host_exited(&tab);
+        assert!(
+            !m.dropdown && m.tabs.is_empty(),
+            "the last shell's exit puts it away"
+        );
+        m.toggle(None);
+        assert!(
+            m.dropdown && m.tabs.len() == 1,
+            "the next toggle brings a new shell"
+        );
+    }
+
     use super::*;
 
     fn model() -> (tempfile::TempDir, Model) {

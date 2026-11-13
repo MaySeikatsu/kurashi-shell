@@ -254,5 +254,15 @@ Item {
                 : (tr.pinned ? I18n.tr("terminal.pin.off") : I18n.tr("terminal.pin.on"))
             onClicked: Store.act("terminal.pin", {})
         }
+        // Session 33 (the user: "how do I exit the terminal? no close button, exit did not work"): puts the drop-down away
+        // (it keeps running, as Yakuake; the toggle key brings it back). Its name says the key.
+        KeyButton {
+            visible: tr.showPin
+            side: tr.keyH
+            icon: "expand_less"
+            glyph: "⌃"
+            a11y: I18n.tr("terminal.hide").replace("{key}", String(tr.doc.keybind || "Mod+Grave"))
+            onClicked: Store.act("terminal.hide", {})
+        }
     }
 }

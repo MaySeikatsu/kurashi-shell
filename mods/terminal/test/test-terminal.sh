@@ -130,7 +130,7 @@ wait_until 5 doc_is "len(d['tabs']) == 1 and d['active'] == '$TAB'" || fail "Ctr
 ok "$S: Ctrl+Shift+T, Ctrl+PgDown, Ctrl+Shift+W"
 # 10. the tab row's menu: ⌄ at the row's end, left of the pin (the row stands 2 × 4 px under the well, keys 30 px).
 read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
-"$SB" click $((WX + WW - 49)) $((WY + WH + 23))
+"$SB" click $((WX + WW - 83)) $((WY + WH + 23))
 wait_until 5 has_layer kurashi-terminal-menu || { shot "nomenu-$S"; fail "the tab row's ⌄ opened no menu"; }
 layers | grep -A1 '"kurashi-terminal-menu"' | grep -q exclusive || fail "the menu does not hold the keyboard"
 wait_until 5 doc_is "d.get('held') == True" || fail "the terminal did not let go of the keyboard for its menu"
@@ -173,7 +173,16 @@ wait_until 10 file_has "$OUT/rename.txt" renamed || fail "after the rename the k
 ok "$S: a double click renames the tab; the keyboard comes back"
 sleep 0.5
 shot "dropdown-bar-$S"
-# Kept out (hide_on_blur off): a click elsewhere gives the keyboard back, the terminal stays; on: it hides.
+# Session 33: the "Put away" key at the row's end hides it (the user found no way out); then it comes back.
+read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
+"$SB" click $((WX + WW - 15)) $((WY + WH + 23))
+wait_until 5 doc_is "d['dropdown']['open'] == False" || fail "the put-away key did not hide the drop-down"
+K act terminal.toggle > /dev/null
+wait_until 10 doc_is "d.get('keys') == True and 'dropdown' in d.get('rests', {})" || fail "the drop-down did not come back"
+ok "$S: the put-away key hides it; the toggle brings it back"
+# Kept out (hide_on_blur off; on by default since session 33): a click elsewhere gives the keyboard back, the terminal
+# stays; on: it hides.
+K set mods.terminal.hide_on_blur false > /dev/null
 "$SB" click 960 900
 wait_until 5 doc_is "d['dropdown']['open'] == True and not d.get('keys')" || fail "a click elsewhere did not give the keyboard back"
 "$SB" niri layers | grep -A1 '"kurashi-terminal"' | grep -q on-demand || fail "the host still holds the keyboard exclusively"
@@ -338,16 +347,17 @@ shot "dropdown-position-$S"
 K set mods.terminal.place '"center"' > /dev/null
 ok "$S: place = edge and position"
 
-# 11b. the last shell exited: said in the well; a new one starts.
+# 11b. the last shell exited: the drop-down goes; the toggle starts a new one.
 K set mods.terminal.place '"bar"' > /dev/null
 wait_until 10 doc_is "'dropdown' in d.get('rests', {})" || fail "the drop-down did not come back to the bar"
 for t in $(doc "' '.join(t['id'] for t in d['tabs'])"); do K act terminal.close_tab "{\"tab\":\"$t\"}" > /dev/null; done
 wait_until 10 doc_is "len(d['tabs']) == 0" || fail "the tabs did not close ($(doc "d['tabs']"))"
-sleep 0.5
-shot "exited-$S"
-K act terminal.new_tab > /dev/null
-wait_until 10 doc_is "len(d['tabs']) == 1 and d['host']['state'] == 'ready'" || fail "a new shell did not start after the last exited"
-ok "$S: the last shell exited is said; a new one starts"
+# (session 33, the user: "exit did not work" — the last shell gone, the drop-down goes too)
+wait_until 5 doc_is "d['dropdown']['open'] == False" || fail "the drop-down stayed with no shell left"
+K act terminal.toggle > /dev/null
+wait_until 10 doc_is "len(d['tabs']) == 1 and d['host']['state'] == 'ready' and d['dropdown']['open'] == True" \
+  || fail "the toggle did not bring a new shell after the last exited"
+ok "$S: the last shell exited puts it away; the toggle brings a new one"
 
 # 8. the host killed
 HP=""
@@ -417,7 +427,7 @@ for L in ${TERM_LOOKS:-washi kami material}; do
     shot "look-$L-$S"
     read -r WX WY WW WH < <(doc "' '.join(str(d['rests']['dropdown'][k]) for k in ('x', 'y', 'width', 'height'))")
     # the menu
-    "$SB" click $((WX + WW - 49)) $((WY + WH + 23))
+    "$SB" click $((WX + WW - 83)) $((WY + WH + 23))
     wait_until 5 has_layer kurashi-terminal-menu || fail "$L $S: no menu"
     sleep 0.4
     shot "menu-$L-$S" "$((WX + WW - 420)),$((WY + WH - 40)) 440x320" 1

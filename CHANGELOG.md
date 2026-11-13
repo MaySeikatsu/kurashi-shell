@@ -9,6 +9,8 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 ## [Unreleased]
 
 ### Fixed
+- The terminal had no way out but its key: a **Put away** key in its tab row (names the key), the drop-down goes when its
+  last shell exits (`exit`), and it hides when you click elsewhere by default (`hide_on_blur` now on; Pin keeps it out).
 - After a rebuild that changed the daemon (e.g. enabling the terminal) the shell did not come back: the frontend's unit
   `Requires` the daemon, so Home-Manager's stop of kurashid stopped it too. It now `Wants` the daemon and reconnects (B140).
 

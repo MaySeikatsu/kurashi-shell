@@ -2393,7 +2393,7 @@
 #
 # Hide when I click elsewhere — It goes back in when another window takes the keyboard, unless it
 # is kept open.
-# hide_on_blur = false
+# hide_on_blur = true
 #
 # Font — Empty: the look's monospace font.
 # font = ""
