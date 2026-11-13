@@ -80,7 +80,8 @@ ModuleBase {
             height: modelData.focused ? 10 : 8
             width: modelData.focused ? 24 : 8
             radius: height / 2
-            color: modelData.focused && !m.travels ? Theme.accent : (modelData.occupied || modelData.focused ? Theme.fg : "transparent")
+            // (while the mark travels it is the focused dot: the dot itself waits under it, unseen)
+            color: modelData.focused ? (m.travels ? "transparent" : Theme.accent) : (modelData.occupied ? Theme.fg : "transparent")
             border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
             border.color: Theme.dim
             Behavior on width {
@@ -236,8 +237,8 @@ ModuleBase {
             id: repH
             model: m.vertical ? [] : m.pills
             delegate: m.rowKind === "dot" ? dotPill : m.rowKind === "nav" ? navPill : keyPill
-            onItemAdded: Qt.callLater(m.publish, repH)
-            onItemRemoved: Qt.callLater(m.publish, repH)
+            onItemAdded: { m.itemsRev++; Qt.callLater(m.publish, repH) }
+            onItemRemoved: { m.itemsRev++; Qt.callLater(m.publish, repH) }
         }
     }
     // ---- the travelling mark and, over it, the numbers (session 32) ----
@@ -246,7 +247,9 @@ ModuleBase {
         for (var i = 0; i < pills.length; i++) if (pills[i].focused) return i
         return -1
     }
-    readonly property Item focusedItem: repH.count > 0 && focusedAt >= 0 && focusedAt < repH.count ? repH.itemAt(focusedAt) : null
+    // (itemAt does not notify: a delegate made anew — another look, other marks — counts as a change)
+    property int itemsRev: 0
+    readonly property Item focusedItem: m.itemsRev >= 0 && repH.count > 0 && focusedAt >= 0 && focusedAt < repH.count ? repH.itemAt(focusedAt) : null
     // The mark lies on the key's face (a key block keeps its hard shadow's room below, and its ring and bevel inside).
     readonly property real faceInset: m.rowKind === "key" && focusedItem && focusedItem.inset !== undefined ? focusedItem.inset : 0
     B.WorkspaceMark {
@@ -260,7 +263,7 @@ ModuleBase {
         goalX: m.focusedItem ? m.focusedItem.x + m.faceInset : 0
         goalW: m.focusedItem ? Math.max(0, m.focusedItem.width - 2 * m.faceInset) : 0
         goalY: m.focusedItem ? m.focusedItem.y + (m.rowKind === "key" ? (m.focusedItem.shift || 0) : 0) + m.faceInset : 0
-        goalH: m.focusedItem ? Math.max(0, (m.rowKind === "key" ? m.focusedItem.faceH : m.focusedItem.height) - 2 * m.faceInset) : 0
+        goalH: m.focusedItem ? Math.max(0, (m.focusedItem.faceH !== undefined ? m.focusedItem.faceH : m.focusedItem.height) - 2 * m.faceInset) : 0
     }
     // (the first goal is taken as it is: no travel from nowhere when the module is made)
     property bool markReady: false
@@ -276,11 +279,11 @@ ModuleBase {
                 id: num
                 required property var modelData
                 required property int index
-                readonly property Item key: repH.count > index ? repH.itemAt(index) : null
+                readonly property Item key: m.itemsRev >= 0 && repH.count > index ? repH.itemAt(index) : null
                 readonly property real kx: key ? key.x : 0
                 readonly property real kw: key ? key.width : 0
                 // (the key's face: a block's hard shadow is below it)
-                readonly property real faceH: key ? (m.rowKind === "key" ? key.faceH : key.height) : 0
+                readonly property real faceH: key ? (key.faceH !== undefined ? key.faceH : key.height) : 0
                 readonly property real covered: mark.cover(kx, kw)
                 readonly property color restInk: m.rowKind === "nav"
                     ? Qt.alpha(Theme.color("color.on_surface_variant", Theme.dim), modelData.occupied || modelData.focused ? 1 : 0.6)
