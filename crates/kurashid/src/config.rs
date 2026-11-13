@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use kurashi_config::{
@@ -2564,41 +2564,33 @@ impl ConfigStore {
         );
         let app = Arc::new(app);
         // W77 (K146): Settings docked over a sidebar section's well. The rect goes into `runtime.settings.dock`
-        // (absent while undocked); a rest starts Settings when it does not run (never twice: the process the daemon
-        // started is tracked until it exits, so a report while it is still starting does not start another).
+        // (absent while undocked); a rest starts Settings when it does not run. `life` holds the process the daemon
+        // started (W79): every start and every write of the dock goes through its lock, so calls at once start one.
         self.hub.register(SETTINGS_RUNTIME_DOC, json!({}), None);
-        let started = Arc::new(Mutex::new(false));
-        let (me, dock_app) = (self.clone(), app.clone());
+        let life = Arc::new(SettingsLife::new(self.hub.clone()));
+        let (dock_app, dock_life) = (app.clone(), life.clone());
         actions.register("settings.dock", "action.settings.dock", move |v| {
-            let me = me.clone();
             let app = dock_app.clone();
-            let started = started.clone();
+            let life = dock_life.clone();
             async move {
                 let Some(dock) = settings_dock_of(&v)? else {
-                    let _ = me.hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
-                        if let Some(o) = d.as_object_mut() {
-                            o.remove("dock");
-                        }
-                    });
+                    tokio::task::spawn_blocking(move || life.undock())
+                        .await
+                        .map_err(|e| ActionError::Internal(e.to_string()))?;
                     return Ok(Some(json!({"docked": false})));
                 };
                 // Started (or found running) first: a dock nothing will draw is not written (Shōjiki).
-                let how = tokio::task::spawn_blocking(move || app.run_for_dock(&started))
+                let how = tokio::task::spawn_blocking(move || app.dock(&life, dock))
                     .await
                     .map_err(|e| ActionError::Internal(e.to_string()))??;
-                let _ = me.hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
-                    if !d.is_object() {
-                        *d = json!({});
-                    }
-                    d["dock"] = dock;
-                });
                 Ok(Some(json!({"docked": true, "opened": how})))
             }
         });
-        let me = self.clone();
+        let (me, life) = (self.clone(), life.clone());
         actions.register("settings.open", "action.settings.open", move |v| {
             let me = me.clone();
             let app = app.clone();
+            let life = life.clone();
             async move {
                 let text = |field: &str| match v.get(field) {
                     None | Some(Value::Null) => Ok(None),
@@ -2622,7 +2614,7 @@ impl ConfigStore {
                     (None, None) => SettingsTarget::Window,
                 };
                 // Probing and starting block (a `qs` call that waits for its reply): off the runtime.
-                let how = tokio::task::spawn_blocking(move || app.open(&target))
+                let how = tokio::task::spawn_blocking(move || app.open(&target, &life))
                     .await
                     .map_err(|e| ActionError::Internal(e.to_string()))??;
                 Ok(Some(json!({"opened": how})))
@@ -2644,6 +2636,10 @@ pub struct SettingsApp {
 
 /// How long one `qs ipc` probe may take before it counts as "no window".
 const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+/// How long `settings.open` waits for a Settings process the daemon started that does not answer yet (W79), and the
+/// pause between two such probes.
+const JOIN_TIMEOUT: Duration = Duration::from_secs(5);
+const JOIN_POLL: Duration = Duration::from_millis(100);
 
 impl SettingsApp {
     pub fn from_env() -> Self {
@@ -2655,25 +2651,75 @@ impl SettingsApp {
 
     /// Opens Settings on `target`. Answers `jumped` (a running window moved to the key or page),
     /// `open` (a running window, no target) or `launched` (a new window, with
-    /// `KURASHI_SETTINGS_KEY` or `KURASHI_SETTINGS_PAGE` set).
-    pub fn open(&self, target: &SettingsTarget) -> Result<&'static str, ActionError> {
+    /// `KURASHI_SETTINGS_KEY` or `KURASHI_SETTINGS_PAGE` set). A process the daemon started and has
+    /// not seen exit (a dock's, or a window still starting) is waited for, never doubled (W79): its
+    /// window answers the target once it is up.
+    pub fn open(
+        &self,
+        target: &SettingsTarget,
+        life: &Arc<SettingsLife>,
+    ) -> Result<&'static str, ActionError> {
+        let qs = self.qs()?;
+        let deadline = Instant::now() + JOIN_TIMEOUT;
+        loop {
+            let mut running = life.lock();
+            if let Some(how) = self.ask(&qs, target) {
+                return Ok(how);
+            }
+            if !*running {
+                let child = self.launch(&qs, target)?;
+                life.track(&mut running, child);
+                return Ok("launched");
+            }
+            drop(running);
+            if Instant::now() >= deadline {
+                return Err(ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()));
+            }
+            std::thread::sleep(JOIN_POLL);
+        }
+    }
+
+    /// W77 (K146) / W79: makes sure a Settings process runs for a sidebar's dock, then writes `dock` into
+    /// `runtime.settings`. Answers `running` (the process the daemon started has not exited, or a window
+    /// answers) or `launched` (a new process with `KURASHI_SETTINGS_DOCK=1`: it maps no window of its own and
+    /// ends a minute after the dock goes). The lock is held through the write, so a process that exits at
+    /// once clears the dock after it was written, never before.
+    pub fn dock(&self, life: &Arc<SettingsLife>, dock: Value) -> Result<&'static str, ActionError> {
+        let qs = self.qs()?;
+        let mut running = life.lock();
+        let how = if *running || probe(&qs, &self.dir, &["current"]) {
+            "running"
+        } else {
+            let child = self.launch_dock(&qs)?;
+            life.track(&mut running, child);
+            "launched"
+        };
+        life.write_dock(Some(dock));
+        Ok(how)
+    }
+
+    /// The `qs` that runs Settings: `shell.qml` must be in the Settings folder and `qs` on the PATH.
+    fn qs(&self) -> Result<PathBuf, ActionError> {
         if !self.dir.join("shell.qml").is_file() {
             return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
         }
-        let qs = find_program("qs", &self.path)
-            .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
-        let running = match target {
-            SettingsTarget::Key(key) => probe(&qs, &self.dir, &["jump", key]).then_some("jumped"),
-            SettingsTarget::Page(page) => {
-                probe(&qs, &self.dir, &["page", page]).then_some("jumped")
-            }
+        find_program("qs", &self.path)
+            .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))
+    }
+
+    /// Asks a running Settings window for `target`: `jumped` or `open`, or `None` when no window answers.
+    fn ask(&self, qs: &Path, target: &SettingsTarget) -> Option<&'static str> {
+        match target {
+            SettingsTarget::Key(key) => probe(qs, &self.dir, &["jump", key]).then_some("jumped"),
+            SettingsTarget::Page(page) => probe(qs, &self.dir, &["page", page]).then_some("jumped"),
             // (`open` also shows the window of a process that runs only for a sidebar's dock, W77)
-            SettingsTarget::Window => probe(&qs, &self.dir, &["open"]).then_some("open"),
-        };
-        if let Some(how) = running {
-            return Ok(how);
+            SettingsTarget::Window => probe(qs, &self.dir, &["open"]).then_some("open"),
         }
-        let mut cmd = Command::new(&qs);
+    }
+
+    /// A new Settings window for `target`.
+    fn launch(&self, qs: &Path, target: &SettingsTarget) -> Result<Child, ActionError> {
+        let mut cmd = Command::new(qs);
         cmd.arg("-p")
             .arg(&self.dir)
             .stdin(Stdio::null())
@@ -2687,31 +2733,15 @@ impl SettingsApp {
             SettingsTarget::Page(page) => cmd.env("KURASHI_SETTINGS_PAGE", page),
             SettingsTarget::Window => &mut cmd,
         };
-        let child = cmd.spawn().map_err(|e| {
+        cmd.spawn().map_err(|e| {
             tracing::warn!(error = %e, "settings window did not start");
             ActionError::Unavailable(SETTINGS_NO_RUNTIME.into())
-        })?;
-        reap(child);
-        Ok("launched")
+        })
     }
-}
 
-impl SettingsApp {
-    /// W77 (K146): makes sure a Settings process runs for a sidebar's dock. Answers `running` (the process the daemon
-    /// started for a dock has not exited, or a window answers) or `launched` (a new process with
-    /// `KURASHI_SETTINGS_DOCK=1`: it maps no window of its own and ends a minute after the dock goes). `started` is held
-    /// across the check and the start, so two reports at once start one process.
-    pub fn run_for_dock(&self, started: &Arc<Mutex<bool>>) -> Result<&'static str, ActionError> {
-        if !self.dir.join("shell.qml").is_file() {
-            return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
-        }
-        let qs = find_program("qs", &self.path)
-            .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
-        let mut alive = started.lock().expect("settings dock lock");
-        if *alive || probe(&qs, &self.dir, &["current"]) {
-            return Ok("running");
-        }
-        let child = Command::new(&qs)
+    /// The process a sidebar's dock starts: no window of its own (`KURASHI_SETTINGS_DOCK=1`).
+    fn launch_dock(&self, qs: &Path) -> Result<Child, ActionError> {
+        Command::new(qs)
             .arg("-p")
             .arg(&self.dir)
             .stdin(Stdio::null())
@@ -2725,20 +2755,72 @@ impl SettingsApp {
             .map_err(|e| {
                 tracing::warn!(error = %e, "settings for the dock did not start");
                 ActionError::Unavailable(SETTINGS_NO_RUNTIME.into())
-            })?;
-        *alive = true;
-        let flag = started.clone();
+            })
+    }
+}
+
+/// W79 (K146): the Settings process the daemon started, for as long as it runs. `running` and the dock's entry in
+/// `runtime.settings` change under one lock: every start, every check and every write holds it, so two calls at once
+/// start one process (the second joins it), and the thread that waits for the process clears both when it exits
+/// (a crash or a quit), so the well never shows "Opening Settings…" for a process that is gone.
+pub struct SettingsLife {
+    hub: Arc<Hub>,
+    running: Mutex<bool>,
+}
+
+impl SettingsLife {
+    pub fn new(hub: Arc<Hub>) -> Self {
+        Self {
+            hub,
+            running: Mutex::new(false),
+        }
+    }
+
+    fn lock(&self) -> MutexGuard<'_, bool> {
+        self.running.lock().expect("settings life lock")
+    }
+
+    /// `settings.dock {}`: the dock goes, whichever process runs.
+    pub fn undock(&self) {
+        let _running = self.lock();
+        self.write_dock(None);
+    }
+
+    /// Writes `dock` (`None` removes it) into `runtime.settings`.
+    fn write_dock(&self, dock: Option<Value>) {
+        let _ = self.hub.update(SETTINGS_RUNTIME_DOC, None, |d| {
+            if !d.is_object() {
+                *d = json!({});
+            }
+            let o = d.as_object_mut().expect("object");
+            match dock {
+                Some(dock) => {
+                    o.insert("dock".into(), dock);
+                }
+                None => {
+                    o.remove("dock");
+                }
+            }
+        });
+    }
+
+    /// Keeps `child` as the process the daemon runs: `running` (the flag of the caller's guard) is set, and a thread
+    /// waits for the exit, which clears the flag and the dock under the same lock.
+    fn track(self: &Arc<Self>, running: &mut bool, child: Child) {
+        let life = self.clone();
         let spawned = std::thread::Builder::new()
-            .name("settings-dock".into())
+            .name("settings-window".into())
             .spawn(move || {
                 let mut child = child;
                 let _ = child.wait();
-                *flag.lock().expect("settings dock lock") = false;
+                let mut running = life.lock();
+                *running = false;
+                life.write_dock(None);
             });
-        if let Err(e) = spawned {
-            tracing::warn!(error = %e, "settings for the dock not reaped");
+        match spawned {
+            Ok(_) => *running = true,
+            Err(e) => tracing::warn!(error = %e, "settings window not reaped"),
         }
-        Ok("launched")
     }
 }
 
@@ -2747,7 +2829,7 @@ pub const SETTINGS_RUNTIME_DOC: &str = "runtime.settings";
 
 /// `settings.dock` args: `{}` (the dock goes) or the well's rect on the output, `{output, x, y, width, height, radius?}`
 /// (logical px from the output's top-left corner, zones ignored). Anything else is `error.args.invalid`.
-fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
+pub fn settings_dock_of(v: &Value) -> Result<Option<Value>, ActionError> {
     let bad = || ActionError::Invalid(ARGS_INVALID.into());
     let Some(o) = v.as_object() else {
         return if v.is_null() { Ok(None) } else { Err(bad()) };
@@ -2833,18 +2915,6 @@ fn probe(qs: &Path, dir: &Path, args: &[&str]) -> bool {
                 return false;
             }
         }
-    }
-}
-
-/// Waits for a started window on a thread of its own, so it does not stay a zombie of the daemon.
-fn reap(mut child: Child) {
-    let spawned = std::thread::Builder::new()
-        .name("settings-window".into())
-        .spawn(move || {
-            let _ = child.wait();
-        });
-    if let Err(e) = spawned {
-        tracing::warn!(error = %e, "settings window not reaped");
     }
 }
 
