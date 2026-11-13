@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>menu</title>
+<!-- The page menu's fixture (W82, test-page-menu.sh): four bands, each a quarter of the view, top to bottom — a link, an
+     image, a text field, and a band that shows its own menu (it handles `contextmenu`, so the shell's must stay away). -->
+<style>
+html,body{margin:0;height:100%;background:#2b3a55;color:#f0e6d2;font:18px sans-serif}
+.band{position:absolute;left:0;right:0;height:25%;display:flex;align-items:center;justify-content:center}
+#link{top:0;background:#33476a}#link a{display:block;width:100%;height:100%;color:#ffd58a;line-height:100%}
+#pic{top:25%}#pic img{width:100%;height:100%;object-fit:cover}
+#field{top:50%}#field input{width:90%;height:60%;font-size:20px}
+#own{top:75%;background:#553344}
+</style>
+</head>
+<body>
+<div class="band" id="link"><a id="a" href="other.html#from-menu">A link to the other page</a></div>
+<div class="band" id="pic"><img id="img" alt="tile" src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect width='40' height='40' fill='%23c08040'/%3E%3C/svg%3E"></div>
+<div class="band" id="field"><input id="in" value="menu text"></div>
+<div class="band" id="own">Its own menu</div>
+<script>
+console.log('PAGE menu');
+document.getElementById('in').addEventListener('input', function (e) { console.log('PAGE input ' + e.target.value); });
+document.getElementById('own').addEventListener('contextmenu', function (e) {
+  e.preventDefault();
+  console.log('PAGE own-menu');
+});
+</script>
+</body></html>

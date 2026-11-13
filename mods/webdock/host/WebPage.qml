@@ -124,6 +124,7 @@ Item {
         if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
         // (I495: a page shown again tries its icon)
         if (active) Qt.callLater(saveIcon)
+        else if (pageMenu.open) pageMenu.close()
     }
     property bool debugLog: false
     // (W73: the engine's state names: Active, Frozen, Discarded)
@@ -184,6 +185,19 @@ Item {
         onRecentlyAudibleChanged: function () { page.lifeLog("audible") }
         onVisibleChanged: page.lifeLog("visible")
         onSheetRequested: request => page.openSheet(request)
+        // W82: the shell's menu, not the engine's (docs/ux/context-menus.md)
+        onContextMenuRequested: request => pageMenu.show(web, request)
+    }
+
+    // W82 (docs/ux/context-menus.md, `page:<pin>`): the right-click menu, over the page (and its sheet), wherever it is drawn.
+    PageMenu {
+        id: pageMenu
+        anchors.fill: parent
+        z: 2
+        pinId: page.pinId
+        report: page.report
+        debugLog: page.debugLog
+        shownPage: page.active && web.visible
     }
 
     // A sign-in popup: its own view, drawn over the page until the card closes it (brief "Sites").
@@ -202,8 +216,10 @@ Item {
     Component {
         id: sheetComp
         PrivateView {
+            id: sheetView
             anchors.fill: parent
             z: 1
+            onContextMenuRequested: request => pageMenu.show(sheetView, request)
             lifecycleState: recommendedState === WebEngineView.LifecycleState.Active || recentlyAudible
                 || (page.active && visible) || page.awake
                 ? WebEngineView.LifecycleState.Active : WebEngineView.LifecycleState.Frozen

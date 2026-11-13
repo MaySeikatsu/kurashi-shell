@@ -22,4 +22,4 @@
 "menus.page.paste" = "Paste"
 "menus.page.select_all" = "Select all"
 "menus.page.open_page" = "Open page in browser"
-"menus.hint" = "↑ ↓ choose · → ← submenu · Enter run · Esc close"
+"menus.page.web_only" = "Web addresses only"

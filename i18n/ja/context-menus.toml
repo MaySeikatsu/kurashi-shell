@@ -22,4 +22,4 @@
 "menus.page.paste" = "貼り付け"
 "menus.page.select_all" = "すべて選択"
 "menus.page.open_page" = "ページをブラウザで開く"
-"menus.hint" = "↑ ↓ 選ぶ · → ← サブメニュー · Enter 実行 · Esc 閉じる"
+"menus.page.web_only" = "ウェブのアドレスのみ"

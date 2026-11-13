@@ -1133,7 +1133,8 @@ PanelWindow {
         var L = Math.max(sideClear("left"), (band.left || 0) + Theme.gap), R = outW - Math.max(sideClear("right"), (band.right || 0) + Theme.gap)
         var p = panelPlace
         // W82: a menu at the pointer stands its corner there, on the pointer's left where it would leave the output.
-        if (p === "pointer" && menuPoint) return Math.round(Math.max(L, menuPoint.x + w <= R ? menuPoint.x : Math.min(R - w, menuPoint.x - w)))
+        if (p === "pointer" && menuPoint) return Math.round(Math.max(L, menuPoint.x + w <= R ? menuPoint.x
+            : (menuPoint.x - w >= L ? menuPoint.x - w : R - w)))
         var x = p === "left" || p === "top_left" || p === "bottom_left" ? L
             : p === "right" || p === "top_right" || p === "bottom_right" ? R - w : (outW - w) / 2
         return Math.round(Math.max(L, Math.min(R - w, x)))
