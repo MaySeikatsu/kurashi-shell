@@ -650,8 +650,16 @@ esac
         let small = image::open(&t).unwrap();
         // (session 33: the thumbnail is the preview pane's picture, up to THUMB_PX; a 600 px picture stays as it is)
         assert_eq!((small.width(), small.height()), (600, 300));
-        assert_eq!(c.text("3").as_deref(), Ok("third\nline"), "the whole text, not the list's line");
-        assert_eq!(c.text("2"), Err(ClipError::NotText), "a picture is not text");
+        assert_eq!(
+            c.text("3").as_deref(),
+            Ok("third\nline"),
+            "the whole text, not the list's line"
+        );
+        assert_eq!(
+            c.text("2"),
+            Err(ClipError::NotText),
+            "a picture is not text"
+        );
         assert_eq!(c.rows("", 40)[1]["thumb"], t.display().to_string());
         assert_eq!(c.thumb("1"), Err(ClipError::NotImage));
         assert_eq!(c.thumb("99"), Err(ClipError::Gone));

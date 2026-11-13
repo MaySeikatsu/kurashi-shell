@@ -49,7 +49,11 @@ fn locale() -> String {
 
 fn render(title: &str, items: &[Value], s: &Strings) -> String {
     // K151: which kurashi (this CLI's version; the daemon's is in its `daemon` document)
-    let mut out = vec![format!("{} — kurashi {}", s.get(title), env!("CARGO_PKG_VERSION"))];
+    let mut out = vec![format!(
+        "{} — kurashi {}",
+        s.get(title),
+        env!("CARGO_PKG_VERSION")
+    )];
     for it in items {
         let status = it["status"].as_str().unwrap_or("?");
         let mark = match status {
