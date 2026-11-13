@@ -4,8 +4,8 @@
 # KURASHI_BIN_DIR, else $CARGO_TARGET_DIR/debug.
 #   N1 a group written as Settings writes it (one apply: the record and the zone list) is drawn by the bar: the layout
 #      document's zone names the group and its members are consecutive;
-#   N2 the clock's module menu, by keyboard: "Group with…" → Volume groups the two (one apply), and the menu row
-#      "Leave group" then takes the clock out again; undo puts it back (one step);
+#   N2 the clock's module menu, by keyboard: "Group with…" → Volume groups the two (one apply);
+#      undo puts it back (one step); N3 "Leave group" takes it out again (a group of one stays), undo returns it;
 #   shots light and dark of the bar with the group and of the menu.
 # Shots: $GROUPS_OUT/shots (default /tmp/kurashi-settings-groups/shots).
 set -uo pipefail
@@ -90,6 +90,22 @@ keys down return
 if wait_until 5 val_is layout.groups '[{"accordion":false,"id":"g1","members":"volume,clock","name":""}]' \
    && val_is edges.top.end '["group:g1"]'; then ok "N2: Group with… → Volume grouped the clock with it"
 else fail "N2: Group with… did not group (groups $(val layout.groups), end $(val edges.top.end))"; fi
+# N3: the menu again: Up (Settings), Up (Leave group: Group with… has nothing left to offer), Return. A group of one stays.
+keys escape
+wait_until 5 ui_is '"tray":""' || fail "N3: Escape did not close the menu"
+K act tray.menu.open '{"id":"module:clock"}' >/dev/null
+wait_until 5 ui_is '"tray":"module:clock"' || fail "N3: the clock's menu did not open again"
+sleep 0.6
+"$SB" click 1585 63 >/dev/null
+sleep 0.3
+keys up up
+sleep 0.5; "$SB" shot menu-leave-light "1300,0 620x700" 1 >/dev/null
+keys return
+if wait_until 5 val_is layout.groups '[{"accordion":false,"id":"g1","members":"volume","name":""}]' \
+   && val_is edges.top.end '["group:g1","clock"]'; then ok "N3: Leave group took the clock out (the group of one stays)"
+else fail "N3: Leave group did not (groups $(val layout.groups), end $(val edges.top.end))"; fi
+K raw '{"t":"undo","id":"u0"}' >/dev/null
+wait_until 5 val_is edges.top.end '["group:g1"]' || fail "N3: undo did not put the clock back in the group"
 K raw '{"t":"apply","id":"n2d","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' >/dev/null
 sleep 1; "$SB" shot menu-dark "1300,0 620x700" 1 >/dev/null
 K raw '{"t":"apply","id":"n2l","ops":[{"set":"theme.colors.scheme","value":"light"}]}' >/dev/null
