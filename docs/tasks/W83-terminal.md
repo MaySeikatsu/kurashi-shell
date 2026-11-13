@@ -44,3 +44,6 @@ finished while hidden if cheap.
 floating in the centre of the screen, floating at a defined position, or attached to a screen edge (Yakuake). One schema
 setting (`place` = bar | center | position | edge, with the edge, the position, and a size per output); the motion fits
 each (out of the bar or edge, a calm fade/scale when floating). The test covers at least bar-attached and floating centre.
+**And a bar module (the user, session 33):** like the web dock's, pinned anywhere on a bar; hovering (or clicking) it opens
+the terminal's card from where the module sits, joined to the bar on that output — the shell's hover-open cards (grace,
+`ui.keep`), the web dock's bar-card placement pattern — on the same session as the drop-down. In the brief and the test.
