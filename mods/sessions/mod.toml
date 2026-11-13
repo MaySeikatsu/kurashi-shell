@@ -20,7 +20,8 @@ provides = [
     # The bar module (the current project) and its card; the panel is the sidebar section too.
     "widget:sessions",
     "panel:sessions",
-    "i18n",
+    # (no `i18n` provide: i18n/*/mod-sessions.toml load by domain, and two mods that both declare `i18n` refuse each
+    # other's enable as a provide conflict — the terminal's would)
 ]
 # noren and the terminals are started as programs (no shell).
 capabilities = [

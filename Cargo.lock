@@ -1470,6 +1470,7 @@ dependencies = [
  "kurashi-mod-handwriting",
  "kurashi-mod-hello",
  "kurashi-mod-lyrics",
+ "kurashi-mod-sessions",
  "kurashi-mod-sysmon",
  "kurashi-mod-tasks",
  "kurashi-mod-terminal",

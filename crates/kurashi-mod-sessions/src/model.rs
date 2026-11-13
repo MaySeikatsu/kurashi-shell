@@ -563,20 +563,21 @@ impl Model {
             .collect();
         let mut targets = vec![json!({"id": KURASHI, "label": "sessions.target.kurashi"})];
         let mut w = json!({"id": WINDOW, "label": "sessions.target.window"});
-        match &self.window {
-            Some(argv) => {
-                w["program"] = json!(
-                    argv.first()
-                        .map(|p| p.rsplit('/').next().unwrap_or(p).to_string())
-                        .unwrap_or_default()
-                )
-            }
+        let program = self
+            .window
+            .as_ref()
+            .and_then(|argv| argv.first())
+            .map(|p| p.rsplit('/').next().unwrap_or(p).to_string());
+        match &program {
+            Some(p) => w["program"] = json!(p),
             None => w["reason"] = json!("sessions.target.no_window"),
         }
         targets.push(w);
+        // (the window's own terminal is that row already: not offered twice)
         targets.extend(
             self.terminals
                 .iter()
+                .filter(|t| program.as_deref() != Some(t.id.as_str()))
                 .map(|t| json!({"id": t.id, "label": t.id})),
         );
         let mut d = json!({

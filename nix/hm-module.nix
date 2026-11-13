@@ -5,6 +5,7 @@ let
   cfg = config.programs.kurashi;
   wd = cfg.webdock;
   term = cfg.terminal;
+  ses = cfg.sessions;
   toml = pkgs.formats.toml { };
   envList = lib.mapAttrsToList (k: v: "${k}=${v}") cfg.extraEnvironment;
   exportsTo = app: cfg.themeExport.includes && lib.elem app cfg.themeExport.apps;
@@ -66,7 +67,10 @@ let
   # in its PATH, which a user manager may not carry). With the dock on, the daemon's PATH starts with the dock
   # package's commands, by store path, as the other units name their tools (KURASHI_QS).
   # W83: the terminal's host (`exec:qs-terminal`) likewise.
-  hostPackages = lib.optional wd.enable wd.package ++ lib.optional term.enable term.package;
+  # W86: the sessions' noren and the tools it runs (zellij, zoxide, fzf, git, eza) likewise, only with the option on.
+  sessionPackages = [ ses.package ] ++ (with pkgs; [ zellij zoxide fzf git eza ]);
+  hostPackages = lib.optional wd.enable wd.package ++ lib.optional term.enable term.package
+    ++ lib.optionals ses.enable sessionPackages;
   daemonPackage =
     if hostPackages != [ ] then
       pkgs.runCommand "kurashid-hosts" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
@@ -280,6 +284,23 @@ in
           Niri key that drops the terminal out or puts it away on the focused output (`terminal.toggle`, run through
           `kurashi act`; Yakuake's F12 without taking F12). Written only while
           {option}`programs.kurashi.niri.binds.enable` is set. `null` adds no bind.
+        '';
+      };
+    };
+
+    sessions = {
+      enable = lib.mkEnableOption ''
+        work sessions (W86, docs/ux/sessions.md): noren (the zellij session manager) with zellij, zoxide, fzf, git and
+        eza on the daemon's PATH and in home.packages, and the mod `sessions` turned on. Off by default: nothing of it
+        is installed without this option. Its settings are the mod's own keys (`programs.kurashi.settings.mods.sessions`)'';
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.noren;
+        defaultText = lib.literalExpression "kurashi.packages.\${system}.noren";
+        description = ''
+          The noren package (github:MaySeikatsu/noren, its `noren` binary). Installed only while
+          {option}`programs.kurashi.sessions.enable` is set.
         '';
       };
     };
@@ -506,6 +527,20 @@ in
       programs.kurashi.settings.mods = {
         loaded = [ "terminal" ];
         enabled = [ "terminal" ];
+      };
+    })
+
+    (lib.mkIf ses.enable {
+      assertions = [
+        {
+          assertion = cfg.enable;
+          message = "programs.kurashi.sessions.enable needs programs.kurashi.enable = true.";
+        }
+      ];
+      home.packages = sessionPackages;
+      programs.kurashi.settings.mods = {
+        loaded = [ "sessions" ];
+        enabled = [ "sessions" ];
       };
     })
 
