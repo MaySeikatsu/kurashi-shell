@@ -36,11 +36,12 @@ gate *ARGS:
     echo "$line" | tee tools/bench/results/gate.txt
 
 # Build artifacts older than DAYS leave `target/`, then the oldest until it is under CAP (K153, rule 11; the user,
-# session 34: 60 GB). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
+# session 34: 60 GB); sandboxes a run left behind go too (tools/sweep-sandboxes.sh). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
 sweep days="7" cap="60GB":
     cargo sweep --time {{days}}
     cargo sweep --maxsize {{cap}}
     @du -sh "${CARGO_TARGET_DIR:-target}" | awk '{print "sweep: target is now " $1}'
+    @tools/sweep-sandboxes.sh
 
 # What the Rust loop costs here: no-op, link, daemon, leaf mod, schema (tools/bench/build-timings.sh)
 timings:

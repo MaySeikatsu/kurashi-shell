@@ -71,6 +71,7 @@ class Use:
     def __init__(self, env, pause, covers, player, skip=()):
         self.env, self.pause, self.covers, self.player = env, pause, covers, player
         self.skip = set(skip)
+        self.round_min = 5.0
         self.round = 0
         listed = m.kurashi(env, "--json", "act", "--list").stdout
         try:
@@ -111,6 +112,7 @@ class Use:
     def one(self):
         self.round += 1
         n = self.round
+        started = time.monotonic()
         on = lambda step: step not in self.skip   # noqa: E731
         if on("launcher"):
             self.open_close("launcher.toggle")
@@ -145,8 +147,10 @@ class Use:
                 self.failed["set theme.texture.kind"] = self.failed.get("set theme.texture.kind", 0) + 1
         if on("previews") and n % 10 == 0:
             self.previews(4)
-        if len(self.skip) >= len(STEPS):
-            time.sleep(5)   # everything left out: the stack at rest
+        # Ordinary use, not a flood: a round with few steps left in it still takes its time.
+        spent = time.monotonic() - started
+        if spent < self.round_min:
+            time.sleep(self.round_min - spent)
 
 
 def slope_per_hour(samples, key, group, after_s):
