@@ -103,13 +103,7 @@ fn type_note(s: &Setting) -> String {
 
 fn mods_part(strings: &BTreeMap<String, String>) -> String {
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(root().join("mods"))
-        .unwrap()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.join("mod.toml").is_file())
-        .collect();
-    dirs.sort();
+    let dirs = kurashi_mods::mod_dirs(&root().join("mods"));
     let tr = |k: &str| strings.get(k).cloned().unwrap_or_else(|| k.to_string());
     let mut out = String::new();
     out.push_str(

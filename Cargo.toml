@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]   # glob: parallel task crates never conflict here
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 repository = "https://example.invalid/kurashi-shell"
@@ -27,6 +27,17 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+# K153 (session 34, docs/BENCH.md "Build loop"): line tables keep backtraces with file and line and nearly halve the
+# build dir (the three binaries: 4.7 GB → 2.7 GB); a debugger session that needs variables sets
+# CARGO_PROFILE_DEV_DEBUG=full for that build.
+[profile.dev]
+debug = "line-tables-only"
+
+# The material generators run whole images through loops: unoptimised, six of their tests took 1.5–4 min each and were
+# most of `just check`'s test time.
+[profile.dev.package.kurashi-texture]
+opt-level = 2
 
 [profile.release]
 lto = "thin"

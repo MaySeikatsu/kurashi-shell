@@ -57,6 +57,10 @@
             ++ (with pkgs; [
             # Rust
             cargo rustc clippy rustfmt rust-analyzer cargo-nextest
+            # K153: `just sweep` (old artifacts out of target/) and mold for the dev loop's links (measured on machine A,
+            # session 34: kurashid's link 13 s → 2.4 s, the three binaries after a leaf edit 16.5 s → 5 s). Only the dev
+            # shell links with it: `nix build` (crane) keeps the default linker.
+            cargo-sweep mold
             # Workflow
             # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font;
             # dbus-python and pygobject: tools/bench/fake_portal.py, a stand-in desktop portal for the tests (session 33)
@@ -86,6 +90,8 @@
             strace (pkgs.perf or linuxPackages.perf) procps dbus hyperfine
           ]);
           RUST_BACKTRACE = "1";
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
           # The fonts the shell draws with (HM `programs.kurashi.fonts`), visible to fontconfig through its
           # xdg data dirs, so sandbox screenshots show icons and every decor look without a system install.
           # The icon subset first (W41, row 445): the theme prefers it, and Material Symbols is the fallback.

@@ -71,7 +71,8 @@ impl Hub {
         self.tx.subscribe()
     }
 
-    pub fn register(&self, name: &str, initial: Value, provider: Option<Arc<dyn Provider>>) {
+    pub fn register(&self, name: &str, mut initial: Value, provider: Option<Arc<dyn Provider>>) {
+        kurashi_ipc::strip_nulls(&mut initial);
         let mut docs = self.docs.lock().expect("hub lock");
         let rev = self
             .retired
@@ -202,6 +203,8 @@ impl Hub {
     /// Store `new` as the document's data and broadcast the merge-patch from the old data.
     fn commit(&self, name: &str, d: &mut Doc, mut new: Value, origin: Option<String>) {
         overlay(&d.overlay, &mut new);
+        // B143: no writer can put a `null` into a document (PROTOCOL §3).
+        kurashi_ipc::strip_nulls(&mut new);
         let Some(ops) = diff_patch(&d.data, &new) else {
             return;
         };
@@ -221,6 +224,7 @@ impl Hub {
         let mut docs = self.docs.lock().expect("hub lock");
         let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
         overlay(&d.overlay, &mut data);
+        kurashi_ipc::strip_nulls(&mut data);
         d.data = data;
         d.rev += 1;
         let _ = self.tx.send(Arc::new(ServerMsg::Snap {
@@ -301,6 +305,29 @@ fn overlay(fields: &serde_json::Map<String, Value>, data: &mut Value) {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// B143 (PROTOCOL §3): a `null` a writer hands over never reaches the document — at registration, in a write, in a
+    /// pushed snapshot — so a snapshot and the patches before it agree.
+    #[test]
+    fn a_null_member_never_reaches_a_document() {
+        let hub = Hub::new();
+        hub.register("svc.p", json!({"available": true, "output": null}), None);
+        assert_eq!(hub.snapshot("svc.p").unwrap().1, json!({"available": true}));
+        hub.set("svc.p", json!({"available": true, "output": "DP-1"}), None)
+            .unwrap();
+        hub.set(
+            "svc.p",
+            json!({"available": true, "output": null, "at": {"x": null}}),
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            hub.snapshot("svc.p").unwrap().1,
+            json!({"available": true, "at": {}})
+        );
+        hub.push_snapshot("svc.p", json!({"output": null})).unwrap();
+        assert_eq!(hub.snapshot("svc.p").unwrap().1, json!({}));
+    }
 
     /// K66: an overlay field survives every write of the document's own writer and goes when it is taken away; an
     /// unchanged overlay sends nothing (Ma).

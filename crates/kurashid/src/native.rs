@@ -839,6 +839,17 @@ impl Native {
                         let handler = handler.clone();
                         async move { handler(args).await.map_err(action_error) }
                     });
+                    // K154: the manifest's declaration types the arguments and makes it a command; an action
+                    // without one still works and is named, so the manifest can catch up (roll-out step 2).
+                    match manifest.contract.action(&id) {
+                        Some(decl) => {
+                            self.actions.declare(&id, decl, module.id());
+                        }
+                        None => tracing::warn!(
+                            "mod {}: action {id} is registered and not declared ([[action]] in its mod.toml, K154)",
+                            module.id()
+                        ),
+                    }
                     ledger.actions.push(id);
                 }
                 Registration::Face { name } => {

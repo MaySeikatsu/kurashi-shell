@@ -3,8 +3,8 @@ import Quickshell
 import "../../core"
 import "rows.js" as Rows
 
-// The desktop's right-click menu (W82, docs/ux/context-menus.md "Rows per place"): the wallpaper's actions while its mod
-// is on, dark mode, the desktop page's own settings from the schema (rule 3: the page the schema puts them on, no list of
+// The desktop's right-click menu (W82, docs/ux/context-menus.md "Rows per place"): the rows the enabled mods declare for
+// it (K154: `[[menu]] at = "desktop"` — the wallpaper's, today), dark mode, the desktop page's own settings from the schema (rule 3: the page the schema puts them on, no list of
 // keys here), and the way on to Settings. A pure view, as ModuleMenu: TrayMenu draws `tree`, `choose` runs a row. Ma: the
 // documents are watched only while the menu is open.
 Scope {
@@ -20,12 +20,8 @@ Scope {
     Watch { doc: "theme"; active: dm.active }
     Watch { doc: "mods"; active: dm.active }
     readonly property var schema: active ? Store.docs["schema.settings"] : null
-    // The wallpaper mod, while it is on (its actions do nothing otherwise, so its rows are not offered).
-    readonly property var wallpaper: {
-        var m = active ? ((Store.docs["mods"] || {}).mods || []) : []
-        for (var i = 0; i < m.length; i++) if (m[i].id === "wallpaper" && m[i].state === "enabled") return m[i]
-        return null
-    }
+    // What the enabled mods put on the desktop's menu (rows of a mod that is off are not offered).
+    readonly property var modRows: active ? Rows.modRows(Store.docs["mods"], "desktop", "", { output: output }, 800100, I18n.tr) : []
     // The scheme in effect (a mode may follow the system or the wallpaper), as the darkmode module reads it.
     readonly property bool dark: {
         var ap = active ? ((Store.docs["theme"] || {}).appearance || {}) : {}
@@ -36,12 +32,8 @@ Scope {
 
     readonly property var tree: {
         var kids = []
-        if (wallpaper) {
-            // (the daemon runs the step: refused while the backend is down, which the picker explains)
-            kids.push({ id: 800001, label: I18n.tr("menus.desktop.next_wallpaper"), enabled: wallpaper.running !== false,
-                        act: { action: "wallpaper.next", args: { output: output } } })
-            kids.push({ id: 800002, label: I18n.tr("menus.desktop.choose_wallpaper"),
-                        act: { action: "mod.panel.open", args: { id: "wallpaper", panel: "wallpaper" } } })
+        if (modRows.length > 0) {
+            kids = kids.concat(modRows)
             kids.push({ id: 800003, separator: true })
         }
         kids.push({ id: 800010, label: I18n.tr("menus.desktop.dark"), toggle: "checkmark", checked: dark,

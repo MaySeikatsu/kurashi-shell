@@ -160,6 +160,12 @@
 "webdock.error.card_size" = "カードの大きさは、端と同じ、スマホ、タブレット、ワイドのどれかです"
 "webdock.error.forced" = "設定ファイルで決められています。変更はそちらで行います"
 "action.webdock.card_size" = "バーのウェブドックのカードの大きさを変える"
+"action.webdock.card" = "バーのカードのウェブドックが位置に落ち着いた、または離れた"
+"action.webdock.card_select" = "バーのカードにピンを表示"
+"action.webdock.card_page" = "ポインターがバーのカードのページに入った、または出た"
+"action.webdock.side_page" = "ポインターがサイドバーのページに入った、または出た"
+"action.webdock.card_close" = "バーのウェブドックのカードをしまう"
+"action.webdock.card_focus" = "バーのカードのページにキーボードを渡す"
 
 # I495 (session 30)
 "mods.webdock.bar_site" = "開いているサイトをバーに表示"

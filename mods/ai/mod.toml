@@ -17,6 +17,7 @@ provides = [
 # mod's data folder, copying an answer (`wl-copy`).
 capabilities = ["network", "secrets", "exec:secret-tool", "exec:wl-copy", "fs:scoped"]
 cost = "low"
+icon = "smart_toy"
 
 [[setting]]
 key = "provider"
@@ -118,3 +119,50 @@ default = 50
 range = [0, 500]
 label = "mods.ai.history"
 help = "mods.ai.history.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "ai.ask"
+label = "mod-ai.action.ask"
+icon = "smart_toy"
+command = "ask"
+  [[action.arg]]
+  name = "text"
+  type = "string"
+  rest = true
+
+[[action]]
+id = "ai.copy"
+label = "mod-ai.action.copy"
+
+[[action]]
+id = "ai.delete"
+label = "mod-ai.action.delete"
+
+[[action]]
+id = "ai.model"
+label = "mod-ai.action.model"
+
+[[action]]
+id = "ai.models"
+label = "mod-ai.action.models"
+
+[[action]]
+id = "ai.new"
+label = "mod-ai.action.new"
+icon = "add_comment"
+command = "new chat"
+no_args = true
+
+[[action]]
+id = "ai.open"
+label = "mod-ai.action.open"
+
+[[action]]
+id = "ai.regenerate"
+label = "mod-ai.action.regenerate"
+
+[[action]]
+id = "ai.stop"
+label = "mod-ai.action.stop"

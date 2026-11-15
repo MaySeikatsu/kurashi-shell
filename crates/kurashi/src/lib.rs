@@ -3,6 +3,7 @@
 //! daemon. Human output by default, `--json` prints the raw reply (scripts).
 
 pub mod doctor;
+pub mod mods;
 
 use std::collections::HashMap;
 

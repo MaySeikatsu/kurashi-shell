@@ -3,13 +3,52 @@
 default:
     @just --list
 
-# fmt-check + clippy (deny warnings) + tests
+# fmt-check + clippy (deny warnings) + tests (nextest, K153: half of `cargo test`'s time; doctests apart, nextest runs
+# none) + the launch script's tests + the icon subset + the clone ratchet (rule 10)
 check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
-    cargo test --workspace
+    cargo nextest run --workspace
+    cargo test --workspace --doc
     sh frontend/test-launch.sh
     sh tools/check-icon-names.sh
+    python3 tools/clones.py --check
+
+# The merge gate (K153, rule 11): everything a merge to `main` needs, once, at the end of the work — `just check`, the
+# suites' merge set, the Home-Manager evaluation and the package. It writes the commit it passed on to
+# tools/bench/results/gate.txt; the merge or the PR cites that line. `just gate --no-suites` for a change no suite reads
+# (docs, tools): the line then says so.
+gate *ARGS:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    suites=1
+    for a in {{ARGS}}; do case "$a" in --no-suites) suites=0 ;; *) echo "gate: unknown argument $a"; exit 2 ;; esac; done
+    sha=$(git rev-parse --short HEAD)
+    [ -z "$(git status --porcelain)" ] || sha="$sha+uncommitted"
+    step() { echo "== gate: $*"; "$@" || { echo "gate: FAILED at: $* ($sha)"; exit 1; }; }
+    step just check
+    if [ "$suites" = 1 ]; then step just suites; fi
+    step just nix-eval-test
+    step nix build .#kurashi --no-link
+    mkdir -p tools/bench/results
+    known=$(grep -vc -e '^#' -e '^$' tools/suites-known-failing.txt)
+    line="gate: passed on $sha at $(date -u +%Y-%m-%dT%H:%MZ): check, $([ "$suites" = 1 ] && echo "suites (merge set; $known known failing as on main)" || echo "no suites"), hm-eval, nix build"
+    echo "$line" | tee tools/bench/results/gate.txt
+
+# Build artifacts older than DAYS leave `target/`, then the oldest until it is under CAP (K153, rule 11; the user,
+# session 34: 60 GB). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
+sweep days="7" cap="60GB":
+    cargo sweep --time {{days}}
+    cargo sweep --maxsize {{cap}}
+    @du -sh "${CARGO_TARGET_DIR:-target}" | awk '{print "sweep: target is now " $1}'
+
+# What the Rust loop costs here: no-op, link, daemon, leaf mod, schema (tools/bench/build-timings.sh)
+timings:
+    tools/bench/build-timings.sh
+
+# Cross-file clones by language, the pairs sharing most (rule 10); `just check` runs the ratchet
+clones *ARGS:
+    python3 tools/clones.py {{ARGS}}
 
 fmt:
     cargo fmt --all

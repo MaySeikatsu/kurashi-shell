@@ -207,7 +207,7 @@ impl State {
             ),
             (
                 "svc.pointer",
-                json!({"available": true, "output": null, "x": 0.0, "y": 0.0}),
+                json!({"available": true, "x": 0.0, "y": 0.0}),
             ),
             (
                 "bindings",

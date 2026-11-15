@@ -20,6 +20,10 @@ Scope {
 
     Watch { doc: "schema.settings"; active: mm.active }
     readonly property var schema: active ? Store.docs["schema.settings"] : null
+    // K154: a mod's own rows (`[[menu]] at = "module"`), first in its module's menu.
+    Watch { doc: "mods"; active: mm.modId !== "" }
+    readonly property var ownRows: modId !== ""
+        ? Rows.modRows(Store.docs["mods"], "module", modId, { output: bars ? bars.outName : undefined }, 940000, I18n.tr) : []
     // The island's menu also says what is pinned (the document's face while `pinned`), and takes it back.
     readonly property bool isIsland: module === "island"
     Watch { doc: "runtime.island.main"; active: mm.isIsland }
@@ -114,6 +118,7 @@ Scope {
     // Settings); TrayMenu ignores it.
     readonly property var tree: {
         var kids = isIsland ? pinRows() : []
+        if (ownRows.length > 0) kids = kids.concat(ownRows, [{ id: 949999, separator: true }])
         var list = rows
         kids = kids.concat(Rows.entries(schema, list, bars, 1, I18n.tr))
         if (list.length === 0 && schema) kids.push({ id: 999998, label: I18n.tr("frontend.module.none"), enabled: false })

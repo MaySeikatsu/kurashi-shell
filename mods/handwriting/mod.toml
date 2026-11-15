@@ -14,6 +14,7 @@ provides = [
 ]
 capabilities = ["fs:scoped", "exec:fc-cache"]
 cost = "low"
+icon = "draw"
 
 # Where the panel opens (K102, docs/ux/handwriting.md): any mod can name `panel_place`, the Stage reads it.
 [[setting]]
@@ -68,3 +69,42 @@ type = "bool"
 default = true
 label = "mods.handwriting.next_letter"
 help = "mods.handwriting.next_letter.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "handwriting.font.create"
+label = "mod-handwriting.action.create"
+
+[[action]]
+id = "handwriting.font.delete"
+label = "mod-handwriting.action.delete"
+
+[[action]]
+id = "handwriting.font.get"
+label = "mod-handwriting.action.get"
+
+[[action]]
+id = "handwriting.font.make"
+label = "mod-handwriting.action.make"
+
+[[action]]
+id = "handwriting.font.pen"
+label = "mod-handwriting.action.pen"
+
+[[action]]
+id = "handwriting.font.versions"
+label = "mod-handwriting.action.versions"
+
+[[action]]
+id = "handwriting.glyph.save"
+label = "mod-handwriting.action.save"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "a font in the making has nothing to glance at beyond its name"
+desk = "nothing to show at rest"
+island-face = "no live activity"
+quick-tile = "nothing to switch"
+command = "its panel's own `>` row opens it; a letter is drawn, not commanded"
+menu = "everything it does needs the panel"

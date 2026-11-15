@@ -6,7 +6,11 @@
 #   tools/test-suites.sh                 the merge set (below)
 #   tools/test-suites.sh --changed [ref] only the suites a change touches (files changed since `ref`, default main, plus the
 #                                        working tree): a suite named after a changed file, or whose script names it;
-#                                        a change to frontend/core, crates/ or i18n/ runs the merge set
+#                                        a change inside one mod (crates/kurashi-mod-<id>, mods/<id>, i18n/*/mod-<id>.toml)
+#                                        runs that mod's suites; a suite's `# covers: <path prefix> …` line (its first
+#                                        12 lines) claims paths under crates/ and i18n/; any other change to
+#                                        frontend/core, crates/ or i18n/ runs the merge set (I545)
+#   --list                               print the suites the arguments select and stop (no build, no run)
 #   tools/test-suites.sh --all           every suite script
 #   tools/test-suites.sh dock frame …    these (frontend/test-<name>.sh, or a path); after --changed/--all: added
 #   -j N                                 parallel jobs (default 4)
@@ -19,18 +23,20 @@ cd "$ROOT"
 JOBS=4
 MODE=merge
 REF=main
+LIST=0
 PICK=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -j) JOBS=$2; shift 2 ;;
     --changed) MODE=changed; shift; if [ $# -gt 0 ] && [[ "$1" != -* ]] && git rev-parse -q --verify "$1" >/dev/null; then REF=$1; shift; fi ;;
     --all) MODE=all; shift ;;
+    --list) LIST=1; shift ;;
     *) [ "$MODE" = merge ] && MODE=pick; PICK+=("$1"); shift ;;   # (with --changed or --all: added to that set)
   esac
 done
 
 # The set the lead runs before a merge (session 16–17); the others run with --all or by name.
-MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu context-menus mods/webdock/test/test-page-menu.sh niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion settings-groups osd appearance-menu mods/terminal/test/test-terminal-outputs.sh mods/sessions/test/test-sessions.sh)
+MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu context-menus mods/webdock/test/test-page-menu.sh niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion settings-groups osd appearance-menu mods/terminal/test/test-terminal-outputs.sh mods/sessions/test/test-sessions.sh mod-contract)
 path_of() {
   case "$1" in
     */*) echo "$1" ;;
@@ -41,7 +47,11 @@ path_of() {
     *) echo "frontend/test-$1.sh" ;;
   esac
 }
-ALL=$(ls frontend/test-*.sh settings/test*.sh greeter/test.sh mods/*/test/*.sh 2>/dev/null | grep -v -e 'test-launch.sh' -e 'test-lib.sh')
+# I546: the mods keep their suites in `mods/<id>/test/` or beside the manifest; `shots-*.sh` and `real-shell.sh` there are
+# review helpers, not suites.
+ALL=$(ls frontend/test-*.sh settings/test*.sh greeter/test.sh mods/*/test/test-*.sh mods/*/test-*.sh 2>/dev/null | grep -v -e 'test-launch.sh' -e 'test-lib.sh')
+# I555: the core reads these mods' crates or documents by name, so a change inside them is not theirs alone.
+CORE_COUPLED=" weather wallpaper "
 # I319: every run's sandboxes carry a prefix of their own, so two runners (the lead's and an agent's) never share a
 # sandbox dir or kill each other's processes. A prefix given from outside wins.
 export KURASHI_SB_PREFIX=${KURASHI_SB_PREFIX:-r$$-}
@@ -53,25 +63,45 @@ case "$MODE" in
   pick) for s in "${PICK[@]}"; do suites+=("$(path_of "$s")"); done ;;
   changed)
     files=$( { git diff --name-only "$REF"...HEAD; git diff --name-only; git diff --name-only --cached; } | sort -u)
-    if echo "$files" | grep -qE '^(frontend/core/|frontend/shell\.qml|crates/|i18n/|Cargo\.lock)'; then
-      for s in "${MERGE_SET[@]}"; do suites+=("$(path_of "$s")"); done
-    else
-      declare -A want=()
-      for f in $files; do
-        case "$f" in frontend/*|settings/*|mods/*|greeter/*) ;; *) continue ;; esac
-        stem=$(basename "${f%.*}")
-        [ -n "$stem" ] || continue
-        lower=$(echo "$stem" | tr '[:upper:]' '[:lower:]')
-        for t in $ALL; do
-          if [ "$(basename "$t" .sh)" = "test-$lower" ] || grep -qw -- "$stem" "$t"; then want[$t]=1; fi
-        done
+    declare -A want=() covers=()
+    for t in $ALL; do covers[$t]=$(sed -n '1,12s/^# covers: *//p' "$t" | tr '\n' ' '); done
+    full=0
+    for f in $files; do
+      claimed=0
+      mod=
+      case "$f" in
+        crates/kurashi-mod-*/*) mod=${f#crates/kurashi-mod-}; mod=${mod%%/*} ;;
+        i18n/*/mod-*.toml) mod=$(basename "$f" .toml); mod=${mod#mod-} ;;
+        mods/*/*) mod=${f#mods/}; mod=${mod%%/*} ;;
+      esac
+      if [ -n "$mod" ] && [ -d "mods/$mod" ] && [[ "$CORE_COUPLED" != *" $mod "* ]]; then
+        for t in $ALL; do case "$t" in "mods/$mod/"*) want[$t]=1 ;; esac; done
+        claimed=1
+      fi
+      for t in $ALL; do
+        for c in ${covers[$t]}; do case "$f" in "$c"*) want[$t]=1; claimed=1 ;; esac; done
       done
-      suites=("${!want[@]}")
+      case "$f" in
+        frontend/core/*|frontend/shell.qml|crates/*|i18n/*|Cargo.lock) [ "$claimed" = 1 ] || full=1 ;;
+      esac
+      case "$f" in frontend/*|settings/*|mods/*|greeter/*) ;; *) continue ;; esac
+      stem=$(basename "${f%.*}")
+      [ -n "$stem" ] || continue
+      lower=$(echo "$stem" | tr '[:upper:]' '[:lower:]')
+      for t in $ALL; do
+        if [ "$(basename "$t" .sh)" = "test-$lower" ] || grep -qw -- "$stem" "$t"; then want[$t]=1; fi
+      done
+    done
+    # What the change names always runs; the merge set joins it for a change nothing claimed.
+    suites=("${!want[@]}")
+    if [ "$full" = 1 ]; then
+      for s in "${MERGE_SET[@]}"; do suites+=("$(path_of "$s")"); done
     fi ;;
 esac
 if [ "$MODE" != pick ]; then for s in "${PICK[@]}"; do suites+=("$(path_of "$s")"); done; fi
 mapfile -t suites < <(printf '%s\n' "${suites[@]}" | awk 'NF && !seen[$0]++')
 if [ ${#suites[@]} -eq 0 ]; then echo "test-suites: nothing to run"; exit 0; fi
+if [ "$LIST" = 1 ]; then printf '%s\n' "${suites[@]}"; exit 0; fi
 
 # B124 (session 31): a run under a nearly full disk wrote empty sandbox env files and ran a shell on the user's display.
 # Each suite's sandbox takes up to ~1 GB until a green run removes it: refuse to start under KURASHI_SUITES_MIN_GB free.
@@ -124,7 +154,19 @@ done
   for s in "${suites[@]}"; do printf '%-44s %-28s %s\n' "$s" "${rc[$s]}" "${secs[$s]}"; done
 } | tee "$OUT/summary.txt"
 bad=0
-for s in "${suites[@]}"; do case "${rc[$s]}" in 0|"0 (alone"*) ;; *) bad=1 ;; esac; done
+# K153: a suite that fails on `main` too, with the BACKLOG row that holds it (tools/suites-known-failing.txt), is reported
+# and does not fail the run; one that passes says so, so its line goes.
+declare -A known=()
+while read -r script row; do
+  case "$script" in ''|'#'*) continue ;; esac
+  known[$script]=$row
+done < "$ROOT/tools/suites-known-failing.txt"
+for s in "${suites[@]}"; do
+  case "${rc[$s]}" in
+    0|"0 (alone"*) [ -z "${known[$s]:-}" ] || echo "test-suites: $s passes: take its line out of tools/suites-known-failing.txt (${known[$s]})" ;;
+    *) if [ -n "${known[$s]:-}" ]; then echo "test-suites: $s fails as on main: known ${known[$s]}"; else bad=1; fi ;;
+  esac
+done
 # I375: a green run leaves no sandboxes behind (a failed one keeps them for its logs; `sandbox.sh start` clears those after
 # a day). Only dirs this run made, and none a process still has as its runtime dir.
 if [ "$bad" = 0 ]; then

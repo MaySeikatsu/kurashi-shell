@@ -25,6 +25,9 @@ provides = [
 # The host runs the user's own shell as the user; no network of its own.
 capabilities = ["exec:qs-terminal"]
 cost = "medium"
+icon = "terminal"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["doc:svc.workspaces"]
 
 [[setting]]
 key = "shell"
@@ -232,3 +235,123 @@ type = "string"
 default = "!"
 label = "mods.terminal.run_prefix"
 help = "mods.terminal.run_prefix.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "terminal.blur"
+label = "action.terminal.blur"
+
+[[action]]
+id = "terminal.bring"
+label = "action.terminal.bring"
+
+[[action]]
+id = "terminal.close_tab"
+label = "action.terminal.close_tab"
+
+[[action]]
+id = "terminal.dismiss"
+label = "action.terminal.dismiss"
+
+[[action]]
+id = "terminal.hide"
+label = "action.terminal.hide"
+
+[[action]]
+id = "terminal.hold"
+label = "action.terminal.hold"
+
+[[action]]
+id = "terminal.host.exited"
+label = "action.terminal.host.exited"
+
+[[action]]
+id = "terminal.host.hover"
+label = "action.terminal.host.hover"
+
+[[action]]
+id = "terminal.host.ran"
+label = "action.terminal.host.ran"
+
+[[action]]
+id = "terminal.host.shown"
+label = "action.terminal.host.shown"
+
+[[action]]
+id = "terminal.host.title"
+label = "action.terminal.host.title"
+
+[[action]]
+id = "terminal.move_tab"
+label = "action.terminal.move_tab"
+
+[[action]]
+id = "terminal.new_tab"
+label = "action.terminal.new_tab"
+icon = "tab"
+command = "new tab"
+  [[action.arg]]
+  name = "dir"
+  type = "string"
+  optional = true
+
+[[action]]
+id = "terminal.open_dir"
+label = "action.terminal.open_dir"
+
+[[action]]
+id = "terminal.pin"
+label = "action.terminal.pin"
+
+[[action]]
+id = "terminal.place"
+label = "action.terminal.place"
+
+[[action]]
+id = "terminal.rename"
+label = "action.terminal.rename"
+
+[[action]]
+id = "terminal.resize"
+label = "action.terminal.resize"
+
+[[action]]
+id = "terminal.restart"
+label = "action.terminal.restart"
+
+[[action]]
+id = "terminal.run"
+label = "action.terminal.run"
+
+[[action]]
+id = "terminal.select"
+label = "action.terminal.select"
+
+[[action]]
+id = "terminal.show"
+label = "action.terminal.show"
+
+[[action]]
+id = "terminal.toggle"
+label = "action.terminal.toggle"
+icon = "terminal"
+command = "terminal"
+  [[action.arg]]
+  name = "output"
+  type = "output"
+
+[[menu]]
+at = "module"
+action = "terminal.toggle"
+
+[[menu]]
+at = "module"
+action = "terminal.new_tab"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the glance is its status; the text is the panel"
+desk = "a terminal on the desk would hold the keyboard"
+island-face = "no live activity yet (a running command: BACKLOG, OSC 133)"
+quick-tile = "nothing to switch"

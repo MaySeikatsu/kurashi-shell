@@ -104,6 +104,19 @@ pub struct Policy {
     pub default_enabled: BTreeSet<String>,
 }
 
+/// The mods' folders under `root` (each with a `mod.toml`), by name: what the tools and the tests walk (rule 10).
+pub fn mod_dirs(root: &Path) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.join("mod.toml").is_file())
+        .collect();
+    dirs.sort();
+    dirs
+}
+
 #[derive(Debug, Clone)]
 pub struct Registry {
     mods: BTreeMap<String, ModEntry>,
@@ -410,6 +423,35 @@ pub fn mods_doc(r: &Registry) -> Value {
             };
             if let Some(d) = e.manifest.as_ref().and_then(|m| m.description.as_ref()) {
                 entry["description"] = json!(d);
+            }
+            // K154: the mod's icon and its menu rows, each with the label and icon it shows (the row's own, else its
+            // action's), so a menu draws them without knowing the mod.
+            if let Some(m) = &e.manifest {
+                if let Some(icon) = &m.icon {
+                    entry["icon"] = json!(icon);
+                }
+                let menus: Vec<Value> = m
+                    .contract
+                    .menus
+                    .iter()
+                    .map(|row| {
+                        let decl = m.contract.action(&row.action);
+                        let mut r = json!({"at": row.at, "action": row.action});
+                        if let Some(l) = row.label.as_ref().or(decl.map(|d| &d.label)) {
+                            r["label"] = json!(l);
+                        }
+                        if let Some(i) = row.icon.as_ref().or(decl.and_then(|d| d.icon.as_ref())) {
+                            r["icon"] = json!(i);
+                        }
+                        if let Some(a) = &row.args {
+                            r["args"] = a.clone();
+                        }
+                        r
+                    })
+                    .collect();
+                if !menus.is_empty() {
+                    entry["menus"] = json!(menus);
+                }
             }
             entry
         })

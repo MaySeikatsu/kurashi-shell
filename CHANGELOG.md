@@ -8,6 +8,45 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-11-15
+
+### Added
+- **Commands from mods in the launcher's `>` mode**: a mod's manifest declares its actions, and the ones marked as
+  commands are listed with the shell's own — `> timer 5`, `> task buy milk`, `> wallpaper next`, `> terminal`,
+  `> btop`, `> weather`, `> ask …`; the words after a command are its argument.
+- **Mods bring their own menu rows**: a right click on a mod's module shows its rows first (the timer: start, 5 minutes,
+  pomodoro, stop all), and the desktop's menu shows what the enabled mods put there (the wallpaper's next, random,
+  choose).
+- **`kurashi mod new`**: writes a new mod from templates — its bar module, peek, panel, desk card, quick tile, menu and a
+  setting, whichever you tick — with its icon, its copy in English and Japanese and a checklist. **`kurashi mod check`**
+  holds any mod to the rules that make it feel native; `kurashi mod points` lists every place a mod can stand in.
+- A mod ships its own strings (`i18n/<locale>.toml` in its folder) and its own icon (shown on its Settings page).
+- `kurashi act --list` shows a declared action's typed arguments; a wrong or missing argument is refused before
+  the action runs.
+
+### Breaking
+- **IPC:** a document no longer carries `null` anywhere: `svc.pointer` has no `output` while the pointer is on none, and
+  a workspace in `svc.previews` has no `still` until one exists. A client that tested for `null` tests for absence.
+- **IPC:** the actions whose manifests type their arguments (`timer.start`, `tasks.add`, `wallpaper.next`, …) refuse an
+  argument of the wrong type or out of range with `error.args.invalid` before the action runs.
+- **Launcher:** the `>` list's "web" row is gone (it needed a pin it was never given); the web dock's command is
+  `> web dock`.
+
+### Changed
+- **Mod manifests** (`mod.toml`) gain `icon`, `uses`, `points`, `[[action]]`, `[[menu]]` and `[skips]`
+  (docs/MODS.md "Integration contract", K154). Existing manifests keep working; `kurashi mod check` says what a mod
+  still owes.
+
+### Fixed
+- A document could carry `null` (`svc.pointer`'s output, a workspace's missing still), which a later patch removed while
+  a snapshot kept it; the daemon now takes it out everywhere (B143).
+- The system monitor's mod did not declare that it starts its monitor through `systemd-run` (B142).
+
+### Development
+- `just gate` (the one check before a merge), `just sweep`, `just timings`, `just clones`; tests run with nextest
+  (9 min → 3 min); the dev shell links with mold (a rebuild after an edit: 16 s → 4 s); a clone ratchet in `just check`;
+  `just suites --changed` runs one mod's suites for a change inside that mod (K153).
+
 ## [0.2.0] — 2026-11-13
 
 ### Fixed
