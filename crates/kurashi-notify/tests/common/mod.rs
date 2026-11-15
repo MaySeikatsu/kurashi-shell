@@ -1,75 +1,12 @@
 //! Private bus + recording sink. Nothing here ever touches the user's real session/system bus.
 #![allow(dead_code)]
 
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use kurashi_notify::DocSink;
+pub use kurashi_testkit::TestBus;
 use serde_json::Value;
-use zbus::Connection;
-
-pub struct TestBus {
-    child: Child,
-    pub addr: String,
-    _dir: tempfile::TempDir,
-}
-
-impl TestBus {
-    pub fn start() -> Self {
-        let dir = tempfile::tempdir().unwrap();
-        let conf = dir.path().join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type>
-<listen>unix:tmpdir={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                dir.path().display()
-            ),
-        )
-        .unwrap();
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut addr = String::new();
-        BufReader::new(child.stdout.as_mut().unwrap())
-            .read_line(&mut addr)
-            .unwrap();
-        Self {
-            child,
-            addr: addr.trim().to_owned(),
-            _dir: dir,
-        }
-    }
-
-    pub async fn conn(&self) -> Connection {
-        zbus::connection::Builder::address(self.addr.as_str())
-            .unwrap()
-            .build()
-            .await
-            .unwrap()
-    }
-
-    /// A connection that also owns `name`, for serving fake objects.
-    pub async fn server(&self, name: &str) -> Connection {
-        let c = self.conn().await;
-        c.request_name(name.to_owned()).await.unwrap();
-        c
-    }
-}
-
-impl Drop for TestBus {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
 
 #[derive(Default)]
 pub struct Rec(Mutex<Vec<Value>>);

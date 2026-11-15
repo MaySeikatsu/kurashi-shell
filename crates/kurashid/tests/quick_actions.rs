@@ -2,14 +2,12 @@
 //! `svc.audio` over a fake sound server, and `network.wifi` on `svc.network` over a private bus with
 //! a fake NetworkManager. Nothing here touches the user's session or system bus.
 
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use kurashi_audio::{Backend, Device, Notifier, Snapshot};
 use kurashi_services::DocSink;
+use kurashi_testkit::{Scratch, TestBus};
 use kurashid::Intents;
 use kurashid::actions::{ActionError, ActionRegistry};
 use kurashid::hub::Hub;
@@ -157,72 +155,6 @@ impl Nm {
     }
 }
 
-/// A directory for one test's bus, removed when the test ends. Declared before the bus so it
-/// outlives it.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new(tag: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("kurashid-quick-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Scratch(dir)
-    }
-
-    fn addr(&self) -> String {
-        format!("unix:path={}", self.0.join("bus").display())
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// A session-type dbus-daemon on the scratch socket. Dropping it kills only this child.
-struct PrivateBus(Child);
-
-impl PrivateBus {
-    fn start(scratch: &Scratch) -> Self {
-        let socket = scratch.0.join("bus");
-        let conf = scratch.0.join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type>
-<listen>unix:path={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                socket.display()
-            ),
-        )
-        .unwrap();
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut printed = String::new();
-        BufReader::new(child.stdout.as_mut().unwrap())
-            .read_line(&mut printed)
-            .unwrap();
-        assert!(
-            printed.trim().starts_with(&scratch.addr()),
-            "the daemon listens where the test expects: {printed}"
-        );
-        PrivateBus(child)
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
 /// Opens the private bus at `addr` each time the service starts, as the daemon opens the system bus.
 fn bus_at(addr: String) -> ConnectFn {
     Arc::new(move || {
@@ -261,11 +193,11 @@ async fn serve_nm(addr: &str) -> Connection {
 #[tokio::test]
 async fn wifi_switch_follows_networkmanager_and_refusals_come_back_as_keys() {
     let scratch = Scratch::new("wifi");
-    let _bus = PrivateBus::start(&scratch);
-    let nm = serve_nm(&scratch.addr()).await;
+    let _bus = TestBus::start_in(&scratch);
+    let nm = serve_nm(&scratch.bus_addr()).await;
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::network_with(&hub, &mut actions, bus_at(scratch.addr()));
+    kurashid::wiring::network_with(&hub, &mut actions, bus_at(scratch.bus_addr()));
     let wifi = |hub: &Hub| hub.snapshot("svc.network").unwrap().1["wifi_enabled"].clone();
 
     // Not subscribed: the switch is refused as not running, and nothing starts.
