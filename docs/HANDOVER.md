@@ -35,8 +35,8 @@ sh 1573.
 - **W91** `feat/s35-w91-mod-consume` (on top of W90): `ModCtx::follow` / `calls` (K158), the waiting state for a missing
   use, lyrics follows `svc.media`, sessions calls the terminal itself, a host's scope from the contract, `mod check` reads
   the crates' literals; docs and changelog written. **Left:** its three suites on niri, `just suites --changed`, the merge.
-**Not started:** W92, W93, W94, W98, W96, W97, W95.2/.4/.5/.7 and the per-mod W95 cards. Drafts outside the tree (the
-session's scratchpad, lost with it): W98's UX brief, W93's protocol sketch, W97's plan — the plan in short: crane
+**Not started:** W92, W93, W94, W98 (its UX brief is written: `docs/ux/mod-catalogue.md`), W96, W97, W95.2/.4/.5/.7 and the per-mod W95 cards. Notes outside the tree (the
+session's scratchpad, lost with it): W93's protocol sketch, W97's plan — the plan in short: crane
 `mkDummySrc` with `cleanCargoTomlFilter` dropping the versions, a lock file rewritten with the members at 0.0.0
 (`writeText`), `cargoVendorDir` from the real lock, `version = "0"`.
 **Found this session (BACKLOG B148–B155, I583–I591).** The bench gate is red on `main` and was at 0.2.0 (PSS 198 MiB against
