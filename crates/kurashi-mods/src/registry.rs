@@ -104,6 +104,19 @@ pub struct Policy {
     pub default_enabled: BTreeSet<String>,
 }
 
+/// The mods' folders under `root` (each with a `mod.toml`), by name: what the tools and the tests walk (rule 10).
+pub fn mod_dirs(root: &Path) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.join("mod.toml").is_file())
+        .collect();
+    dirs.sort();
+    dirs
+}
+
 #[derive(Debug, Clone)]
 pub struct Registry {
     mods: BTreeMap<String, ModEntry>,

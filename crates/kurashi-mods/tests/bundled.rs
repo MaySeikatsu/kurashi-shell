@@ -18,13 +18,7 @@ const PENDING: &[(&str, &str)] = &[(
 #[test]
 fn every_bundled_mod_passes_the_check() {
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(repo().join("mods"))
-        .unwrap()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.join("mod.toml").is_file())
-        .collect();
-    dirs.sort();
+    let dirs = kurashi_mods::mod_dirs(&repo().join("mods"));
     assert!(dirs.len() >= 12, "the bundled mods were not found");
     let mut failed = String::new();
     for dir in dirs {

@@ -1,7 +1,7 @@
 //! `kurashi mod …` (K154): the mod tools that need no daemon — the ruleset's check, the extension points, and what a
 //! mod's views reach (for writing its `uses`). They read folders, so they run in a checkout and in CI alike.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::Subcommand;
 use kurashi_mods::{check, points};
@@ -55,25 +55,13 @@ pub struct Out {
     pub code: i32,
 }
 
-fn mod_dirs(root: &Path) -> Vec<PathBuf> {
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.join("mod.toml").is_file())
-        .collect();
-    dirs.sort();
-    dirs
-}
-
 pub fn run(cmd: ModCmd, json: bool) -> Out {
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     match cmd {
         ModCmd::Check { paths, all, strict } => {
             let mut dirs = paths;
             if let Some(root) = all {
-                dirs.extend(mod_dirs(&root));
+                dirs.extend(kurashi_mods::mod_dirs(&root));
             }
             if dirs.is_empty() {
                 return Out {
