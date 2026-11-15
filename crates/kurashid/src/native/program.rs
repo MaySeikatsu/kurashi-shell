@@ -97,7 +97,9 @@ impl Drop for Use {
             Some(rt) => {
                 rt.spawn(async move {
                     tokio::time::sleep(LINGER).await;
-                    if users.count.load(Ordering::SeqCst) == 0 && users.turn.load(Ordering::SeqCst) == turn {
+                    if users.count.load(Ordering::SeqCst) == 0
+                        && users.turn.load(Ordering::SeqCst) == turn
+                    {
                         users.stop_idle();
                     }
                 });
@@ -136,14 +138,19 @@ impl NativeMod for ProgramMod {
             if h.start == HostStart::Enabled {
                 // A job with no gate: it runs while the mod is on, and the Mods page shows it with its reason.
                 let run = handle.clone();
-                ctx.background(&format!("host-{}", h.name), "mods.host.running", "", move |_job| {
-                    let run = run.clone();
-                    async move {
-                        let _stop = StopOnDrop(run.clone());
-                        run.start();
-                        std::future::pending::<()>().await;
-                    }
-                })?;
+                ctx.background(
+                    &format!("host-{}", h.name),
+                    "mods.host.running",
+                    "",
+                    move |_job| {
+                        let run = run.clone();
+                        async move {
+                            let _stop = StopOnDrop(run.clone());
+                            run.start();
+                            std::future::pending::<()>().await;
+                        }
+                    },
+                )?;
             }
             hosts.push((h.start, handle));
         }
@@ -186,7 +193,8 @@ impl NativeMod for ProgramMod {
                     // An invocation in flight keeps a program that starts on actions running.
                     let _use = users.enter(HostStart::Action);
                     if !served.serves(&id)
-                        && !(users.starts_on_action() && served.until_served(&id, served::SERVE_WAIT).await)
+                        && !(users.starts_on_action()
+                            && served.until_served(&id, served::SERVE_WAIT).await)
                     {
                         return Err(ActionError::Unavailable(served::NOT_RUNNING.into()));
                     }

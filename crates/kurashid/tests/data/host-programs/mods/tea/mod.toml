@@ -1,0 +1,22 @@
+# The test mod of tests/host_programs.rs (K155, W93): its code is a program of its own, `bin/tea-host`. Test data only.
+id = "tea"
+name = "Tea"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["service:tea", "action:tea.start"]
+cost = "low"
+
+[[host]]
+name = "main"
+exec = "tea-host"
+args = ["--report", "{state_dir}/report.txt"]
+
+[[action]]
+id = "tea.start"
+label = "mod-tea.action.start"
+  [[action.arg]]
+  name = "minutes"
+  type = "int"
+  range = [1, 60]
+  default = 3

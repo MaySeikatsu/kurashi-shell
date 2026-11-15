@@ -45,6 +45,9 @@ pub struct HostEnv {
     pub cache: Option<PathBuf>,
     /// Replaces `$XDG_STATE_HOME/kurashi`.
     pub state: Option<PathBuf>,
+    /// The socket a host is told to connect to, instead of the daemon's default path (W93: a test daemon listens on
+    /// its own, and a host handed the default would knock on the user's running shell).
+    pub socket: Option<PathBuf>,
 }
 
 static HOST_ENV: OnceLock<HostEnv> = OnceLock::new();
@@ -428,9 +431,14 @@ impl HostCore {
         for (key, value) in &self.spec.env {
             cmd.env(key, expand(value, &self.mod_dir, &self.dirs));
         }
-        cmd.env("KURASHI_SOCKET", kurashi_core::default_socket_path())
-            .env("KURASHI_SCOPE_MOD", &self.mod_id)
-            .env("KURASHI_SCOPE_TOKEN", &token);
+        cmd.env(
+            "KURASHI_SOCKET",
+            host_env()
+                .socket
+                .unwrap_or_else(kurashi_core::default_socket_path),
+        )
+        .env("KURASHI_SCOPE_MOD", &self.mod_id)
+        .env("KURASHI_SCOPE_TOKEN", &token);
         let child = cmd.spawn().map_err(|e| format!("{}: {e}", bin.display()))?;
         let pid = child.id().ok_or("the host has no process id")?;
 

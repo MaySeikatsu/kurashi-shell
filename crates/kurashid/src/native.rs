@@ -694,8 +694,10 @@ impl Native {
             let module: Arc<dyn NativeMod> = match self.linked.get(&id).cloned() {
                 // K155 (W93): one or the other — a crate would register what the program serves.
                 Some(_) if has_program => {
-                    self.refused
-                        .insert(id.clone(), ModError::Failed("mods.error.host_and_native".into()));
+                    self.refused.insert(
+                        id.clone(),
+                        ModError::Failed("mods.error.host_and_native".into()),
+                    );
                     let _ = reg.disable(&id);
                     continue;
                 }

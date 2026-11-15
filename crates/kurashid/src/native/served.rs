@@ -78,7 +78,13 @@ impl Served {
 
     /// The documents the manifest provides (for the server: back to unavailable when the host goes).
     pub fn docs(&self) -> Vec<String> {
-        self.state.lock().expect("served lock").docs.iter().cloned().collect()
+        self.state
+            .lock()
+            .expect("served lock")
+            .docs
+            .iter()
+            .cloned()
+            .collect()
     }
 
     /// Whether a host of this mod may publish `doc`.
@@ -231,8 +237,12 @@ mod tests {
         };
         // The host sees the call with the daemon's id and answers it.
         let id = loop {
-            if let Some(ServerMsg::Call { id, action, args }) = got.lock().unwrap().first().cloned() {
-                assert_eq!((action.as_str(), &args), ("tea.start", &json!({"minutes": 3})));
+            if let Some(ServerMsg::Call { id, action, args }) = got.lock().unwrap().first().cloned()
+            {
+                assert_eq!(
+                    (action.as_str(), &args),
+                    ("tea.start", &json!({"minutes": 3}))
+                );
                 break id;
             }
             tokio::task::yield_now().await;

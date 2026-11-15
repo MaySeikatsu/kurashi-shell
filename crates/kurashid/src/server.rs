@@ -278,7 +278,8 @@ async fn connection(
                         }
                         match connect_scope(&scope) {
                             Ok(hold) => {
-                                *scoped_mod.lock().expect("scope lock") = Some(scope.mod_id.clone());
+                                *scoped_mod.lock().expect("scope lock") =
+                                    Some(scope.mod_id.clone());
                                 host_scope = Some((scope.mod_id, hold));
                             }
                             Err(ScopeRefused) => {
@@ -438,7 +439,11 @@ async fn connection(
                 }
                 ClientMsg::Serve { id, actions } => {
                     let Some((mod_id, _)) = &host_scope else {
-                        reply(err(Some(id), "forbidden", "only a mod's host program serves actions"));
+                        reply(err(
+                            Some(id),
+                            "forbidden",
+                            "only a mod's host program serves actions",
+                        ));
                         continue;
                     };
                     let out = out.clone();
