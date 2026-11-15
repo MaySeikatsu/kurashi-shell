@@ -20,8 +20,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use kurashi_mod_api::{
-    ActionError, Choice, ChoicesHandle, LauncherRow, LauncherSpec, ModCtx, ModError, NativeMod,
-    Publish, Settings, SettingsWriter,
+    ActionError, Call, Choice, ChoicesHandle, LauncherRow, LauncherSpec, ModCtx, ModError,
+    NativeMod, Publish, Settings, SettingsWriter,
 };
 use model::{Effect, Error, Model, Persisted, Row};
 use noren::{Kind, Runner, State};
@@ -32,6 +32,13 @@ use tokio::sync::watch;
 
 /// The mod's id: its document is `mod.sessions`, its actions `sessions.*`.
 const ID: &str = "sessions";
+/// The actions outside the mod it calls (the manifest's `uses`, and the base set's `settings.open`).
+const CALLS: &[&str] = &[
+    "terminal.run",
+    "terminal.open_dir",
+    "webdock.open",
+    "settings.open",
+];
 /// A copy of noren's list older than this is read again on the next launcher query.
 const STALE: Duration = Duration::from_secs(5);
 /// A launched window of a desk is awaited this long.
@@ -110,6 +117,8 @@ struct Shared {
     refreshing: AtomicBool,
     listed: Mutex<Option<Instant>>,
     choices: Mutex<Option<ChoicesHandle>>,
+    /// The other mods' actions (and the shell's) this one calls, by id (W91: named in the manifest's `uses`).
+    calls: BTreeMap<String, Call>,
 }
 
 impl Shared {
@@ -301,7 +310,38 @@ where
     Fut: Future<Output = Result<Option<Value>, ActionError>> + Send + 'static,
 {
     let s = s.clone();
-    ctx.action(id, &format!("action.{id}"), move |args| f(s.clone(), args))
+    ctx.action(id, &format!("action.{id}"), move |args| {
+        let s = s.clone();
+        let done = f(s.clone(), args);
+        async move {
+            let r = done.await;
+            // What the action queued for other mods (the terminal, the web dock, Settings) is sent now.
+            deliver(&s).await;
+            r
+        }
+    })
+}
+
+/// Sends the calls the model queued (W91: the mod calls the other mods' actions itself; a QML surface used to relay
+/// them). One whose action is not there — its mod is off — brings the step back with the reason (`Model::undelivered`).
+async fn deliver(s: &Arc<Shared>) {
+    loop {
+        let calls = s.model.lock().expect("model lock").take_handoffs();
+        if calls.is_empty() {
+            return;
+        }
+        for h in calls {
+            let sent = match s.calls.get(&h.action) {
+                Some(c) => c.call(h.args.clone()).await,
+                None => Err(ActionError::Unavailable(
+                    kurashi_mod_api::USE_UNAVAILABLE.into(),
+                )),
+            };
+            if sent.is_err() {
+                s.with_model(|m| m.undelivered(&h));
+            }
+        }
+    }
 }
 
 /// The project an action names (`project`), else the current one.
@@ -386,15 +426,6 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
             .ok_or_else(|| error(Error::Argument))?;
         let fx = s.model.lock().expect("model lock").forget(p);
         run_effects(&s, fx.into_iter().collect()).await?;
-        Ok(None)
-    })?;
-    action(ctx, s, "sessions.handed", |s, a| async move {
-        let seq = a["seq"].as_u64().ok_or_else(|| error(Error::Argument))?;
-        s.with_model(|m| m.handed(seq));
-        Ok(None)
-    })?;
-    action(ctx, s, "sessions.undelivered", |s, a| async move {
-        s.with_model(|m| m.undelivered(&a)).map_err(error)?;
         Ok(None)
     })?;
     // noren missing: the launcher's row leads to the mod's Settings page, where the reason and the option are.
@@ -571,6 +602,11 @@ impl NativeMod for SessionsMod {
         model.desk_reason = desktop.is_none().then_some("sessions.desk.needs_niri");
         let initial = model.doc();
         let (doc, _) = watch::channel(initial.clone());
+        // W91: the actions of other mods this one sends for an opened session or a restored desk.
+        let mut calls = BTreeMap::new();
+        for id in CALLS {
+            calls.insert((*id).to_string(), ctx.calls(id)?);
+        }
         let shared = Arc::new(Shared {
             model: Mutex::new(model),
             doc,
@@ -586,6 +622,7 @@ impl NativeMod for SessionsMod {
             refreshing: AtomicBool::new(false),
             listed: Mutex::new(None),
             choices: Mutex::new(None),
+            calls,
         });
 
         let serve = shared.clone();

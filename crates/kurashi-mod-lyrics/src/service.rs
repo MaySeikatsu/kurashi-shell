@@ -20,8 +20,6 @@ use crate::lrclib::{self, LookupError};
 /// Unix seconds. Tests pass a fixed one.
 pub type Clock = Arc<dyn Fn() -> i64 + Send + Sync>;
 
-/// `error.args.invalid`: the core's key for arguments of the wrong shape.
-
 /// What the service and the actions share, per enable.
 pub struct Shared {
     pub http: Arc<dyn Http>,

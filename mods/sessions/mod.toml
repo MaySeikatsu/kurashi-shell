@@ -40,7 +40,7 @@ capabilities = [
 cost = "low"
 icon = "tab_group"
 # What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
-uses = ["doc:mod.terminal?", "doc:mod.webdock?", "doc:svc.workspaces", "action:terminal.run?", "action:terminal.open_dir?"]
+uses = ["doc:mod.terminal?", "doc:mod.webdock?", "doc:svc.workspaces", "action:terminal.run?", "action:terminal.open_dir?", "action:webdock.open?"]
 
 [[setting]]
 key = "open_in"
@@ -134,10 +134,6 @@ id = "sessions.forget"
 label = "action.sessions.forget"
 
 [[action]]
-id = "sessions.handed"
-label = "action.sessions.handed"
-
-[[action]]
 id = "sessions.help"
 label = "action.sessions.help"
 
@@ -163,10 +159,6 @@ no_args = true
 [[action]]
 id = "sessions.snapshot"
 label = "action.sessions.snapshot"
-
-[[action]]
-id = "sessions.undelivered"
-label = "action.sessions.undelivered"
 
 [[menu]]
 at = "module"
