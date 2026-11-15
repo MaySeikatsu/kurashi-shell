@@ -68,10 +68,10 @@ def write_config(env, pics: Path, mods: list[str]):
 class Use:
     """One round of ordinary use, against the actions the daemon really has."""
 
-    def __init__(self, env, pause, covers, player, skip=()):
+    def __init__(self, env, pause, covers, player, skip=(), round_min=5.0):
         self.env, self.pause, self.covers, self.player = env, pause, covers, player
         self.skip = set(skip)
-        self.round_min = 5.0
+        self.round_min = round_min
         self.round = 0
         listed = m.kurashi(env, "--json", "act", "--list").stdout
         try:
@@ -177,6 +177,7 @@ def main():
     ap.add_argument("--warmup-min", type=float, default=10, help="samples before this do not count toward the growth")
     ap.add_argument("--interval", type=float, default=60, help="seconds between samples")
     ap.add_argument("--round-pause", type=float, default=0.4)
+    ap.add_argument("--round-min", type=float, default=5.0, help="a round takes this many seconds at least")
     ap.add_argument("--pictures", type=int, default=8)
     ap.add_argument("--picture-size", default="3840x2160")
     ap.add_argument("--mods", default="timer,wallpaper,media,sysmon,calendar")
@@ -242,7 +243,7 @@ def main():
         if skip - set(STEPS):
             sys.exit(f"soak: unknown step(s) {sorted(skip - set(STEPS))}; the steps are {', '.join(STEPS)}")
         result["steps"] = [x for x in STEPS if x not in skip]
-        use = Use(env, a.round_pause, covers, player, skip)
+        use = Use(env, a.round_pause, covers, player, skip, a.round_min)
         t0 = time.monotonic()
 
         def sampler():
