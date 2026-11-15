@@ -96,8 +96,14 @@ Flickable {
         "motion.advanced_curves": "tune", "motion.choreography": "stack",
         "motion.windows": "web_asset", typography: "text_fields", font_mix: "draw"
     })
+    // K154: a mod's page shows the icon its manifest names (`icon`), the puzzle piece while it names none.
+    function modIcon(pageId) {
+        var id = pageId.slice(5), list = (Store.mods && Store.mods.mods) || []
+        for (var i = 0; i < list.length; i++) if (list[i].id === id && list[i].icon) return list[i].icon
+        return "extension"
+    }
     function sectionIcon(pageId, id) {
-        return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
+        return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? modIcon(pageId) : "tune")
     }
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
