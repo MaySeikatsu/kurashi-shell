@@ -20,6 +20,7 @@ fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
+    kurashid::alloc::check();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
