@@ -17,6 +17,39 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-16 — session 35 (machine A): CHECKPOINT, the session is still running — integration branch, memory, mods' reads
+*(Written mid-session so a context loss costs nothing; the final entry replaces it.)*
+**State.** `main` = 0.3.0, tagged `v0.3.0` and pushed (the user chose: tag now, fix in 0.4.0). All work is on
+**`feat/s35-integration`** (pushed); nothing is merged into `main` and no PR is merged by the lead (the user's rule this
+session: one PR from the integration branch at the end, the user merges; **one** subagent at a time).
+Merged into the integration branch, each `--no-ff` after its acceptance: **W89** (the suites' kit), **W95.1** (`Label` in
+`components/quick`), **W95.3** (`components/expanded`), **W95.6** (`settings/components`); clone baseline rs 810, qml 1264,
+sh 1573.
+**In work, on their own branches (pushed).**
+- **W90** `feat/s35-w90-soak`: `just soak` (`tools/bench/soak.py`), the daemon on jemalloc (K157), bounded texture caches,
+  the notification centre holding no card while closed, `just bench-gate` building what it measures, `just sweep` taking
+  stale sandboxes; BENCH "Soak". Short soaks: daemon 59–72 MiB flat (was 66 → 260 in two minutes), frontend 228–234 flat
+  (was 268 → 509 in twelve). **Left:** the 60-minute soak on a quiet machine (running at the time of writing), its numbers
+  into BENCH, then the merge. The card's last line — the user's session read again a day after a rebuild — cannot be met
+  in this session.
+- **W91** `feat/s35-w91-mod-consume` (on top of W90): `ModCtx::follow` / `calls` (K158), the waiting state for a missing
+  use, lyrics follows `svc.media`, sessions calls the terminal itself, a host's scope from the contract, `mod check` reads
+  the crates' literals; docs and changelog written. **Left:** its three suites on niri, `just suites --changed`, the merge.
+**Not started:** W92, W93, W94, W98, W96, W97, W95.2/.4/.5/.7 and the per-mod W95 cards. Drafts outside the tree (the
+session's scratchpad, lost with it): W98's UX brief, W93's protocol sketch, W97's plan — the plan in short: crane
+`mkDummySrc` with `cleanCargoTomlFilter` dropping the versions, a lock file rewritten with the members at 0.0.0
+(`writeText`), `cargoVendorDir` from the real lock, `version = "0"`.
+**Found this session (BACKLOG B148–B155, I583–I591).** The bench gate is red on `main` and was at 0.2.0 (PSS 198 MiB against
+150, +55 per output against 6, 8 mapped surfaces against 4: B153, the user's call); `test-toasts`, `test-controls`,
+`settings/test-sheet` red on `main`; two join builders (the user's question, I588).
+**The user this session.** May read the live session and restart it if needed; when everything is done, suspend the
+machine (`systemctl suspend`). CLAUDE.md: the maintainer owns the design; finish without stopping.
+**Next steps.** Finish W90 (soak numbers, merge) → W91 (suites, merge) → W92 → W93 → W94 → W98, with W95's remaining
+cards (one Haiku agent at a time), W96 and W97 beside them; then the version bump to 0.4.0, the changelog, `just gate` on
+the integration head, the PR.
+
+---
+
 ## 2026-11-15 — session 34 (machine A): the loop and the mod contract — 0.3.0, PR open
 **State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR #62 open, not merged** (the user merges;
 then `git tag v0.3.0` on `main` and push the tag, K151). Gate: see "Verified" (the last code commit is 274f04e3).
@@ -203,58 +236,3 @@ rest (music paused); nothing visual yet.
 **Risks.** The scroll edge now on Settings' pages turns each page's layer on while it overflows (a layer per page; 0 frames
 at rest, but memory). The web dock sidebar's place changed meaning (on the output, zones ignored): a compositor that counts
 zones differently would misplace it — seen on sway and in the pinned case only.
-
----
-
-## 2026-11-13 — session 31 (machine A): live fixes on the user's session, Settings in a sidebar
-**State.** `main` = #57 (live fixes). **PR #58 (Settings docked in a sidebar, W77, K146) is open, not merged** — the user
-merges; its worktree `.claude/worktrees/agent-ac748735f1e82a580` (branch `feat/s31-settings-dock`) and build dir
-`~/.cache/kurashi-agents-target/w77` go after the merge. #56 (session 30) is merged; its worktrees are gone. Disk: ~270 GB
-free after removing 154 GB of suite sandboxes and build dirs (B124).
-**Done** (K147):
-1. B125: read-only `top -H` on the user's session with music: ~115 % of a core, ~6 % with the desktop's media card hidden
-   (the colour flow off changed it by a few percent). The card's level bars stand still unless `desktop.media_bars`.
-   Not yet re-measured on the user's session after the rebuild.
-2. B126: a card opens on the screen whose bar was pressed (IslandGeom's last press), mod cards count as cards, a card
-   asked for on another screen while one is open moves there. `test-follow` green; not yet seen on the user's monitors.
-3. `ui.keep {on}` / runtime.ui `kept`: the web dock's bar card has a keep-open key (the user's choice: the card itself
-   stays; a click elsewhere passes through; Esc, the module, `ui.close` close it).
-4. Web dock icons: none was ever saved (K38's privacy setting stopped the engine fetching them).
-   `mods.webdock.site_icons` (on) lets it; the grab is retried while shown; `test-host`'s net-log proof runs with it off.
-5. B124: the nested-niri sandbox refuses an empty env file or one naming no sandbox, and refuses to start under 2 GB
-   free; `sandbox.sh` under 1 GB; `tools/test-suites.sh` under 20 GB (`KURASHI_SUITES_MIN_GB`).
-6. W77 (#58, open): the full Settings docked in a sidebar section, a third host `dock`, `runtime.settings` +
-   `settings.dock`; gaps in B127.
-**The user's answers this session.** Bar card keep-open: the card itself stays open. Colour flow while music plays: leave
-as is (I506 closed). Live checks: read-only only — read `top`/documents on their session, they look at the visual things
-and tell you; never open anything on their display.
-**Next steps — session 32 is time-boxed: the user reviews at 13:00.** Plan backwards from it: a review-ready PR with
-a summary by 12:45; the merge set and `just check` on the combined branch from ~12:00; nothing new started after 11:45.
-1. **First 10 minutes:** fetch; check #58 and #59 are merged (if not, ask). Then ask the user ALL of these at once
-   (one AskUserQuestion, recommended option first) so no step waits later:
-   - B128: when the edge web dock is *not* pinned, does it still follow the focus to the other monitor?
-   - W78: the desktop-apps experiment's scope (which apps; what "done" means for an experiment), or leave W78 for later?
-   - Groups round two (I502): where the drag happens (the bar preview in Settings, or the list) and what a drop on
-     another group does — or leave it for later?
-2. **Right after the questions, start at most two subagents** (worktrees, cards in `docs/tasks/`, own target dirs):
-   - B127 mechanical parts (Haiku, max effort): `runtime.settings` in doctor's KNOWN_DOCS and the mock, the double-start
-     race, a crash clearing `dock`, `settings/test-dock.sh` in the merge set. Not the hover hold (a contract change).
-   - W78 (Opus) only if the user said yes and gave a scope; otherwise the hover hold of B127 (Opus; contract change
-     authorised by the lead: row + K-id).
-3. **Meanwhile, yourself — B128:** a pinned edge dock stays on its output (`crates/kurashi-mod-webdock/src/dock.rs`, the
-   paths that set `output`; the dock's window follows `mod.webdock.output`, `mods/webdock/qml/surfaces/dock.qml`).
-   A unit test plus a two-output step in a web dock suite. Then the keyboard path from a sidebar into the docked
-   Settings (B127; `SideWindow`'s `focusAsks` is the pattern).
-4. **~12:00:** merge the agents' branches into one session branch; `just check` and `just suites` (the merge set; only
-   a failure alone counts; `quick-modules` is red on `main`, B92); `nix build .#kurashi`.
-5. **By 12:45:** push, open ONE PR. Its body is the review: what changed, by the user's points; what was seen on niri
-   (shot paths); what the user should look at live after the rebuild (cards on the clicked monitor, site icons, the
-   kept bar card, docked Settings, CPU with music); what is not done and why. Update this handover.
-Not in this time box (leave in BACKLOG unless time is left): B119/B120 performance, B122/B123/B117/B110 web dock rough
-edges, B92, B113, B112/B100, B114, B115, B116, B121, I483.
-**Efficiency.** While iterating use `just suites --changed` (never suites one by one); batch builds; Haiku for clear
-mechanical cards, Opus only for judgement; do small things yourself; terse agent reports; no idle waiting — review or
-fix something while suites run; check `df -h /` before a merge set. Live checks on the user's session are read-only.
-**Risks.** B126's fix keys on a press within 1.5 s; a card opened by key still uses the compositor's focused output.
-`mods.webdock.site_icons` on means one request per site the page did not make itself (the user asked for the images;
-off restores K38's strict proof). Two subagents at most; check `df -h /` before a merge set.
