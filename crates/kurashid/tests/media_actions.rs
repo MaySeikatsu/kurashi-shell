@@ -3,12 +3,10 @@
 //! Nothing here touches the user's session bus.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use kurashi_testkit::{Scratch, TestBus};
 use kurashid::actions::{ActionError, ActionRegistry};
 use kurashid::hub::Hub;
 use kurashid::services::ConnectFn;
@@ -29,72 +27,6 @@ async fn until(what: &str, mut ok: impl FnMut() -> bool) {
     while !ok() {
         assert!(Instant::now() < deadline, "timed out waiting for {what}");
         tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-}
-
-/// A directory for one test's bus, removed when the test ends. Declared before the bus so it
-/// outlives it.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new(tag: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("kurashid-media-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Scratch(dir)
-    }
-
-    fn addr(&self) -> String {
-        format!("unix:path={}", self.0.join("bus").display())
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// A session-type dbus-daemon on the scratch socket. Dropping it kills only this child.
-struct PrivateBus(Child);
-
-impl PrivateBus {
-    fn start(scratch: &Scratch) -> Self {
-        let socket = scratch.0.join("bus");
-        let conf = scratch.0.join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type>
-<listen>unix:path={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                socket.display()
-            ),
-        )
-        .unwrap();
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut printed = String::new();
-        BufReader::new(child.stdout.as_mut().unwrap())
-            .read_line(&mut printed)
-            .unwrap();
-        assert!(
-            printed.trim().starts_with(&scratch.addr()),
-            "the daemon listens where the test expects: {printed}"
-        );
-        PrivateBus(child)
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
     }
 }
 
@@ -225,13 +157,13 @@ async fn set_can_seek(conn: &Connection, on: bool) {
 #[tokio::test]
 async fn media_actions_refuse_what_the_player_does_not_allow_and_send_the_rest() {
     let scratch = Scratch::new("actions");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let log = Arc::new(Mutex::new(vec![]));
-    let player = serve(&scratch.addr(), false, log.clone()).await;
+    let player = serve(&scratch.bus_addr(), false, log.clone()).await;
 
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::media_with(&hub, &mut actions, bus_at(scratch.addr()));
+    kurashid::wiring::media_with(&hub, &mut actions, bus_at(scratch.bus_addr()));
 
     // Not subscribed: nothing runs and nothing starts.
     assert_eq!(

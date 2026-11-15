@@ -403,3 +403,13 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S32.2 | The focused workspace's mark travels: liquid, stretch, slide, off (K148, I507) | ✅ functional (`test-ws-motion` on nested niri, in the merge set) · ✅ UX (bursts on niri: washi keys, dots, Material's indicator; the user's own eyes pending) |
 | S32.3 | Settings dock: one process per start, a crash clears the dock, doctor and mock (W79, B127 mechanical) | ✅ functional (unit tests; `settings-dock` in the merge set) · — UX (no visible change) |
 
+
+## Session 34 — the loop and the mod contract (K153, K154; the review's rows I540–I569)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| S34.1 | The loop: `just gate`, `just sweep`, nextest, mold and line tables, the clone ratchet, the runner's per-mod selection, CLAUDE.md rules 10–12; B142, B143, B144 | ✅ functional (measured: docs/BENCH.md "Build loop") · — UX | `feat/s34-loop-and-mods` |
+| S34.2 | The mod contract, roll-out steps 1–3: the points registry, `uses`/`points`/`[[action]]`/`[[menu]]`/`[skips]`/`icon`, the twelve manifests declared, `kurashi mod check` | ✅ functional (`kurashi-mods/tests/bundled.rs`) · — UX | same |
+| S34.3 | Step 4: declared actions checked and listed, `>` commands and menus from manifests (launcher, desktop menu, module menu) | ✅ functional (unit tests) · 🟡 UX (not yet seen on niri: the module menu's own rows, the launcher's command rows) | same |
+| S34.4 | Step 6: `qs.kit`, `Label`, `kurashi mod new`, a mod's own strings, a mod's icon on its Settings page | ✅ functional (every template combination passes the check; the kit loads in Quickshell) · 🟡 UX (a scaffolded mod not yet seen in the shell on niri) | same |
+| S34.5 | W88 one D-Bus test bus (`kurashi-testkit`) · W89 the suites' kit | ✅ W88 merged (rs clones 1077 → 810) · 🟡 W89 done on its branch, not merged: `tools/testkit/{ipc.py,px.py}`, 23 suites on it (sh clones 1999 → 1573); `test-peek` kept its own client (I580); the lead has not re-run the merge set on it | `worktree-agent-add20fbd7bf4e0b6d` (0ab8a3ab) |
+| S34.6 | Staged for the next sessions, in the user's order (cards in `docs/tasks/`): W90 memory after a day (B147) → W91 mods read and call from Rust → W92 the core names no mod → W93 host programs (K155) → W94 the Mod Editor (full brief) → W98 the catalogue; beside them W95 `Label` and the kit by folder, W96 the six red suites, W97 the Nix dependency cache (K156) | ⬜ | HANDOVER "Next steps" |

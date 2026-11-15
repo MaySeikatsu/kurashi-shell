@@ -20,6 +20,8 @@ zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [dev-dependencies]
 tempfile = "3"
+# The private dbus-daemon bus and scratch dirs (K153).
+kurashi-testkit = { path = "../kurashi-testkit" }
 # Fixture covers (media.rs art tests).
 image = { version = "0.25", default-features = false, features = ["png"] }
 # Paused-clock tests of the scan cadence (network.rs).

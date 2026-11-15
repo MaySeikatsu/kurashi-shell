@@ -160,6 +160,12 @@
 "webdock.error.card_size" = "The card size must be as at the edge, phone, tablet or wide"
 "webdock.error.forced" = "The configuration sets this; change it there"
 "action.webdock.card_size" = "Change the size of the bar's web dock card"
+"action.webdock.card" = "The bar card's web dock panel rests at a place, or left it"
+"action.webdock.card_select" = "Show a pin in the bar's card"
+"action.webdock.card_page" = "The pointer entered or left the page in the bar's card"
+"action.webdock.side_page" = "The pointer entered or left the page in the sidebar"
+"action.webdock.card_close" = "Put the bar's web dock card away"
+"action.webdock.card_focus" = "Give the page in the bar's card the keyboard"
 
 # I495 (session 30): the bar module's views.
 "mods.webdock.bar_site" = "Show the open site in the bar"

@@ -1074,6 +1074,28 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             };
             let registered = |id: &str| actions.contains(id);
             let mut rows = kurashi_launcher::commands::command_rows(rest, &label, &registered);
+            // K154: the commands the mods declare (`[[action]] command`), after the shell's own.
+            let strings = hub
+                .snapshot("i18n")
+                .map(|(_, d)| d["strings"].clone())
+                .unwrap_or_default();
+            for m in actions.commands() {
+                let (Some(decl), Some(command)) = (&m.decl, &m.command) else {
+                    continue;
+                };
+                let c = kurashi_launcher::commands::Declared {
+                    id: &m.id,
+                    name: strings[&m.label]
+                        .as_str()
+                        .map_or_else(|| m.label.clone(), str::to_owned),
+                    icon: m.icon.as_deref(),
+                    command,
+                };
+                let args_for = |words: &str| decl.command_args(words);
+                rows.extend(kurashi_launcher::commands::declared_row(
+                    rest, &c, &args_for,
+                ));
+            }
             if registered("settings.open") {
                 cache.add_settings_rows(&mut rows, rest);
             }
@@ -1259,8 +1281,8 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                     return actions.invoke(&action, args).await;
                 }
                 // A `>` command runs its action; the web row opens its address in the default browser.
-                if let Some(action) = id.strip_prefix("cmd:") {
-                    return actions.invoke(action, json!({})).await;
+                if let Some((action, args)) = kurashi_launcher::commands::parse_command(&id) {
+                    return actions.invoke(&action, args).await;
                 }
                 // A mod's panel (K102): `panel:<mod>:<panel>`, as its own widget opens it.
                 if let Some((id_, panel)) =
@@ -1713,6 +1735,35 @@ pub fn mods_native(
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     let reg = Registry::discover(&roots, &version);
+    // K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
+    if let Ok((_, doc)) = hub.snapshot("i18n") {
+        let locale = doc["locale"]
+            .as_str()
+            .unwrap_or(crate::i18n::FALLBACK)
+            .to_owned();
+        let mut own = serde_json::Map::new();
+        for e in reg.iter() {
+            let ships = e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
+            if ships {
+                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
+                    own.insert(k, Value::String(v));
+                }
+            }
+        }
+        if !own.is_empty() {
+            let _ = hub.update("i18n", None, |d| {
+                if let Some(s) = d["strings"].as_object_mut() {
+                    for (k, v) in own {
+                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
+                        s.entry(k).or_insert(v);
+                    }
+                }
+            });
+        }
+    }
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }
@@ -3615,6 +3666,7 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+    use kurashi_testkit::TestBus;
 
     #[tokio::test]
     async fn lock_survives_daemon_restart() {
@@ -4341,14 +4393,14 @@ mod tests {
     #[tokio::test]
     async fn tray_runs_only_while_subscribed() {
         const WATCHER: &str = "org.kde.StatusNotifierWatcher";
-        let bus = Bus::start();
+        let bus = TestBus::start();
         let connects = Arc::new(AtomicUsize::new(0));
         let hub = Hub::new();
         let mut actions = ActionRegistry::default();
         tray_with(
             &hub,
             &mut actions,
-            private_bus(bus.addr.clone(), connects.clone()),
+            private_bus(bus.addr().to_owned(), connects.clone()),
         );
         let item = json!({"id": ":1.9/StatusNotifierItem", "x": 0, "y": 0});
         assert_eq!(
@@ -4410,7 +4462,7 @@ mod tests {
         async fn stop_discovery(&self) {}
     }
 
-    async fn serve_fake_bluez(bus: &Bus) -> zbus::Connection {
+    async fn serve_fake_bluez(bus: &TestBus) -> zbus::Connection {
         let conn = bus.conn().await;
         conn.object_server()
             .at("/", zbus::fdo::ObjectManager)
@@ -4428,7 +4480,7 @@ mod tests {
     /// the last unsubscribe drops the connection, and actions never start the service.
     #[tokio::test]
     async fn bluetooth_runs_only_while_subscribed() {
-        let bus = Bus::start();
+        let bus = TestBus::start();
         let _bluez = serve_fake_bluez(&bus).await;
         let connects = Arc::new(AtomicUsize::new(0));
         let hub = Hub::new();
@@ -4436,7 +4488,7 @@ mod tests {
         bluetooth_with(
             &hub,
             &mut actions,
-            private_bus(bus.addr.clone(), connects.clone()),
+            private_bus(bus.addr().to_owned(), connects.clone()),
         );
         let scan = json!({"on": true});
         assert_eq!(
@@ -4479,66 +4531,6 @@ mod tests {
 
     // ---- session actions against a private bus with a fake logind --------------------------
 
-    struct Bus {
-        child: std::process::Child,
-        addr: String,
-        dir: std::path::PathBuf,
-    }
-
-    impl Bus {
-        fn start() -> Self {
-            use std::io::{BufRead, BufReader};
-            // One directory per bus: tests run in parallel, and a shared one is torn down by
-            // whichever bus drops first.
-            static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-            let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let dir = temp_dir(&format!("bus-{n}"));
-            let conf = dir.join("bus.conf");
-            std::fs::write(
-                &conf,
-                format!(
-                    r#"<busconfig><type>session</type>
-<listen>unix:tmpdir={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                    dir.display()
-                ),
-            )
-            .unwrap();
-            let mut child = std::process::Command::new("dbus-daemon")
-                .arg(format!("--config-file={}", conf.display()))
-                .args(["--nofork", "--print-address"])
-                .stdout(std::process::Stdio::piped())
-                .spawn()
-                .expect("dbus-daemon (run inside nix develop)");
-            let mut addr = String::new();
-            BufReader::new(child.stdout.as_mut().unwrap())
-                .read_line(&mut addr)
-                .unwrap();
-            Self {
-                child,
-                addr: addr.trim().to_owned(),
-                dir,
-            }
-        }
-
-        async fn conn(&self) -> zbus::Connection {
-            zbus::connection::Builder::address(self.addr.as_str())
-                .unwrap()
-                .build()
-                .await
-                .unwrap()
-        }
-    }
-
-    impl Drop for Bus {
-        fn drop(&mut self) {
-            let _ = self.child.kill();
-            let _ = self.child.wait();
-            let _ = std::fs::remove_dir_all(&self.dir);
-        }
-    }
-
     struct FakeManager(Arc<Mutex<Vec<String>>>);
     #[zbus::interface(name = "org.freedesktop.login1.Manager")]
     impl FakeManager {
@@ -4563,7 +4555,7 @@ mod tests {
 
     #[tokio::test]
     async fn session_actions_need_confirmation_and_report_the_system_bus() {
-        let bus = Bus::start();
+        let bus = TestBus::start();
         let calls = Arc::new(Mutex::new(Vec::<String>::new()));
         let srv = bus.conn().await;
         srv.object_server()
@@ -4580,7 +4572,7 @@ mod tests {
         srv.request_name("org.freedesktop.login1").await.unwrap();
 
         let facts = SharedFacts::default();
-        let addr = bus.addr.clone();
+        let addr = bus.addr().to_owned();
         let connect: ConnectFn = Arc::new(move || {
             let addr = addr.clone();
             Box::pin(async move {
@@ -4708,8 +4700,8 @@ mod tests {
 
     /// A private bus with a fake logind over a fake backlight at 50 of 100. The server connection
     /// keeps the fake alive; the `ConnectFn` opens client connections to the same bus.
-    async fn backlight_rig() -> (Bus, zbus::Connection, std::path::PathBuf, ConnectFn) {
-        let bus = Bus::start();
+    async fn backlight_rig() -> (TestBus, zbus::Connection, std::path::PathBuf, ConnectFn) {
+        let bus = TestBus::start();
         // One directory per rig: the tests run in parallel and share this process id.
         static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -4727,7 +4719,7 @@ mod tests {
             .await
             .unwrap();
         srv.request_name("org.freedesktop.login1").await.unwrap();
-        let addr = bus.addr.clone();
+        let addr = bus.addr().to_owned();
         let connect: ConnectFn = Arc::new(move || {
             let addr = addr.clone();
             Box::pin(async move {

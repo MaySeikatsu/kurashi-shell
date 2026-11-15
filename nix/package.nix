@@ -73,6 +73,10 @@ let
       ../frontend
       ../settings
       ../mods
+      # K154: kurashi-mods' test holds docs/MODS.md's table of extension points to the registry.
+      ../docs/MODS.md
+      # The generated example is held current by kurashid's test (session 33; the check was red without the file, B146).
+      ../config.toml.example
       # W53.0b (K80): the styles' sound cues and cursor themes (original, CC0).
       ../sounds
       ../cursors

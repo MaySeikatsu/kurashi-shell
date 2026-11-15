@@ -1,0 +1,14 @@
+# qs.kit (K154, docs/MODS.md "Feeling native"): the components a mod may rely on. They are the shell's own (the same
+# files, so the same types), drawn by every look; the rest of frontend/components is the shell's to change. A name is
+# added here, with a line in MODS.md, before a mod uses it.
+Label 1.0 ../components/Label.qml
+Button 1.0 ../components/Button.qml
+IconButton 1.0 ../components/IconButton.qml
+Chip 1.0 ../components/Chip.qml
+Icon 1.0 ../components/Icon.qml
+Block 1.0 ../components/Block.qml
+FocusRing 1.0 ../components/FocusRing.qml
+ScrollEdge 1.0 ../components/ScrollEdge.qml
+LoadingText 1.0 ../components/LoadingText.qml
+PeekLines 1.0 ../components/PeekLines.qml
+QuickTile 1.0 ../components/quick/QuickTile.qml

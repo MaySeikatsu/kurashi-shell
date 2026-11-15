@@ -54,6 +54,9 @@ merges, and records progress; agents only build what their card says.
    Your report lists each definition-of-done item as met / not met.
 11. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
    repo. Time-box anything blocked; report it instead.
+12. **Inbox.** Your card lists the lines of `docs/INBOX.md` for your area. Do the ones it marks as yours; if you see that
+   another fits your change (the same files, small), do it too and say so; report on the rest under "not done /
+   deviations". You do not edit `docs/INBOX.md`: the lead ticks the lines from your report.
 
 ## Wave 1 (2026-10-09, session 2)
 | Card | Owner paths | Model |

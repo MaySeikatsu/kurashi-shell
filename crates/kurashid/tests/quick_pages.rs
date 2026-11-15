@@ -2,12 +2,10 @@
 //! a private bus with a fake NetworkManager. Nothing here touches the user's session or system bus.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use kurashi_testkit::{Scratch, TestBus};
 use kurashid::actions::{ActionError, ActionRegistry};
 use kurashid::hub::Hub;
 use kurashid::services::ConnectFn;
@@ -30,72 +28,6 @@ async fn until(what: &str, mut ok: impl FnMut() -> bool) {
     while !ok() {
         assert!(Instant::now() < deadline, "timed out waiting for {what}");
         tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-}
-
-/// A directory for one test's bus, removed when the test ends. Declared before the bus so it
-/// outlives it.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new(tag: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("kurashid-pages-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Scratch(dir)
-    }
-
-    fn addr(&self) -> String {
-        format!("unix:path={}", self.0.join("bus").display())
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// A session-type dbus-daemon on the scratch socket. Dropping it kills only this child.
-struct PrivateBus(Child);
-
-impl PrivateBus {
-    fn start(scratch: &Scratch) -> Self {
-        let socket = scratch.0.join("bus");
-        let conf = scratch.0.join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type>
-<listen>unix:path={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                socket.display()
-            ),
-        )
-        .unwrap();
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut printed = String::new();
-        BufReader::new(child.stdout.as_mut().unwrap())
-            .read_line(&mut printed)
-            .unwrap();
-        assert!(
-            printed.trim().starts_with(&scratch.addr()),
-            "the daemon listens where the test expects: {printed}"
-        );
-        PrivateBus(child)
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
     }
 }
 
@@ -381,12 +313,12 @@ fn networks(hub: &Hub) -> Value {
 #[tokio::test]
 async fn scan_lists_each_network_once_and_rescans_only_while_subscribed() {
     let scratch = Scratch::new("scan");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let world = fresh_world();
-    let _nm = serve_nm(&scratch.addr(), world.clone()).await;
+    let _nm = serve_nm(&scratch.bus_addr(), world.clone()).await;
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.addr()), SCAN_EVERY);
+    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.bus_addr()), SCAN_EVERY);
     let scans = || world.lock().unwrap().scans;
 
     // Not subscribed: nothing lists, nothing scans.
@@ -429,12 +361,12 @@ async fn scan_lists_each_network_once_and_rescans_only_while_subscribed() {
 #[tokio::test]
 async fn connect_joins_saved_networks_and_says_why_it_cannot_join_the_rest() {
     let scratch = Scratch::new("connect");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let world = fresh_world();
-    let _nm = serve_nm(&scratch.addr(), world.clone()).await;
+    let _nm = serve_nm(&scratch.bus_addr(), world.clone()).await;
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.addr()), SCAN_EVERY);
+    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.bus_addr()), SCAN_EVERY);
 
     // Not subscribed: refused as not running, and nothing starts.
     assert_eq!(
@@ -501,12 +433,12 @@ async fn connect_joins_saved_networks_and_says_why_it_cannot_join_the_rest() {
 #[tokio::test]
 async fn disconnect_and_airplane_follow_networkmanager_and_refusals_come_back_as_keys() {
     let scratch = Scratch::new("airplane");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let world = fresh_world();
-    let nm = serve_nm(&scratch.addr(), world.clone()).await;
+    let nm = serve_nm(&scratch.bus_addr(), world.clone()).await;
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.addr()), SCAN_EVERY);
+    kurashid::wiring::network_paced(&hub, &mut actions, bus_at(scratch.bus_addr()), SCAN_EVERY);
     hub.subscribe("svc.network").unwrap();
     until("NetworkManager's state", || {
         hub.snapshot("svc.network").unwrap().1["state"] == "connected"
@@ -858,15 +790,15 @@ async fn serve_profile_daemon(addr: &str, state: Arc<Mutex<Daemon>>) -> Connecti
 #[tokio::test]
 async fn power_profile_follows_the_daemon_and_says_why_when_it_is_gone() {
     let scratch = Scratch::new("power");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let state = Arc::new(Mutex::new(Daemon {
         active: "balanced".into(),
         refuse: false,
     }));
-    let daemon = serve_profile_daemon(&scratch.addr(), state.clone()).await;
+    let daemon = serve_profile_daemon(&scratch.bus_addr(), state.clone()).await;
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
-    kurashid::wiring::power_with(&hub, &mut actions, bus_at(scratch.addr()));
+    kurashid::wiring::power_with(&hub, &mut actions, bus_at(scratch.bus_addr()));
     let doc = |hub: &Hub| hub.snapshot("svc.power").unwrap().1;
 
     // Not subscribed: nothing starts, the switch says so.
@@ -957,14 +889,14 @@ impl NoteDocs {
 #[tokio::test]
 async fn do_not_disturb_until_is_checked_and_follows_the_server() {
     let scratch = Scratch::new("dnd");
-    let _bus = PrivateBus::start(&scratch);
-    let conn = zbus::connection::Builder::address(scratch.addr().as_str())
+    let _bus = TestBus::start_in(&scratch);
+    let conn = zbus::connection::Builder::address(scratch.bus_addr().as_str())
         .unwrap()
         .build()
         .await
         .unwrap();
     let docs = Arc::new(NoteDocs::default());
-    let mut cfg = kurashi_notify::NotifyConfig::new(scratch.0.join("img"));
+    let mut cfg = kurashi_notify::NotifyConfig::new(scratch.path().join("img"));
     cfg.claim_name = false;
     let (_server, cmds) = kurashi_notify::Server::serve(conn, docs.clone(), cfg)
         .await

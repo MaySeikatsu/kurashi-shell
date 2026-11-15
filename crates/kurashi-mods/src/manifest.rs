@@ -85,21 +85,6 @@ pub fn capability_known(c: &str) -> bool {
     })
 }
 
-/// The contribution slots of the core views (K28, `docs/ux/COMPOSITION.md` §3). A mod's
-/// `slot:<name>` must name one of these; the core never names a mod, so the list is the contract.
-pub const SLOTS: &[&str] = &[
-    "clock.expanded.aside",
-    "clock.expanded.day",
-    // One mark per date in the clock view's month grid (row 71, I46): instantiated per visible day cell.
-    "clock.expanded.daymark",
-    "clock.expanded.footer",
-    "media.expanded.below",
-    "media.expanded.backdrop",
-    "notifications.expanded.header",
-    "quick.tiles",
-    "lock.aside",
-];
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(tag = "kind", content = "id", rename_all = "kebab-case")]
 pub enum Provide {
@@ -114,7 +99,7 @@ pub enum Provide {
     Palette(String),
     Decor(String),
     Launcher(String),
-    /// Fills a core view's slot (K28); the name is one of [`SLOTS`].
+    /// Fills a slot (K28, K154): a core view's (`points::POINTS`) or one another mod opens (`<mod>:<point>`).
     Slot(String),
     /// A choice source a setting names with `choices_from` (K28 (3), I9).
     Choices(String),
@@ -142,13 +127,18 @@ impl Provide {
         let valid = if kind == "action" {
             let body = id.strip_suffix(".*").unwrap_or(id);
             !body.is_empty() && body.chars().all(ok_char)
+        } else if kind == "slot" && id.contains(':') {
+            // A point another mod opens (K154): `slot:sessions:open_in`.
+            id.split_once(':').is_some_and(|(m, name)| {
+                ident_ok(m) && !name.is_empty() && name.chars().all(ok_char) && !name.contains('.')
+            })
         } else {
             !id.is_empty() && id.chars().all(ok_char)
         };
         if !valid {
             return Err("provide_malformed");
         }
-        if kind == "slot" && !SLOTS.contains(&id) {
+        if kind == "slot" && !id.contains(':') && !crate::points::is_slot(id) {
             return Err("provide_unknown_slot");
         }
         let id = id.to_string();
@@ -278,6 +268,12 @@ pub struct Manifest {
     pub provides: Vec<Provide>,
     pub capabilities: Vec<String>,
     pub cost: Cost,
+    /// Material Symbols name (K154): the mod's Settings page, its Mods row, its launcher and menu rows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    /// What it uses, the points it opens, its declared actions, its menu rows, the variants it skips (K154).
+    #[serde(flatten)]
+    pub contract: crate::contract::Contract,
     pub settings: Vec<Setting>,
     /// The fields of each `records` setting (K38), by the setting's key. They sit beside the settings, not in
     /// them: `Setting` is inline in `registry::Contribution`, and clippy's large_enum_variant limits its size.
@@ -315,6 +311,17 @@ struct Raw {
     capabilities: Vec<String>,
     #[serde(default = "default_cost")]
     cost: String,
+    icon: Option<String>,
+    #[serde(default)]
+    uses: Vec<String>,
+    #[serde(default)]
+    points: Vec<String>,
+    #[serde(default, rename = "action")]
+    actions: Vec<crate::contract::RawAction>,
+    #[serde(default, rename = "menu")]
+    menus: Vec<crate::contract::RawMenu>,
+    #[serde(default)]
+    skips: std::collections::BTreeMap<String, String>,
     #[serde(default, rename = "setting")]
     settings: Vec<RawSetting>,
 }
@@ -772,6 +779,11 @@ pub fn parse(
             err("capability_unknown", &format!("capabilities[{i}]"), c);
         }
     }
+    if let Some(icon) = &raw.icon
+        && !crate::contract::icon_ok(icon)
+    {
+        err("icon_invalid", "icon", icon);
+    }
 
     let mut settings = Vec::new();
     let mut record_specs: Vec<(String, RecordSpec)> = Vec::new();
@@ -945,6 +957,19 @@ pub fn parse(
         }
     }
 
+    let contract = crate::contract::parse(
+        &raw.id,
+        &provides,
+        &crate::contract::RawContract {
+            uses: &raw.uses,
+            points: &raw.points,
+            actions: &raw.actions,
+            menus: &raw.menus,
+            skips: &raw.skips,
+        },
+        &mut errs,
+    );
+
     match (errs.is_empty(), version, tier, kurashi, cost) {
         (true, Some(version), Some(tier), Some(kurashi), Some(cost)) => Ok(Manifest {
             id: raw.id,
@@ -957,6 +982,8 @@ pub fn parse(
             provides,
             capabilities: raw.capabilities,
             cost,
+            icon: raw.icon,
+            contract,
             settings,
             records: record_specs,
         }),

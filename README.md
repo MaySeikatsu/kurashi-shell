@@ -60,6 +60,11 @@ nix develop      # toolchain, quickshell, sway (headless tests), bench tools
 just             # list tasks
 ```
 
+## Making a mod
+`docs/MODDING.md` is the guide: which route fits (views only, in the shell's tree, and what is planned), the template
+(`kurashi mod new`), how a mod says what it adds, needs and opens, and the rules `kurashi mod check` holds it to so it
+feels native. `docs/MODS.md` is the reference.
+
 ## Iterating
 
 Pick the loop by what you changed. `nix build` is for the installed result, not for trying an edit (K76).

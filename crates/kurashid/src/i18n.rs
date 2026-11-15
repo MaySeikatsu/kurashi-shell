@@ -73,6 +73,33 @@ fn flatten(prefix: &str, table: &toml::Table, out: &mut BTreeMap<String, String>
     }
 }
 
+/// A mod's own strings (K154: `provides = ["i18n"]`, `<mod>/i18n/<locale>.toml`): the locale's over the fallback's,
+/// and only keys under `mod-<id>.` or `mods.<id>.` — a mod names its own copy and never the shell's.
+pub fn mod_strings(dir: &Path, id: &str, locale: &str) -> BTreeMap<String, String> {
+    let mut all = BTreeMap::new();
+    for l in [FALLBACK, locale] {
+        let path = dir.join("i18n").join(format!("{l}.toml"));
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        match text.parse::<toml::Table>() {
+            Ok(table) => flatten("", &table, &mut all),
+            Err(e) => {
+                tracing::warn!(file = %path.display(), error = %e, "skipping a mod's i18n file")
+            }
+        }
+    }
+    let (a, b) = (format!("mod-{id}."), format!("mods.{id}."));
+    all.retain(|k, _| {
+        let own = k.starts_with(&a) || k.starts_with(&b);
+        if !own {
+            tracing::warn!(key = %k, "mod {id}: an i18n key outside mod-{id}.* is not taken");
+        }
+        own
+    });
+    all
+}
+
 /// Document value: the locale's strings over the fallback's, so a missing translation shows
 /// English instead of a raw key.
 pub fn document(root: &Path, locale: &str) -> Value {
@@ -86,6 +113,25 @@ pub fn document(root: &Path, locale: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// K154: a mod ships its own copy, the locale's over English, and cannot name a key of the shell's.
+    #[test]
+    fn a_mods_strings_are_its_own_keys_only() {
+        let dir = std::env::temp_dir().join(format!("kurashi-i18n-mod-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("i18n")).unwrap();
+        std::fs::write(
+            dir.join("i18n/en.toml"),
+            "\"mod-tea.name\" = \"Tea\"\n\"mod-tea.open\" = \"Open Tea\"\n\"action.session.lock\" = \"Mine now\"\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("i18n/ja.toml"), "\"mod-tea.name\" = \"お茶\"\n").unwrap();
+        let s = mod_strings(&dir, "tea", "ja");
+        assert_eq!(s.get("mod-tea.name").map(String::as_str), Some("お茶"));
+        assert_eq!(s.get("mod-tea.open").map(String::as_str), Some("Open Tea"));
+        assert!(!s.contains_key("action.session.lock"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn locale_overrides_fallback_and_nested_tables_flatten() {

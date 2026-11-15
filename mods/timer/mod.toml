@@ -22,6 +22,7 @@ provides = [
 # The end goes out as a notification on the session bus (the notification server the daemon serves).
 capabilities = ["dbus:session"]
 cost = "low"
+icon = "timer"
 
 [[setting]]
 key = "presets"
@@ -78,3 +79,77 @@ type = "bool"
 default = true
 label = "mods.timer.sound"
 help = "mods.timer.sound.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "timer.add"
+label = "mod-timer.action.add"
+
+[[action]]
+id = "timer.pause"
+label = "mod-timer.action.pause"
+
+[[action]]
+id = "timer.pomodoro.start"
+label = "mod-timer.action.pomodoro"
+icon = "self_improvement"
+command = "pomodoro"
+no_args = true
+
+[[action]]
+id = "timer.resume"
+label = "mod-timer.action.resume"
+
+[[action]]
+id = "timer.skip"
+label = "mod-timer.action.next"
+
+[[action]]
+id = "timer.start"
+label = "mod-timer.action.start"
+icon = "timer"
+command = "timer"
+  [[action.arg]]
+  name = "minutes"
+  type = "int"
+  range = [1, 1440]
+  optional = true
+  rest = true
+  [[action.arg]]
+  name = "seconds"
+  type = "int"
+  range = [1, 86400]
+  optional = true
+  [[action.arg]]
+  name = "label"
+  type = "string"
+  optional = true
+
+[[action]]
+id = "timer.stop"
+label = "mod-timer.action.stop"
+
+[[action]]
+id = "timer.stop_all"
+label = "mod-timer.action.stop_all"
+icon = "timer_off"
+command = "stop timers"
+no_args = true
+
+[[menu]]
+at = "module"
+action = "timer.start"
+
+[[menu]]
+at = "module"
+action = "timer.start"
+args = { minutes = 5 }
+
+[[menu]]
+at = "module"
+action = "timer.pomodoro.start"
+
+[[menu]]
+at = "module"
+action = "timer.stop_all"

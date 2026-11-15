@@ -63,8 +63,13 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
   done). Cards cite it; the lead reviews screenshots against it; PROGRESS tracks *functional* and *UX* separately.
 - Bugs, ideas and improvements that are not scheduled now → a row in `docs/BACKLOG.md` (date, source,
   status) — never only in a chat, an agent report or a handover. Agents report them; the lead adds the rows.
+- **Inbox (user rule, session 34).** `docs/INBOX.md` is where the user writes bugs and ideas, by area. Before work on an
+  area starts — a card is written, an agent is briefed, the lead picks up a step — read that area's section. What fits
+  the work at hand (the same files, small) is done with it and ticked with where it landed; what does not fit stays, and
+  the report says why. A card names the inbox lines it takes. A line that needs design or a card of its own gets a
+  BACKLOG row and keeps its pointer in the inbox. At session start: file *Unsorted* under its areas, remove done lines.
 - **Session start:** `git fetch` (parallel sessions merge through PRs: take new K-, B-, I- and W-ids from `origin/main`),
-  `just sweep`, read `docs/HANDOVER.md` (latest entry) and continue its "Next steps".
+  `just sweep`, read `docs/HANDOVER.md` (latest entry) and `docs/INBOX.md`, and continue the handover's "Next steps".
 - **Session end (K14):** add a new top entry to `docs/HANDOVER.md` — state, what was merged,
   next steps (concrete, ordered), open decisions/risks, anything half-done and where it lives —
   and commit it. The pickup prompt at the top of that file must keep working.
@@ -90,17 +95,19 @@ nix build .#kurashi    # packaged daemon + frontend + icon font
 | `docs/ARCHITECTURE.md` | process model, crates, state ownership, surfaces, data flow |
 | `docs/PROTOCOL.md` | IPC v1: framing, handshake, revisions, transactions, intents |
 | `docs/DESIGN-SYSTEM.md` | tokens, theming pipeline, decor packs, motion, components, Island |
-| `docs/MODS.md` | mod manifest, tiers, lifecycle, Luau host API, settings integration |
+| `docs/MODS.md` | mod manifest, the integration contract (K154), tiers, lifecycle, settings integration |
+| `docs/MODDING.md` | the community's guide to making a mod: routes, the template, the rules that make it native |
 | `docs/DECISIONS.md` | K-decisions log |
 | `docs/ROADMAP.md` / `PROGRESS.md` | milestones / step tracker (`M{n}.{step}`) |
 | `docs/BENCH.md` / `BAKEOFF.md` | measured numbers / frontend framework comparison |
 | `docs/CONTRACT-CHANGE.md` | requested contract changes from subagents |
 | `docs/HANDOVER.md` | session handovers + pickup prompt (read first, write last) |
 | `docs/BACKLOG.md` | unscheduled bugs, improvements, ideas (append; never lose one) |
+| `docs/INBOX.md` | the user's bugs and ideas by area: read an area's section before working on it |
 
 ## Subagent task cards
-Every delegated task gets a card: goal · owned paths (edit only these) · frozen contracts to code
-against · one executable acceptance test · token thrift (read only listed files, terse report) ·
+Every delegated task gets a card: goal · the area's inbox lines it takes (`docs/INBOX.md`) · owned paths (edit only
+these) · frozen contracts to code against · one executable acceptance test · token thrift (read only listed files, terse report) ·
 out-of-scope needs → `docs/CONTRACT-CHANGE.md`. Work happens in an isolated git worktree.
 
 **At most two agents run at once**, and only for work that needs one: a card whose scope is clear and that is not a

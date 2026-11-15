@@ -18,6 +18,9 @@ provides = [
 # (CONTRACT-CHANGE row: a capability for user-named files).
 capabilities = ["fs:scoped"]
 cost = "low"
+icon = "checklist"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["doc:svc.clock"]
 
 [[setting]]
 key = "file"
@@ -46,3 +49,48 @@ type = "bool"
 default = false
 label = "mods.tasks.bar_count"
 help = "mods.tasks.bar_count.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "tasks.add"
+label = "mod-tasks.action.add"
+icon = "add_task"
+command = "task"
+  [[action.arg]]
+  name = "text"
+  type = "string"
+  rest = true
+
+[[action]]
+id = "tasks.clear_done"
+label = "mod-tasks.action.clear_done"
+icon = "playlist_remove"
+command = "clear done tasks"
+no_args = true
+
+[[action]]
+id = "tasks.edit"
+label = "mod-tasks.action.edit"
+
+[[action]]
+id = "tasks.notes.set"
+label = "mod-tasks.action.notes_set"
+
+[[action]]
+id = "tasks.remove"
+label = "mod-tasks.action.remove"
+
+[[action]]
+id = "tasks.toggle"
+label = "mod-tasks.action.toggle"
+
+[[menu]]
+at = "module"
+action = "tasks.clear_done"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the count is the glance; the list is the panel"
+island-face = "tasks have no live activity"
+quick-tile = "nothing to switch"

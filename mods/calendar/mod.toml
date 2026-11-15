@@ -21,6 +21,9 @@ provides = [
 # settings point (as the tasks mod, `fs:scoped` is the nearest capability); `khal list` when khal is on.
 capabilities = ["network", "fs:scoped", "exec:khal"]
 cost = "low"
+icon = "calendar_month"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["action:island.expand"]
 
 # Calendars: a .ics file, a folder of them (a vdirsyncer/khal storage folder: one calendar per sub-folder), or a feed
 # address (https://, webcal://; the "secret address" of Google, Proton or Nextcloud). The address is never shown in the
@@ -83,3 +86,22 @@ default = 10
 range = [1, 60]
 unit = "min"
 label = "mods.calendar.peek_minutes"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "calendar.refresh"
+label = "mod-calendar.action.refresh"
+icon = "sync"
+command = "calendar"
+no_args = true
+
+[[menu]]
+at = "module"
+action = "calendar.refresh"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the clock's peek carries the next event"
+panel = "its view is the clock's expanded view (slots clock.expanded.day and .daymark)"
+quick-tile = "a calendar has nothing to switch"

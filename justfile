@@ -31,13 +31,15 @@ gate *ARGS:
     step just nix-eval-test
     step nix build .#kurashi --no-link
     mkdir -p tools/bench/results
-    line="gate: passed on $sha at $(date -u +%Y-%m-%dT%H:%MZ): check, $([ "$suites" = 1 ] && echo "suites (merge set)" || echo "no suites"), hm-eval, nix build"
+    known=$(grep -vc -e '^#' -e '^$' tools/suites-known-failing.txt)
+    line="gate: passed on $sha at $(date -u +%Y-%m-%dT%H:%MZ): check, $([ "$suites" = 1 ] && echo "suites (merge set; $known known failing as on main)" || echo "no suites"), hm-eval, nix build"
     echo "$line" | tee tools/bench/results/gate.txt
 
-# Build artifacts older than DAYS leave `target/` (K153, rule 11; session start and end). The agents' build dirs are
-# removed by hand after their merge (B23).
-sweep days="7":
+# Build artifacts older than DAYS leave `target/`, then the oldest until it is under CAP (K153, rule 11; the user,
+# session 34: 60 GB). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
+sweep days="7" cap="60GB":
     cargo sweep --time {{days}}
+    cargo sweep --maxsize {{cap}}
     @du -sh "${CARGO_TARGET_DIR:-target}" | awk '{print "sweep: target is now " $1}'
 
 # What the Rust loop costs here: no-op, link, daemon, leaf mod, schema (tools/bench/build-timings.sh)

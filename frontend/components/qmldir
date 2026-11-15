@@ -36,6 +36,7 @@ Elevation 1.0 Elevation.qml
 ProgressLine 1.0 ProgressLine.qml
 SheetShadow 1.0 SheetShadow.qml
 LoadingText 1.0 LoadingText.qml
+Label 1.0 Label.qml
 FieldLine 1.0 FieldLine.qml
 Caret 1.0 Caret.qml
 KineticWheel 1.0 KineticWheel.qml

@@ -4,13 +4,11 @@
 //! unsubscribe. I17: the services the island keeps subscribed (K30) start once while their bus name
 //! is absent and follow NameOwnerChanged from there — no supervisor retry, no restart.
 
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
+use kurashi_testkit::{Scratch, TestBus};
 use kurashid::hub::Hub;
 use kurashid::services::{ConnectFn, ServiceProvider};
 use serde_json::{Value, json};
@@ -22,86 +20,6 @@ const RECOVERY: Duration = Duration::from_secs(5);
 
 fn idle() -> Value {
     json!({"available": false, "items": []})
-}
-
-/// A fresh directory for one test's bus, removed when the test ends. Declared before the buses so
-/// it outlives them.
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new(tag: &str) -> Self {
-        let dir = std::env::temp_dir().join(format!("kurashid-svc-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        Scratch(dir)
-    }
-
-    fn addr(&self) -> String {
-        format!("unix:path={}", self.0.join("bus").display())
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// A session-type dbus-daemon on the scratch address. Dropping it kills only this child.
-struct PrivateBus {
-    child: Option<Child>,
-}
-
-impl PrivateBus {
-    /// Starts a daemon and returns once it has printed the address, i.e. once it accepts clients.
-    fn start(scratch: &Scratch) -> Self {
-        let socket = scratch.0.join("bus");
-        // A killed daemon leaves its socket file behind; the next one must not trip over it.
-        let _ = std::fs::remove_file(&socket);
-        let conf = scratch.0.join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type>
-<listen>unix:path={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
-</busconfig>"#,
-                socket.display()
-            ),
-        )
-        .unwrap();
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut printed = String::new();
-        BufReader::new(child.stdout.as_mut().unwrap())
-            .read_line(&mut printed)
-            .unwrap();
-        let bus = Self { child: Some(child) };
-        // The printed address carries a `,guid=` suffix; the socket path is what must match.
-        assert!(
-            printed.trim().starts_with(&scratch.addr()),
-            "the daemon listens where the test expects: {printed}"
-        );
-        bus
-    }
-
-    /// Kills this daemon and waits until it is gone.
-    fn kill(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        self.kill();
-    }
 }
 
 /// Opens `addr` on every call and counts the calls: a reconnect shows up as another attempt.
@@ -141,9 +59,9 @@ async fn until(what: &str, within: Duration, mut cond: impl FnMut() -> bool) {
 #[tokio::test]
 async fn tray_reconnects_after_a_bus_restart_and_stops_on_unsubscribe() {
     let scratch = Scratch::new("reconnect");
-    let mut bus = PrivateBus::start(&scratch);
+    let mut bus = TestBus::start_in(&scratch);
     let attempts = Arc::new(AtomicUsize::new(0));
-    let provider = tray_provider(counting_bus(scratch.addr(), attempts.clone()));
+    let provider = tray_provider(counting_bus(scratch.bus_addr(), attempts.clone()));
     let hub = Hub::new();
     hub.register(TRAY_DOC, idle(), Some(provider.clone()));
 
@@ -165,7 +83,7 @@ async fn tray_reconnects_after_a_bus_restart_and_stops_on_unsubscribe() {
     );
 
     // A bus at the same address again: the provider reconnects without a new subscribe.
-    bus = PrivateBus::start(&scratch);
+    bus = TestBus::start_in(&scratch);
     until("the tray to come back", RECOVERY, || available(&hub)).await;
     assert!(
         attempts.load(Ordering::SeqCst) > 1,
@@ -196,7 +114,7 @@ async fn tray_reconnects_after_a_bus_restart_and_stops_on_unsubscribe() {
 async fn first_connect_is_retried_until_the_bus_is_up() {
     let scratch = Scratch::new("first-connect");
     let attempts = Arc::new(AtomicUsize::new(0));
-    let provider = tray_provider(counting_bus(scratch.addr(), attempts.clone()));
+    let provider = tray_provider(counting_bus(scratch.bus_addr(), attempts.clone()));
     let hub = Hub::new();
     hub.register(TRAY_DOC, idle(), Some(provider.clone()));
 
@@ -208,7 +126,7 @@ async fn first_connect_is_retried_until_the_bus_is_up() {
     .await;
     assert!(!available(&hub));
 
-    let mut bus = PrivateBus::start(&scratch);
+    let mut bus = TestBus::start_in(&scratch);
     until("the tray to come up", RECOVERY, || available(&hub)).await;
 
     hub.unsubscribe(TRAY_DOC);
@@ -224,11 +142,11 @@ async fn an_absent_bus_is_waited_for_not_polled() {
     let provider = Arc::new(
         ServiceProvider::with_connect(
             TRAY_DOC,
-            counting_bus(scratch.addr(), attempts.clone()),
+            counting_bus(scratch.bus_addr(), attempts.clone()),
             kurashi_tray::start,
         )
         .unavailable(idle())
-        .bus_socket(scratch.0.join("bus")),
+        .bus_socket(scratch.path().join("bus")),
     );
     let hub = Hub::new();
     hub.register(TRAY_DOC, idle(), Some(provider.clone()));
@@ -246,7 +164,7 @@ async fn an_absent_bus_is_waited_for_not_polled() {
         "no retry while the bus socket is absent"
     );
 
-    let mut bus = PrivateBus::start(&scratch);
+    let mut bus = TestBus::start_in(&scratch);
     until(
         "the tray to come up once the bus is there",
         RECOVERY,
@@ -262,11 +180,11 @@ async fn an_absent_bus_is_waited_for_not_polled() {
     // The bus goes and its socket with it: waiting again; unsubscribing ends the wait, and a bus that comes back
     // later is not connected to.
     bus.kill();
-    let _ = std::fs::remove_file(scratch.0.join("bus"));
+    let _ = std::fs::remove_file(scratch.path().join("bus"));
     until("the tray to be unavailable", UNTIL, || !available(&hub)).await;
     hub.unsubscribe(TRAY_DOC);
     let at_unsubscribe = attempts.load(Ordering::SeqCst);
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(
         attempts.load(Ordering::SeqCst),
@@ -279,7 +197,7 @@ async fn an_absent_bus_is_waited_for_not_polled() {
 async fn unsubscribe_cancels_a_pending_retry() {
     let scratch = Scratch::new("cancel-retry");
     let attempts = Arc::new(AtomicUsize::new(0));
-    let provider = tray_provider(counting_bus(scratch.addr(), attempts.clone()));
+    let provider = tray_provider(counting_bus(scratch.bus_addr(), attempts.clone()));
     let hub = Hub::new();
     hub.register(TRAY_DOC, idle(), Some(provider.clone()));
 
@@ -297,7 +215,7 @@ async fn unsubscribe_cancels_a_pending_retry() {
     let at_unsubscribe = attempts.load(Ordering::SeqCst);
 
     // A bus appears: nothing may connect to it on the provider's behalf.
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     tokio::time::sleep(Duration::from_secs(2)).await;
     assert_eq!(
         attempts.load(Ordering::SeqCst),
@@ -346,11 +264,11 @@ const PAST_BACKOFF: Duration = Duration::from_millis(2500);
 #[tokio::test]
 async fn power_waits_for_upower_on_name_owner_changed_without_retrying() {
     let scratch = Scratch::new("power-name");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let attempts = Arc::new(AtomicUsize::new(0));
     let provider = Arc::new(ServiceProvider::with_connect(
         "svc.power",
-        counting_bus(scratch.addr(), attempts.clone()),
+        counting_bus(scratch.bus_addr(), attempts.clone()),
         kurashi_services::power::start,
     ));
     let hub = Hub::new();
@@ -374,7 +292,7 @@ async fn power_waits_for_upower_on_name_owner_changed_without_retrying() {
     );
     assert_eq!(doc(&hub)["available"], false);
 
-    let upower = zbus::connection::Builder::address(scratch.addr().as_str())
+    let upower = zbus::connection::Builder::address(scratch.bus_addr().as_str())
         .unwrap()
         .serve_at("/org/freedesktop/UPower", FakeUPower)
         .unwrap()
@@ -413,11 +331,11 @@ async fn power_waits_for_upower_on_name_owner_changed_without_retrying() {
 #[tokio::test]
 async fn bluetooth_without_bluez_starts_once_and_follows_the_name() {
     let scratch = Scratch::new("bt-name");
-    let _bus = PrivateBus::start(&scratch);
+    let _bus = TestBus::start_in(&scratch);
     let attempts = Arc::new(AtomicUsize::new(0));
     let provider = Arc::new(ServiceProvider::with_connect(
         "svc.bluetooth",
-        counting_bus(scratch.addr(), attempts.clone()),
+        counting_bus(scratch.bus_addr(), attempts.clone()),
         kurashi_services::bluetooth::start,
     ));
     let hub = Hub::new();
@@ -439,7 +357,7 @@ async fn bluetooth_without_bluez_starts_once_and_follows_the_name() {
         "no retry while BlueZ is absent"
     );
 
-    let bluez = zbus::connection::Builder::address(scratch.addr().as_str())
+    let bluez = zbus::connection::Builder::address(scratch.bus_addr().as_str())
         .unwrap()
         .name("org.bluez")
         .unwrap()
