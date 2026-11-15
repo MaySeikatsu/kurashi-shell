@@ -1735,6 +1735,35 @@ pub fn mods_native(
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     let reg = Registry::discover(&roots, &version);
+    // K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
+    if let Ok((_, doc)) = hub.snapshot("i18n") {
+        let locale = doc["locale"]
+            .as_str()
+            .unwrap_or(crate::i18n::FALLBACK)
+            .to_owned();
+        let mut own = serde_json::Map::new();
+        for e in reg.iter() {
+            let ships = e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
+            if ships {
+                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
+                    own.insert(k, Value::String(v));
+                }
+            }
+        }
+        if !own.is_empty() {
+            let _ = hub.update("i18n", None, |d| {
+                if let Some(s) = d["strings"].as_object_mut() {
+                    for (k, v) in own {
+                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
+                        s.entry(k).or_insert(v);
+                    }
+                }
+            });
+        }
+    }
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }

@@ -43,7 +43,8 @@ def scan(lang):
     files = {}
     for root in cfg["roots"]:
         for dp, _dn, fn in os.walk(os.path.join(ROOT, root)):
-            if any(k in dp + "/" for k in SKIP):
+            # Judged inside the checkout: an agent's worktree lives under .claude/worktrees and is a checkout too.
+            if any(k in "/" + os.path.relpath(dp, ROOT) + "/" for k in SKIP):
                 continue
             for f in fn:
                 p = os.path.join(dp, f)

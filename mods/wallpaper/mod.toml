@@ -188,7 +188,15 @@ label = "action.wallpaper.wallhaven.search"
 [[menu]]
 at = "desktop"
 action = "wallpaper.next"
+label = "menus.desktop.next_wallpaper"
 
 [[menu]]
 at = "desktop"
 action = "wallpaper.random"
+
+[[menu]]
+at = "desktop"
+action = "mod.panel.open"
+args = { id = "wallpaper", panel = "wallpaper" }
+label = "menus.desktop.choose_wallpaper"
+icon = "wallpaper"

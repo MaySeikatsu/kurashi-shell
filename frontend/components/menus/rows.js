@@ -151,3 +151,26 @@ function run(store, bars, a) {
     store.apply([setOp(bars, a.key, a.value)])
     return false
 }
+
+// K154 (MODS.md "Menus"): the rows the enabled mods declare for the menu `at` (`[[menu]]` in their manifests; the `mods`
+// document carries them with the label and icon each shows). `only` keeps one mod's rows (its own module menu); `more`
+// is laid over a row's arguments (the output a desktop or bar menu is on). The ids count up from `base`. No menu names
+// a mod: what a mod offers there is its manifest's to say.
+function modRows(modsDoc, at, only, more, base, tr) {
+    var out = [], mods = (modsDoc && modsDoc.mods) || []
+    for (var i = 0; i < mods.length; i++) {
+        var m = mods[i]
+        if (m.state !== "enabled" || (only && m.id !== only)) continue
+        var menus = m.menus || []
+        for (var j = 0; j < menus.length; j++) {
+            var r = menus[j]
+            if (r.at !== at) continue
+            var args = {}
+            for (var k in (r.args || {})) args[k] = r.args[k]
+            for (var k2 in (more || {})) if (args[k2] === undefined) args[k2] = more[k2]
+            out.push({ id: base + out.length, label: tr(r.label || ("action." + r.action)), icon: r.icon,
+                       act: { action: r.action, args: args, close: true } })
+        }
+    }
+    return out
+}

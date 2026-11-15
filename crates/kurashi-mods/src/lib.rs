@@ -6,6 +6,7 @@ pub mod contract;
 pub mod manifest;
 pub mod points;
 pub mod registry;
+pub mod scaffold;
 
 pub use contract::{ActionDecl, ArgDecl, ArgType, Contract, MenuRow, Use, UseKind};
 pub use manifest::{

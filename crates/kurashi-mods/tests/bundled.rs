@@ -90,5 +90,8 @@ fn the_shells_slot_hosts_name_registered_slots() {
             hosted.push(name.to_owned());
         }
     }
-    assert!(hosted.len() >= 6, "the shell's slot hosts were not found: {hosted:?}");
+    assert!(
+        hosted.len() >= 6,
+        "the shell's slot hosts were not found: {hosted:?}"
+    );
 }
