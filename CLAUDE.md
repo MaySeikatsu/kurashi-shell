@@ -25,11 +25,31 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 8. **i18n from day one.** User-facing strings via keys in `i18n/{en,ja}/<domain>.toml` (one file per domain so parallel work never conflicts). Code identifiers
    English; Japanese lives in copy, docs and profile names.
 9. **Budgets (docs/BENCH.md) are acceptance criteria**, not aspirations.
+10. **One pattern, one place (K153).** Before writing a helper, a component or a harness step, look for the one that
+    exists and extend it; a block a second file needs moves to the shared place first (`frontend/components`,
+    `frontend/test-lib.sh`, `tools/testkit/`, a workspace crate). `tools/clones.py --lang <rs|qml|sh>` lists what is
+    copied today; `just check` runs its ratchet against `tools/clones-baseline.json` — the count may fall, never rise
+    (`just clones --update` after it fell).
+11. **Leave the workspace clean (K153).** `just sweep` at session start and end. An agent's worktree, branch and build dir
+    (`~/.cache/kurashi-agents-target/<card>`) go after its merge; a run's sandboxes and scratch files go with the run. The
+    handover's State names what is left, where, and the disk's free space.
+12. **Everything is an action; every mod is a guest (K154).** Each user-facing feature, core or mod, has a declared action
+    with typed arguments, so `kurashi act`, the launcher's `>` mode and a key bind all reach it. A mod states what it
+    `provides`, what it `uses` and the `points` it opens (docs/MODS.md "Integration contract"); the core never names a
+    mod, and a mod reaches nothing it did not declare. `kurashi mod check` holds a mod to it.
 
 ## Workflow
 - `main` is always green. Work on `feat/<milestone>-<topic>` (e.g. `feat/m1-protocol`).
-- Merge with `git merge --no-ff` only after the step's verification checklist passes
-  (tests, clippy, bench where relevant). Update `docs/PROGRESS.md` in the same branch.
+- Merge with `git merge --no-ff` only after `just gate` passed on the branch's head (check, the suites' merge set,
+  hm-eval, `nix build`; the bench gate too where budgets are touched). The line it prints goes into the PR or the merge
+  message. Update `docs/PROGRESS.md` in the same branch.
+- **The loop (K153; measured in docs/BENCH.md "Build loop").** QML needs no build. Rust while writing: `cargo check -p
+  <crate>` (0.5–2.5 s) and `cargo nextest run -p <crate>`; build only the binary the step needs. UI ready to look at:
+  `just suites --changed`, then niri. Checks and full builds run once, when the work is finished (`just gate`), not
+  between steps. Never edit a tree whose suites are running (QML hot-reloads): use another worktree.
+- **QML first.** A feature or a bug hunt starts in QML against `just mock`: UX brief → prototype on a fixture (a new
+  document's fixture is written first, `fixtures/ipc/server/`) → niri screenshots → the shape is frozen → the backend is
+  built against that fixture → the mock gives way to the real daemon.
 - **Versioning (K151):** every PR to `main` bumps `[workspace.package] version` in `Cargo.toml` (SemVer 0.x: features →
   MINOR, fixes only → PATCH) and moves `CHANGELOG.md`'s Unreleased into that version (Breaking called out). After the user
   merges, tag `vX.Y.Z` on `main` and push the tag.
@@ -43,7 +63,8 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
   done). Cards cite it; the lead reviews screenshots against it; PROGRESS tracks *functional* and *UX* separately.
 - Bugs, ideas and improvements that are not scheduled now → a row in `docs/BACKLOG.md` (date, source,
   status) — never only in a chat, an agent report or a handover. Agents report them; the lead adds the rows.
-- **Session start:** read `docs/HANDOVER.md` (latest entry) and continue its "Next steps".
+- **Session start:** `git fetch` (parallel sessions merge through PRs: take new K-, B-, I- and W-ids from `origin/main`),
+  `just sweep`, read `docs/HANDOVER.md` (latest entry) and continue its "Next steps".
 - **Session end (K14):** add a new top entry to `docs/HANDOVER.md` — state, what was merged,
   next steps (concrete, ordered), open decisions/risks, anything half-done and where it lives —
   and commit it. The pickup prompt at the top of that file must keep working.
@@ -51,7 +72,10 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 ## Commands (inside `nix develop`)
 ```sh
 just              # list recipes
-just check        # fmt-check + clippy -D warnings + cargo test
+just check        # fmt-check + clippy -D warnings + nextest + doctests + launch-script tests + icon subset + clone ratchet
+just gate         # the merge gate: check, suites (merge set), hm-eval, nix build → tools/bench/results/gate.txt
+just sweep        # build artifacts older than 7 days out of target/
+just timings      # what the Rust loop costs on this machine
 just dev          # run kurashid + frontend against the real session
 just mock         # run kurashi-mock (fake daemon for frontend work)
 just sandbox      # headless sway sandbox (invisible) for frontend smoke tests
@@ -78,6 +102,9 @@ nix build .#kurashi    # packaged daemon + frontend + icon font
 Every delegated task gets a card: goal · owned paths (edit only these) · frozen contracts to code
 against · one executable acceptance test · token thrift (read only listed files, terse report) ·
 out-of-scope needs → `docs/CONTRACT-CHANGE.md`. Work happens in an isolated git worktree.
+
+**At most two agents run at once**, and only for work that needs one: a card whose scope is clear and that is not a
+handful of edits. The lead does the easy cards itself.
 
 **Model choice.** Haiku 5.5 at max effort for quick research, concept brainstorming (several parallel
 Haiku agents each draft a concept for the lead to compare), and implementation whose scope is clear: it is

@@ -4825,7 +4825,8 @@ mod tests {
             .submit("brightness.set", json!(0.25), None, false)
             .unwrap();
         until("level set by the intent", || level() == "25").await;
-        assert_eq!(island_face(&hub), "brightness");
+        // B144: the face follows the write; under a loaded test run the file was seen first.
+        until("the brightness face", || island_face(&hub) == "brightness").await;
 
         // Intents have no reply: an out-of-range value is dropped without a write.
         intents
@@ -6009,9 +6010,9 @@ pub fn recorder(
 
 pub const POINTER_DOC: &str = "svc.pointer";
 
-/// `svc.pointer` before anything watches it, and while the pointer is on no output.
+/// `svc.pointer` before anything watches it, and while the pointer is on no output (no `output`: B143).
 fn pointer_doc_gone() -> Value {
-    json!({ "available": true, "output": null, "x": 0.0, "y": 0.0 })
+    json!({ "available": true, "x": 0.0, "y": 0.0 })
 }
 
 /// `svc.pointer` when the compositor cannot tell where the pointer is: the light keeps to the shell's own surfaces.
@@ -6022,7 +6023,7 @@ fn pointer_doc_unavailable(why: kurashi_compositor::pointer::Unavailable) -> Val
         U::NoProtocol => "pointer.no_protocol",
         U::NoPointer => "pointer.no_pointer",
     };
-    json!({ "available": false, "reason": reason, "output": null, "x": 0.0, "y": 0.0 })
+    json!({ "available": false, "reason": reason, "x": 0.0, "y": 0.0 })
 }
 
 /// `svc.pointer` while subscribed: the cursor sessions run from the first subscriber to the last (Ma).

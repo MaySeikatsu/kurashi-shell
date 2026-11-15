@@ -870,3 +870,29 @@ One tab: **140 MiB PSS hidden, 151 MiB shown**; 0 voluntary context switches in 
 widget sleep). The host is a separate process (QMLTermWidget on Quickshell), so the shell's own budgets do not carry it;
 it runs only while the terminal mod is enabled.
 
+
+## Build loop (session 34, K153; machine A, 12 threads, `tools/bench/build-timings.sh` and one-literal edits, warm)
+The Rust loop's cost was the link, not the crate graph: the same 14–16 s whatever was touched. `cargo check -p` is the
+guard while writing; mold and line tables took the link out.
+
+| Step | Before (GNU ld, full debuginfo) | After (mold, `debug = "line-tables-only"`) |
+|---|---|---|
+| No-op build of the three binaries | 0.2 s | 0.2 s |
+| `cargo check -p` after an edit: a leaf mod / `kurashid` | 0.5 s / 2.5 s | same |
+| `kurashid` relinked (its `main.rs` touched) | 13.0 s | 1.9 s |
+| `kurashid` after its library was touched / edited | 14 s / 23 s | 3.7 s |
+| … then the mock and the CLI | 10 s | 1.8 s |
+| The three binaries after a leaf mod was touched | 16.5 s | 4.2 s |
+| The three binaries, cold | not measured | 105 s |
+| Their build dir | 4.7 GB (mold, full debuginfo) | 2.7 GB |
+| The workspace's test binaries rebuilt after a daemon edit | 95–106 s | not measured again (a cold build of all of them: 167 s) |
+
+Tests (1521–1523 of them): `cargo test --workspace` 542 s and 551 s (each with about 100 s of rebuilding the test
+binaries); `cargo nextest run --workspace` 249 s; with `kurashi-texture` at `opt-level = 2` in dev 176 s. What is left is
+two `honesty` tests (138 s and 78 s: they walk every key) — BACKLOG I542.
+
+Suites (session 33's last full run, `-j 4`): the merge set of 50 took 38 min wall, 8036 suite-seconds; `settings/test.sh`
+1317 s, `test-motion` 1135 s, `frame` 746 s, `edge-modules` 667 s, `sidebars` 543 s, `bars` 469 s — BACKLOG I544.
+
+`target/` had reached 301 GB (221 GB `deps`, 77 GB `incremental`); `cargo sweep --time 7` took 131 GiB, 191 GB stayed
+(a week's builds). With the profile above a week weighs less; `just sweep` runs at session start and end.

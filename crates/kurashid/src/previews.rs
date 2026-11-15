@@ -140,9 +140,13 @@ impl Pics {
         let workspaces: serde_json::Map<String, Value> = ids
             .into_iter()
             .map(|id| {
-                let still = self.workspaces.get(&id).map_or(Value::Null, Pic::json);
                 let order = self.order.get(&id).cloned().unwrap_or_default();
-                (id.to_string(), json!({"still": still, "windows": order}))
+                let mut space = json!({"windows": order});
+                // B143: no still yet is no `still`.
+                if let Some(pic) = self.workspaces.get(&id) {
+                    space["still"] = pic.json();
+                }
+                (id.to_string(), space)
             })
             .collect();
         json!({"available": self.available, "windows": windows, "workspaces": workspaces})
@@ -598,7 +602,7 @@ mod tests {
             p.document(),
             json!({"available": true,
                    "windows": {"1": {"path": "/x/w.png", "w": 10, "h": 5, "at": 7}},
-                   "workspaces": {"3": {"still": null, "windows": [1, 2]}}})
+                   "workspaces": {"3": {"windows": [1, 2]}}})
         );
     }
 

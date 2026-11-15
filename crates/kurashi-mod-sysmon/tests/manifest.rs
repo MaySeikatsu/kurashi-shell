@@ -94,6 +94,8 @@ fn the_shipped_manifest_passes_the_validator_and_declares_what_the_crate_registe
             "exec:alacritty",
             "exec:kitty",
             "exec:xterm",
+            // B142: the monitor starts in a systemd scope of its own when systemd-run is there (launch.rs).
+            "exec:systemd-run",
         ]
     );
     // Every terminal the setting offers is a program the manifest declares, and the crate starts (I28).

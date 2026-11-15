@@ -333,6 +333,19 @@ pub fn merge_patch(target: &mut Value, patch: &Value) {
     }
 }
 
+/// Takes every `null` member out of the objects in `v` (B143): a document says "none" by absence (PROTOCOL §3), and a
+/// `null` that reached one would be removed by the next patch while a snapshot still carried it. Array elements stay.
+pub fn strip_nulls(v: &mut Value) {
+    match v {
+        Value::Object(o) => {
+            o.retain(|_, m| !m.is_null());
+            o.values_mut().for_each(strip_nulls);
+        }
+        Value::Array(a) => a.iter_mut().for_each(strip_nulls),
+        _ => {}
+    }
+}
+
 /// The merge-patch that turns `old` into `new` (inverse of [`merge_patch`]); `None` if equal.
 /// Removed object members become `null`, so stale optional fields (e.g. a `forced_by` that no
 /// longer applies) never survive a patch. Documents therefore must not contain `null` values —
@@ -399,6 +412,14 @@ mod tests {
             }
         }
         assert!(checked >= 8, "expected fixtures, found {checked}");
+    }
+
+    #[test]
+    fn strip_nulls_leaves_absence() {
+        let mut doc =
+            json!({"a": null, "b": {"c": null, "d": 3}, "e": [{"f": null, "g": 1}, null]});
+        strip_nulls(&mut doc);
+        assert_eq!(doc, json!({"b": {"d": 3}, "e": [{"g": 1}, null]}));
     }
 
     #[test]

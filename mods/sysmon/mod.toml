@@ -18,7 +18,7 @@ provides = [
 ]
 # Reads /proc and /sys for the figures; signals a process of the user after confirmation (I28); starts btop in
 # the terminal the setting names (one exec capability per terminal offered, and btop itself).
-capabilities = ["fs:read", "proc:signal", "exec:btop", "exec:foot", "exec:alacritty", "exec:kitty", "exec:xterm"]
+capabilities = ["fs:read", "proc:signal", "exec:btop", "exec:foot", "exec:alacritty", "exec:kitty", "exec:xterm", "exec:systemd-run"]
 cost = "low"
 
 [[setting]]

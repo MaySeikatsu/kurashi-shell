@@ -1639,3 +1639,46 @@ island — where the island keeps volume and brightness as before), one switch p
 **Why.** The user: "a proper OSD, we don't really have it yet" — the island's faces showed only volume and brightness and
 nothing at all without the island. GNOME, KDE, Windows 11 and SwayOSD show one transient pill near the bottom; the
 daemon decides (rule 1), the frontend draws.
+
+## K153 — The loop: one gate, a fast linker, a clone ratchet, a swept workspace (session 34)
+**Decision.** (1) `just gate` is the one check before a merge (check, the suites' merge set, hm-eval, `nix build`) and
+writes the commit it passed on; `just check` runs the tests with nextest (doctests apart) and the clone ratchet. (2) The dev
+shell links with mold and the dev profile carries line tables only; `kurashi-texture` is optimised in dev. (3)
+`tools/clones.py` counts cross-file clones per language against `tools/clones-baseline.json`: the count may fall, never
+rise (CLAUDE.md rule 10). (4) `just sweep` at session start and end, and every agent's worktree and build dir goes after
+its merge (rule 11). (5) `just suites --changed` runs one mod's suites for a change inside that mod, and a suite may claim
+paths with a `# covers:` line; anything it cannot place runs the merge set.
+**Why.** Measured on machine A (docs/BENCH.md "Build loop"): `target/` had grown to 301 GB; `kurashid`'s link was 13 s of
+every build and 2.4 s with mold; `cargo test --workspace` took 9 min, nextest 4; 0.2.0 reached `main` without the merge
+set and `hm-eval` had been red there (B138); every Rust edit ran 38 min of suites. The user (session 34): "ensure proper
+quality and keep the iteration loop quick", "a rule to guarantee deduplication safety and proper workspace cleanups" —
+they chose rules plus tooling over rules alone, since a rule alone is what let `target/` grow.
+
+## K154 — Mods are guests: provides, uses, points; every feature an action; one ruleset and tools to hold it (session 34)
+**Decision** (the user's four answers, session 34; the contract is docs/MODS.md "Integration contract").
+(1) **Three relations in the manifest.** `provides` — what the mod contributes to extension points; `uses` — the
+documents it reads and the actions it calls beyond its own, a core service's or another mod's (`?` = optional); `points` —
+the extension points it opens for others. The core's points are one registry in Rust (`kurashi-mods`), from which the
+validator, `runtime.slots`, the docs and the editor's checklist come (rule 3). The core never names a mod: what it reads
+from one today (I555) moves to a point or a core service. First-party mods get no private door.
+(2) **Every feature is an action** with declared, typed arguments (`[[action]]`): `kurashi act`, the launcher's `>` mode
+and a key bind reach it without a list kept by hand. A mod ships each module variant the shell's places ask for (K72) or
+says why not (`[skips]`); it brings its own menu rows and may add rows to the shell's menus (`[[menu]]`).
+(3) **Languages.** Rust for linked first-party mods; Luau for portable mods (MODS.md "Tiers", as planned); any language
+as a host process on the scoped socket (K38), whose scope is the manifest's `uses`. No other runtime inside the daemon.
+(4) **Tools.** `kurashi mod check` holds a mod to the ruleset (manifest, undeclared uses, variants, native feel: kit
+components, tokens, i18n, a11y names, an icon); `kurashi mod new` writes a mod from templates that pass it; a Mod Editor
+page in Settings drives the same generator (docs/ux/mod-editor.md). The visual designer waits for the portable tier's
+UI vocabulary.
+(5) **Roll-out without a break.** The manifests declare first; the check reports; then it fails `just check`. The
+`actions` query keeps `args` and gains `schema` (additive, K17).
+**Why.** The review (session 34, BACKLOG I552–I558, I560): K28's "the core never names a mod" and MODS.md's "mods talk to
+the daemon only through their own documents and actions" had both drifted — eleven of twelve mods read core documents
+unscoped, six core files read mods by name, and a mod had no way to consume anything, so lyrics had its views forward the
+track and sessions had a QML surface relay its calls. The user: "it should be clear how a plugin integrates into other
+modules, plugins and native shell utils"; "everything should be exposed/reachable from the console … and be compatible
+with each surface/module style"; "mods should also provide options for their own context menu"; "rulesets/templates should
+guarantee it to feel native". Others: VS Code's `contributes` + `activationEvents` + `extensionDependencies`
+(https://code.visualstudio.com/api/references/contribution-points), GNOME Shell extensions (no declared surface: every
+release breaks them), KDE Plasma's applet metadata and `kpackagetool` templates, Raycast's typed command arguments
+(https://developers.raycast.com/information/manifest), Noctalia's and DankMaterialShell's plugin manifests.
