@@ -57,17 +57,12 @@ Flow {
             Accessible.checkable: true
             Accessible.checked: pill.on
 
-            Text {
+            Label {
                 id: lbl
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.centerIn: parent
                 // Text on the accent fill takes on_accent (4.5:1).
                 color: pill.on ? Theme.fgOnSelected : Theme.fg
-                font.pixelSize: Theme.fs
                 font.weight: pill.on ? Theme.wBold : Theme.wMedium
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr(modelData.label)
             }
             MouseArea {

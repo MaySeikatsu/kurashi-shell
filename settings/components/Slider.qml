@@ -114,18 +114,12 @@ Item {
         }
     }
     HoverHandler { id: hover }
-    Text {
+    Label {
         id: readout
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 72
         horizontalAlignment: Text.AlignRight
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: s.restWord !== "" && s.shown <= s.from ? s.restWord : s.shown.toFixed(s.decimals) + (s.unit ? " " + s.unit : "")
     }
     MouseArea {

@@ -122,25 +122,17 @@ SectionCard {
                     Column {
                         anchors.centerIn: parent
                         spacing: 2
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.fg
                             font.pixelSize: Theme.fs - 2
                             font.weight: strip.selected ? Theme.wBold : Theme.wMedium
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("settings.layout.edge_short." + strip.e)
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.dim
                             font.pixelSize: Theme.fs - 3
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr(strip.on ? "settings.layout.bar_on" : "settings.layout.bar_off")
                         }
                     }
@@ -184,16 +176,12 @@ SectionCard {
             enabled: Store.live && choices.length > 0
             onPicked: v => screen.moveBar(v)
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: screen.moveError !== ""
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.error
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: "✕ " + I18n.tr("settings.ui.rejected") + ": " + screen.moveError
         }
 
@@ -205,26 +193,16 @@ SectionCard {
                 required property var modelData
                 width: parent.width
                 spacing: 2
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.fmt("settings.layout.unplaced", { name: Store.moduleName(unplacedRow.modelData.id) })
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width
                     wrapMode: Text.WordWrap
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.tr(unplacedRow.modelData.reason)
                 }
                 Select {

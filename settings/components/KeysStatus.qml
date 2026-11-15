@@ -83,16 +83,11 @@ Column {
         }
     }
     // The include line niri's config still needs, with Copy.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: ks.needsInclude
         width: ks.width
         wrapMode: Text.WordWrap
-        color: Theme.fg
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: ks.needsInclude ? "↳ " + I18n.fmt("keys.status.add_include." + (ks.doc.compositor || "niri"), { file: ks.tilde(ks.doc.include.file) }) : ""
     }
     Row {
@@ -107,16 +102,12 @@ Column {
             color: Theme.surface
             border.width: 1
             border.color: Theme.containerHigh
-            Text {
+            Label {
                 id: incText
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.verticalCenter: parent.verticalCenter
                 x: Theme.gap
                 width: parent.width - 2 * Theme.gap
                 elide: Text.ElideRight
-                color: Theme.fg
                 font.pixelSize: Theme.fs - 1
                 font.family: "monospace"
                 text: ks.needsInclude ? ks.doc.include.line : ""
@@ -131,16 +122,12 @@ Column {
             onClicked: ks.copy(ks.doc.include.line)
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: ks.copyState.indexOf("error") === 0
         width: ks.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: "✕ " + ks.copyState.substring(7)
     }
 }

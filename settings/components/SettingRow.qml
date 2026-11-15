@@ -183,40 +183,26 @@ Item {
             id: labels
             width: r.below ? body.width : r.labelW
             spacing: 2
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: r.stacked
                 width: parent.width
-                color: Theme.dim
+                dim: true
                 wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.appearance." + (r.row.choices_from || "") + ".what")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: !r.stacked
                 width: parent.width
                 color: r.inert ? Theme.dim : Theme.fg
                 wrapMode: Text.WordWrap
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr(r.row.label)
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: text !== "" && !r.stacked
                 width: parent.width
-                color: Theme.dim
+                dim: true
                 wrapMode: Text.WordWrap
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: r.row.help ? I18n.tr(r.row.help) : ""
             }
             Row {
@@ -285,16 +271,12 @@ Item {
                         key: r.row.key
                         output: r.out
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: r.previewing
                         height: Theme.controlH
                         verticalAlignment: Text.AlignVCenter
-                        color: Theme.dim
+                        dim: true
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("settings.preview.hint")
                     }
                     Button {
@@ -332,15 +314,11 @@ Item {
                     // The settings test reads which reasons a row shows (W59.6).
                     objectName: "reason:" + r.row.key + ":" + modelData.kind
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         width: Math.min(implicitWidth, ctlCol.width - (link.visible ? link.width + Theme.gap : 0))
                         wrapMode: Text.WordWrap
-                        color: Theme.dim
+                        dim: true
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: (modelData.kind === "pending" ? "↻ " : "⊘ ") + modelData.text
                     }
                     LinkText {
@@ -351,16 +329,12 @@ Item {
                     }
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: r.error !== "" && !r.fieldRefusal
                 width: ctlCol.width
                 wrapMode: Text.WordWrap
                 color: Theme.error
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: "✕ " + I18n.tr("settings.ui.rejected") + ": " + r.error
             }
         }
