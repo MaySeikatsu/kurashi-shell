@@ -27,6 +27,8 @@ baseline.
 | Popup input → first frame | ≤ 1 frame after map |
 | PSS growth over 20 panel open/close cycles (island, notification center, launcher; after 20 warm-up rounds) | ≤ 2 MiB |
 | Mapped surfaces per output at idle | ≤ 4 |
+| Soak growth per hour, daemon (`just soak`, after 10 min of warm-up; W90) | ≤ 1 MiB |
+| Soak growth per hour, frontend (`just soak`, after 10 min of warm-up; W90) | ≤ 2 MiB |
 
 ## Baseline — shellseikatsu (2026-10-08, Quickshell 0.3.1, Qt 6.11.2, niri, 1 output)
 | Metric | Value |
