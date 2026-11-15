@@ -74,16 +74,11 @@ Column {
                 visible: rowC.r.control === "toggle"
                 width: rowC.width
                 spacing: Theme.gap
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width - sw.width - Theme.gap
                     anchors.verticalCenter: sw.verticalCenter
                     elide: Text.ElideRight
                     color: rowC.inert !== "" ? Theme.dim : Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.tr(rowC.r.label)
                 }
                 ToggleSwitch {
@@ -96,16 +91,12 @@ Column {
                 }
             }
             // A choice: its label, then one radio row per choice (the one in effect marked).
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: rowC.r.control === "select"
                 width: rowC.width
                 elide: Text.ElideRight
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr(rowC.r.label)
             }
             Repeater {
@@ -120,30 +111,22 @@ Column {
                     onActivated: mo.set(rowC.r.key, modelData.value)
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: rowC.inert !== ""
                 width: rowC.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: rowC.inert
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: mo.errText !== ""
         width: mo.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: mo.errText
     }
 }

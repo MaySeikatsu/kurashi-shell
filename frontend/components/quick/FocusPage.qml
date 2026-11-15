@@ -56,26 +56,16 @@ Column {
         Column {
             width: parent.width - dndSwitch.width - Theme.gap
             anchors.verticalCenter: dndSwitch.verticalCenter
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.quick.focus.dnd")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: fp.dnd ? (fp.timed ? I18n.tr("island.quick.tile.until").replace("{t}", fp.hhmm(fp.n.dnd_until)) : I18n.tr("island.quick.on"))
                     : I18n.tr("island.quick.off")
             }
@@ -93,14 +83,10 @@ Column {
         req: fp.dndReq
         pendingText: I18n.tr("island.quick.changing")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: fp.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.focus.choose")
     }
     ChoiceRow {
@@ -119,16 +105,12 @@ Column {
         title: I18n.tr("island.quick.focus.indefinite")
         onActivated: fp.choose({on: true})
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: fp.errText !== ""
         width: fp.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: fp.errText
     }
     // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;

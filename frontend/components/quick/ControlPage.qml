@@ -35,27 +35,18 @@ Column {
         Column {
             width: parent.width - sw.width - Theme.gap
             anchors.verticalCenter: sw.verticalCenter
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
                 color: cp.ctl && cp.ctl.inert ? Theme.dim : Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: cp.ctl ? cp.ctl.label : ""
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: !(cp.ctl && cp.ctl.inert)
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: cp.ctl ? cp.ctl.value : ""
             }
         }
@@ -68,16 +59,12 @@ Column {
         }
     }
     // Why it cannot be used now (its reason, or who holds it), once, under the switch it explains.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: cp.ctl !== null && cp.ctl.inert
         width: cp.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: cp.ctl ? cp.ctl.stateText : ""
     }
     StateLine {

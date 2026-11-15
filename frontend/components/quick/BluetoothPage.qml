@@ -62,16 +62,12 @@ Column {
         onLinkRequested: (address, connect) =>
             bt.act(connect ? "bluetooth.connect" : "bluetooth.disconnect", {address: address})
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !bt.avail
         width: bt.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.bluetooth.unavailable")
     }
     // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;
