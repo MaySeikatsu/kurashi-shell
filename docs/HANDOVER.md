@@ -17,6 +17,72 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-15 — session 34 (machine A): the loop and the mod contract — 0.3.0, PR open
+**State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR open, not merged** (the user merges;
+then `git tag v0.3.0` on `main` and push the tag, K151). Gate: `just gate --no-suites` passed on 7b431efb (check, hm-eval, nix build); the merge set ran on 82a2578d (the commit before; only the runner's known-failing list changed since): 50 of 51 pass, `quick-modules` fails as on `main` (B92, now listed in `tools/suites-known-failing.txt`).
+One agent worktree may be left: W89 (`.claude/worktrees/agent-add20fbd7bf4e0b6d`, branch
+`worktree-agent-add20fbd7bf4e0b6d`, build dir `~/.cache/kurashi-agents-target/W89`) — its agent was still editing and running suites when this was written (29 files changed, nothing committed); merge it when it reports (re-measure `python3 tools/clones.py --check`, then `--update`), or drop it. Disk: 204 GB free; `target/` 228 GB, all younger than seven days (the new dev profile rebuilt everything once; I569 asks the user about a size cap).
+`~/.cache/kurashi-agents-target/debug` (3.8 GB, no card's name, older than this session) was left alone: ask the user.
+**Done** (K153, K154; BACKLOG I540–I576, B142–B144; the review that started it is in those rows).
+1. *The loop (K153).* `just gate` (check, suites, hm-eval, nix build → the commit it passed on), `just sweep` (131 GiB taken
+   out of `target/`), `just timings`, `just clones`; `just check` on nextest (tests 9 min → 3 min) with a clone ratchet
+   (`tools/clones.py`, `tools/clones-baseline.json`); the dev shell links with mold, dev profile `line-tables-only`
+   (a rebuild after an edit 16.5 s → 4.2 s; BENCH "Build loop"); `just suites --changed` runs one mod's suites for a
+   change inside that mod, reads `# covers:` lines, has `--list`, reaches all suites. CLAUDE.md rules 10–12, "The loop",
+   "QML first", session start with `git fetch` and `just sweep`; the lead's rules that lived in one machine's memory.
+2. *Bugs.* B143 documents never carry `null` (the hub strips it); B142 sysmon declares `exec:systemd-run`; B144 a racing
+   brightness test.
+3. *The mod contract (K154, docs/MODS.md "Integration contract").* `kurashi-mods`: `points` (the registry of where a mod
+   can stand), `contract` (`uses` doc/action/intent, `points`, `[[action]]` with typed arguments, `[[menu]]`, `[skips]`,
+   `icon`), `check` (the ruleset), `scaffold` (templates that pass it). The twelve bundled manifests declare; a test
+   holds them. `kurashid`: declared arguments checked before the handler, the `actions` query with `schema`, `icon`,
+   `command`, `mod`; `>` commands from manifests (`> timer 5`, `> task buy milk`); the `mods` document with `icon` and
+   `menus`; a mod's own strings in `i18n`. Frontend: the desktop's and a module's menu draw the mods' rows; `qs.kit`
+   (`frontend/kit/qmldir`) and `components/Label.qml`; a mod's icon on its Settings page. CLI: `kurashi mod
+   check|points|reach|new`. Docs: `docs/MODDING.md` (the community's guide), `docs/ux/mod-editor.md` (brief).
+   New suite `frontend/test-mod-contract.sh` (nested niri, in the merge set).
+4. *Dedup.* W88 merged: `crates/kurashi-testkit` (one D-Bus test bus; rs clones 1077 → 810).
+**The user's answers this session.** Dedup and cleanup: rules plus tooling. Mod tooling: ruleset, scaffolder, check, and
+the editor started now. Languages: Rust in the tree, Luau for portable mods, any language as a host process. Console:
+typed actions plus the variant check. Later, in passing: mods bring their own menu rows; templates must guarantee a
+native feel, with icon and settings; a community document on making mods (done: MODDING.md); and two questions to
+discuss next — how a Rust mod is distributed (it is linked into the daemon today; nothing is compiled or loaded on a
+user's machine) and how to organise a catalogue (I570). "If I don't answer, pick the best and show what you chose."
+**What the lead chose without asking** (each can be changed): one PR for everything (one gate) instead of two; mold
+and `line-tables-only` after measuring; a mod names another mod's point as `slot:<mod>:<point>`; `uses` has a third
+kind, `intent:`; the views are held to `uses` by a static check, not a run-time facade (the mods import the global
+Store; no cost at run time); an action without a declaration still works and is logged; `easter-eggs` is exempt from
+the check until it has code (I286); the check's native-feel lints are notes, not errors, until the bundled mods are
+clean (I574); the kit is a `qmldir` naming the shell's own files (same types, nothing compiled twice); a user-made mod
+is views only today (a host process needs a crate: I576) and the guide says so.
+**Verified.** `just check` green (1538 tests, 167 s; clippy; the clone ratchet at rs 810, qml 1512, sh 1999); the merge set 50/51 with three suites green only alone (`webdock/test-card`, `settings/test-dock`, `bar-fit`: I578 — a second runner, W89's, shared the machine); hm-eval and `nix build .#kurashi` green (0.3.0; all 341 dependencies rebuilt for the version bump, I577); `frontend/test-mod-contract.sh` green on nested niri. Not seen on niri by eye: the module menu's own rows, the launcher's command rows, a scaffolded
+mod's views in the shell (its kit import loads in Quickshell: checked in a sandbox). Nothing was run on the user's screen.
+**Next steps (in order; ask the user where a step says so).**
+1. The user checks and merges the PR; then tag `v0.3.0`, push the tag. Remove W89's worktree, branch and build dir once
+   it is merged or dropped.
+2. Discuss with the user: I570 (distribution of Rust mods, the catalogue), I576 (a mod's own program without a crate:
+   manifest-declared hosts and a publishing scoped connection), I569 (a size cap for `target/`), I573 (a mod's icon in
+   the Settings sidebar), `~/.cache/kurashi-agents-target/debug`.
+3. Look on niri (shots, light and dark, two looks): the timer's module menu with its rows, `> timer 5` and `> task …` in
+   the launcher, a `kurashi mod new` mod turned on and placed. Fix what the look finds.
+4. The Mod Editor page (docs/ux/mod-editor.md): `query points`, `mod.new`, `mod.check`, a registry rescan without a
+   restart; QML prototype on the mock first, niri shots, then the page.
+5. K154 step 5: `ModCtx::follow` / `call` (I127, I552) — lyrics follows `svc.media` itself, sessions calls
+   `terminal.run` itself (its QML relay goes); a host's scope from `uses`.
+6. I555's rest: a core `location` the weather mod feeds (the night light reads it), binds from declarations (I571),
+   `ClockPeek`, `Desktop.qml`'s weather card as the mod's `desk:weather`, `AppearanceMenu`, `Wash`, `Sidebar.qml`.
+7. Dedup cards: W89 if not merged; `Label` in the 481 places (a card per folder, goldens and the idle budget checked);
+   the bundled mods on `qs.kit` (I557, I574); the lock faces' model; `Rec`/`assert_no_null` into the testkit.
+8. The suites' floor (I544: `settings/test.sh` split, the motion scrub as a run-time intent, then `-j 6`), typed documents
+   (I548), `qmllint` (I549), the two `honesty` tests (I542), a BACKLOG triage with the user (I568).
+9. Older, from session 33's list: the live read with the user, B119, the terminal's and sessions' open ends, I517–I537.
+**Risks.** The dev shell's mold applies to `cargo` in `nix develop` only; a build outside it relinks everything with
+the default linker. `line-tables-only` drops variable info from debug builds (`CARGO_PROFILE_DEV_DEBUG=full` for a
+debugger session). A declared action's arguments are now checked: a caller that sent a wrong type to a declared action
+(only the fifteen with a schema) is refused where it was tolerated before. The `>` list lost its "web" row.
+
+---
+
 ## 2026-11-13 — session 33, part two (machine A): 0.2.0 merged straight to `main` (the user's call)
 **State.** `main` = 0.2.0 (tag `v0.2.0`; `v0.1.0` = PR #61). No open branch, PR or worktree. Merged directly to `main`
 (no PR) at the user's word, after `just check` (green) and the touched suites on nested niri (`test-osd`, the terminal's
@@ -163,115 +229,3 @@ fix something while suites run; check `df -h /` before a merge set. Live checks 
 **Risks.** B126's fix keys on a press within 1.5 s; a card opened by key still uses the compositor's focused output.
 `mods.webdock.site_icons` on means one request per site the page did not make itself (the user asked for the images;
 off restores K38's strict proof). Two subagents at most; check `df -h /` before a merge set.
-
----
-
-## 2026-11-12 — session 30 (machine A): the user's twelve refinements, the CPU while music plays, web dock round three, groups
-**Asked for.** Twelve points with ten screenshots (BACKLOG B118, I493–I505): cards kept and opened at their size; content
-blending out at a scroll edge; web dock (site images, a resizable card, keep open, "+" and a pin menu, WhatsApp, Local mode,
-desktop apps as an experiment, what plays in the bar); sidebars (width per monitor, one tab row, "+", any module, groups);
-text spawn on all text; the opening's face blending into the final one; card maximum size; notifications and OSD in the
-style; the launcher at the edge; even floating margins; no Reset that changes nothing; groups on the bar. The user's answers:
-named groups (Noctalia v5's capsule groups), the bar's automatic grouping as today, cards at most ½ × ⅓ of the screen, the
-full Settings docked in a sidebar, and later "still sections" for scroll edges under the colour flow. One subagent at a time.
-**Built** (one branch for everything, `feat/s30-groups`, worktree `../kurashi-wt-s30g`; it contains `feat/s30-refine`
-(`../kurashi-wt-s30`), `feat/s30-webdock` (`../kurashi-wt-s30w`), W75 and W76; K142–K145):
-1. K142 scroll edges (`theme.material.scroll_edges`, `components/ScrollEdge.qml`): sidebars, tab row, notification centre,
-   launcher, cards; what stands under a blending edge keeps its still colours (`ColorFlow.under`; a layer drew each flow
-   step twice).
-2. K143 cards: `bar.card_max_height`/`_width` and a scrolling view, `bar.card_keep_loaded`, one even gap when floating (8 px
-   read in pixels); page-mapping panels exempt from both.
-3. K144 the landing blend (FormHost `landing`); the launcher at the edge (JoinedCard's mask lost its mirror: a box on
-   bottom bars); text spawn on all text (`TextSpawnAll`); sidebar width per output; one tab row with the pin; Settings hides
-   a Reset that changes nothing.
-4. W75 (B118): the frontend's frames while music plays halved on nested niri (169 → 81.5 commits/s, 64 → 41 % CPU):
-   flow by speed, hidden washes and lines still, lyrics stepped, bars at 15 a second, the spectrum a quiet document.
-5. Web dock: sites' own images (the host saves favicons), `bar_site`, `bar_playing`, a user agent without QtWebEngine
-   (WhatsApp); W76: grips (edge and bar card, `sizes` per output), keep-open key, "+" with the address field in the title,
-   Pin without reload, the pin menu's Reload / Update pin / Unpin but keep open (CONTRACT-CHANGE 740–743 decided).
-6. K145 named groups (`[[layout.groups]]`, core records keys in the schema): a bar group a block of its own that can fold,
-   a sidebar group one tab or one stack; a sidebar's "+" (`SectionPicker`); the launcher's search and mods' desk cards
-   (notes, lyrics) as sidebar sections.
-**Verified.** On the combined branch: `just check` green (fmt, clippy, every test, the launch test, icon names); the merge
-set (41 suites with W75's `media-idle`): 40 pass, `quick-modules` red as on `main` (B92); `quick-sections` and `stage` were
-re-run after the last fix (a kept card dropped on a theme change) and pass. The web dock's `test-card`, `test-sidebar`,
-`test-host`, `test-background` pass on `feat/s30-webdock` after W76 (`test-dock` fails W76's two checks that fail on its
-base too, B123). `media-idle`: 7.5 commits a second per pinned sidebar. The disk filled up mid-session (B124): 154 GB of
-suite sandboxes and merged build dirs deleted at the user's word. `nix build .#kurashi` green. **PR #56** (`feat/s30-refinements`, pushed from
-`feat/s30-groups`) is open, not merged (the user merges). Left on disk: worktrees `../kurashi-wt-s30`, `../kurashi-wt-s30w`,
-`../kurashi-wt-s30g`, W75's and W76's under `.claude/worktrees/`; build dirs `~/.cache/kurashi-agents-target/{i454,s30g}`. Seen on nested niri with the
-user's profile: launcher at the edge, quick card at its limit with scrolling, floating gaps, tab row and its wheel, splat
-opening, bar groups and the fold, the group tab, the "+" picker, the launcher section. Not seen: two real monitors, the
-user's own eyes on anything, WhatsApp (offline sandbox), the OSD (no audio in the sandbox), Settings' Reset in a shot.
-**Not done, said plainly.** W77 (the full Settings docked in a sidebar: card written, contract change) and W78 (the web
-dock's Local mode and desktop apps as an experiment: card written). Groups have no drag and drop in Settings yet (the
-records editor, comma-separated members). The live session's CPU was not read again (it runs the installed build).
-B119–B123, I506 filed.
-**Open decisions for the user.** I506: the colour flow while music plays (a slower step, flow on the chrome only, still
-bars on the desk). The bar card's keep-open key moves the page to the edge, pinned (W76's reading): keep?
-**Next steps (ordered).** (1) The user rebuilds; read the frontend's CPU with music (`top -b -H -p <frontend pid>`), then
-sit with the user over this session's points on both monitors. (2) W77, then W78 (one subagent at a time). (3) Groups'
-drag and drop in Settings and the module menu's "Group with…" (docs/ux/groups.md). (4) B119 (animations that wake every
-window), B120 (a sidebar frame's cost). (5) B112, B100, B114's rest; I483's rest; B92.
-**Learned.** Any layer (ShaderEffectSource or `layer.enabled`) over content that changes draws its window twice per
-change: keep what changes out of layered views. A ShaderEffectSource ignores its source item's own transform: put the
-transform on a child. GLSL 1.20 (one of the qsb targets) has no constant arrays. `kurashi-mock` takes config through
-`mock.doc`, not `set`. A `Behavior`/animation started at idle wakes every window (W75).
-
----
-
-## 2026-11-11 — session 29, second part (machine A): the user's answers after #54 — keep loaded, outlines as strokes, blocks follow, the web dock's hover and size
-**Asked for (after #54 was merged by the user).** A comparison per look of blocks with the corner shape, then "make them all follow", floating cards and toasts too; a closed sidebar kept loaded, with a toggle; the web dock's hover reveal as it is by default with a setting for the other way; the edge card's size as the bar card's default with a key to switch; and two findings on #54: the outline "stays until the full surface has been built … not belonging", and a card's corner outline is rougher than the frame's.
-**Built** (branch `feat/s29-outline-blocks`, worktree `../kurashi-wt-s29b`; it contains `feat/s29-keep-loaded` and `feat/s29-webdock-w74`; K139 to K141):
-1. K139 `sidebar.keep_loaded`: a closed sidebar's window and content kept a minute, unmapped (`Sidebar.qml` `kept`, the window's `live`); a sheet form is made only in a shown window and reads its place on each frame (a kept sidebar drew its ink at the window's corner).
-2. K140: MorphShape and ColumnShape stroke their outline; `Theme.blockJoin` (blocks, the notification card, washi's toast slip); the bar fades the piece of its rule that goes or comes (`Bar` `fadeOut`/`fadeIn`); `SurfaceForm.covers` from the form's first moving frame; fillets over 50 to 90 %.
-3. K141, card W74 (an Opus subagent): `mods.webdock.hover_takes_page`, `card_size = dock` by default, the size key.
-4. The comparison sheets the user decided from: `~/.cache/kurashi-refs/s29/sheet-{steps,chamfer}-{quick,clock}.png`.
-**Verified.** `just check` green on f0d368e7. Merge set (40 suites) on 73a3bce2: 38 pass; `quick-modules` red as on `main` (B92); `island-join` red, a regression of this branch (the rule's fade under a morphing island card), fixed in f0d368e7. After it: `island-join`, `bars`, `frame`, `stage`, `sidebars`, `dock`, `popover-joins`, `outline`, `motion`, `niri-motion` pass. On 73a3bce2: `greeter`, `styles`, the web dock's `test-sidebar` pass; `launcher` has the one failure `main` has (B113). W74's own runs: `test-card`, `test-sidebar`, `test-background` pass, `test-dock` fails two checks filed as failing on `main` (not confirmed there again). The keep-loaded part alone (f3eea5e5): `just check` green, the merge set with only `quick-modules` red. `nix build .#kurashi` green on d4f1b95b. PR #55 is open, not merged (the user merges). Left on disk: the suites' sandboxes in `/tmp/kurashi-sb-*` (B77), the build dirs `~/.cache/kurashi-agents-target/{i454,w74,w72}`, the worktrees `../kurashi-wt-s29` (feat/s29-keep-loaded, contained in #55), `../kurashi-wt-s29b` and W74's under `.claude/worktrees/`.
-**Not done, said plainly.** Nothing judged by the user in motion (B96, B98). Cards are not kept loaded (B114). A kept sidebar still takes about 220 ms from its map to its first picture. `splat`'s ink is cut straight at the surface's box (B115). The frame's own band still cuts its rule at once. Under Rounded, washi's toast keeps its 2 px corners (I492: ask). B112 (the launcher's flicker fix on floating cards, polkit, the notification centre, toasts) and B100 are untouched. B117 for the web dock.
-**Answered by the user and built.** Washi's toast takes the sheets' radius ("radius"); the edge dock reveals on hover over an open card ("yes should": `EdgeStrips.setClear`, ClickAway's mask, the card closes when the dock comes out; K141's amendment).
-**Open decisions for the user.** A sidebar that reveals on hover on the web dock's edge now reveals over an open card too (the same 2 px): keep, or leave only the dock's zone out?
-**Next steps (ordered).** (1) After the user's rebuild: the frontend's CPU with music playing (`top -H`), then B96/B98 on both monitors. (2) B112, B100. (3) B114 and B101 (what an opening costs before its first frame). (4) B115. (5) Session 28's list: I483's rest, I485/I486 suites, B92.
-**Learned.** Quickshell gives a window that is shown again a new QQuickWindow: items keep, the scene graph is new, and anything measured with `mapToItem` before the window had its size is stale (read it again on `afterAnimating`). An inline `component` cannot see the ids round it: write the delegate out. A subagent whose worktree was removed cannot be resumed: keep the worktree until its follow-ups are done. zsh does not split `$VAR` in `for x in $VAR`: scripts that loop over a list go in a bash file.
-
----
-
-## 2026-11-11 — session 29 (machine A): the user's bug report — smooth openings, one line, Bridge, shaped sheets, the web dock keeps playing
-**Asked for.** A bug report with eleven screenshots: stuttery spawn animations (launcher, sidebar) with "barely load"; cards that do not follow the outline's colour; curves and stepped corners that disconnect; the sidebar's calendar building day by day; the web engine stopping Spotify after a song; the small bridges as a choice of "Cards join their bar"; the frame's outline disappearing before a surface spawns; a note (other kinds of surfaces in the web dock: I490); and the four open points of session 28 (I489, I488, B98, B96).
-**Found by measuring.** The live session, read without touching it (`top -H` on the frontend's PID): 125 % of a core, eight render threads busy, niri at 40 %, because the colour flow (`when = media`, music playing) redrew every window at the display's rate (B99). On nested niri with the user's config (`QT_LOGGING_RULES=qt.scenegraph.time.renderloop=true`, the gaps between `polishAndSync` per window): a sidebar's opening began with frames of 92, 29 and 34 ms and ran eight frames at 33 ms while the bar redrew its rule; a Block costs 1.5 ms to make (B101); from the key to the first moving frame a sidebar takes about 360 ms (B102).
-**Built on `feat/s29-polish`** (worktree `../kurashi-wt-s29`, build dir `~/.cache/kurashi-agents-target/i454`; `docs/ux/session-29.md`, K135 to K138):
-1. K135: `ColorFlow` steps and rests; `SurfaceForm.warm` / `FormHost.run` (sidebar, Stage card, launcher, dock); `SurfaceForm.covers` and openings at rest size; the sidebar's window keeps its width; the month grid synchronous and lighter; `frames/Paper` makes its ground's items only for a ground.
-2. K136: `Theme.surfaceLineColor`; `ColumnShape.ruleReach`; `corner.js` (`ref` in the arc's rotation, steps on a lattice, cut and outward quarter as insets); `RoundBox.sheet`, `SquircleRect.join`, the Stage card's mask, `Theme.blurCorner`.
-3. K137: `theme.join = bridge` (schema, goldens, en and ja, the Settings picture).
-4. K138, card W73 (an Opus subagent, branch `feat/s29-webdock-w73`, merged into the branch): the grace after a sound, the pins' `background`, `mods.webdock.card_size`, last opened wins; CONTRACT-CHANGE 724 to 728 decided (727 open).
-5. B111 (the user, mid-session: fsel in a terminal opens smoothly, the shell's launcher stutters and flickers after): the sliding launcher's sheet form runs through `BarMorph`'s card-level host (window-aligned picture, warm start). B112 names where the same flicker still is (floating Stage cards, polkit, the notification centre, toasts).
-**Verified.** `just check` green (fmt, clippy, every test, the launch test, the icon names) on a0d5e0c9; what came after it is QML and docs. Merge set (40 suites with the new `test-background`) on 7dc12dda: 38 pass; `quick-modules` red as on `main` (B92); `island-join` red, a regression of this session (the rule held back under a shape form), fixed in af46ac8f and green alone after it. After af46ac8f: `island-join`, `motion`, `motion-hosts`, `niri-motion`, `stage`, `dock`, `sidebars`, `popover-joins`, `previews` pass (some only alone: a second sandbox ran beside them); `launcher` (not in the merge set) has the one failure `main` has (B113). `greeter` and `styles` pass on 7dc12dda (not run again after af46ac8f). `nix build .#kurashi` green on 9bca5797. PR #54 is open, not merged (the user merges). Left on disk: about 86 suite sandboxes in `/tmp/kurashi-sb-*` (B77; the sweep was refused by the session's permission rules: the user has the command), the build dir `~/.cache/kurashi-agents-target/w73` (7 G, W73's) and `w72` (32 G, session 27's). Seen on nested niri with the user's config: every item above as bursts or pixel crops. Not seen: two real monitors, anything by the user, Spotify itself.
-**Not done, said plainly.** Nothing was judged by the user in motion (B96, B98 stand). The CPU of the live session was not read again (it runs the installed build until the user rebuilds). The warm start is not on toasts, the bar's show and hide, polkit, peeks, the web dock's own windows (B100). Opening latency is unchanged or two frames longer (B101, B102: the user's call). Bridge: launcher, toasts and peeks keep the chrome's form (I491). Corner shape: blocks inside cards, desktop widgets, pen outlines (I492). The Settings picture of Bridge was not looked at in Settings.
-**Open decisions for the user.** (1) I492: do tiles, keys and fields inside a card take the corner shape? (2) B102: keep a closed sidebar or card loaded for a while (speed against memory)? (3) B107: should a hover reveal of the edge dock take the page from an open card?
-**Next steps (ordered).** (0) B112, the same fix as B111 for the floating Stage card, polkit, the notification centre and toasts. (1) After the user's rebuild: read the frontend's CPU with music playing (`top -H -p <pid>`; before: 125 %), then sit with the user over B96 and B98 on both monitors. (2) B100 (warm start on the surfaces left). (3) B101 (a Block's cost: it is the opening's latency). (4) I491, I492 by the user's answers. (5) Session 28's list: I483's rest, I485/I486 suites, B92.
-**Learned.** A build piped into `tail` hides its failure (`cargo build -p kurashi-cli` does not exist: the package is `kurashi`; the sandbox ran yesterday's daemon until `set -o pipefail` showed it). Quickshell's reload on a file change stopped reaching the sandbox's frontend at some point: restart it after an edit before trusting a shot. A QML Timer alone does not run the animation driver; an animation does, and every colour bound to it redraws its windows at the display's rate. An asynchronous Loader's incubator gets one slice a frame while anything animates. `SurfaceForm.busy` is what surfaces ask: a new waiting state belongs in it, not beside it. grim takes about 100 ms a shot: a blank frame in a burst is real if it comes back without the action.
-
----
-
-## 2026-11-10 — session 28 (machine A): PR #50 finished; surface lines, control faces, connections, cards that follow, colour flow, text effects, layout moves
-**Asked for.** Finish and merge draft PR #50, then eight things in one evening (user's list, with screenshots): cards follow the pointer to the other monitor; expressive sliders and switches, unified with Settings; no outline under flat chrome or with the frame outline off; a font effect and spawn system; connection styles as a setting of their own; a picture of each chrome in Settings; colour animations as a system; transitions between layouts. Lead alone, no subagents.
-**PR #50.** The idle redraw was `PenOutline.settleMs` (c991d7e2): a rebuilt but unchanged list of lines restarted its settle timer, and a timer that starts wakes every window for one frame; it now starts only when the lines differ (`FRAME_IDLE_ONLY=1 FRAME_DECORS=kami frontend/test-frame.sh` is the 45 s reproduction). B93 fixed in the daemon (a late unload of a removed pin). `bars` passed alone (its red was `BARH` read as the 36 px fallback under load). `quick-modules` fails on `main` too, alone (B92): not the PR's. Merge set on the PR's head (52f90ed0): 36 of 37, `glow` and `sidebars` green alone after failing once beside two cargo builds; `just check` green. **Merged as b203b28d** (#50).
-**PR #51 was merged by the user** (a35c1323); the lead's own merge of it had been refused by the session's permission rules (a merge without review; #50 went through because the user had asked for that merge by name). Worktree `../kurashi-wt-s28`, build dir `~/.cache/kurashi-agents-target/i454`.
-**Built on `feat/s28-expressive`, PR #51** (off PR #50's head; `docs/ux/session-28.md` is the brief for all seven, K127–K133):
-1. `Theme.surfaceLineW`: no hairline under flat/soft unless the frame outline is on (K127; `frontend/test-outline.sh`).
-2. Control faces for the shell and Settings: `decor/slider/{Line,Capsule,Wave,Blocks,Ink}`, `decor/toggle/{Switch,Capsule,Lamp,Stamp,Flip}`, `theme.slider`, `theme.toggle`; washi takes Ink, kami Ink and Stamp (K128).
-3. `theme.join` (auto, float; a `fused` choice was dropped: it drew nothing different) and `theme.join_corner` (round, chamfer, steps, bulge, square) through `corner.js` (K129).
-4. `settings/components/ChoiceCards.qml`: pictures for Chrome, Connection, Connection corner, Sliders, Switches.
-5. `bar.popups_follow` (K130; `frontend/test-follow.sh`, two outputs).
-6. `core/ColorFlow.qml` + `wash.frag`: `theme.colors.flow.*` (K131).
-7. `components/TextFx.qml` + `text_fx.frag`: `theme.typography.fx.*` (K132).
-8. `core/Travel.qml` + `surfaces/Traveller.qml`: `theme.motion.layout_move` (K133).
-**Verified.** `just check`: fmt, clippy, every test and the launch test green on 90358242; the icon-name list was stale by two words the scanner takes for icons (`cycle`, `sweep`), regenerated in a9b46694 and its check green (the whole recipe was not run again after that: only `nix/icon-names.txt` and docs changed). Merge set, 39 suites with the new `follow` and `outline`: 38 pass, `quick-modules` red as on `main` (B92). Outside the merge set, because the greeter and the lock share the frontend's theme and controls: `greeter` and `styles` (19 styles × 7 surfaces on nested niri, the lock among them, no QML error) pass. `nix build .#kurashi` green on a9b46694 (the package carries the new shaders, parts and Settings' links; the commits after it are docs, help texts and a comment). Seen on nested niri with the user's own config (washi, flat, dynamic draw; dark and light): the card without its line and with it, the five corners (also under Lines and Keycap with the pen), the floating card, every slider and switch face in Settings, the chrome cards, each text spawn and effect on the quick card, colour flow on the frame's line, a bar travelling (follow, part, drip). Not seen: two real monitors, anything by the user.
-**Not done, said plainly.** Nothing of the seven was judged by the user in motion (B96): every 🟡 UX in PROGRESS S28.2–S28.8 stands. Connections: the topologies (neck, hanging) are still the chrome's (I483). Text effects: headings and a few labels only, no stroke-order writing, no suite (I485). Layout moves: bars only, the body not a still, no suite (I486). Colour flow: no frame-count suite (I487). Controls: no parts sheet, vertical faces are turned (I484). The user's sentence about clicked cards was read one way, and mod cards (weather, web dock), the launcher and the notification centre do not follow (B97). Under `ps2`, `snes`, `terminal` a clicked card now opens under its module (unshot, I483). `TextFx`'s cost on the quick card is not measured (I485). `/tmp/kurashi-sb-*` holds 140 G of suite leftovers and the disk is at 99 % (B77): the user was given the commands. Still owed from session 27: the three sidebar/card motion points (B90), the four web dock questions (I482), B80 (paint forms in motion).
-**Later the same evening: PR #53 (I489, K134).** The user's corrections to #51, live: the corner shape now draws the frame's inner corners and the free corners of path-drawn surfaces, and cards have their own draw mode (Automatic, Floating, Dynamic, Connected) apart from the chrome; both rows moved to Appearance › Shape. Open in I489: rectangle-drawn surfaces and the blocks inside a card. PR #52 (web dock: Esc to the page first, a click opens the card) is ready, not merged.
-**After the merge of #51, the same evening.** The user merged #51 and answered I482's four questions: Esc page first then close, a click opens the card, the size a setting, last opened wins. The first two are built on `feat/s28-webdock-answers` (PR #52; `test-card` steps 6 and 6b); the other two and a menu entry are I488. Suite leftovers in `/tmp` were deleted at the user's word (140 G). B90 and B80 were not started (B98).
-**Next steps (ordered).** (1) Sit with the user over B96: each feature live, on their two monitors; take their corrections first. (2) I483 connections round two (the user's eight screenshots are the list). (3) I485/I486 suites, so the merge set guards text spawns and layout moves. (4) B92 (`quick-modules`, red on `main`). (5) The performance pass (B84, B90) with colour flow and the traveller measured on machine B.
-**Live session.** After the user's rebuild the new settings changed nothing: the daemon and Settings were the new build, the frontend still the session-27 copy through the drop-in `50-s27-blend.conf`. The drop-in was removed and `kurashi-frontend` restarted at 22:45: it runs the installed build, no QML error in its journal. Lesson: a live drop-in is removed the moment its branch merges, not left for the shutdown. `~/.cache/kurashi-live-frontend/` is still on disk (unused).
-**Learned.** The greeter and the lock link the frontend's `core` and `components`: a change to Theme, a control or a singleton needs `tools/test-suites.sh greeter styles` besides the merge set (neither is in it). A QML `Timer` (or any animation) that starts requests one frame from every window of the shell: never start one for a change that changes nothing (compare first). grim takes about 100 ms a shot: a burst's frames are further apart than its gap. A heredoc that writes a script containing a recursive removal is refused by the harness: write such files with the editor, and give suites a directory of their own instead of clearing one.
-
----
