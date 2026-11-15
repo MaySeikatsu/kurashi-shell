@@ -32,13 +32,6 @@ use tokio::sync::watch;
 
 /// The mod's id: its document is `mod.sessions`, its actions `sessions.*`.
 const ID: &str = "sessions";
-/// The actions outside the mod it calls (the manifest's `uses`, and the base set's `settings.open`).
-const CALLS: &[&str] = &[
-    "terminal.run",
-    "terminal.open_dir",
-    "webdock.open",
-    "settings.open",
-];
 /// A copy of noren's list older than this is read again on the next launcher query.
 const STALE: Duration = Duration::from_secs(5);
 /// A launched window of a desk is awaited this long.
@@ -603,10 +596,16 @@ impl NativeMod for SessionsMod {
         let initial = model.doc();
         let (doc, _) = watch::channel(initial.clone());
         // W91: the actions of other mods this one sends for an opened session or a restored desk.
-        let mut calls = BTreeMap::new();
-        for id in CALLS {
-            calls.insert((*id).to_string(), ctx.calls(id)?);
-        }
+        // (written out: `kurashi mod check` reads these literals against the manifest's `uses`)
+        let calls: BTreeMap<String, Call> = [
+            ctx.calls("terminal.run")?,
+            ctx.calls("terminal.open_dir")?,
+            ctx.calls("webdock.open")?,
+            ctx.calls("settings.open")?,
+        ]
+        .into_iter()
+        .map(|c| (c.action().to_string(), c))
+        .collect();
         let shared = Arc::new(Shared {
             model: Mutex::new(model),
             doc,
