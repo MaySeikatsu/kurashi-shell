@@ -39,6 +39,33 @@ baseline.
 | Avg CPU (1 h) | 3.5 % |
 | Idle frames (after 2026-10-08 fixes, headless) | ~0.8 fps |
 
+## Soak (W90, session 35; `just soak [minutes]`, `tools/bench/soak.py`; machine A, headless sway, gles2, one output)
+The budgets above are read seconds after a start; this is what an hour of use holds. One round, five seconds at least: the
+launcher, quick settings, the notification centre, the island's card and a mod's panel opened and closed, the next island
+face, a workspace switch, a notification; every third round the player's next cover, every fifth the wallpaper's next (a
+4K picture), every seventh another material, every tenth Settings' swatches watched. PSS of each process every minute;
+growth = least squares over the samples after ten minutes. `--only` / `--skip` leave steps out.
+
+**What the user's 0.2.0 session held after 42 h** (two outputs, read through `/proc`, 2026-11-15): `kurashid` 648 MiB
+(571 in eleven glibc arenas of 50–60 MiB, 57 in the main heap, the binary 19; its documents: `i18n` 288 KB, every other
+under 72 KB), the frontend 602 MiB (anonymous 372, the GPU driver's mappings 168, the JS heap 31; its peak 1 134 MiB
+resident), Settings (open for 44 minutes) 532, the web dock's host 437, the terminal's 72; on disk `~/.cache/kurashi/
+texture/swatch` 352 534 files, 8.6 GB.
+
+**Causes, each found by a short soak and held by a test or the soak's budget rows.**
+
+| process | cause | before | after |
+|---|---|---|---|
+| daemon | glibc's per-thread arenas kept the peak of every picture decode (K157) | 66 → 260 MiB in two minutes, climbing | 59–72, flat over twelve minutes (jemalloc: two arenas, one second) |
+| daemon | the map of texture tiles had no bound (5 MiB a tile) | every material tried stayed | four held (`texture::tests::the_tiles_held_in_memory_and_on_disk_have_a_bound`) |
+| disk | the swatches' names carry the light and the colours; nothing removed them | 352 534 files, 8.6 GB | two sets (34 files); 48 tiles; 24 bakes (`cache::keep_newest`) |
+| frontend | the closed notification centre kept a card for every notification in the history and made all again at each arrival | 268 → 406 MiB over 105 notifications (1.3 MiB each, 270 MiB with the history full) | 225–230, flat |
+
+Allocators tried on the daemon, the same three-minute soak: DECISIONS K157. One thing opened and closed once a second for
+two and a half minutes, the frontend's growth per round: the launcher 0, quick settings 47 KiB, the centre 177 KiB (before
+its fix), the island's card 58, a mod's panel 34, the next face 138 — against 1 343 KiB per notification. 0.2.0 on the
+same soak: frontend 206 → 349 MiB and daemon 67 → 236 in five minutes, so both predate 0.3.0.
+
 ## Results
 
 ### 2026-11-13 — W81: what wakes every window, and what a pinned sidebar frame costs (B119, B120; machine A, nested niri)
