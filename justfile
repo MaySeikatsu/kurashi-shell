@@ -87,8 +87,15 @@ nix-eval-test:
 
 # Budgets (docs/BENCH.md) on the real stack: kurashid + frontend in a headless sandbox (rule 9)
 bench-gate:
-    python3 tools/bench/measure.py --name frontend-real --daemon real -- frontend/launch.sh
+    cargo build --release -p kurashid -p kurashi -p kurashi-mock
+    KURASHI_BIN_DIR="${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-target}/release}" python3 tools/bench/measure.py --name frontend-real --daemon real --max-load 1.5 -- frontend/launch.sh
     python3 tools/bench/budget.py tools/bench/results/frontend-real.json
+
+# What grows in an hour of ordinary use (W90; docs/BENCH.md "Soak"): the real stack in the headless sandbox, one round of
+# use over and over, each process's memory once a minute → tools/bench/results/soak-<name>.json. Release binaries from
+# $KURASHI_BIN_DIR, tools/bench/bin or target/release (measure.py's order). Before a release, on a quiet machine.
+soak minutes="60" *ARGS:
+    python3 tools/bench/soak.py --minutes {{minutes}} {{ARGS}} -- frontend/launch.sh
 
 # W33 (docs/BENCH.md "2026-10-22"): the textured shell on the real stack, nine scenarios × three runs, medians in
 # tools/bench/results/w33-<scenario>.json. Copies the binaries into tools/bench/bin (from $CARGO_TARGET_DIR or target/).
