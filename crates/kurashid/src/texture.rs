@@ -28,12 +28,59 @@ static AGAIN: OnceLock<Arc<dyn Fn() + Send + Sync>> = OnceLock::new();
 
 enum Slot {
     Pending,
-    Ready(PathBuf, Arc<Tile>),
+    /// The tile, and when it was last asked for (a count of asks: the least recently used goes first).
+    Ready(PathBuf, Arc<Tile>, u64),
 }
 
-fn cache() -> &'static Mutex<HashMap<String, Slot>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, Slot>>> = OnceLock::new();
+/// Tiles held in memory at most (W90, B147: the map had no bound, and a tile is up to 5 MiB — every material and
+/// every step of wrinkles or cracks a session tried stayed for the daemon's life). Four cover the tile in effect, a
+/// second output scale and the one a setting is being dragged to; another is read back from its file.
+const TILES_HELD: usize = 4;
+/// Tile files kept on disk (a tile is four files: the map, its ink, its heights, the relief): the newest by use.
+const TILE_FILES_KEPT: usize = 4 * 48;
+
+#[derive(Default)]
+struct Tiles {
+    slots: HashMap<String, Slot>,
+    asks: u64,
+}
+
+impl Tiles {
+    /// Drops the least recently asked-for tiles beyond [`TILES_HELD`]; a pending one is never dropped.
+    fn bound(&mut self) {
+        loop {
+            let ready = self
+                .slots
+                .iter()
+                .filter_map(|(k, s)| match s {
+                    Slot::Ready(_, _, at) => Some((*at, k.clone())),
+                    Slot::Pending => None,
+                })
+                .collect::<Vec<_>>();
+            if ready.len() <= TILES_HELD {
+                return;
+            }
+            if let Some((_, oldest)) = ready.into_iter().min() {
+                self.slots.remove(&oldest);
+            }
+        }
+    }
+}
+
+fn cache() -> &'static Mutex<Tiles> {
+    static CACHE: OnceLock<Mutex<Tiles>> = OnceLock::new();
     CACHE.get_or_init(Default::default)
+}
+
+/// How many tiles are held in memory (tests, `kurashi doctor`).
+pub fn tiles_held() -> usize {
+    cache().lock().expect("texture cache").slots.len()
+}
+
+/// Whether `p` is one of a tile's files in the cache folder (not a bake, a swatch or a stray file).
+fn is_tile_file(p: &Path) -> bool {
+    p.extension()
+        .is_some_and(|x| x == "png" || x == "relief")
 }
 
 pub fn on_ready(again: Arc<dyn Fn() + Send + Sync>) {
@@ -92,26 +139,42 @@ pub fn tile(p: &Params) -> Option<(PathBuf, Arc<Tile>)> {
     let k = key(p);
     {
         let mut c = cache().lock().expect("texture cache");
-        match c.get(&k) {
-            Some(Slot::Ready(path, t)) => return Some((path.clone(), t.clone())),
+        c.asks += 1;
+        let now = c.asks;
+        match c.slots.get_mut(&k) {
+            Some(Slot::Ready(path, t, at)) => {
+                *at = now;
+                return Some((path.clone(), t.clone()));
+            }
             Some(Slot::Pending) => return None,
             None => {
-                c.insert(k.clone(), Slot::Pending);
+                c.slots.insert(k.clone(), Slot::Pending);
             }
         }
     }
     let p = *p;
     let make = move || match kurashi_texture::tile_file(&cache_dir(), &p) {
         Ok((path, t)) => {
-            cache()
-                .lock()
-                .expect("texture cache")
-                .insert(k, Slot::Ready(path, Arc::new(t)));
+            // The files in use are the newest, so the bound below never takes a tile the shell shows.
+            for f in [
+                path.clone(),
+                kurashi_texture::ink_path(&path),
+                kurashi_texture::height_path(&path),
+                kurashi_texture::height_path(&path).with_extension("relief"),
+            ] {
+                crate::cache::touch(&f);
+            }
+            crate::cache::keep_newest(&cache_dir(), TILE_FILES_KEPT, is_tile_file);
+            let mut c = cache().lock().expect("texture cache");
+            c.asks += 1;
+            let now = c.asks;
+            c.slots.insert(k, Slot::Ready(path, Arc::new(t), now));
+            c.bound();
             true
         }
         Err(e) => {
             tracing::warn!(error = %e, kind = p.kind.name(), "texture tile failed");
-            cache().lock().expect("texture cache").remove(&k);
+            cache().lock().expect("texture cache").slots.remove(&k);
             false
         }
     };
@@ -984,16 +1047,7 @@ pub fn bake_file(
     baked.save_with_format(&tmp, image::ImageFormat::Png)?;
     std::fs::rename(&tmp, &out)?;
     // Keep the cache small: the newest two dozen bakes, which a few tracks on two outputs fill (K88).
-    if let Ok(rd) = std::fs::read_dir(&dir) {
-        let mut files: Vec<_> = rd
-            .filter_map(Result::ok)
-            .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
-            .collect();
-        files.sort();
-        for (_, p) in files.iter().rev().skip(24) {
-            let _ = std::fs::remove_file(p);
-        }
-    }
+    crate::cache::keep_newest(&dir, 24, |_| true);
     Ok(out)
 }
 
@@ -1009,6 +1063,8 @@ pub fn want_swatches(on: bool) {
 
 /// The swatch side in pixels (a card shows it at about half: sharp on a scale-2 output).
 const SWATCH_PX: u32 = 128;
+/// Swatch files kept: two sets of every kind.
+const SWATCHES_KEPT: usize = 2 * Kind::ALL.len();
 
 /// Settings' material cards (K59): every kind as a small lit square on the container colour, in the light, tint and
 /// wrinkles in effect — `[{name, image}]`, `image` `""` until it is made (one blocking task makes the missing ones, then
@@ -1089,6 +1145,10 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
                     let _ = std::fs::rename(&tmp, &path);
                 }
             }
+            // W90 (B147): a swatch's name carries the light and the colours it was lit with, so every hour of the day
+            // and every palette left a set behind (352 534 files after a month). The set in effect and the one a card
+            // may still show while the next arrives stay; the rest goes.
+            crate::cache::keep_newest(&cache_dir().join("swatch"), SWATCHES_KEPT, |_| true);
             SWATCHES_RUNNING.store(false, Ordering::Relaxed);
         };
         match tokio::runtime::Handle::try_current() {
@@ -1418,5 +1478,32 @@ mod tests {
         assert_eq!(legible_shade(0.25, &dark_fgs, &dark), 0.25);
         // The matrix is black in every scheme.
         assert_eq!(ink_colour(InkRole::Shade, &Map::new()), Rgb(0, 0, 0));
+    }
+
+    /// W90 (B147): the map of tiles had no bound; every material a session tried stayed in memory.
+    #[test]
+    fn the_tiles_held_in_memory_and_on_disk_have_a_bound() {
+        let root = tempfile::tempdir().unwrap();
+        set_cache_dir(root.path().join("cache"));
+        let params = |kind| Params {
+            kind,
+            wrinkles: 0.0,
+            tint: false,
+            device_scale: 1.0,
+            cracks: 0.0,
+            crack_style: CrackStyle::parse(""),
+        };
+        let kinds: Vec<Kind> = Kind::ALL.into_iter().take(TILES_HELD + 2).collect();
+        for kind in &kinds {
+            assert!(tile(&params(*kind)).is_some(), "{} is made in place", kind.name());
+        }
+        assert_eq!(tiles_held(), TILES_HELD, "the least recently used went");
+        // The first went out of memory and is read back from its file; the last is still held.
+        let first = tile(&params(kinds[0])).expect("read back");
+        assert!(first.0.is_file());
+        assert_eq!(tiles_held(), TILES_HELD);
+        // On disk: a tile in use is touched, so the bound keeps it however many are made after it.
+        let files = std::fs::read_dir(cache_dir()).unwrap().flatten().count();
+        assert!(files <= TILE_FILES_KEPT, "{files} files");
     }
 }
