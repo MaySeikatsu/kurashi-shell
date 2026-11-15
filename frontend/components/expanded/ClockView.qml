@@ -112,16 +112,11 @@ Column {
         Column {
             width: view.width - (aside.visible ? aside.width + Theme.gap : 0)
             spacing: Theme.xs
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: view.valid
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.fg
                 font.pixelSize: Theme.fsTitle
-                font.family: Theme.fam(text, Theme.families)
                 text: view.valid ? view.loc.toString(view.sel, view.headerFmt) : ""
             }
             StaleNote { face: "clock" }
@@ -143,17 +138,13 @@ Column {
             enabled: view.valid
             onClicked: view.shiftMonths(-1)
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             id: monthText
             width: view.width - prevMonth.width - nextMonth.width - todayBtn.width - 3 * Theme.gap
             height: prevMonth.height
             font.weight: Theme.wMedium
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
             font.pixelSize: Theme.fsLabel
             font.family: Theme.fam(view.monthLong, Theme.families)
             // W53.5: the short month where the long one does not fit (a wide pixel face, large text), then an ellipsis.
@@ -303,18 +294,13 @@ Column {
                             flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
                             pressed: gridBox.pressedIdx === dayCell.index
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             anchors.centerIn: dayBlock
                             anchors.verticalCenterOffset: dayCell.numberMid - (dayBlock.y + dayBlock.height / 2)
                             visible: parent.inMonth
                             color: parent.isToday ? Theme.fgOnAccent
                                 : (parent.isSel && !view.flatCells ? Theme.fgOnSelected : Theme.fg)
-                            font.pixelSize: Theme.fs
                             font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
-                            font.family: Theme.fam(text, Theme.families)
                             // Lining figures too (W53.6): a book face's old-style "1" is an x-height stroke, unreadable in a key.
                             font.features: { "tnum": 1, "lnum": 1 }
                             text: parent.day
@@ -401,28 +387,20 @@ Column {
     Column {
         width: view.width
         spacing: Theme.xs
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: view.valid
             width: parent.width
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsLabel
-            font.family: Theme.fam(text, Theme.families)
             text: view.valid ? I18n.tr("island.clock.agenda") + " · " + view.loc.toString(view.sel, view.agendaFmt) : ""
         }
         SlotHost { id: agendaHost; slot: "clock.expanded.day"; width: parent.width; extra: ({ date: view.selIso }) }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: agendaHost.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.clock.agenda.none")
         }
     }

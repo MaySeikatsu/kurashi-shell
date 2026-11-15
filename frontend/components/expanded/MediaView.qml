@@ -101,15 +101,11 @@ Item {
         width: view.width
         spacing: Theme.pad
 
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: view.width
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsLabel
             font.weight: Theme.wMedium
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.media.heading")
         }
         StaleNote { face: "media" }
@@ -168,10 +164,7 @@ Item {
                     width: heroRow.width - artBox.width - Theme.pad
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: Theme.xs
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         width: parent.width
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
@@ -179,31 +172,21 @@ Item {
                         color: view.idle ? Theme.dim : view.heroFg
                         font.pixelSize: Theme.fsTitle
                         font.weight: view.idle ? Theme.wRegular : Theme.wBold
-                        font.family: Theme.fam(text, Theme.families)
                         text: view.idle ? (view.unavailable ? "" : I18n.tr("island.media.idle")) : (view.d.title ?? "")
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: !view.idle && (view.d.artist ?? "") !== ""
                         width: parent.width
                         elide: Text.ElideRight
                         color: view.heroFg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: view.d.artist ?? ""
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: !view.idle && (view.d.album ?? "") !== ""
                         width: parent.width
                         elide: Text.ElideRight
                         color: view.tinted ? view.heroFg : Theme.dim
                         font.pixelSize: Theme.fsCaption
-                        font.family: Theme.fam(text, Theme.families)
                         text: view.d.album ?? ""
                     }
                     LevelBars {
@@ -244,16 +227,12 @@ Item {
                     Accessible.name: I18n.tr("island.media.player") + ": " + (modelData.name ?? "")
                     Accessible.checkable: true
                     Accessible.checked: active
-                    Text {
+                    Label {
                         id: label
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
                         color: chip.active ? Theme.fgOnSelected : Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.weight: chip.active ? Theme.wMedium : Theme.wRegular
-                        font.family: Theme.fam(text, Theme.families)
                         text: (modelData.playing === true ? "▶ " : "") + (modelData.name ?? "")
                     }
                     MouseArea { id: chipTap; anchors.fill: parent; onClicked: view.selectPlayer(modelData.id) }
@@ -303,40 +282,27 @@ Item {
             Item {
                 width: view.width
                 height: elapsed.implicitHeight
-                Text {
+                Label {
                     id: elapsed
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                    color: Theme.fg
                     font.pixelSize: Theme.fsCaption
                     font.features: { "tnum": 1 }
-                    font.family: Theme.fam(text, Theme.families)
                     text: view.fmt(view.posUs)
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     anchors.right: parent.right
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fsCaption
                     font.features: { "tnum": 1 }
-                    font.family: Theme.fam(text, Theme.families)
                     text: "−" + view.fmt(Math.max(0, (view.d.length_us ?? 0) - view.posUs))
                 }
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: view.reason !== ""
             width: view.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: view.reason
         }
 
@@ -388,17 +354,13 @@ Item {
                 onClicked: view.seek(10000000)
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: view.transportReason !== ""
             width: view.width
             wrapMode: Text.WordWrap
             horizontalAlignment: Text.AlignHCenter
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: view.transportReason
         }
 
@@ -430,15 +392,10 @@ Item {
                 size: Theme.fs + 4
                 color: Theme.dim
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 anchors { left: spk.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
                 elide: Text.ElideRight
-                color: Theme.fg
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: outChip.outText
             }
             MouseArea { id: outTap; anchors.fill: parent; onClicked: Store.act("quick.toggle") }
@@ -446,16 +403,11 @@ Item {
         }
 
         SlotHost { slot: "media.expanded.below"; width: view.width }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: view.errText !== ""
             width: view.width
             wrapMode: Text.WordWrap
             color: Theme.error
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: view.errText
         }
     }
