@@ -183,23 +183,15 @@ Item {
             x: badge.x + badge.width + 6
             width: face.width - 2 * face.inset - x - tile.arrowW
             anchors.verticalCenter: parent.verticalCenter
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
                 color: tile.lit ? tile.onFg : Theme.fg
-                font.pixelSize: Theme.fs
                 font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
                 text: tile.label
                 TextFx {}
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 // Never past the tile's face: as many lines as the room under the label holds (2 at most), elided.
@@ -209,7 +201,6 @@ Item {
                 color: tile.failed ? Theme.error : (tile.lit ? tile.onFg : Theme.dim)
                 opacity: tile.lit && !tile.failed ? 0.8 : 1
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: tile.shownSubtitle
             }
         }
@@ -301,17 +292,12 @@ Item {
                 enabled: !tile.inert
                 checked: tile.lit
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 anchors { left: parent.left; leftMargin: Theme.pad + rowStyle.lead; verticalCenter: parent.verticalCenter
                           right: value.left; rightMargin: Theme.gap }
                 elide: Text.ElideRight
                 color: rowItem.ink
                 opacity: tile.inert ? 0.55 : 1
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: tile.label
             }
             Row {
@@ -322,28 +308,18 @@ Item {
                     && !tile.connecting
                 Repeater {
                     model: value.words ? [true, false] : []
-                    Text {
+                    Label {
                         required property bool modelData
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         color: modelData === tile.on ? rowItem.ink : Theme.dim
                         opacity: modelData === tile.on ? 1 : 0.6
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr(modelData ? "island.quick.value.on" : "island.quick.value.off")
                     }
                 }
-                Text {
+                Label {
                     visible: !value.words
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: Math.min(implicitWidth, tile.width * 0.5)
                     elide: Text.ElideRight
                     color: tile.failed ? Theme.error : (tile.lit ? rowItem.ink : Theme.dim)
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: tile.shownSubtitle
                 }
             }
