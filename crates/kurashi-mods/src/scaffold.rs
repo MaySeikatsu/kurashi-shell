@@ -3,7 +3,7 @@
 //! theme's tokens, copy in `i18n/{en,ja}.toml`. The CLI and the Mod Editor call the same code (rule 1, rule 3).
 //!
 //! What it writes needs no daemon code: a mod of views over documents it `uses`. An action, an island face or a
-//! service of its own needs a host process or a crate in the shell's tree (MODS.md "Tiers").
+//! service of its own needs a crate in the shell's tree today (docs/MODDING.md "Routes").
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -397,8 +397,8 @@ QuickTile {{
 - [ ] Nothing runs while nothing is shown: no polling, a timer only while visible.\n\
 - [ ] Each variant in `[skips]` has its real reason, or is built.\n\
 - [ ] What it reads or calls beyond its own is in `uses`.\n\n\
-## Going further\nAn action, a service or an island face of its own needs code: a host process in any language on the scoped socket \
-(`provides = [\"host:<name>\"]`), or a crate in the shell's tree. See docs/MODS.md \"Tiers\".\n",
+## Going further\nAn action, a service or an island face of its own needs code. Today that is a crate in the shell's tree \
+(docs/MODDING.md \"Routes\"); a program of the mod's own that the shell starts without such a crate, and Luau, are planned.\n",
             name = self.name,
             parts = out.iter().map(|(p, _)| format!("- `{}`\n", p.display())).collect::<String>(),
         )));

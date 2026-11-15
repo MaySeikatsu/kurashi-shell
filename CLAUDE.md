@@ -90,7 +90,8 @@ nix build .#kurashi    # packaged daemon + frontend + icon font
 | `docs/ARCHITECTURE.md` | process model, crates, state ownership, surfaces, data flow |
 | `docs/PROTOCOL.md` | IPC v1: framing, handshake, revisions, transactions, intents |
 | `docs/DESIGN-SYSTEM.md` | tokens, theming pipeline, decor packs, motion, components, Island |
-| `docs/MODS.md` | mod manifest, tiers, lifecycle, Luau host API, settings integration |
+| `docs/MODS.md` | mod manifest, the integration contract (K154), tiers, lifecycle, settings integration |
+| `docs/MODDING.md` | the community's guide to making a mod: routes, the template, the rules that make it native |
 | `docs/DECISIONS.md` | K-decisions log |
 | `docs/ROADMAP.md` / `PROGRESS.md` | milestones / step tracker (`M{n}.{step}`) |
 | `docs/BENCH.md` / `BAKEOFF.md` | measured numbers / frontend framework comparison |
