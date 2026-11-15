@@ -1360,6 +1360,7 @@ dependencies = [
  "futures-util",
  "image",
  "kurashi-services",
+ "kurashi-testkit",
  "serde",
  "serde_json",
  "tempfile",
@@ -1398,6 +1399,7 @@ dependencies = [
  "anyhow",
  "futures-util",
  "image",
+ "kurashi-testkit",
  "kurashi-theme",
  "serde",
  "serde_json",
@@ -1405,6 +1407,15 @@ dependencies = [
  "tokio",
  "tracing",
  "ureq",
+ "zbus",
+]
+
+[[package]]
+name = "kurashi-testkit"
+version = "0.2.0"
+dependencies = [
+ "tempfile",
+ "tokio",
  "zbus",
 ]
 
@@ -1442,6 +1453,7 @@ dependencies = [
  "futures-util",
  "image",
  "kurashi-services",
+ "kurashi-testkit",
  "serde",
  "serde_json",
  "tempfile",
@@ -1485,6 +1497,7 @@ dependencies = [
  "kurashi-notify",
  "kurashi-schema",
  "kurashi-services",
+ "kurashi-testkit",
  "kurashi-texture",
  "kurashi-theme",
  "kurashi-tray",

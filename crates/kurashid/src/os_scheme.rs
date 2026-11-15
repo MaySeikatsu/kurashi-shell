@@ -127,8 +127,7 @@ impl Watcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{BufRead, BufReader};
-    use std::process::{Command, Stdio};
+    use kurashi_testkit::TestBus;
     use std::sync::atomic::AtomicUsize;
     use zbus::object_server::SignalEmitter;
 
@@ -161,39 +160,15 @@ mod tests {
     }
 
     async fn portal_round_trip() {
-        let dir = tempfile::tempdir().unwrap();
-        let conf = dir.path().join("bus.conf");
-        std::fs::write(
-            &conf,
-            format!(
-                r#"<busconfig><type>session</type><listen>unix:tmpdir={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/></policy></busconfig>"#,
-                dir.path().display()
-            ),
-        )
-        .unwrap();
-        let mut bus = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", conf.display()))
-            .args(["--nofork", "--print-address"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("dbus-daemon (run inside nix develop)");
-        let mut addr = String::new();
-        BufReader::new(bus.stdout.as_mut().unwrap())
-            .read_line(&mut addr)
-            .unwrap();
-        let connect = || async {
-            zbus::connection::Builder::address(addr.trim())
-                .unwrap()
-                .build()
-                .await
-                .unwrap()
-        };
-        let server = connect().await;
+        // The portal's own policy: no eavesdropping, and receiving from any sender.
+        let mut bus = TestBus::start_with_policy(
+            r#"<allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/>"#,
+        );
+        let server = bus.conn().await;
         server.object_server().at(PATH, Portal(2)).await.unwrap();
         server.request_name(DEST).await.unwrap();
 
-        let client = connect().await;
+        let client = bus.conn().await;
         let calls = Arc::new(AtomicUsize::new(0));
         let seen = calls.clone();
         let follower = tokio::spawn(async move {
@@ -235,8 +210,7 @@ mod tests {
         assert_eq!(calls.load(Ordering::SeqCst), 2);
         follower.abort();
         set(Pref::Unknown);
-        let _ = bus.kill();
-        let _ = bus.wait();
+        bus.kill();
     }
 
     #[test]
