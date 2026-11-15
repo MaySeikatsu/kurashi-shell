@@ -34,6 +34,15 @@
 # Native mods without daemon code (B15): a manifest that declares a service, action, island face,
 # choice source or job is refused when this build links no code for it. Frontend-only mods stay on.
 "mods.error.not_built" = "this mod needs daemon code that this build does not include, so it cannot be turned on"
+"mods.error.host_name_invalid" = "a host program's name is lowercase letters, digits and hyphens, starting with a letter"
+"mods.error.host_name_duplicate" = "two host programs have the same name"
+"mods.error.host_exec_invalid" = "a host program is a file name (a file in the mod's bin folder, or a program on PATH), not a path"
+"mods.error.host_start_invalid" = "a host program starts when the mod is enabled, subscribed to, or on an action"
+"mods.error.host_and_native" = "this mod declares a host program and is also built into the shell: it must be one or the other"
+"mods.host.starting" = "its program is starting"
+"mods.host.not_running" = "its program is not running"
+"mods.host.timeout" = "its program did not answer in time"
+"mods.host.too_large" = "its program sent a document that is too large"
 "mods.error.not_used" = "this mod tried to read or call something its manifest does not name in uses"
 "mods.uses.missing" = "Waiting for something it needs, which is not there yet (is its mod switched on?)"
 "mods.uses.unavailable" = "what this needs is not there"
