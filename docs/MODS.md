@@ -358,6 +358,44 @@ and that talks to the daemon over a **scoped connection** (PROTOCOL §2): only t
   config's error key when the key is forced or the value invalid. For a mod action that changes its own setting (the
   web dock's mobile/desktop toggle).
 
+### Host programs (K155, W93): a mod's own code without a crate
+A mod someone downloads cannot link a crate into the daemon. Its code is a **host program** the manifest declares; the
+daemon starts and supervises it exactly as a native mod's host (above: its own process group, the scope token, one
+restart, `Failed` with the log's path, stopped with the mod) and the program serves the mod's documents and actions over
+its scoped connection (PROTOCOL §2 "Host programs": `pub`, `serve`, `call`). Any language that can write a line of JSON
+to a Unix socket will do; MODDING.md shows the whole exchange.
+```toml
+provides = ["service:tea", "action:tea.start", "action:tea.stop", "bar:tea"]
+capabilities = []                     # `exec:<name>` when the program is a name on PATH instead of a file of the mod
+uses = ["doc:svc.clock"]              # what the program (and the views) may read and call beyond the mod's own
+
+[[host]]
+name = "main"
+exec = "tea-host"                     # a file in the mod's `bin/`, else a name on PATH (then `exec:tea-host` above)
+args = ["--state", "{state_dir}"]     # `{mod_dir}`, `{data_dir}`, `{cache_dir}`, `{state_dir}` as for a native host
+env = { TEA_LOG = "info" }
+start = "subscribed"                  # when the daemon starts it: "enabled" | "subscribed" (default) | "action"
+
+[[action]]
+id = "tea.start"
+label = "mod-tea.action.start"
+```
+- **`start`.** `subscribed` (the default, Ma): the program runs while one of the mod's documents has a subscriber — a
+  view is up — and stops 10 s after the last one left. `enabled`: while the mod is on (a program that must watch
+  something with no view up; the Mods page shows it as running, with its reason). `action`: started by the first
+  invocation of one of its actions, stopped as `subscribed`.
+- **What it may do.** Publish the documents the manifest provides; answer the actions it provides and declares; read
+  and call what `uses` names. Anything else is refused and logged with the mod's id — a host cannot register what its
+  manifest does not say.
+- **A mod is one or the other.** A manifest with `[[host]]` and a linked `NativeMod` of the same id is refused
+  (`mods.error.host_and_native`): the crate would register what the program serves.
+- **Trust, said plainly.** A host program is the user's code running as the user: no sandbox is promised that is not
+  there. Before the first enable of a mod that has one, the Mods page says "This mod runs a program: `tea-host`", names
+  its `uses` and capabilities, and asks once; the catalogue (W98) carries the source's hash. bubblewrap for hosts is a
+  later row.
+- **Templates.** `kurashi mod new --host python|rust|go` writes a host that says hello, publishes one document and
+  answers one action, and passes `kurashi mod check`. No client library is shipped: the protocol is ten lines of NDJSON.
+
 ### First native mod: wallpaper (K26)
 Rendering by an external daemon — **awww** (or **swww**), chosen by `mods.wallpaper.backend`
 (`choices_from = "wallpaper.backends"`: each installed backend enabled, a missing one disabled with its
