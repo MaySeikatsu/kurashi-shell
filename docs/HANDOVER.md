@@ -20,8 +20,11 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ## 2026-11-15 — session 34 (machine A): the loop and the mod contract — 0.3.0, PR open
 **State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR #62 open, not merged** (the user merges;
 then `git tag v0.3.0` on `main` and push the tag, K151). Gate: `just gate --no-suites` passed on 7b431efb (check, hm-eval, nix build); the merge set ran on 82a2578d (the commit before; only the runner's known-failing list changed since): 50 of 51 pass, `quick-modules` fails as on `main` (B92, now listed in `tools/suites-known-failing.txt`).
-One agent worktree may be left: W89 (`.claude/worktrees/agent-add20fbd7bf4e0b6d`, branch
-`worktree-agent-add20fbd7bf4e0b6d`, build dir `~/.cache/kurashi-agents-target/W89`) — its agent was still editing and running suites when this was written (29 files changed, nothing committed); merge it when it reports (re-measure `python3 tools/clones.py --check`, then `--update`), or drop it. Disk: 204 GB free; `target/` 228 GB, all younger than seven days (the new dev profile rebuilt everything once; I569 asks the user about a size cap).
+One agent worktree is left: **W89, finished, not merged** (`.claude/worktrees/agent-add20fbd7bf4e0b6d`, branch
+`worktree-agent-add20fbd7bf4e0b6d` at 0ab8a3ab, made from ce6218b6; build dir `~/.cache/kurashi-agents-target/W89`): the
+suites' kit, 23 suites on it; kept out of PR #62 because the lead had not re-run the merge set on it and `test-peek`
+stayed on its own client (I580). Disk: 204 GB free when last read; `target/` about 230 GB, all younger than seven days (the
+new dev profile rebuilt everything once; I569 asks the user about a size cap).
 `~/.cache/kurashi-agents-target/debug` (3.8 GB, no card's name, older than this session) was left alone: ask the user.
 **Done** (K153, K154; BACKLOG I540–I576, B142–B144; the review that started it is in those rows).
 1. *The loop (K153).* `just gate` (check, suites, hm-eval, nix build → the commit it passed on), `just sweep` (131 GiB taken
@@ -54,13 +57,30 @@ kind, `intent:`; the views are held to `uses` by a static check, not a run-time 
 Store; no cost at run time); an action without a declaration still works and is logged; `easter-eggs` is exempt from
 the check until it has code (I286); the check's native-feel lints are notes, not errors, until the bundled mods are
 clean (I574); the kit is a `qmldir` naming the shell's own files (same types, nothing compiled twice); a user-made mod
-is views only today (a host process needs a crate: I576) and the guide says so.
-**Verified.** `just check` green (1538 tests, 167 s; clippy; the clone ratchet at rs 810, qml 1512, sh 1999); the merge set 50/51 with three suites green only alone (`webdock/test-card`, `settings/test-dock`, `bar-fit`: I578 — a second runner, W89's, shared the machine); hm-eval and `nix build .#kurashi` green (0.3.0; all 341 dependencies rebuilt for the version bump, I577); `frontend/test-mod-contract.sh` green on nested niri. Not seen on niri by eye: the module menu's own rows, the launcher's command rows, a scaffolded
-mod's views in the shell (its kit import loads in Quickshell: checked in a sandbox). Nothing was run on the user's screen.
+is views only today (a host process needs a crate: I576) and the guide says so; a list of suites that fail on `main`
+with their rows (`tools/suites-known-failing.txt`) so the gate can pass while B92 is open; this file trimmed to its
+five newest entries (its own rule); the argument error is the plain key `error.args.invalid` (views translate it) and
+the daemon's log names the argument; rule 12 is written as the rule though its roll-out is not finished (MODS.md
+"Roll-out" says what is built); W89 kept out of this PR; the branch pushed and the PR opened.
+**Verified.** GATE_FINAL The merge set (51 suites) ran on 82a2578d: 50 pass — three only alone, a second runner
+shared the machine (I578) — and `quick-modules` fails as on `main` (B92, now in `tools/suites-known-failing.txt`); the suites
+the later commits touch were run again on the head (the web dock's four, `mod-contract`, `context-menus`, `module-menu`).
+The flake's `tests` check: green (142 test binaries; it was red on `main`, B146). `frontend/test-mod-contract.sh` on nested
+niri with all twelve mods on: every registered action is declared. A scaffolded mod through the daemon
+(`kurashid/tests/native_mods.rs`) and the kit in Quickshell (a sandbox). Outside the merge set, run on the head and on
+`main` (862f5375): `launcher`, `timer`, `sysmon`, `calendar`, `terminal`, the web dock's `test-dock` fail on both, alone
+(B145); `test-dock`'s cost check reads 10.4 MiB against 8.4–9.5 on `main` because the mod-off baseline is lighter here, the
+mod-on figure is the same (I582); `ai`, `lyrics`, `tasks`, `weather` pass. **Not run:** the bench gate (the hub's write
+path changed: `strip_nulls` on every write) — run `just bench-gate` on a quiet machine before the tag. Not seen on niri by
+eye: the module menu's own rows, the launcher's command rows, a scaffolded mod's views. Nothing was run on the user's
+screen; the user's running session was read through `/proc` only (B147: it holds 1.9 GiB after 42 h).
 **Next steps (in order; ask the user where a step says so).**
-1. The user checks and merges the PR; then tag `v0.3.0`, push the tag. Remove W89's worktree, branch and build dir once
-   it is merged or dropped.
-2. Discuss with the user: I570 (distribution of Rust mods, the catalogue), I576 (a mod's own program without a crate:
+1. The user checks and merges PR #62; then `just bench-gate` on a quiet machine, tag `v0.3.0`, push the tag.
+   W89: review its diff, merge it into a branch of its own, `python3 tools/clones.py --update` (expect sh 1573), run the
+   merge set, PR; then remove its worktree, branch and build dir.
+2. B147 with the user: the running shell's memory after a day (the daemon 641 MiB, the frontend 597 MiB) — a soak
+   measurement, then what grows.
+3. Discuss with the user: I577 (a version bump rebuilds every dependency under Nix), I570 (distribution of Rust mods, the catalogue), I576 (a mod's own program without a crate:
    manifest-declared hosts and a publishing scoped connection), I569 (a size cap for `target/`), I573 (a mod's icon in
    the Settings sidebar), `~/.cache/kurashi-agents-target/debug`.
 3. Look on niri (shots, light and dark, two looks): the timer's module menu with its rows, `> timer 5` and `> task …` in
