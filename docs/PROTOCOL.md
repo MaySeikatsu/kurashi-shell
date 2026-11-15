@@ -223,7 +223,20 @@ not on that output); `layout.bar.move {from, to, output?}` moves a bar and its z
 undoable change; modules `to` already showed on their own stay, after the bar's, so a move loses none (refused with
 `layout.error.edge_taken` when `to` has a bar). The action registry is a query:
 `{"t":"query","id":"9","kind":"actions"}` → `{"t":"results","id":"9","items":[{"id":"island.next","args":"{island?}","help":"…"}]}`
-(`help` an i18n'd line); `kurashi act --list` prints it.
+(`help` an i18n'd line); `kurashi act --list` prints it. K154 (additive): an action a mod declares (`[[action]]`,
+MODS.md "Actions") also carries `schema` (its arguments: `[{name, type: bool|int|float|string|enum|output, default?,
+optional?, range?, choices?, rest?}]`; absent while they are not described), `icon`, `command` (the word(s) of its `>`
+command) and `mod`; `args` is then derived from the schema. The daemon checks a declared action's arguments before its
+handler runs and fills the defaults in: a missing required one, a wrong type or a value out of range is `invalid` with
+`error.args.invalid: <argument>`. The launcher's `>` mode lists the declared commands after the shell's own; a row's
+id is `cmd:<action>` or, with arguments from the rest of the line (`> timer 5`), `cmd:<action>\t<json>`, and
+`launcher.launch` runs the action with them.
+
+The `mods` document (K25; K154, additive): an entry also carries `icon` (the manifest's Material Symbols name) and
+`menus: [{at, action, label?, icon?, args?}]` — its `[[menu]]` rows with the label and icon each shows (the row's own,
+else its action's); a menu draws the rows of the enabled mods whose `at` is its point (`module`, `desktop`, `bar`).
+Pinned by `fixtures/ipc/server/snap_mods.json`. The `i18n` document also holds each discovered mod's own strings
+(`<mod>/i18n/<locale>.toml`, keys under `mod-<id>.` or `mods.<id>.` only).
 
 Appearance actions (K53): `theme.style.apply {name}` and `theme.look.apply {name}` reset the user's values of the
 kind's keys (`STYLE_KEYS` / `LOOK_KEYS`, `kurashi-theme::appearance`) and set `theme.style` / `theme.look`, as one

@@ -102,6 +102,10 @@ A mod is a guest. Its manifest says three things, and nothing about it works out
 | **uses** | `uses = ["doc:svc.media", "action:island.expand", "action:terminal.run?", "intent:theme.colors.scheme"]` | the documents it reads, the actions it calls and the intents it sends (a core setting it writes) beyond its own — a core service's or another mod's; `?` = it works without | `kurashi mod check` (the mod's QML and crate name nothing else); `ModCtx::follow` / `ModCtx::call`; a host's scope |
 | **points** | `points = ["sessions.open_in"]` | extension points it opens; another mod fills one with `slot:sessions.open_in` | the validator, across manifests |
 
+A mod's own strings: `provides = ["i18n"]` and `i18n/<locale>.toml` in its folder (the locale's over `en`), keys under
+`mod-<id>.` or `mods.<id>.` only — a mod names its own copy, never the shell's. The bundled mods' copy lives in the
+shell's `i18n/{en,ja}/mod-<id>.toml`.
+
 Every mod may use the **base set** without naming it: the documents `theme`, `i18n`, `mods`, `config`, `runtime.slots`,
 `runtime.ui`, `runtime.layout` and the actions `mod.panel.open`, `settings.open`, `ui.close`, `ui.keep`. Its own
 documents (`mod.<id>`, `mod.<id>.*`) and actions (`<id>.*`) need no entry. A required use that is not there (the other mod
@@ -192,8 +196,10 @@ island-face = "a wallpaper has no live activity to show"
 ### Feeling native (the ruleset `kurashi mod check` holds)
 1. **Manifest:** `icon` (Material Symbols; its Settings page, its Mods row, its launcher and menu rows), `name` and
    `description` as i18n keys, every `[[setting]]` with `label` and, where it is not self-evident, `help`.
-2. **Components:** QML imports `qs.core` and `qs.kit` only — the kit is the supported set (Label, Button, IconButton,
-   Chip, Icon, Tile, Block, FocusRing, ScrollEdge, LoadingText); it draws in every look, so a mod never restyles.
+2. **Components:** QML imports `qs.core` and `qs.kit` only — the kit is the supported set (`frontend/kit/qmldir`: Label,
+   Button, IconButton, Chip, Icon, Block, FocusRing, ScrollEdge, LoadingText, PeekLines, QuickTile); they are the
+   shell's own components, drawn by every look, so a mod never restyles. The bundled mods still import
+   `qs.components` (the check notes it, BACKLOG I557).
 3. **Tokens:** no colour literal, no pixel font size, no duration or easing of its own: `Theme.*` and the motion profile.
 4. **Copy:** every string through `I18n.tr`, in `i18n/{en,ja}/mod-<id>.toml`.
 5. **States:** empty, loading, error, offline and unavailable are drawn; the document says which (`available`, `state`,
@@ -202,7 +208,7 @@ island-face = "a wallpaper has no live activity to show"
 7. **Ma:** no `Process`, no polling; a timer or animation is gated on visibility; a service starts on its first
    subscriber.
 8. **Reach:** each feature is an action; the mod's settings open from its menu.
-`kurashi mod new <id> --with widget,peek,panel,desk,face,tile,launcher,menu` writes a mod that passes all of it (templates
+`kurashi mod new <id> --name … --icon … --with widget,peek,panel,desk,tile,menu,settings` writes a mod that passes all of it (templates
 in `crates/kurashi-mods/templates/`); the Mod Editor in Settings (docs/ux/mod-editor.md) drives the same generator. A new mod without
 daemon code is frontend-only (it draws core documents it `uses`) or runs a host process; Luau comes with the portable tier.
 
@@ -210,11 +216,11 @@ daemon code is frontend-only (it draws core documents it `uses`) or runs a host 
 | Step | State |
 |---|---|
 | 1. `uses`, `points`, `[[action]]`, `[[menu]]`, `[skips]`, `icon` parse and validate; the points registry | built in 0.3.0 |
-| 2. The bundled manifests declare them | built in 0.3.0 |
-| 3. `kurashi mod check` (reports; in `just check` for the bundled mods once they pass) | built in 0.3.0 |
-| 4. `>` commands, binds and menus from declarations; the core's lists by hand go (I555) | see docs/PROGRESS.md |
-| 5. `ModCtx::follow` / `call`; a host's scope from `uses` (I127, I552) | see docs/PROGRESS.md |
-| 6. `qs.kit`; `kurashi mod new`; the Mod Editor | see docs/PROGRESS.md |
+| 2. The bundled manifests declare them | built in 0.3.0 (the test `kurashi-mods/tests/bundled.rs` holds them; `easter-eggs` waits for its code, I286) |
+| 3. `kurashi mod check` | built in 0.3.0: errors fail it (manifest, undeclared uses, variants, icon, labels, a view that starts a process); the native-feel lints are notes until the bundled mods are clean (I557) |
+| 4. `>` commands and menus from declarations | built in 0.3.0 (the launcher, the desktop's and a module's menu); open: key binds from declarations, the core's other reads of mods by name (I555) |
+| 5. `ModCtx::follow` / `call`; a host's scope from `uses` (I127, I552) | open |
+| 6. `qs.kit`, `Label`, `kurashi mod new`, a mod's own strings | built in 0.3.0; open: the Mod Editor page (docs/ux/mod-editor.md) with `mod.new`, `mod.check` and a rescan without a restart; the bundled mods on the kit |
 
 ## States, persistence and Settings (K25)
 A mod is in one of four states (`mods` document, `state`):
