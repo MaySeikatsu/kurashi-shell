@@ -74,28 +74,35 @@ mod-on figure is the same (I582); `ai`, `lyrics`, `tasks`, `weather` pass. **Not
 path changed: `strip_nulls` on every write) — run `just bench-gate` on a quiet machine before the tag. Not seen on niri by
 eye: the module menu's own rows, the launcher's command rows, a scaffolded mod's views. Nothing was run on the user's
 screen; the user's running session was read through `/proc` only (B147: it holds 1.9 GiB after 42 h).
-**Next steps (in order; ask the user where a step says so).**
-1. The user checks and merges PR #62; then `just bench-gate` on a quiet machine, tag `v0.3.0`, push the tag.
-   W89: review its diff, merge it into a branch of its own, `python3 tools/clones.py --update` (expect sh 1573), run the
-   merge set, PR; then remove its worktree, branch and build dir.
-2. B147 with the user: the running shell's memory after a day (the daemon 641 MiB, the frontend 597 MiB) — a soak
-   measurement, then what grows.
-3. Discuss with the user: I577 (a version bump rebuilds every dependency under Nix), I570 (distribution of Rust mods, the catalogue), I576 (a mod's own program without a crate:
-   manifest-declared hosts and a publishing scoped connection), I569 (a size cap for `target/`), I573 (a mod's icon in
-   the Settings sidebar), `~/.cache/kurashi-agents-target/debug`.
-3. Look on niri (shots, light and dark, two looks): the timer's module menu with its rows, `> timer 5` and `> task …` in
-   the launcher, a `kurashi mod new` mod turned on and placed. Fix what the look finds.
-4. The Mod Editor page (docs/ux/mod-editor.md): `query points`, `mod.new`, `mod.check`, a registry rescan without a
-   restart; QML prototype on the mock first, niri shots, then the page.
-5. K154 step 5: `ModCtx::follow` / `call` (I127, I552) — lyrics follows `svc.media` itself, sessions calls
-   `terminal.run` itself (its QML relay goes); a host's scope from `uses`.
-6. I555's rest: a core `location` the weather mod feeds (the night light reads it), binds from declarations (I571),
-   `ClockPeek`, `Desktop.qml`'s weather card as the mod's `desk:weather`, `AppearanceMenu`, `Wash`, `Sidebar.qml`.
-7. Dedup cards: W89 if not merged; `Label` in the 481 places (a card per folder, goldens and the idle budget checked);
-   the bundled mods on `qs.kit` (I557, I574); the lock faces' model; `Rec`/`assert_no_null` into the testkit.
-8. The suites' floor (I544: `settings/test.sh` split, the motion scrub as a run-time intent, then `-j 6`), typed documents
-   (I548), `qmllint` (I549), the two `honesty` tests (I542), a BACKLOG triage with the user (I568).
-9. Older, from session 33's list: the live read with the user, B119, the terminal's and sessions' open ends, I517–I537.
+**The user's decisions at the end of the session** (K155, K156; each staged as a card): code mods outside the tree are
+host programs; the catalogue is an index repository with Nix beside it; the Nix dependency cache is keyed without the
+version; the next session starts with the memory growth; then the consuming side, the core's reads of mods, host
+programs, the Mod Editor (the full brief), the catalogue; `Label` and the kit by a card per folder; the six red suites
+are fixed and join the merge set; `just sweep` caps `target/` at 60 GB; the unnamed agent build dir is deleted (done).
+**Next steps (in order; every card is in `docs/tasks/` and ready to start).**
+0. Housekeeping, before anything: `git fetch`; the user merges PR #62 (if not yet); `just bench-gate` on a quiet machine
+   (the hub strips `null` on every write: not measured yet), then `git tag v0.3.0`, push the tag. W89: review its diff,
+   merge it on a branch of its own, `python3 tools/clones.py --update` (expect sh 1573), `just gate`, PR; remove its
+   worktree, branch and build dir.
+1. **W90** — what grows in a day (B147): read the user's running session first (ask; read-only), `just soak`, find and
+   fix the growth in the daemon and the frontend, a growth budget in BENCH.
+2. **W91** — `ModCtx::follow` / `call`, inert on a missing use, a host's scope from `uses`; lyrics and sessions lose
+   their QML workarounds.
+3. **W92** — the core names no mod: `svc.location`, the desk's weather card, `clock.peek.lines`, binds from
+   declarations, the wallpaper's three, the sidebar's hold; its grep becomes a test.
+4. **W93** — host programs (K155): the protocol's `pub`, `serve`, `call` designed and fixtured first, then built; the
+   host templates.
+5. **W94** — the Mod Editor, the full brief: daemon queries and actions, the mock, the QML prototype on niri for the
+   user's look, then wired.
+6. **W98** — the catalogue: its UX brief first, then the index, `kurashi mod add`, the Mods page, the Home-Manager
+   option.
+Beside them, whenever two agents are free or between steps: **W95** (`Label` and the kit, a card per folder, Haiku),
+**W96** (the six red suites, then into the merge set), **W97** (the Nix dependency cache, K156).
+7. A look on niri at what session 34 built and no one has seen: the timer's module menu with its rows, `> timer 5` and
+   `> task …` in the launcher, a `kurashi mod new` mod turned on and placed; I573 (a mod's icon in the Settings sidebar).
+8. Then: the suites' floor (I544), typed documents (I548), `qmllint` (I549), the two `honesty` tests (I542), the mock's
+   `mods` document (I581), a BACKLOG triage with the user (I568); and session 33's list (the live read with the user,
+   B119, the terminal's and sessions' open ends, I517–I537).
 **Risks.** The dev shell's mold applies to `cargo` in `nix develop` only; a build outside it relinks everything with
 the default linker. `line-tables-only` drops variable info from debug builds (`CARGO_PROFILE_DEV_DEBUG=full` for a
 debugger session). A declared action's arguments are now checked: a caller that sent a wrong type to a declared action

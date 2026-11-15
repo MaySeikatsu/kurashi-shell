@@ -1682,3 +1682,34 @@ guarantee it to feel native". Others: VS Code's `contributes` + `activationEvent
 (https://code.visualstudio.com/api/references/contribution-points), GNOME Shell extensions (no declared surface: every
 release breaks them), KDE Plasma's applet metadata and `kpackagetool` templates, Raycast's typed command arguments
 (https://developers.raycast.com/information/manifest), Noctalia's and DankMaterialShell's plugin manifests.
+
+## K155 — Mods with code ship as host programs; the catalogue is an index repository, with Nix beside it (session 34)
+**Decision** (the user's answers, session 34). (1) A mod that needs code of its own and is not in the shell's tree is a
+**host program**: the manifest declares it (`[[host]]`: name, program, arguments), the daemon starts, supervises and
+scopes it as K38's hosts, and its scoped connection may publish the mod's own documents and answer the mod's declared
+actions (a protocol addition; today a scoped connection only reads and calls). Any language; a Rust mod outside the tree
+is a prebuilt binary or built by Nix from its source. Rust linked into the daemon stays the first-party route. Luau stays
+planned for portable mods and comes after. (2) The **catalogue** is a git repository of entries (id, version, source,
+hash, the manifest's summary: what it provides, uses and may do), changed by pull request, which is its review. Settings
+› Mods browses it and `kurashi mod add <id>` installs into the user's mods folder; the Home-Manager module pins the same
+entries declaratively. (3) Order of building (the user): after the memory work — the consuming side (`ModCtx::follow` /
+`call`), then the core's reads of mods by name, then host programs, then the Mod Editor (the full brief), then the
+catalogue.
+**Why.** The user: "how would plugins behave if they are rust? Would they force recompilation or could they just load
+directly?" — a Rust mod is linked into `kurashid` today, so nothing is compiled or loaded on a user's machine and nothing
+can be added without rebuilding the shell; Rust has no stable ABI to load a library safely, and a process boundary is
+also the security boundary the manifest's `uses` can be held at. "We also should clarify how we could organize the
+mod/plugin catalogue properly." Others: VS Code's Marketplace and Open VSX (a registry of manifests; extensions in their
+own host process), Raycast's store (a monorepo, review by pull request), Home Assistant's HACS (an index of
+repositories), nixpkgs' plugin sets (declarative, pinned by hash), Zed's extensions (an index repository plus WASM).
+
+## K156 — A version bump does not rebuild the dependencies under Nix (session 34)
+**Decision.** The dependency derivation (`craneLib.buildDepsOnly`, nix/package.nix) is keyed on a copy of the workspace's
+`Cargo.toml` and `Cargo.lock` with the workspace's own version normalised, and on a fixed `version`; the version stays in
+`Cargo.toml` (K151, one source). Accepted when a bump alone leaves that derivation's hash unchanged and `nix build` after
+a bump compiles the shell's crates only (card W97).
+**Why.** The user: "does the app need to compile fully after a version bump … I'd like to avoid long compile times in
+general". Measured in session 34: with `cargo` a bump recompiles the workspace's crates once and edits stay incremental
+(BENCH "Build loop"); under `nix build` every PR's bump (K151) rebuilt all dependencies in release, because the version is
+an input of the dependency derivation and stands in both files it reads. The user chose normalising over moving the
+version out of `Cargo.toml` and over leaving it.
