@@ -3,7 +3,7 @@
 Updated at the **end of every session** (K14). Newest entry on top; keep the last 5 entries.
 
 ## Pickup prompt (paste into a fresh Claude Code session started in `~/Projects/kurashi-shell`)
-> Read `CLAUDE.md`, then the latest entry of `docs/HANDOVER.md` and `docs/BACKLOG.md`, and continue
+> Read `CLAUDE.md`, then the latest entry of `docs/HANDOVER.md`, `docs/INBOX.md` and `docs/BACKLOG.md`, and continue
 > with the handover's "Next steps" in order. You have no memory of earlier sessions — everything you
 > need is in this repo. Use subagents as described there (parallel, isolated git worktrees, disjoint
 > ownership, task cards in `docs/tasks/`; push `main` before spawning them) and keep the lead role
@@ -78,7 +78,9 @@ screen; the user's running session was read through `/proc` only (B147: it holds
 host programs; the catalogue is an index repository with Nix beside it; the Nix dependency cache is keyed without the
 version; the next session starts with the memory growth; then the consuming side, the core's reads of mods, host
 programs, the Mod Editor (the full brief), the catalogue; `Label` and the kit by a card per folder; the six red suites
-are fixed and join the merge set; `just sweep` caps `target/` at 60 GB; the unnamed agent build dir is deleted (done).
+are fixed and join the merge set; `just sweep` caps `target/` at 60 GB (run: 133 GiB more taken out; `du` still says
+102 GB — cargo-sweep does not count `incremental/`, I569); the unnamed agent build dir is deleted (done). **The inbox**
+(the user): `docs/INBOX.md`, bugs and ideas by area, read before work on an area starts (CLAUDE.md "Workflow").
 **Next steps (in order; every card is in `docs/tasks/` and ready to start).**
 0. Housekeeping, before anything: `git fetch`; the user merges PR #62 (if not yet); `just bench-gate` on a quiet machine
    (the hub strips `null` on every write: not measured yet), then `git tag v0.3.0`, push the tag. W89: review its diff,
