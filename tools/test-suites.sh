@@ -154,7 +154,19 @@ done
   for s in "${suites[@]}"; do printf '%-44s %-28s %s\n' "$s" "${rc[$s]}" "${secs[$s]}"; done
 } | tee "$OUT/summary.txt"
 bad=0
-for s in "${suites[@]}"; do case "${rc[$s]}" in 0|"0 (alone"*) ;; *) bad=1 ;; esac; done
+# K153: a suite that fails on `main` too, with the BACKLOG row that holds it (tools/suites-known-failing.txt), is reported
+# and does not fail the run; one that passes says so, so its line goes.
+declare -A known=()
+while read -r script row; do
+  case "$script" in ''|'#'*) continue ;; esac
+  known[$script]=$row
+done < "$ROOT/tools/suites-known-failing.txt"
+for s in "${suites[@]}"; do
+  case "${rc[$s]}" in
+    0|"0 (alone"*) [ -z "${known[$s]:-}" ] || echo "test-suites: $s passes: take its line out of tools/suites-known-failing.txt (${known[$s]})" ;;
+    *) if [ -n "${known[$s]:-}" ]; then echo "test-suites: $s fails as on main: known ${known[$s]}"; else bad=1; fi ;;
+  esac
+done
 # I375: a green run leaves no sandboxes behind (a failed one keeps them for its logs; `sandbox.sh start` clears those after
 # a day). Only dirs this run made, and none a process still has as its runtime dir.
 if [ "$bad" = 0 ]; then

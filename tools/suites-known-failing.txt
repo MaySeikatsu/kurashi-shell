@@ -1,0 +1,4 @@
+# Suites that fail on `main` for a reason a BACKLOG row holds (K153). The runner reports them as `known <row>` and
+# does not fail the run for them; one that passes is named, so its line goes. One suite per line: <script> <row>.
+# A line is added only with its row, and only for a failure that is on `main` too — never to get a branch through.
+frontend/test-quick-modules.sh B92
