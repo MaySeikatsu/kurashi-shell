@@ -92,10 +92,10 @@ case "$MODE" in
         if [ "$(basename "$t" .sh)" = "test-$lower" ] || grep -qw -- "$stem" "$t"; then want[$t]=1; fi
       done
     done
+    # What the change names always runs; the merge set joins it for a change nothing claimed.
+    suites=("${!want[@]}")
     if [ "$full" = 1 ]; then
       for s in "${MERGE_SET[@]}"; do suites+=("$(path_of "$s")"); done
-    else
-      suites=("${!want[@]}")
     fi ;;
 esac
 if [ "$MODE" != pick ]; then for s in "${PICK[@]}"; do suites+=("$(path_of "$s")"); done; fi

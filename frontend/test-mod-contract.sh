@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# covers: crates/kurashi-mods crates/kurashi-launcher/src/commands.rs crates/kurashid/src/actions.rs
 # The mod contract on the real daemon (K154, docs/MODS.md "Integration contract"), on nested niri: a declared action
 # lists its typed arguments and its `>` command; the launcher's `>` mode offers it with the rest of the line as its
-# argument and launching the row runs it; a bad argument is refused by name before the handler; the `mods` document
+# argument and launching the row runs it; a bad argument is refused before the handler; the `mods` document
 # carries a mod's icon and menu rows; a mod's own strings are in the `i18n` document.
 #   nix develop -c frontend/test-mod-contract.sh
 set -uo pipefail
@@ -18,7 +17,9 @@ trap '"$SB" stop >/dev/null 2>&1' EXIT
 . "$ROOT/frontend/test-lib.sh"
 
 CFG=$OUT/config.toml
-printf '[idle]\nenabled = false\n\n[mods]\nloaded = ["timer", "tasks"]\nenabled = ["timer", "tasks"]\n' > "$CFG"
+# Every bundled mod is on: what one registers and does not declare is in the daemon's log (the last check).
+ALL='"ai", "calendar", "handwriting", "lyrics", "sessions", "sysmon", "tasks", "terminal", "timer", "wallpaper", "weather", "webdock"'
+printf '[idle]\nenabled = false\n\n[mods]\nloaded = [%s]\nenabled = [%s]\n' "$ALL" "$ALL" > "$CFG"
 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
 K() { "$SB" act "$@"; }
 raw() { K raw "$1" 2>&1 | head -1; }
@@ -45,8 +46,10 @@ wait_until 5 running || fail "no timer runs after > timer 5: $(doc mod.timer | c
 ok "launching the row runs the action with its argument"
 
 e=$(K act timer.start '{"minutes":0}' 2>&1)
-has "$e" 'error.args.invalid: minutes' || fail "an argument out of range is not refused by name: $e"
-ok "a bad argument is refused by name before the handler"
+has "$e" 'error.args.invalid' || fail "an argument out of range is not refused: $e"
+( . "$OUT/niri-env.sh" 2>/dev/null; grep -q 'action timer.start: argument `minutes`' "$XDG_RUNTIME_DIR/kurashid.log" ) \
+  || fail "the daemon's log does not name the refused argument"
+ok "a bad argument is refused before the handler; the log names it"
 
 K act launcher.launch '{"id":"cmd:tasks.add\t{\"text\":\"buy milk\"}"}' > /dev/null 2>&1 || fail "launching the task's row failed"
 task() { has "$(doc mod.tasks)" 'buy milk'; }
@@ -57,7 +60,7 @@ m=$(doc mods)
 has "$m" '"icon":"timer"' && has "$m" '"at":"module"' || fail "the mods document lacks the timer's icon or menu rows: $(echo "$m" | cut -c1-400)"
 ok "the mods document carries a mod's icon and its menu rows"
 
-w=$( ( . "$OUT/niri-env.sh" 2>/dev/null; grep -E "is registered and not declared" "$XDG_RUNTIME_DIR/kurashid.log" 2>/dev/null | head -3 ) )
+w=$( ( . "$OUT/niri-env.sh" 2>/dev/null; grep -oE "mod [a-z-]+: action [a-z_.]+ is registered and not declared" "$XDG_RUNTIME_DIR/kurashid.log" 2>/dev/null | sort -u | tr '\n' ';' ) )
 [ -z "$w" ] || fail "an action is registered and not declared: $w"
 ok "every action the enabled mods register is declared"
 echo "test-mod-contract: PASS"

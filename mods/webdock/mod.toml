@@ -424,6 +424,30 @@ label = "action.webdock.unpin"
 id = "webdock.view"
 label = "action.webdock.view"
 
+[[action]]
+id = "webdock.card"
+label = "action.webdock.card"
+
+[[action]]
+id = "webdock.card_close"
+label = "action.webdock.card_close"
+
+[[action]]
+id = "webdock.card_focus"
+label = "action.webdock.card_focus"
+
+[[action]]
+id = "webdock.card_page"
+label = "action.webdock.card_page"
+
+[[action]]
+id = "webdock.card_select"
+label = "action.webdock.card_select"
+
+[[action]]
+id = "webdock.side_page"
+label = "action.webdock.side_page"
+
 [[menu]]
 at = "module"
 action = "webdock.toggle"

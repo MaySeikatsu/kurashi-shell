@@ -73,6 +73,8 @@ let
       ../frontend
       ../settings
       ../mods
+      # K154: kurashi-mods' test holds docs/MODS.md's table of extension points to the registry.
+      ../docs/MODS.md
       # W53.0b (K80): the styles' sound cues and cursor themes (original, CC0).
       ../sounds
       ../cursors

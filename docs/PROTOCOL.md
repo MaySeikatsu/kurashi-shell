@@ -228,7 +228,7 @@ MODS.md "Actions") also carries `schema` (its arguments: `[{name, type: bool|int
 optional?, range?, choices?, rest?}]`; absent while they are not described), `icon`, `command` (the word(s) of its `>`
 command) and `mod`; `args` is then derived from the schema. The daemon checks a declared action's arguments before its
 handler runs and fills the defaults in: a missing required one, a wrong type or a value out of range is `invalid` with
-`error.args.invalid: <argument>`. The launcher's `>` mode lists the declared commands after the shell's own; a row's
+`error.args.invalid` (the daemon's log names the argument). The launcher's `>` mode lists the declared commands after the shell's own; a row's
 id is `cmd:<action>` or, with arguments from the rest of the line (`> timer 5`), `cmd:<action>\t<json>`, and
 `launcher.launch` runs the action with them.
 

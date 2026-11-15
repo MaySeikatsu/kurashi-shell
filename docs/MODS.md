@@ -164,7 +164,7 @@ command = "timer"                     # optional: a `>` command; the word(s) it 
 An action without `command` is still listed by `kurashi act --list` and offered in the bind picker. A `>` command's
 arguments all have defaults, or it has one `rest` argument. The `actions` query answers `{id, args, help, schema?, icon?,
 command?, mod?}`; `args` stays the display string (`{minutes?}`), derived from the schema where one is declared.
-The daemon checks an invocation against the schema before the handler runs (`error.args.invalid`, naming the argument).
+The daemon checks an invocation against the schema before the handler runs (`error.args.invalid`; its log names the argument).
 The glob `action:<id>.*` in `provides` stays valid; `kurashi mod check` reports each action the crate registers that the
 manifest does not declare.
 

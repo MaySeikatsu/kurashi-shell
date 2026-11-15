@@ -21,15 +21,21 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   setting, whichever you tick — with its icon, its copy in English and Japanese and a checklist. **`kurashi mod check`**
   holds any mod to the rules that make it feel native; `kurashi mod points` lists every place a mod can stand in.
 - A mod ships its own strings (`i18n/<locale>.toml` in its folder) and its own icon (shown on its Settings page).
-- `kurashi act --list` shows a declared action's typed arguments; a wrong or missing argument is refused by name
-  before the action runs.
+- `kurashi act --list` shows a declared action's typed arguments; a wrong or missing argument is refused before
+  the action runs.
+
+### Breaking
+- **IPC:** a document no longer carries `null` anywhere: `svc.pointer` has no `output` while the pointer is on none, and
+  a workspace in `svc.previews` has no `still` until one exists. A client that tested for `null` tests for absence.
+- **IPC:** the actions whose manifests type their arguments (`timer.start`, `tasks.add`, `wallpaper.next`, …) refuse an
+  argument of the wrong type or out of range with `error.args.invalid` before the action runs.
+- **Launcher:** the `>` list's "web" row is gone (it needed a pin it was never given); the web dock's command is
+  `> web dock`.
 
 ### Changed
 - **Mod manifests** (`mod.toml`) gain `icon`, `uses`, `points`, `[[action]]`, `[[menu]]` and `[skips]`
   (docs/MODS.md "Integration contract", K154). Existing manifests keep working; `kurashi mod check` says what a mod
   still owes.
-- The launcher's `>` list no longer has the hand-kept "web" row (it needed a pin it was never given); the web dock's
-  command is its own `> web dock`.
 
 ### Fixed
 - A document could carry `null` (`svc.pointer`'s output, a workspace's missing still), which a later patch removed while

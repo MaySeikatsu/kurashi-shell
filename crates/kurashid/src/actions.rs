@@ -117,10 +117,14 @@ impl ActionRegistry {
             None => return Err(ActionError::Unknown(id.into())),
         };
         // K154: declared arguments are checked here, once, and their defaults filled in.
+        // The answer is the catalogue's key (views translate `msg`); the daemon's log names the argument.
         let args = match decl {
-            Some(d) => d
-                .check(&args)
-                .map_err(|arg| ActionError::Invalid(format!("error.args.invalid: {arg}")))?,
+            Some(d) => d.check(&args).map_err(|arg| {
+                tracing::warn!(
+                    "action {id}: argument `{arg}` is missing or not what its declaration says"
+                );
+                ActionError::Invalid(crate::wiring::ARGS_INVALID.into())
+            })?,
             None => args,
         };
         handler(args).await
@@ -283,10 +287,7 @@ command = "timer"
             .invoke("timer.start", serde_json::json!({"minutes": 0}))
             .await
             .unwrap_err();
-        assert_eq!(
-            err,
-            ActionError::Invalid("error.args.invalid: minutes".into())
-        );
+        assert_eq!(err, ActionError::Invalid("error.args.invalid".into()));
         assert_eq!(
             decl.command_args("25"),
             Some(serde_json::json!({"minutes": 25}))

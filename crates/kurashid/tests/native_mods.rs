@@ -341,6 +341,50 @@ async fn an_enabled_native_mod_names_the_component_files_that_exist() {
     assert!(d.entry("panelmod").get("qml").is_none());
 }
 
+/// K154: what `kurashi mod new` writes is a mod the daemon takes as it is — found, valid, enabled with one action, its
+/// views and its icon in the `mods` document, its menu row there with the label and icon it shows.
+#[tokio::test]
+async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
+    let extra = scratch("scaffold");
+    let spec = kurashi_mods::scaffold::Spec {
+        id: "tea".into(),
+        name: "Tea".into(),
+        icon: "emoji_food_beverage".into(),
+        description: "A cup, on time.".into(),
+        with: [
+            "widget", "peek", "panel", "desk", "tile", "menu", "settings",
+        ]
+        .map(String::from)
+        .to_vec(),
+        uses: Vec::new(),
+    };
+    let dir = spec.write(&extra).unwrap();
+    let d = start(
+        &scratch("scaffold-cfg"),
+        std::slice::from_ref(&extra),
+        Vec::new(),
+    );
+    assert_eq!(d.state("tea"), "available", "{}", d.entry("tea"));
+    d.act("mod.enable", "tea").await.unwrap();
+    let e = d.entry("tea");
+    assert_eq!(e["state"], "enabled");
+    assert_eq!(e["icon"], "emoji_food_beverage");
+    let url = |rel: &str| format!("file://{}/qml/{rel}", dir.display());
+    assert_eq!(e["qml"]["widget:tea"], url("Widget.qml"));
+    assert_eq!(e["qml"]["peek:tea"], url("Peek.qml"));
+    assert_eq!(e["qml"]["panel:tea"], url("Panel.qml"));
+    assert_eq!(e["qml"]["desk:tea"], url("desk/tea.qml"));
+    assert_eq!(
+        e["menus"],
+        json!([{"at": "module", "action": "mod.panel.open", "label": "mod-tea.open",
+                "icon": "emoji_food_beverage", "args": {"id": "tea", "panel": "tea"}}])
+    );
+    // Its setting is an ordinary config key with the template's default.
+    let row = setting_row(&d, "mods.tea.show_name");
+    assert_eq!(row["default"], true, "{row}");
+    assert_eq!(row["label"], "mod-tea.setting.show_name");
+}
+
 /// A client of the daemon's socket, as the frontend speaks it (PROTOCOL §2–§7).
 struct Wire {
     rd: LineReader<OwnedReadHalf>,
