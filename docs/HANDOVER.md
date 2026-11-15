@@ -19,7 +19,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ## 2026-11-15 — session 34 (machine A): the loop and the mod contract — 0.3.0, PR open
 **State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR #62 open, not merged** (the user merges;
-then `git tag v0.3.0` on `main` and push the tag, K151). Gate: `just gate --no-suites` passed on 7b431efb (check, hm-eval, nix build); the merge set ran on 82a2578d (the commit before; only the runner's known-failing list changed since): 50 of 51 pass, `quick-modules` fails as on `main` (B92, now listed in `tools/suites-known-failing.txt`).
+then `git tag v0.3.0` on `main` and push the tag, K151). Gate: see "Verified" (the last code commit is 274f04e3).
 One agent worktree is left: **W89, finished, not merged** (`.claude/worktrees/agent-add20fbd7bf4e0b6d`, branch
 `worktree-agent-add20fbd7bf4e0b6d` at 0ab8a3ab, made from ce6218b6; build dir `~/.cache/kurashi-agents-target/W89`): the
 suites' kit, 23 suites on it; kept out of PR #62 because the lead had not re-run the merge set on it and `test-peek`
@@ -62,7 +62,7 @@ with their rows (`tools/suites-known-failing.txt`) so the gate can pass while B9
 five newest entries (its own rule); the argument error is the plain key `error.args.invalid` (views translate it) and
 the daemon's log names the argument; rule 12 is written as the rule though its roll-out is not finished (MODS.md
 "Roll-out" says what is built); W89 kept out of this PR; the branch pushed and the PR opened.
-**Verified.** GATE_FINAL The merge set (51 suites) ran on 82a2578d: 50 pass — three only alone, a second runner
+**Verified.** `just gate --no-suites` passed on 274f04e3, the last code commit (check: 1539 tests, clippy, the clone ratchet at rs 810, qml 1512, sh 1999; hm-eval; `nix build .#kurashi`, 0.3.0). The merge set (51 suites) ran on 82a2578d: 50 pass — three only alone, a second runner
 shared the machine (I578) — and `quick-modules` fails as on `main` (B92, now in `tools/suites-known-failing.txt`); the suites
 the later commits touch were run again on the head (the web dock's four, `mod-contract`, `context-menus`, `module-menu`).
 The flake's `tests` check: green (142 test binaries; it was red on `main`, B146). `frontend/test-mod-contract.sh` on nested
