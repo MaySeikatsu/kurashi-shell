@@ -18,17 +18,13 @@ Item {
     Accessible.role: Accessible.Link
     Accessible.name: l.text
 
-    Text {
+    Label {
         id: t
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.left: parent.left
         anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter
         color: l.enabled ? Theme.fg : Theme.dim
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         font.underline: hov.hovered || l.activeFocus
         text: l.text
     }

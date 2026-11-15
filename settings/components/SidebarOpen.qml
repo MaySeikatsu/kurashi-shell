@@ -76,15 +76,9 @@ Column {
                     enabled: Store.live
                     onToggled: v => so.setInBar(parent.modelData, v)
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     height: Theme.controlH
                     verticalAlignment: Text.AlignVCenter
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.tr("sidebar.in_bar." + parent.modelData)
                 }
             }
@@ -93,15 +87,9 @@ Column {
     Flow {
         width: so.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             height: Theme.controlH
             verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("sidebar.open_now")
         }
         Button {
@@ -118,27 +106,19 @@ Column {
             onClicked: so.open("left")
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: so.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.fmt("sidebar.keys", { right: "Mod+Shift+N", left: "Mod+A" })
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: so.error !== ""
         width: so.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: "⊘ " + so.error
     }
 }

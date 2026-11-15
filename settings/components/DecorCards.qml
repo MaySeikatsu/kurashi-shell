@@ -89,16 +89,13 @@ Flow {
                 border.color: Theme.outline
 
                 // Your own: no look of its own to show.
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: !card.t
                     anchors.centerIn: parent
                     text: Theme.iconFamily !== "" ? "tune" : "⚙"
                     font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam(text, Theme.families)
                     font.pixelSize: 30
-                    color: Theme.dim
+                    dim: true
                 }
 
                 // A bar of three blocks.
@@ -127,10 +124,7 @@ Flow {
                     height: 60
                     fill: card.ck("color.surface_container", "#2a2a2a")
                     radius: Math.min(card.tk("radius.lg", 12) * 0.6, 14)
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         x: 10; y: 6
                         text: "Aa あ"
                         font.family: card.tk("font.family", "sans-serif")
@@ -182,10 +176,7 @@ Flow {
                     }
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: card.framed
                 anchors.right: scene.right
                 anchors.top: scene.top
@@ -201,10 +192,7 @@ Flow {
                 anchors.top: scene.bottom
                 anchors.topMargin: Theme.gap
                 spacing: 4
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: card.on
                     text: Theme.iconFamily !== "" ? "check" : "✓"
                     font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam(text, Theme.families)
@@ -212,17 +200,11 @@ Flow {
                     color: Theme.accent
                     anchors.verticalCenter: parent.verticalCenter
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: card.width - (card.on ? Theme.fs + 6 : 0)
                     elide: Text.ElideRight
                     text: I18n.tr(card.modelData.label)
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
                     font.weight: card.on ? Theme.wBold : Theme.wMedium
-                    font.family: Theme.fam(text, Theme.families)
                 }
             }
             MouseArea {

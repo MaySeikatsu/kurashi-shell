@@ -50,18 +50,14 @@ Column {
                 Accessible.role: Accessible.RadioButton
                 Accessible.name: I18n.tr("config.choice.ink." + modelData)
                 Accessible.checked: sw.on
-                Text {
+                Label {
                     id: cap
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.top: dot.bottom
                     anchors.topMargin: 4
                     anchors.horizontalCenter: parent.horizontalCenter
                     color: sw.on ? Theme.fg : Theme.dim
                     font.pixelSize: Theme.fs - 2
                     font.weight: sw.on ? Font.Bold : Font.Normal
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.tr("config.choice.ink." + sw.modelData)
                 }
                 Rectangle {

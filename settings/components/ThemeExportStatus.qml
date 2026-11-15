@@ -62,14 +62,10 @@ Column {
     }
 
     // Chosen apps, but no answer yet (the first export runs after the theme).
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: ex.chosen.length > 0 && ex.doc === undefined
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.export.waiting")
     }
 
@@ -81,162 +77,111 @@ Column {
             readonly property bool settingsOnly: modelData.name === "gsettings"
             width: ex.width
             spacing: 2
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideMiddle
-                color: Theme.fg
                 font.pixelSize: Theme.fs - 1
                 font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
                 text: ex.appName(t.modelData.name)
             }
             // K104, K105: what an app does with the shell's fonts, while Fonts in apps is on.
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 readonly property var fnt: t.modelData.font
                 visible: !!fnt
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: !fnt ? "" : fnt.family ? I18n.fmt(fnt.mono ? "theme.export.font.family" : "theme.export.font.ui", { family: fnt.family })
                     : I18n.tr("theme.export.font." + (fnt.why === "own_file" ? "own_file" : "unsupported"))
             }
             // A terminal: what it takes of the material, honestly (K99).
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 readonly property var mat: t.modelData.material
                 visible: !!mat
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: !mat ? "" : I18n.tr("theme.export.material." + (mat.how === "off" ? "off_" + mat.why : mat.how))
             }
             // I454 (K123): the palette a terminal or its tool wears instead of the shell's colours, and why that one.
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 readonly property var pal: t.modelData.palette
                 objectName: "exportPalette:" + t.modelData.name
                 visible: !!pal
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: !pal ? "" : I18n.fmt("theme.export.palette." + (pal.why === "own" ? "own" : "closest"), { name: pal.label })
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: !!t.modelData.own_config
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.fg
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("theme.export.material.ratty_own")
             }
             // The desktop settings: what they are, what was set, what was in effect already.
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: t.settingsOnly
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("theme.export.settings_help")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: t.settingsOnly && Array.isArray(t.modelData.set) && t.modelData.set.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.fg
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.fmt("theme.export.settings_set", { keys: ex.setList(t.modelData.set) })
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: t.settingsOnly && Array.isArray(t.modelData.same) && t.modelData.same.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.fmt("theme.export.settings_same", { keys: ex.setList(t.modelData.same) })
             }
             // Files: where the file went, or that it is up to date.
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: !t.settingsOnly && !t.modelData.error && !!t.modelData.path
                 width: parent.width
                 elide: Text.ElideMiddle
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.fmt(t.modelData.written === false ? "settings.export.same" : "settings.export.file",
                                { path: ex.tilde(t.modelData.path || "") })
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: !!t.modelData.error
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: Theme.error
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: "✕ " + I18n.fmt("settings.export.error", { reason: I18n.tr(t.modelData.error || "") })
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: Array.isArray(t.modelData.unknown) && t.modelData.unknown.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: "⊘ " + I18n.fmt("settings.export.unknown", { names: (t.modelData.unknown || []).join(", ") })
             }
             // A browser: its profiles on this machine (profiles.ini, K100), each with Link: the only time the shell writes
             // into a profile, and only on this click.
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 readonly property var pr: t.modelData.profiles
                 visible: !!pr
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: !pr ? "" : pr.list.length === 0 ? I18n.fmt("theme.export.profile.none", { dir: ex.tilde(pr.root) })
                     : I18n.tr("theme.export.profile.restart")
             }
@@ -247,16 +192,11 @@ Column {
                     required property var modelData
                     width: t.width
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - linkKey.width - parent.spacing
                         elide: Text.ElideMiddle
-                        color: Theme.fg
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         readonly property string who: prof.modelData.default
                             ? I18n.fmt("theme.export.profile.default", { name: prof.modelData.name }) : prof.modelData.name
                         text: prof.modelData.linked ? I18n.fmt("theme.export.profile.linked", { name: who }) : who
@@ -286,16 +226,12 @@ Column {
                     readonly property bool has: (modelData.others || []).length > 0
                     width: t.width
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - otherKey.width - parent.spacing
                         wrapMode: Text.WordWrap
                         color: other.has ? Theme.fg : Theme.dim
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.fmt(other.has ? "theme.export.profile.others" : "theme.export.profile.silenced", {
                             name: other.modelData.name,
                             files: (other.has ? other.modelData.others : other.modelData.silenced).map(ex.tilde).join(", ")
@@ -314,16 +250,12 @@ Column {
                     }
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: ex.linkErrors !== "" && !!t.modelData.profiles
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: Theme.error
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: "✕ " + ex.linkErrors
             }
             // The include and the lines: present ones say so; the others show the line, the file it goes in and Copy.
@@ -335,45 +267,32 @@ Column {
                     readonly property var cp: ex.copied[modelData.key] || null
                     width: t.width
                     spacing: 2
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: row.modelData.present === true
                         width: parent.width
                         elide: Text.ElideMiddle
-                        color: Theme.dim
+                        dim: true
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: row.modelData.include
                               ? "✓ " + I18n.fmt("settings.export.included", { file: ex.tilde(row.modelData.file) })
                               : I18n.fmt("theme.export.line_present", { file: ex.tilde(row.modelData.file) })
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: row.modelData.present !== true
                         width: parent.width
                         wrapMode: Text.WordWrap
-                        color: Theme.fg
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: row.modelData.include
                               ? "↳ " + I18n.fmt("settings.export.add_line", { app: ex.appName(t.modelData.name), file: ex.tilde(row.modelData.file) })
                               : I18n.fmt(row.modelData.section !== "" ? "theme.export.line_add_section" : "theme.export.line_add",
                                          { file: ex.tilde(row.modelData.file), section: row.modelData.section })
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: row.modelData.stale === true
                         width: parent.width
                         wrapMode: Text.WordWrap
                         color: Theme.error
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: "✕ " + I18n.tr("theme.export.stale")
                     }
                     Row {
@@ -388,16 +307,12 @@ Column {
                             color: Theme.surface
                             border.width: 1
                             border.color: Theme.containerHigh
-                            Text {
+                            Label {
                                 id: lineText
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
-                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 anchors.verticalCenter: parent.verticalCenter
                                 x: Theme.gap
                                 width: parent.width - 2 * Theme.gap
                                 elide: Text.ElideRight
-                                color: Theme.fg
                                 font.pixelSize: Theme.fs - 1
                                 font.family: "monospace"
                                 text: row.modelData.line
@@ -412,16 +327,12 @@ Column {
                             onClicked: ex.copy(row.modelData.key, row.modelData.line)
                         }
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: !!row.cp && !!row.cp.error
                         width: parent.width
                         wrapMode: Text.WordWrap
                         color: Theme.error
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: row.cp && row.cp.error ? "✕ " + row.cp.error : ""
                     }
                 }
