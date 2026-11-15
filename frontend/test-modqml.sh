@@ -58,36 +58,7 @@ cp -r "$HELLO/qml" "$XDG_DATA_HOME/kurashi/mods/hello/"
 cp "$HELLO/live.mod.toml" "$XDG_DATA_HOME/kurashi/mods/hello/mod.toml"
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (plain stdlib, as in test-stage.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # Card geometry from a screenshot (PPM): the card's surface colour in the output's centre column.
@@ -99,24 +70,12 @@ TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 900   # the output is 2560 wide: a card is centred on 1280, under the 36 px bar
 
 
-def read_ppm(data):
-    # Four whitespace-separated fields (magic, width, height, maxval), one whitespace byte, the raster.
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
-with open(sys.argv[1], "rb") as f:
-    w, h, raster = read_ppm(f.read())
+w, h, raster = read_ppm(sys.argv[1])
 # The island's shape is drawn at the panel's opacity (W22, I114): the container blended over the desk's own colour (from
 # the bottom-right corner) counts too, at the daemon's translucent default (0.85) or the mock's surface_alpha (0.82).
 _b = ((h - 60) * w + (w - 60)) * 3  # (60 px in: past the rounded screen corner, K74)
