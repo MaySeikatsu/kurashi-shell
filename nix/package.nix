@@ -8,6 +8,7 @@
   linux-pam,
   rustPlatform,
   runCommand,
+  writeText,
   makeBinaryWrapper,
   callPackage,
 }:
@@ -114,9 +115,53 @@ let
     buildInputs = [ libpulseaudio linux-pam ];
   };
 
+  # K156 (W97): a version bump must not rebuild the ~400 dependencies. Every PR bumps `[workspace.package] version`
+  # (K151); the version stood in the dependency derivation three times — as its own `version`, in the root Cargo.toml
+  # and in Cargo.lock (each member's entry) — so every PR rebuilt them in release. The dependency derivation is built
+  # from a source that does not carry it:
+  # - the manifests crane writes for its dummy source drop `workspace.package.version` and each member's `version`
+  #   (cargo reads a manifest without one as 0.0.0);
+  # - the lock file is this tree's with the members' entries at 0.0.0, written at evaluation (no import from a
+  #   derivation: `builtins.readFile` of a path, `writeText` of the result, so its hash follows its content);
+  # - the vendored registry comes from the real lock (the members have no source and are not part of it).
+  # Checked by nix/tests: the derivation is the same for two versions.
+  members = lib.attrNames (lib.filterAttrs (_: t: t == "directory") (builtins.readDir ../crates));
+  memberNames = map (d: (lib.importTOML (../crates + "/${d}/Cargo.toml")).package.name) members;
+  lockWithoutVersion = writeText "Cargo.lock" (
+    builtins.replaceStrings
+      (map (n: "name = \"${n}\"\nversion = \"${version}\"\n") memberNames)
+      (map (n: "name = \"${n}\"\nversion = \"0.0.0\"\n") memberNames)
+      (builtins.readFile ../Cargo.lock)
+  );
+  depsSrc = craneLib.mkDummySrc {
+    # Without Cargo.lock: crane would copy the tree's own (with the version) beside the manifests.
+    src = fs.toSource {
+      root = ../.;
+      fileset = fs.unions [
+        ../Cargo.toml
+        ../.cargo/config.toml
+        ../crates
+      ];
+    };
+    cargoLock = lockWithoutVersion;
+    cleanCargoTomlFilter =
+      path:
+      craneLib.filters.cargoTomlDefault path
+      && path != [ "workspace" "package" "version" ]
+      && path != [ "package" "version" ];
+  };
+
   # Also compiles the dev-dependencies (crane's `doCheck`), so `tests` reuses it. The `cargo check` pass is skipped:
   # nothing here runs clippy.
-  cargoArtifacts = craneLib.buildDepsOnly (commonArgs // { cargoCheckCommand = "true"; });
+  cargoArtifacts = craneLib.buildDepsOnly (
+    (removeAttrs commonArgs [ "src" ])
+    // {
+      version = "0";
+      dummySrc = depsSrc;
+      cargoVendorDir = craneLib.vendorCargoDeps { cargoLock = ../Cargo.lock; };
+      cargoCheckCommand = "true";
+    }
+  );
 
   bin = craneLib.buildPackage (
     commonArgs
