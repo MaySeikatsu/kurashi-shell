@@ -18,7 +18,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-11-15 — session 34 (machine A): the loop and the mod contract — 0.3.0, PR open
-**State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR open, not merged** (the user merges;
+**State.** `main` = 0.2.0 (untouched). Branch `feat/s34-loop-and-mods` = 0.3.0, **PR #62 open, not merged** (the user merges;
 then `git tag v0.3.0` on `main` and push the tag, K151). Gate: `just gate --no-suites` passed on 7b431efb (check, hm-eval, nix build); the merge set ran on 82a2578d (the commit before; only the runner's known-failing list changed since): 50 of 51 pass, `quick-modules` fails as on `main` (B92, now listed in `tools/suites-known-failing.txt`).
 One agent worktree may be left: W89 (`.claude/worktrees/agent-add20fbd7bf4e0b6d`, branch
 `worktree-agent-add20fbd7bf4e0b6d`, build dir `~/.cache/kurashi-agents-target/W89`) — its agent was still editing and running suites when this was written (29 files changed, nothing committed); merge it when it reports (re-measure `python3 tools/clones.py --check`, then `--update`), or drop it. Disk: 204 GB free; `target/` 228 GB, all younger than seven days (the new dev profile rebuilt everything once; I569 asks the user about a size cap).
