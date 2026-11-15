@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: example:kurashi-mod-lyrics/fake_mpris
 # The lyrics mod in the REAL shell (W23-auth-media, K47), invisibly: the real kurashid and the real Quickshell frontend in
 # the headless sway sandbox, `desktop.enabled = true`, the mod on, a fake MPRIS player on the sandbox's session bus
 # (crates/kurashi-mod-lyrics/examples/fake_mpris.rs) and a fake LRCLIB on the sandbox's loopback

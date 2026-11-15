@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: feature:test-mods
 # Mod QML in the bar, the Island and the Stage (K26, K28), invisibly (headless sway sandbox), in the real kurashid built
 # with `--features test-mods`, which links the test mod `hello` (W14: this script no longer runs a proxy in front of
 # kurashi-mock). The mod's components log `MODQML <what> created|destroyed` as they come and go, so the test counts what
