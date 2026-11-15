@@ -967,8 +967,10 @@ impl Native {
         }
         // K38: the mod's host processes, made once its registrations are in effect. A host belongs to its mod
         // alone; its name is unique within the enable (`ModCtx::claim`).
+        let host_contract = Arc::new(manifest.contract.clone());
         for decl in declared_hosts {
             let core = HostCore::new(HostParams {
+                contract: host_contract.clone(),
                 mod_id: module.id().to_string(),
                 name: decl.name.clone(),
                 spec: decl.spec,

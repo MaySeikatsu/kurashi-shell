@@ -10,9 +10,7 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{broadcast, mpsc, watch};
 
 use crate::Daemon;
-use crate::native::hosts::{
-    ScopeHold, ScopeRefused, connect_scope, scope_allows_action, scope_allows_doc,
-};
+use crate::native::hosts::{ScopeHold, ScopeRefused, connect_scope};
 
 /// Replies queued per connection before the client is dropped (review finding 11). The hub's own
 /// patches go through its broadcast ring, so this bounds what one client's requests can pile up.
@@ -83,15 +81,15 @@ fn err(id: Option<String>, kind: &str, msg: impl Into<String>) -> ServerMsg {
     }
 }
 
-/// What a scoped connection of `mod_id` may send (PROTOCOL §2): `ping`, its own documents (`sub`, `unsub`,
-/// `resync`, with `theme` and `i18n`) and its own actions (`act`). Everything else is `forbidden`.
-fn scoped_allows(mod_id: &str, msg: &ClientMsg) -> bool {
+/// What a scoped connection of `mod_id` may send (PROTOCOL §2): `ping`, `sub` / `unsub` / `resync` of the documents and
+/// `act` of the actions its mod's contract reaches (W91: its own, the base set, its `uses`). Everything else is `forbidden`.
+fn scoped_allows(mod_id: &str, hold: &ScopeHold, msg: &ClientMsg) -> bool {
     match msg {
         ClientMsg::Ping => true,
         ClientMsg::Sub { doc, .. } | ClientMsg::Unsub { doc } | ClientMsg::Resync { doc } => {
-            scope_allows_doc(mod_id, doc)
+            hold.allows_doc(mod_id, doc)
         }
-        ClientMsg::Act { action, .. } => scope_allows_action(mod_id, action),
+        ClientMsg::Act { action, .. } => hold.allows_action(mod_id, action),
         _ => false,
     }
 }
@@ -236,8 +234,8 @@ async fn connection(
                 reply(err(None, "invalid", "hello first"));
                 continue;
             }
-            if let Some((mod_id, _)) = &host_scope
-                && !scoped_allows(mod_id, &msg)
+            if let Some((mod_id, hold)) = &host_scope
+                && !scoped_allows(mod_id, hold, &msg)
             {
                 reply(err(
                     request_id(&msg),
