@@ -960,11 +960,13 @@ pub fn parse(
     let contract = crate::contract::parse(
         &raw.id,
         &provides,
-        &raw.uses,
-        &raw.points,
-        &raw.actions,
-        &raw.menus,
-        &raw.skips,
+        &crate::contract::RawContract {
+            uses: &raw.uses,
+            points: &raw.points,
+            actions: &raw.actions,
+            menus: &raw.menus,
+            skips: &raw.skips,
+        },
         &mut errs,
     );
 

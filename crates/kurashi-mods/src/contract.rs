@@ -279,6 +279,15 @@ fn covers(pattern: &str, id: &str) -> bool {
         .is_some_and(|p| id.strip_prefix(p).is_some_and(|r| r.starts_with('.')))
 }
 
+/// The contract's sections as the manifest's TOML has them.
+pub(crate) struct RawContract<'a> {
+    pub uses: &'a [String],
+    pub points: &'a [String],
+    pub actions: &'a [RawAction],
+    pub menus: &'a [RawMenu],
+    pub skips: &'a BTreeMap<String, String>,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RawAction {
@@ -354,13 +363,16 @@ fn to_json(v: &toml::Value) -> Value {
 pub(crate) fn parse(
     id: &str,
     provides: &[Provide],
-    uses: &[String],
-    points_raw: &[String],
-    actions: &[RawAction],
-    menus: &[RawMenu],
-    skips: &BTreeMap<String, String>,
+    raw: &RawContract,
     errs: &mut Vec<ValidationError>,
 ) -> Contract {
+    let RawContract {
+        uses,
+        points: points_raw,
+        actions,
+        menus,
+        skips,
+    } = raw;
     let mut err = |c: &'static str, p: String, d: &str| errs.push(ValidationError::new(c, p, d));
     let mut c = Contract::default();
 
@@ -581,7 +593,7 @@ pub(crate) fn parse(
         });
     }
 
-    for (key, why) in skips {
+    for (key, why) in skips.iter() {
         let at = format!("skips.{key}");
         match points::get(key) {
             Some(p) if p.expected => {
