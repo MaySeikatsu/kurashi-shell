@@ -8,6 +8,26 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+### Added
+- **Mods read services and call each other from their own code** (for mod authors): `ModCtx::follow` gives a crate a
+  document its manifest names in `uses`, `ModCtx::calls` an action. A mod whose required use is not there stays switched
+  on and says what it waits for, and comes alive when it appears.
+- `just soak`: an hour of ordinary use in the sandbox, each process's memory once a minute, with growth budgets.
+
+### Fixed
+- **Memory.** The daemon no longer keeps the peak of every large job (641 MiB after 42 hours on one machine; it stays
+  near 60–70 now), the closed notification centre no longer holds a card for every notification in the history (up to
+  270 MiB in the frontend), and the texture cache on disk has a bound (it had reached 8.6 GB). The first start after the
+  update removes the old swatches.
+- Lyrics follow the player even when their view came up after the song started.
+- `just bench-gate` measured binaries of 9 October; it builds and measures the tree's own now.
+
+### Breaking
+- **IPC / mods:** the actions `lyrics.track`, `sessions.handed` and `sessions.undelivered` are gone, and `mod.sessions`
+  no longer carries `handoff`: the mods do this themselves. A bind or script that called them drops the call.
+- **Host processes:** a mod's host connection reads `svc.clock` only when the manifest names `doc:svc.clock` in `uses`
+  (the web dock does); in return it may read the base set every mod has and what `uses` names.
+
 ## [0.3.0] — 2026-11-15
 
 ### Added

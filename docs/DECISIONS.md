@@ -1742,3 +1742,27 @@ again with them, and the 51 places that start a child process (the launcher's ap
 `just dev`, the suites and any binary started by hand without it.
 **Cost.** One C library in the dependency build (cached by Nix with the other dependencies); about 8 MiB more at rest
 than tuned glibc. Quickshell already links jemalloc and `frontend/launch.sh` holds it to two arenas the same way (W42).
+
+## K158 — A mod's crate reads and calls what its manifest's `uses` name; a missing use waits (session 35, W91, K154 step 5)
+**What.** `kurashi-mod-api`: `ModCtx::follow(doc) -> Follow` and `ModCtx::calls(action) -> Call`, both refused at
+enable (`ModError::NotUsed`) unless the manifest names the document or action in `uses` or it is in the base set.
+`Follow::watch()` subscribes when it is called — inside the mod's service or job — and the daemon counts a subscriber
+of that document until the receiver is dropped, so a core service runs for a mod exactly as it does for a view and
+stops with it (Ma). `Call::call(args)` goes through the action registry, declared arguments checked as for any caller.
+A use the manifest requires (no `?`) and that is not there at enable — the other mod is off — does not switch the mod
+off: it stays enabled and inert with `mods.uses.missing` and the use's name in the `mods` document, and every sync
+tries again (in passes, so it comes alive in the same reconcile that enables the other mod). An optional use reads
+`{available: false}` and a call to it answers `unavailable`. A host process's connection reaches what
+`Contract::may_read` / `may_call` allow, not a fixed list.
+**Why.** Two mods worked around the missing reads in QML, against rule 1: lyrics' views sent the playing track with an
+action on every change (so lyrics followed the player only while a view was up), and the sessions mod put the calls it
+wanted into its document for a QML surface to relay — which sent them without any declaration (the manifest never named
+`webdock.open`). CONTRACT-CHANGE 126 and 810 asked for exactly this.
+**Removed (Breaking).** `lyrics.track`; `sessions.handed`, `sessions.undelivered`, and `handoff` in `mod.sessions`.
+**Chosen without asking.** `follow` returns a handle, not the receiver the card sketched: a receiver made at enable
+would hold the subscription for as long as the mod is on. `calls` is per action and checked at enable, like `follow`,
+so an undeclared call is a refused enable, not a run-time error. The feed for a missing optional document takes it up
+when it is registered (`Hub::registrations`, a channel of its own: the document events must not reach a connection that
+still holds a subscription to a removed document). A mod that already runs is not made inert again when a required use
+goes away later; its feed says unavailable. The timer keeps its own notification call: no core action makes a
+notification (CONTRACT-CHANGE row for `notify.send`).

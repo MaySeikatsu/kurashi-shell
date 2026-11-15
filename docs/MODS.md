@@ -219,7 +219,7 @@ daemon code is frontend-only (it draws core documents it `uses`) or runs a host 
 | 2. The bundled manifests declare them | built in 0.3.0 (the test `kurashi-mods/tests/bundled.rs` holds them; `easter-eggs` waits for its code, I286) |
 | 3. `kurashi mod check` | built in 0.3.0: errors fail it (manifest, undeclared uses, variants, icon, labels, a view that starts a process); the native-feel lints are notes until the bundled mods are clean (I557) |
 | 4. `>` commands and menus from declarations | built in 0.3.0 (the launcher, the desktop's and a module's menu); open: key binds from declarations, the core's other reads of mods by name (I555) |
-| 5. `ModCtx::follow` / `call`; a host's scope from `uses` (I127, I552) | open |
+| 5. `ModCtx::follow` / `calls`; a host's scope from `uses` (I127, I552) | built in 0.4.0 (W91, K158): a crate reads a document with `ctx.follow("svc.media")?` → `Follow::watch()` inside its service or job (the daemon counts a subscriber for as long as the receiver lives, Ma) and calls an action with `ctx.calls("terminal.run")?` → `Call::call(args)`; a use the manifest does not name refuses the enable; a required use that is not there keeps the mod switched on and inert with `mods.uses.missing` until it appears; an optional one (`?`) reads `{available: false}` and answers `unavailable`. A host's connection reaches what `Contract::may_read` / `may_call` allow. `kurashi mod check` counts the crate's `follow("…")` and `calls("…")` literals |
 | 6. `qs.kit`, `Label`, `kurashi mod new`, a mod's own strings | built in 0.3.0; open: the Mod Editor page (docs/ux/mod-editor.md) with `mod.new`, `mod.check` and a rescan without a restart; the bundled mods on the kit |
 
 ## States, persistence and Settings (K25)
