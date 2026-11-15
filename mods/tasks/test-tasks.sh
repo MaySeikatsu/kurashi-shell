@@ -11,6 +11,7 @@
 #     timeout 900 nix develop -c mods/tasks/test-tasks.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w22-tsk-live}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/tasks/shots
@@ -62,36 +63,7 @@ NOTE=$VAULT/Note.md
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in mods/weather/test-states.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 # doc_is <python condition on d>: 0 when it holds for mod.tasks now.
 doc_is() { ipc mod.tasks | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($1) else 1)" 2>/dev/null; }
 wait_doc() { local i; for i in $(seq "$2"); do doc_is "$1" && return 0; sleep 0.5; done; return 0; }

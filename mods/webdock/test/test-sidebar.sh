@@ -14,6 +14,7 @@
 # `cargo build --workspace --features kurashid/test-mods` first (a plain `cargo test` replaces that kurashid).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w30-webdock-sb-$$}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 SHOTS=$ROOT/mods/webdock/shots
@@ -73,17 +74,11 @@ wait_doc() {  # wait_doc <expression that prints True> <seconds>
 # The colour of one pixel of the screen as "r g b" (P6 PPM from grim).
 cat > "$W/px.py" <<'PY'
 import sys
-data = open(sys.argv[1], "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-p = data[i + 1:i + 4]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+_, _, raster = read_ppm(sys.argv[1])
+p = raster[:3]
 want = tuple(int(sys.argv[2].lstrip("#")[k:k + 2], 16) for k in (0, 2, 4))
 print("match" if max(abs(p[k] - want[k]) for k in range(3)) <= 12 else "other #%02x%02x%02x" % tuple(p))
 PY

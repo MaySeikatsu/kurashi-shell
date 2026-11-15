@@ -11,6 +11,7 @@
 #   KURASHI_BIN_DIR=<dir with kurashid and kurashi> timeout 1500 nix develop -c mods/timer/test-timer.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w43-timer-live}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/timer/shots
@@ -64,36 +65,7 @@ export KURASHI_DATA_DIR=$ROOT
 K() { timeout 15 "$W/kurashi" "$@"; }
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in mods/tasks/test-tasks.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 # mt.py: the first snapshot of a document on stdin (the CLI's `sub` prints it first), read as a python expression over `d`
 # (the document) and `T` (its timers). Exit 0 when the expression holds; with `print` it prints the value instead.
 cat > "$W/mt.py" <<'PY'
