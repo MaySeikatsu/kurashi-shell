@@ -41,7 +41,7 @@
    "frontend/components/expanded/BrightnessView.qml": 11,
    "frontend/components/expanded/ClockView.qml": 1,
    "frontend/components/expanded/GenericView.qml": 1,
-   "frontend/components/expanded/MediaView.qml": 10,
+   "frontend/components/expanded/MediaView.qml": 8,
    "frontend/components/expanded/NotificationsView.qml": 29,
    "frontend/components/expanded/VolumeView.qml": 11,
    "frontend/components/faces/BluetoothFace.qml": 13,
@@ -77,20 +77,8 @@
    "frontend/components/motion/ShapeForm.qml": 6,
    "frontend/components/motion/SurfaceForm.qml": 6,
    "frontend/components/phone/PhoneFrame.qml": 9,
-   "frontend/components/quick/AudioPage.qml": 4,
-   "frontend/components/quick/ChoiceRow.qml": 7,
-   "frontend/components/quick/ControlPage.qml": 1,
    "frontend/components/quick/ControlTile.qml": 17,
-   "frontend/components/quick/DisplayPage.qml": 7,
-   "frontend/components/quick/FocusPage.qml": 8,
-   "frontend/components/quick/ModuleOptions.qml": 3,
-   "frontend/components/quick/NightPage.qml": 7,
-   "frontend/components/quick/QuickMedia.qml": 7,
-   "frontend/components/quick/QuickStatus.qml": 2,
-   "frontend/components/quick/QuickTile.qml": 4,
-   "frontend/components/quick/RecorderPage.qml": 6,
    "frontend/components/quick/WideTile.qml": 17,
-   "frontend/components/quick/WifiPage.qml": 3,
    "frontend/components/sidebar/HeaderSection.qml": 16,
    "frontend/components/sidebar/LeftColumn.qml": 4,
    "frontend/components/sidebar/NotificationsSection.qml": 19,
@@ -98,7 +86,7 @@
    "frontend/shell.qml": 3,
    "frontend/surfaces/Desktop.qml": 16,
    "frontend/surfaces/Dock.qml": 26,
-   "frontend/surfaces/Launcher.qml": 23,
+   "frontend/surfaces/Launcher.qml": 22,
    "frontend/surfaces/NotificationCenter.qml": 13,
    "frontend/surfaces/PolkitDialog.qml": 16,
    "frontend/surfaces/SessionMenu.qml": 3,
@@ -186,7 +174,7 @@
    "settings/pages/SettingsPages.qml": 7,
    "settings/shell.qml": 9
   },
-  "windows": 1512
+  "windows": 1450
  },
  "rs": {
   "files": {
