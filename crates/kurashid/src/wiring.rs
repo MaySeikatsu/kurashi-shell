@@ -1074,6 +1074,28 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             };
             let registered = |id: &str| actions.contains(id);
             let mut rows = kurashi_launcher::commands::command_rows(rest, &label, &registered);
+            // K154: the commands the mods declare (`[[action]] command`), after the shell's own.
+            let strings = hub
+                .snapshot("i18n")
+                .map(|(_, d)| d["strings"].clone())
+                .unwrap_or_default();
+            for m in actions.commands() {
+                let (Some(decl), Some(command)) = (&m.decl, &m.command) else {
+                    continue;
+                };
+                let c = kurashi_launcher::commands::Declared {
+                    id: &m.id,
+                    name: strings[&m.label]
+                        .as_str()
+                        .map_or_else(|| m.label.clone(), str::to_owned),
+                    icon: m.icon.as_deref(),
+                    command,
+                };
+                let args_for = |words: &str| decl.command_args(words);
+                rows.extend(kurashi_launcher::commands::declared_row(
+                    rest, &c, &args_for,
+                ));
+            }
             if registered("settings.open") {
                 cache.add_settings_rows(&mut rows, rest);
             }
@@ -1259,8 +1281,8 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                     return actions.invoke(&action, args).await;
                 }
                 // A `>` command runs its action; the web row opens its address in the default browser.
-                if let Some(action) = id.strip_prefix("cmd:") {
-                    return actions.invoke(action, json!({})).await;
+                if let Some((action, args)) = kurashi_launcher::commands::parse_command(&id) {
+                    return actions.invoke(&action, args).await;
                 }
                 // A mod's panel (K102): `panel:<mod>:<panel>`, as its own widget opens it.
                 if let Some((id_, panel)) =

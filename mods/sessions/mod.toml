@@ -38,6 +38,9 @@ capabilities = [
     "fs:scoped",
 ]
 cost = "low"
+icon = "tab_group"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["doc:mod.terminal?", "doc:mod.webdock?", "doc:svc.workspaces", "action:terminal.run?", "action:terminal.open_dir?"]
 
 [[setting]]
 key = "open_in"
@@ -99,3 +102,79 @@ type = "string"
 default = "noren"
 label = "mods.sessions.command"
 help = "mods.sessions.command.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "sessions.cancel"
+label = "action.sessions.cancel"
+
+[[action]]
+id = "sessions.choose"
+label = "action.sessions.choose"
+
+[[action]]
+id = "sessions.desk.extras"
+label = "action.sessions.desk.extras"
+
+[[action]]
+id = "sessions.desk.forget"
+label = "action.sessions.desk.forget"
+
+[[action]]
+id = "sessions.desk.restore"
+label = "action.sessions.desk.restore"
+
+[[action]]
+id = "sessions.desk.save"
+label = "action.sessions.desk.save"
+
+[[action]]
+id = "sessions.forget"
+label = "action.sessions.forget"
+
+[[action]]
+id = "sessions.handed"
+label = "action.sessions.handed"
+
+[[action]]
+id = "sessions.help"
+label = "action.sessions.help"
+
+[[action]]
+id = "sessions.kill"
+label = "action.sessions.kill"
+
+[[action]]
+id = "sessions.open"
+label = "action.sessions.open"
+
+[[action]]
+id = "sessions.pin"
+label = "action.sessions.pin"
+
+[[action]]
+id = "sessions.refresh"
+label = "action.sessions.refresh"
+icon = "sync"
+command = "sessions"
+no_args = true
+
+[[action]]
+id = "sessions.snapshot"
+label = "action.sessions.snapshot"
+
+[[action]]
+id = "sessions.undelivered"
+label = "action.sessions.undelivered"
+
+[[menu]]
+at = "module"
+action = "sessions.refresh"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the glance names the project; the list is the panel's"
+desk = "a session list at rest on the desk has nothing to say"
+island-face = "no live activity"
+quick-tile = "nothing to switch"

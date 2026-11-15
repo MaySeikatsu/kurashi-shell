@@ -20,6 +20,7 @@ provides = [
 # the terminal the setting names (one exec capability per terminal offered, and btop itself).
 capabilities = ["fs:read", "proc:signal", "exec:btop", "exec:foot", "exec:alacritty", "exec:kitty", "exec:xterm", "exec:systemd-run"]
 cost = "low"
+icon = "monitoring"
 
 [[setting]]
 key = "interval"
@@ -135,3 +136,41 @@ range = [0, 120]
 unit = "°C"
 label = "mods.sysmon.temp_critical"
 help = "mods.sysmon.level.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "sysmon.menu"
+label = "action.sysmon.menu"
+
+[[action]]
+id = "sysmon.open_btop"
+label = "action.sysmon.open_btop"
+icon = "terminal"
+command = "btop"
+no_args = true
+
+[[action]]
+id = "sysmon.pause"
+label = "action.sysmon.pause"
+
+[[action]]
+id = "sysmon.process.kill"
+label = "action.sysmon.process.kill"
+
+[[action]]
+id = "sysmon.process.term"
+label = "action.sysmon.process.term"
+
+[[action]]
+id = "sysmon.sort"
+label = "action.sysmon.sort"
+
+[[menu]]
+at = "module"
+action = "sysmon.open_btop"
+
+# K72: the variants it does not ship, and why.
+[skips]
+desk = "figures at rest on the desk would wake it every interval (Ma)"
+quick-tile = "nothing to switch"

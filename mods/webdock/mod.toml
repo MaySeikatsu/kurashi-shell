@@ -21,6 +21,9 @@ provides = [
 ]
 capabilities = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]
 cost = "high"
+icon = "web"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["doc:svc.clock"]
 
 # The pins (MODS.md "Web dock"): a site (`https`, `http`, `file`) or a mod's view (`mod:<id>:<panel>`). `view` and
 # `profile` empty or `default` take `default_view` and the pin's own profile (its id).
@@ -277,3 +280,157 @@ default = "online"
 choices = ["online", "local"]
 label = "mods.webdock.content"
 help = "mods.webdock.content.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "webdock.add"
+label = "action.webdock.add"
+
+[[action]]
+id = "webdock.back"
+label = "action.webdock.back"
+
+[[action]]
+id = "webdock.browse"
+label = "action.webdock.browse"
+
+[[action]]
+id = "webdock.card_size"
+label = "action.webdock.card_size"
+
+[[action]]
+id = "webdock.collapse"
+label = "action.webdock.collapse"
+
+[[action]]
+id = "webdock.content"
+label = "action.webdock.content"
+
+[[action]]
+id = "webdock.drop"
+label = "action.webdock.drop"
+
+[[action]]
+id = "webdock.engage"
+label = "action.webdock.engage"
+
+[[action]]
+id = "webdock.go"
+label = "action.webdock.go"
+
+[[action]]
+id = "webdock.hide"
+label = "action.webdock.hide"
+
+[[action]]
+id = "webdock.host.audible"
+label = "action.webdock.host.audible"
+
+[[action]]
+id = "webdock.host.blocked"
+label = "action.webdock.host.blocked"
+
+[[action]]
+id = "webdock.host.crashed"
+label = "action.webdock.host.crashed"
+
+[[action]]
+id = "webdock.host.loaded"
+label = "action.webdock.host.loaded"
+
+[[action]]
+id = "webdock.host.new_window"
+label = "action.webdock.host.new_window"
+
+[[action]]
+id = "webdock.host.unloaded"
+label = "action.webdock.host.unloaded"
+
+[[action]]
+id = "webdock.host.url"
+label = "action.webdock.host.url"
+
+[[action]]
+id = "webdock.hover"
+label = "action.webdock.hover"
+
+[[action]]
+id = "webdock.launch"
+label = "action.webdock.launch"
+
+[[action]]
+id = "webdock.move"
+label = "action.webdock.move"
+
+[[action]]
+id = "webdock.open"
+label = "action.webdock.open"
+
+[[action]]
+id = "webdock.open_external"
+label = "action.webdock.open_external"
+
+[[action]]
+id = "webdock.pin"
+label = "action.webdock.pin"
+
+[[action]]
+id = "webdock.reload"
+label = "action.webdock.reload"
+
+[[action]]
+id = "webdock.remove"
+label = "action.webdock.remove"
+
+[[action]]
+id = "webdock.resize"
+label = "action.webdock.resize"
+
+[[action]]
+id = "webdock.retarget"
+label = "action.webdock.retarget"
+
+[[action]]
+id = "webdock.select"
+label = "action.webdock.select"
+
+[[action]]
+id = "webdock.sidebar"
+label = "action.webdock.sidebar"
+
+[[action]]
+id = "webdock.sidebar_select"
+label = "action.webdock.sidebar_select"
+
+[[action]]
+id = "webdock.size"
+label = "action.webdock.size"
+
+[[action]]
+id = "webdock.toggle"
+label = "action.webdock.toggle"
+icon = "web"
+command = "web dock"
+  [[action.arg]]
+  name = "output"
+  type = "output"
+
+[[action]]
+id = "webdock.unpin"
+label = "action.webdock.unpin"
+
+[[action]]
+id = "webdock.view"
+label = "action.webdock.view"
+
+[[menu]]
+at = "module"
+action = "webdock.toggle"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the strip is its peek"
+desk = "a page on the desk is the dock itself"
+island-face = "no live activity (a playing page shows as media)"
+quick-tile = "nothing to switch"

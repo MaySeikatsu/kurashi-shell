@@ -51,6 +51,9 @@ enum Cmd {
     Doctor,
     /// Handshake + ping round-trip
     Ping,
+    /// Mod tools: `check` (the ruleset), `points` (where a mod can stand), `reach` (what its views use)
+    #[command(subcommand)]
+    Mod(kurashi::mods::ModCmd),
 }
 
 async fn connect(
@@ -101,6 +104,11 @@ async fn main() -> anyhow::Result<()> {
         println!("{}", out.text);
         std::process::exit(out.code);
     }
+    if let Cmd::Mod(m) = cli.cmd.clone() {
+        let out = kurashi::mods::run(m, cli.json);
+        println!("{}", out.text);
+        std::process::exit(out.code);
+    }
     if let Cmd::Cfg(c) = cli.cmd.clone() {
         let path = cli
             .socket
@@ -123,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let (mut rd, mut wr) = connect(&cli).await?;
     let send_one = match &cli.cmd {
-        Cmd::Cfg(_) | Cmd::Doctor => unreachable!("handled above"),
+        Cmd::Cfg(_) | Cmd::Doctor | Cmd::Mod(_) => unreachable!("handled above"),
         Cmd::Act {
             action, list: true, ..
         } => {

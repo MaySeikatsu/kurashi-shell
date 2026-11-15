@@ -49,6 +49,16 @@ pub struct ActionMeta {
     pub label: String,
     /// The arguments it takes, as the `actions` query lists them (`{target, output?}`); empty for none or not described.
     pub args: String,
+    /// K154: what the action's declaration adds — its icon, the word(s) of its `>` command, the mod it belongs to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "mod")]
+    pub module: Option<String>,
+    /// The declaration (`[[action]]`): its typed arguments are checked before the handler runs.
+    #[serde(skip)]
+    pub decl: Option<Arc<kurashi_mods::ActionDecl>>,
 }
 
 type Table = BTreeMap<String, (ActionMeta, Handler)>;
@@ -79,6 +89,10 @@ impl ActionRegistry {
             id: id.into(),
             label: label.into(),
             args: args.into(),
+            icon: None,
+            command: None,
+            module: None,
+            decl: None,
         };
         let h: Handler = Arc::new(move |args| Box::pin(handler(args)));
         self.map
@@ -98,11 +112,44 @@ impl ActionRegistry {
 
     pub async fn invoke(&self, id: &str, args: Value) -> ActionResult {
         // The lock is released before the handler runs.
-        let handler = match self.map.read().expect("actions lock").get(id) {
-            Some((_, h)) => h.clone(),
+        let (handler, decl) = match self.map.read().expect("actions lock").get(id) {
+            Some((m, h)) => (h.clone(), m.decl.clone()),
             None => return Err(ActionError::Unknown(id.into())),
         };
+        // K154: declared arguments are checked here, once, and their defaults filled in.
+        let args = match decl {
+            Some(d) => d
+                .check(&args)
+                .map_err(|arg| ActionError::Invalid(format!("error.args.invalid: {arg}")))?,
+            None => args,
+        };
         handler(args).await
+    }
+
+    /// Lays a mod's `[[action]]` declaration over the registered action `id` (K154): its typed arguments (the
+    /// display form follows them), icon and `>` command. False when there is no such action.
+    pub fn declare(&self, id: &str, decl: &kurashi_mods::ActionDecl, module: &str) -> bool {
+        match self.map.write().expect("actions lock").get_mut(id) {
+            Some((meta, _)) => {
+                if decl.args.is_some() {
+                    meta.args = decl.args_display();
+                }
+                meta.icon = decl.icon.clone();
+                meta.command = decl.command.clone();
+                meta.module = Some(module.into());
+                meta.decl = Some(Arc::new(decl.clone()));
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// The declared `>` commands (K154), by id.
+    pub fn commands(&self) -> Vec<ActionMeta> {
+        let mut list = self.list();
+        list.retain(|m| m.command.is_some());
+        list.sort_by(|a, b| a.id.cmp(&b.id));
+        list
     }
 
     pub fn list(&self) -> Vec<ActionMeta> {
@@ -137,7 +184,23 @@ impl ActionRegistry {
                 let help = strings[&m.label]
                     .as_str()
                     .map_or_else(|| m.label.clone(), str::to_owned);
-                serde_json::json!({"id": m.id, "args": m.args, "help": help})
+                let mut row = serde_json::json!({"id": m.id, "args": m.args, "help": help});
+                // K154 (additive, K17): what a declaration adds.
+                if let Some(d) = &m.decl
+                    && let Some(args) = &d.args
+                {
+                    row["schema"] = serde_json::json!(args);
+                }
+                for (k, v) in [
+                    ("icon", &m.icon),
+                    ("command", &m.command),
+                    ("mod", &m.module),
+                ] {
+                    if let Some(v) = v {
+                        row[k] = serde_json::json!(v);
+                    }
+                }
+                row
             })
             .collect()
     }
@@ -171,5 +234,71 @@ mod tests {
             ]
         );
         assert_eq!(reg.query("layout", &strings).len(), 1);
+    }
+
+    /// K154: a declaration types the arguments (checked before the handler, defaults filled in), names the icon and
+    /// the `>` command, and the `actions` query says so.
+    #[tokio::test]
+    async fn a_declared_action_checks_its_arguments_and_lists_its_schema() {
+        let mut reg = ActionRegistry::default();
+        reg.register("timer.start", "mod-timer.action.start", |args| async move {
+            Ok(Some(args))
+        });
+        let m = kurashi_mods::parse(
+            "timer",
+            r#"id = "timer"
+name = "Timer"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["action:timer.*"]
+[[action]]
+id = "timer.start"
+label = "mod-timer.action.start"
+icon = "timer"
+command = "timer"
+  [[action.arg]]
+  name = "minutes"
+  type = "int"
+  range = [1, 600]
+  optional = true
+  rest = true
+  [[action.arg]]
+  name = "sound"
+  type = "bool"
+  default = true
+"#,
+            &semver::Version::new(0, 3, 0),
+        )
+        .unwrap();
+        let decl = m.contract.action("timer.start").unwrap();
+        assert!(reg.declare("timer.start", decl, "timer"));
+        assert!(!reg.declare("timer.nope", decl, "timer"));
+        let done = reg
+            .invoke("timer.start", serde_json::json!({"minutes": 5}))
+            .await
+            .unwrap();
+        assert_eq!(done, Some(serde_json::json!({"minutes": 5, "sound": true})));
+        let err = reg
+            .invoke("timer.start", serde_json::json!({"minutes": 0}))
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err,
+            ActionError::Invalid("error.args.invalid: minutes".into())
+        );
+        assert_eq!(
+            decl.command_args("25"),
+            Some(serde_json::json!({"minutes": 25}))
+        );
+        assert_eq!(decl.command_args(""), Some(serde_json::json!({})));
+        assert_eq!(decl.command_args("soon"), None);
+        let row = &reg.query("timer", &serde_json::json!({}))[0];
+        assert_eq!(row["args"], "{minutes?, sound?}");
+        assert_eq!(row["icon"], "timer");
+        assert_eq!(row["command"], "timer");
+        assert_eq!(row["mod"], "timer");
+        assert_eq!(row["schema"][0]["type"], "int");
+        assert_eq!(reg.commands().len(), 1);
     }
 }

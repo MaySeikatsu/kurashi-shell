@@ -14,6 +14,9 @@ tokio.workspace = true
 clap.workspace = true
 toml = "0.8"
 thiserror.workspace = true
+# `kurashi mod check|points|reach` (K154): the ruleset is the daemon's own crate, read offline.
+kurashi-mods = { path = "../kurashi-mods" }
+semver = "1"
 
 [lints]
 workspace = true

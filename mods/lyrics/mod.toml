@@ -16,6 +16,9 @@ provides = [
 ]
 capabilities = ["network", "fs:scoped"]
 cost = "low"
+icon = "lyrics"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["action:island.expand", "action:media.set_position", "doc:svc.media"]
 
 [[setting]]
 key = "online"
@@ -39,3 +42,27 @@ type = "bool"
 default = true
 label = "mods.lyrics.bar_line"
 help = "mods.lyrics.bar_line.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "lyrics.retry"
+label = "mod-lyrics.action.retry"
+icon = "sync"
+command = "lyrics"
+no_args = true
+
+[[action]]
+id = "lyrics.track"
+label = "mod-lyrics.action.track"
+
+[[menu]]
+at = "module"
+action = "lyrics.retry"
+
+# K72: the variants it does not ship, and why.
+[skips]
+peek = "the line is the glance"
+panel = "its view is the media card's (slot media.expanded.below)"
+island-face = "the media face shows the song; the lyrics ride in its expanded view"
+quick-tile = "nothing to switch"

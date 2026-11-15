@@ -17,6 +17,9 @@ provides = [
 ]
 capabilities = ["exec:awww", "exec:swww", "fs:scoped", "network"]
 cost = "low"
+icon = "wallpaper"
+# What it reads and calls beyond its own documents and actions (K154; `?` = it works without).
+uses = ["intent:theme.colors.palette", "intent:theme.colors.scheme"]
 
 [[setting]]
 key = "backend"
@@ -116,3 +119,76 @@ type = "string"
 default = ""
 label = "mods.wallpaper.wallhaven_api_key"
 help = "mods.wallpaper.wallhaven_api_key.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "wallpaper.backend.restart"
+label = "action.wallpaper.backend.restart"
+
+[[action]]
+id = "wallpaper.cache.clear"
+label = "action.wallpaper.cache.clear"
+
+[[action]]
+id = "wallpaper.favourite"
+label = "action.wallpaper.favourite"
+
+[[action]]
+id = "wallpaper.next"
+label = "action.wallpaper.next"
+icon = "skip_next"
+command = "wallpaper next"
+  [[action.arg]]
+  name = "output"
+  type = "output"
+
+[[action]]
+id = "wallpaper.prev"
+label = "action.wallpaper.prev"
+icon = "skip_previous"
+command = "wallpaper back"
+  [[action.arg]]
+  name = "output"
+  type = "output"
+
+[[action]]
+id = "wallpaper.preview"
+label = "action.wallpaper.preview"
+
+[[action]]
+id = "wallpaper.random"
+label = "action.wallpaper.random"
+icon = "shuffle"
+command = "wallpaper random"
+  [[action.arg]]
+  name = "output"
+  type = "output"
+
+[[action]]
+id = "wallpaper.rotation.pause"
+label = "action.wallpaper.rotation.pause"
+
+[[action]]
+id = "wallpaper.set"
+label = "action.wallpaper.set"
+
+[[action]]
+id = "wallpaper.thumbs"
+label = "action.wallpaper.thumbs"
+
+[[action]]
+id = "wallpaper.wallhaven.download"
+label = "action.wallpaper.wallhaven.download"
+
+[[action]]
+id = "wallpaper.wallhaven.search"
+label = "action.wallpaper.wallhaven.search"
+
+[[menu]]
+at = "desktop"
+action = "wallpaper.next"
+
+[[menu]]
+at = "desktop"
+action = "wallpaper.random"

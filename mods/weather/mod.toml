@@ -21,6 +21,7 @@ provides = [
 ]
 capabilities = ["network", "fs:scoped"]
 cost = "low"
+icon = "partly_cloudy_day"
 
 [[setting]]
 key = "place"
@@ -59,3 +60,52 @@ type = "string"
 default = "{glyph} {temp}"
 label = "mods.weather.bar_template"
 help = "mods.weather.bar_template.help"
+
+# ---- The integration contract (K154, docs/MODS.md): every action declared; `command` makes it a `>` command.
+
+[[action]]
+id = "weather.place.add"
+label = "mod-weather.action.add"
+
+[[action]]
+id = "weather.place.move"
+label = "mod-weather.action.move"
+
+[[action]]
+id = "weather.place.next"
+label = "mod-weather.action.next"
+icon = "location_on"
+command = "next place"
+no_args = true
+
+[[action]]
+id = "weather.place.preview"
+label = "mod-weather.action.preview"
+
+[[action]]
+id = "weather.place.remove"
+label = "mod-weather.action.remove"
+
+[[action]]
+id = "weather.place.search"
+label = "mod-weather.action.search"
+
+[[action]]
+id = "weather.refresh"
+label = "mod-weather.action.refresh"
+icon = "sync"
+command = "weather"
+no_args = true
+
+[[menu]]
+at = "module"
+action = "weather.refresh"
+
+[[menu]]
+at = "module"
+action = "weather.place.next"
+
+# K72: the variants it does not ship, and why.
+[skips]
+desk = "the desk's weather card is still the core's (BACKLOG I555): it becomes this mod's desk card"
+quick-tile = "nothing to switch"
