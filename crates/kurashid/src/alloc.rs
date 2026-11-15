@@ -18,7 +18,10 @@ pub const ARENAS: u32 = 2;
 
 /// What the allocator runs with: `(arenas, background purging)`; `None` when jemalloc does not answer.
 pub fn in_effect() -> Option<(u32, bool)> {
-    Some((opt::narenas::read().ok()?, opt::background_thread::read().ok()?))
+    Some((
+        opt::narenas::read().ok()?,
+        opt::background_thread::read().ok()?,
+    ))
 }
 
 /// Logs a warning when the allocator's configuration is not the one this build should carry.

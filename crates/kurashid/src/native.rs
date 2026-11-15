@@ -19,8 +19,9 @@ use kurashi_mod_api::{
     ActiveFn, Choice, ChoicesFn, FaceUpdate, Forced, Hooks, JobCtx, JobFn, ModCtx, ModError,
     NativeMod, Publish, Registration, ServiceFn, Settings, SettingsError, Values,
 };
+use kurashi_mods::contract::{BASE_ACTIONS, BASE_DOCS};
 use kurashi_mods::{
-    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
+    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier, UseKind,
 };
 use serde_json::{Map, Value, json};
 use tokio::runtime::Handle;
@@ -416,8 +417,12 @@ struct Link {
     /// The mod, and the keys of its own settings: a `SettingsWriter` writes only these (K38).
     mod_id: String,
     keys: BTreeSet<String>,
-    /// For `runtime.slots` reasons (row 72).
+    /// For `runtime.slots` reasons (row 72), and the documents the mod follows (W91).
     hub: Weak<Hub>,
+    /// The actions the mod calls (W91: `ModCtx::calls`).
+    actions: ActionRegistry,
+    /// Where a feed's forwarder runs.
+    runtime: Option<Handle>,
     /// Slot contributions that need setup, with their reason (row 72). A lock of their own, never held while the
     /// hub is touched: `slots()` reads it under the slots document's lock, and `state` is held across hub calls
     /// (a choice source's change), so sharing `state` here deadlocked (found by the live all-mods test).
@@ -512,6 +517,37 @@ impl Hooks for Link {
     }
 
     /// `mods.<id>.<key>` in the user layer, through the config's own apply path (K38): one undoable transaction.
+    fn follow(&self, doc: &str) -> watch::Receiver<Value> {
+        match (self.hub.upgrade(), &self.runtime) {
+            (Some(hub), Some(rt)) if self.state.lock().expect("link").live => {
+                crate::follow::feed(hub, rt, doc)
+            }
+            _ => kurashi_mod_api::unavailable_feed(),
+        }
+    }
+
+    fn call(
+        &self,
+        action: &str,
+        args: Value,
+    ) -> kurashi_mod_api::BoxFuture<Result<Option<Value>, kurashi_mod_api::ActionError>> {
+        use kurashi_mod_api::ActionError as E;
+        let (actions, action) = (self.actions.clone(), action.to_string());
+        let live = self.state.lock().expect("link").live;
+        Box::pin(async move {
+            if !live {
+                return Err(E::Unavailable(kurashi_mod_api::USE_UNAVAILABLE.into()));
+            }
+            actions.invoke(&action, args).await.map_err(|e| match e {
+                // Not registered: its mod is off.
+                ActionError::Unknown(_) => E::Unavailable(kurashi_mod_api::USE_UNAVAILABLE.into()),
+                ActionError::Invalid(m) => E::Invalid(m),
+                ActionError::Unavailable(m) => E::Unavailable(m),
+                ActionError::Internal(m) => E::Internal(m),
+            })
+        })
+    }
+
     fn set_setting(&self, key: &str, value: Value) -> Result<(), SettingsError> {
         if !self.state.lock().expect("link lock").live {
             return Err(SettingsError::Unavailable);
@@ -630,6 +666,13 @@ impl Native {
     /// enabled is deactivated. A refused enable leaves the mod disabled in the registry, and so does
     /// an enabled mod whose daemon code is not linked (B15): switched on, it would do nothing.
     pub fn sync(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) {
+        // W91: a mod that waits for another mod's document or action comes alive in a later pass, once that mod is.
+        while self.sync_pass(reg, store) {}
+    }
+
+    /// One pass over the registry; true when a mod was activated in it (another pass may find its uses there now).
+    fn sync_pass(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) -> bool {
+        let mut activated = false;
         let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
         for id in ids {
             let on = reg.get(&id).is_some_and(|e| e.state == ModState::Enabled);
@@ -658,6 +701,11 @@ impl Native {
             match self.activate(module.as_ref(), reg, store) {
                 Ok(()) => {
                     self.refused.remove(&id);
+                    activated = true;
+                }
+                // Switched on and inert, with the reason; the next sync tries again (W91, Shōjiki).
+                Err(e @ ModError::MissingUse(_)) => {
+                    self.refused.insert(id.clone(), e);
                 }
                 Err(e) => {
                     self.refused.insert(id.clone(), e);
@@ -665,6 +713,23 @@ impl Native {
                 }
             }
         }
+        activated
+    }
+
+    /// The first use the contract requires (no `?`, no glob) that is not there: `doc:<name>` or `action:<id>`.
+    fn missing_use(&self, contract: &kurashi_mods::Contract) -> Option<String> {
+        contract.uses.iter().find_map(|u| {
+            if u.optional || u.id.contains('*') {
+                return None;
+            }
+            match u.kind {
+                UseKind::Doc if self.hub.snapshot(&u.id).is_err() => Some(format!("doc:{}", u.id)),
+                UseKind::Action if !self.actions.contains(&u.id) => {
+                    Some(format!("action:{}", u.id))
+                }
+                _ => None,
+            }
+        })
     }
 
     /// Runs `enable` and applies what it registered. Registrations are applied only after it
@@ -707,10 +772,36 @@ impl Native {
             mod_id: module.id().to_string(),
             keys: manifest.settings.iter().map(|s| s.key.clone()).collect(),
             hub: Arc::downgrade(&self.hub),
+            actions: self.actions.clone(),
+            runtime: self.runtime.clone(),
             slot_reasons: Mutex::default(),
             state: Mutex::default(),
         });
+        // W91: a use the manifest requires and that is not there keeps the mod inert, with its name as the reason.
+        if let Some(missing) = self.missing_use(&manifest.contract) {
+            return Err(ModError::MissingUse(missing));
+        }
+        let uses: Vec<String> = manifest
+            .contract
+            .uses
+            .iter()
+            .filter_map(|u| {
+                let kind = match u.kind {
+                    UseKind::Doc => "doc",
+                    UseKind::Action => "action",
+                    UseKind::Intent => return None,
+                };
+                Some(format!(
+                    "{kind}:{}{}",
+                    u.id,
+                    if u.optional { "?" } else { "" }
+                ))
+            })
+            .chain(BASE_DOCS.iter().map(|d| format!("doc:{d}")))
+            .chain(BASE_ACTIONS.iter().map(|a| format!("action:{a}")))
+            .collect();
         let mut ctx = ModCtx::new(&provides, settings.settings(), link.clone())
+            .with_uses(&uses)
             .with_capabilities(&manifest.capabilities)
             .with_picture_filter(Some(crate::texture::picture_filter()));
         module.enable(&mut ctx)?;

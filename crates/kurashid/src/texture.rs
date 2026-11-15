@@ -79,8 +79,7 @@ pub fn tiles_held() -> usize {
 
 /// Whether `p` is one of a tile's files in the cache folder (not a bake, a swatch or a stray file).
 fn is_tile_file(p: &Path) -> bool {
-    p.extension()
-        .is_some_and(|x| x == "png" || x == "relief")
+    p.extension().is_some_and(|x| x == "png" || x == "relief")
 }
 
 pub fn on_ready(again: Arc<dyn Fn() + Send + Sync>) {
@@ -1495,7 +1494,11 @@ mod tests {
         };
         let kinds: Vec<Kind> = Kind::ALL.into_iter().take(TILES_HELD + 2).collect();
         for kind in &kinds {
-            assert!(tile(&params(*kind)).is_some(), "{} is made in place", kind.name());
+            assert!(
+                tile(&params(*kind)).is_some(),
+                "{} is made in place",
+                kind.name()
+            );
         }
         assert_eq!(tiles_held(), TILES_HELD, "the least recently used went");
         // The first went out of memory and is read back from its file; the last is still held.

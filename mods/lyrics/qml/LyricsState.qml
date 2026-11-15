@@ -2,9 +2,8 @@ import QtQuick
 import qs.core
 import "Lyrics.js" as L
 
-// What every lyrics view shares (docs/ux/lyrics.md "Fit"): it watches svc.media and mod.lyrics while `live`, tells the
-// daemon the track svc.media shows (`lyrics.track`, the same track again is a no-op there), and maps the playing
-// position to the current line. No per-second timer: one single-shot timer wakes at the next line's start, and only
+// What every lyrics view shares (docs/ux/lyrics.md "Fit"): it watches svc.media and mod.lyrics while `live` and maps the
+// playing position to the current line. The track is the daemon's to follow (W91: the mod reads svc.media itself). No per-second timer: one single-shot timer wakes at the next line's start, and only
 // while `live`, synced lines are shown and the track plays (Ma). The document never changes while a song plays.
 Item {
     id: st
@@ -27,7 +26,6 @@ Item {
     }
 
     readonly property var track: L.trackOf(media)
-    readonly property string trackKey: JSON.stringify(track)
     readonly property bool hasTrack: track.title !== undefined
     readonly property bool playing: hasTrack && media.playing === true
     readonly property bool canSeek: !!(media.can && media.can.seek === true)
@@ -50,23 +48,12 @@ Item {
     readonly property int index: L.indexAt(lines, posMs)
     readonly property string currentText: index >= 0 && index < lines.length ? lines[index].text : ""
 
-    function send() {
-        if (!st.live || !Store.live) return
-        Store.act("lyrics.track", st.track)
-    }
     function retry() { Store.act("lyrics.retry", {}) }
     // A click on a line: seek there, where the player allows it (svc.media `can.seek`).
     function seekTo(i) {
         if (!canSeek || i < 0 || i >= lines.length) return
         Store.act("media.set_position", { us: Math.max(0, Math.round((lines[i].t_ms - offsetMs) * 1000)) })
     }
-    onTrackKeyChanged: send()
-    onLiveChanged: send()
-    Connections {
-        target: Store
-        function onLiveChanged() { st.send() }
-    }
-    Component.onCompleted: send()
 
     // The next line's start, re-armed on every reading and every line change.
     function arm() {

@@ -11,7 +11,6 @@
 "mods.lyrics.bar_line.help" = "バーのウィジェットに歌われている行を表示します。オフにすると音符のアイコンだけです。"
 
 # デーモン：アクション・状態・理由。
-"mod-lyrics.action.track" = "再生中の曲の歌詞を表示"
 "mod-lyrics.action.retry" = "歌詞をもう一度探す"
 "mod-lyrics.none" = "この曲の歌詞はありません"
 "mod-lyrics.online_off" = "オンライン検索はオフです"

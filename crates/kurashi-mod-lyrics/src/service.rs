@@ -1,6 +1,6 @@
 //! The service of `mod.lyrics` (docs/ux/lyrics.md "Fit"). It runs only while the document has a subscriber (rule 5) and
 //! does work only when the track changes (or on `lyrics.retry`): one cache read, else one LRCLIB lookup, then one
-//! document. The track comes from the views' intent `lyrics.track` (a mod cannot read `svc.media` yet; CONTRACT-CHANGE),
+//! document. The track comes from `svc.media`, which the service follows while it runs (W91, `ModCtx::follow`),
 //! kept in a watch so a track that arrives while nothing subscribes is the one looked up at the next subscription. The
 //! position → current line mapping is the views' (QML, from `svc.media`'s position): the document never changes while a
 //! song plays.
@@ -21,7 +21,6 @@ use crate::lrclib::{self, LookupError};
 pub type Clock = Arc<dyn Fn() -> i64 + Send + Sync>;
 
 /// `error.args.invalid`: the core's key for arguments of the wrong shape.
-const ARGS_INVALID: &str = "error.args.invalid";
 
 /// What the service and the actions share, per enable.
 pub struct Shared {
@@ -48,18 +47,31 @@ impl Shared {
     }
 }
 
-/// `lyrics.track {title, artist?, album?, length_us?}`: the track `svc.media` shows; no title (or an empty one) = none.
-/// The same track again changes nothing, so every view may send it.
-pub fn set_track(shared: &Shared, args: &Value) -> Result<Option<Value>, ActionError> {
-    let track = track_of(args).ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
-    shared.track.send_if_modified(|cur| {
-        if *cur == track {
-            return false;
+/// Follows `svc.media` (W91): the track it shows is the one whose lyrics are looked up; nothing playing, an
+/// unavailable player or a document of another shape is "no track". The same track again changes nothing.
+pub async fn follow_media(shared: Arc<Shared>, mut media: watch::Receiver<Value>) {
+    loop {
+        let track = track_of_media(&media.borrow_and_update());
+        shared.track.send_if_modified(|cur| {
+            if *cur == track {
+                return false;
+            }
+            *cur = track;
+            true
+        });
+        if media.changed().await.is_err() {
+            // The feed ended (no daemon behind it): nothing more will come.
+            std::future::pending::<()>().await;
         }
-        *cur = track;
-        true
-    });
-    Ok(None)
+    }
+}
+
+/// The track `svc.media` shows, or none.
+pub fn track_of_media(media: &Value) -> Option<Track> {
+    if media["available"] == false {
+        return None;
+    }
+    track_of(media).flatten()
 }
 
 /// `lyrics.retry {}`: forgets the cached answer for the current track and looks it up again.
@@ -71,7 +83,7 @@ pub fn retry(shared: &Shared) -> Result<Option<Value>, ActionError> {
     Ok(None)
 }
 
-/// The track of `lyrics.track`'s arguments: `Some(None)` for "nothing plays", `None` for arguments of the wrong shape.
+/// The track of a media document's fields: `Some(None)` for "nothing plays", `None` for fields of the wrong shape.
 fn track_of(a: &Value) -> Option<Option<Track>> {
     if !a.is_object() && !a.is_null() {
         return None;
