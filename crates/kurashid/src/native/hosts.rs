@@ -100,7 +100,7 @@ fn find_binary(name: &str) -> Option<PathBuf> {
         .find(|candidate| is_executable(candidate))
 }
 
-fn is_executable(path: &Path) -> bool {
+pub(super) fn is_executable(path: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
@@ -326,6 +326,16 @@ impl HostCore {
         core
     }
 
+    /// The program: a file in the mod's own `bin/` (K155, W93: a mod that brings its program), else the first on the
+    /// host search path and `PATH`.
+    fn locate(&self) -> Option<PathBuf> {
+        let own = self.mod_dir.join("bin").join(&self.spec.binary);
+        if is_executable(&own) {
+            return Some(own);
+        }
+        find_binary(&self.spec.binary)
+    }
+
     /// Starts the process unless one runs (idempotent, MODS.md). A host that is `Missing` or `Failed` is tried again.
     pub(super) fn start(self: &Arc<Self>) {
         let active = {
@@ -334,7 +344,7 @@ impl HostCore {
                 return;
             }
             inner.last_exit = None;
-            let state = match find_binary(&self.spec.binary) {
+            let state = match self.locate() {
                 None => HostState::Missing,
                 Some(bin) => {
                     inner.bin = Some(bin.clone());

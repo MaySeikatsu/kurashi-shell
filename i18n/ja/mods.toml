@@ -40,6 +40,7 @@
 "mods.error.host_start_invalid" = "ホストプログラムの開始は enabled・subscribed・action のいずれかです"
 "mods.error.host_and_native" = "このモッドはホストプログラムを宣言していますが、シェルにも組み込まれています。どちらか一方にしてください"
 "mods.host.starting" = "プログラムを起動しています"
+"mods.host.running" = "モッドがオンの間、プログラムが動いています"
 "mods.host.not_running" = "プログラムが動いていません"
 "mods.host.timeout" = "プログラムが時間内に応答しませんでした"
 "mods.host.too_large" = "プログラムが送ったドキュメントが大きすぎます"
