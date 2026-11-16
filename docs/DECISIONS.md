@@ -1814,3 +1814,23 @@ timer), not above them; `desktop.left` / `desktop.right` place it as before.
 **Not built yet:** fetching the index, `mod.add` / `update` / `remove` in the daemon, Browse, the Home-Manager option
 (W98 steps 2–7).
 
+## K162 — The launcher knows a prefix whose mod is off, and a command that waits for its words (session 36, I539, I572, K150, K154)
+**Problem.** With the terminal mod off, `!` in the launcher searched the apps as if the prefix meant nothing (the
+user: "the ! command doesn't work"), and `> task` alone listed no row, so a command that needs words could not be found
+by its name. Both hide something that exists (Shōjiki).
+**Decision.** (1) A mod's manifest marks the setting that holds a launcher provider's prefix: `[[setting]] launcher =
+"<provider name>"` (a string setting; the provider must be one the mod provides; once per provider; errors
+`setting_launcher_type`, `…_unknown`, `…_duplicate`). The daemon keeps, for every mod that is installed and not
+enabled, that setting's value (its default while the mod's keys are not loaded). A query that starts with such a prefix
+— when no provider in effect holds it and it is not one of the launcher's own — gets one row, "<mod> is switched off",
+which opens Settings' Mods view (`settings.open {page: "mods"}`, a new page id). The core names no mod: the prefix, the
+name and the icon come from the manifest. (2) A declared `>` command whose `rest` argument is required and missing is
+a row of kind `fill`: the launcher puts `> <command> ` into its field and stays open. (3) Rows of kind `mod` and `fill`
+draw the icon they carry (the sessions' state icons were sent and never drawn).
+**Rejected.** A list of prefixes in the core (names mods); asking every off mod's crate for its prefix (an off mod
+runs no code); launching the hint row as the command with an empty argument (an error instead of a hint).
+**Contract.** Manifest: `launcher` on a setting. IPC: row kind `fill` with `fill`; `settings.open` takes `mods`
+(PROTOCOL §5, §6). New actions: `tasks.notes.add {text}` (`> note <text>`): one line at the note's end;
+`launcher.open {query?}`: the launcher with `query` in its field (a key can open a mode: `;` the clipboard, `:` emoji,
+`>` commands), closing it when called again with the same query, as `launcher.keys` does for `?`.
+

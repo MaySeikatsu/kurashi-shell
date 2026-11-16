@@ -78,6 +78,7 @@ help = "mods.sessions.projects.help"
 key = "launcher_prefix"
 type = "string"
 default = ""
+launcher = "sessions"
 label = "mods.sessions.launcher_prefix"
 help = "mods.sessions.launcher_prefix.help"
 

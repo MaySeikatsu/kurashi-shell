@@ -5,6 +5,7 @@ use kurashi_schema::{FieldType, RecordField, RecordProblem, RecordSpec, check_re
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as Json};
+use std::collections::BTreeMap;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -284,6 +285,10 @@ pub struct Manifest {
     /// them: `Setting` is inline in `registry::Contribution`, and clippy's large_enum_variant limits its size.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub records: Vec<(String, RecordSpec)>,
+    /// The settings that hold a launcher provider's prefix (K162; `[[setting]] launcher = "<name>"`): provider name
+    /// to setting key. It lets the launcher say that a prefix belongs to a mod that is switched off.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub launcher_prefixes: BTreeMap<String, String>,
     /// The mod's own programs (K155, W93; MODS.md "Host programs"): `[[host]]`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub hosts: Vec<HostProgram>,
@@ -400,6 +405,8 @@ struct RawSetting {
     fields: Vec<RawField>,
     unique: Option<String>,
     item_label: Option<String>,
+    /// The launcher provider (`launcher:<name>`) whose prefix this string setting holds (K162).
+    launcher: Option<String>,
 }
 
 /// One `[[setting.field]]` (MODS.md "Records").
@@ -838,6 +845,7 @@ pub fn parse(
 
     let mut settings = Vec::new();
     let mut record_specs: Vec<(String, RecordSpec)> = Vec::new();
+    let mut launcher_prefixes: BTreeMap<String, String> = BTreeMap::new();
     let mut seen = Vec::<&str>::new();
     for (i, s) in raw.settings.iter().enumerate() {
         let at = |f: &str| format!("setting[{i}].{f}");
@@ -1005,6 +1013,18 @@ pub fn parse(
             if let Some((spec, _)) = records {
                 record_specs.push((s.key.clone(), spec));
             }
+            // K162: the setting that holds a launcher provider's prefix names a provider the mod has, once.
+            if let Some(name) = &s.launcher {
+                if ty != SettingType::String {
+                    err("setting_launcher_type", &at("launcher"), &s.ty);
+                } else if !provides.contains(&Provide::Launcher(name.clone())) {
+                    err("setting_launcher_unknown", &at("launcher"), name);
+                } else if launcher_prefixes.contains_key(name) {
+                    err("setting_launcher_duplicate", &at("launcher"), name);
+                } else {
+                    launcher_prefixes.insert(name.clone(), s.key.clone());
+                }
+            }
         }
     }
 
@@ -1086,6 +1106,7 @@ pub fn parse(
             contract,
             settings,
             records: record_specs,
+            launcher_prefixes,
             hosts,
         }),
         _ => Err(errs),
@@ -1236,6 +1257,40 @@ mod tests {
              choices_from = \"Demo Pick\"\n",
         );
         assert_eq!(codes(&bad), ["setting_choices_from_invalid"]);
+    }
+
+    /// K162 (I539): the setting that holds a launcher provider's prefix says so.
+    #[test]
+    fn a_string_setting_may_hold_a_launcher_providers_prefix() {
+        let setting = |ty: &str, default: &str, name: &str| {
+            format!(
+                "[[setting]]\nkey = \"run_prefix\"\ntype = \"{ty}\"\ndefault = {default}\nlauncher = \"{name}\"\n"
+            )
+        };
+        let t = text(r#""launcher:run""#, &setting("string", "\"!\"", "run"));
+        let m = parse("demo", &t, &Version::new(0, 1, 0)).unwrap();
+        assert_eq!(
+            m.launcher_prefixes.get("run").map(String::as_str),
+            Some("run_prefix")
+        );
+        // Only a string, only a provider the mod has, only once.
+        assert_eq!(
+            codes(&text(r#""launcher:run""#, &setting("bool", "true", "run"))),
+            ["setting_launcher_type"]
+        );
+        assert_eq!(
+            codes(&text("", &setting("string", "\"!\"", "run"))),
+            ["setting_launcher_unknown"]
+        );
+        let twice = format!(
+            "{}{}",
+            setting("string", "\"!\"", "run"),
+            setting("string", "\"!\"", "run").replace("run_prefix", "other")
+        );
+        assert_eq!(
+            codes(&text(r#""launcher:run""#, &twice)),
+            ["setting_launcher_duplicate"]
+        );
     }
 
     #[test]

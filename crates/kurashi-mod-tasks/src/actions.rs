@@ -111,6 +111,39 @@ pub fn clear_done(s: &Shared, settings: &Settings) -> Result<Option<Value>, Acti
     })
 }
 
+/// `tasks.notes.add {text}`: one more line at the note's end (the launcher's `> note <text>`). The file's line ends
+/// are kept; a missing file is made.
+pub fn notes_add(
+    s: &Shared,
+    settings: &Settings,
+    args: &Value,
+) -> Result<Option<Value>, ActionError> {
+    let text = text_arg(args)?;
+    let cfg = Config::read(settings, &s.paths);
+    {
+        let _guard = s.write_lock();
+        let old = match store::read(&cfg.notes) {
+            Read::Missing => String::new(),
+            Read::Failed(key) => return Err(unavailable(key)),
+            Read::Text(_, true) => return Err(unavailable(ERR_READ_ONLY)),
+            Read::Text(old, false) => old,
+        };
+        let nl = if old.contains("\r\n") { "\r\n" } else { "\n" };
+        let mut out = old;
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push_str(nl);
+        }
+        out.push_str(&text);
+        out.push_str(nl);
+        if out.len() as u64 > store::MAX_BYTES {
+            return Err(invalid(ERR_NOTE_LARGE));
+        }
+        store::write_atomic(&cfg.notes, &out).map_err(|_| unavailable(ERR_WRITE))?;
+    }
+    s.wake.notify_one();
+    Ok(None)
+}
+
 /// `tasks.notes.set {text}`: the whole note. A file that uses CRLF keeps it; an empty note on a missing file makes none.
 pub fn notes_set(
     s: &Shared,

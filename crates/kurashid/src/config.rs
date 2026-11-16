@@ -2120,7 +2120,8 @@ impl ConfigStore {
     /// own views (`@changed`, `@mods`, `@profiles`) are not pages — but for the Mod Editor, `mods.new` (W94), which
     /// the launcher's `> new mod` and a link open.
     pub fn has_settings_page(&self, page: &str) -> bool {
-        if page == "mods.new" {
+        // `mods`: the Mods view itself (K162: the launcher's row for a prefix whose mod is switched off opens it).
+        if page == "mods.new" || page == "mods" {
             return true;
         }
         let id = match page.strip_prefix("mod:") {

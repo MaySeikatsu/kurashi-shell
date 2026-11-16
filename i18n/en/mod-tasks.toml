@@ -18,6 +18,7 @@
 "mod-tasks.action.edit" = "Edit task"
 "mod-tasks.action.remove" = "Remove task"
 "mod-tasks.action.clear_done" = "Clear done tasks"
+"mod-tasks.action.notes_add" = "Add to the note"
 "mod-tasks.action.notes_set" = "Save note"
 
 # Daemon: the document's reasons.

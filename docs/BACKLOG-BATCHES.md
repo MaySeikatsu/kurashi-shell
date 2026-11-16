@@ -1,71 +1,72 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (480 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (479 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
-full text and status are there; this file only groups the ids. `U` marks a row that came from the user. Sizes are
-the lead's estimate (S: hours, M: a day or two, L: several days or a brief first), not measured.
+full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
+that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
+(S: under an hour of edits, builds and suite runs; M: one to three hours; L: longer, or a brief first).
 
 Written by `python3 tools/backlog-batches.py .`, which holds the batches and fails when an open row is in no
 batch or in two: give a new row its batch there, then run it again.
 
-| Section | Batch | Rows | Size |
+| Section | Batch | Done | Size |
 |---|---|---|---|
-| 1 | Launcher, small | 3 | S |
-| 1 | Web dock in the bar | 9 | S–M |
-| 1 | Settings, fixes | 9 | S–M |
-| 1 | Mods page and Mod Editor | 7 | S–M |
-| 1 | Quick settings, small | 9 | S–M |
-| 1 | Wallpaper picker | 5 | S–M |
-| 1 | Icons and glyph sizes | 5 | M |
-| 1 | Media, small | 3 | S–M |
-| 2 | Settings, structure | 10 | M–L |
-| 2 | Settings, theming pages | 7 | M |
-| 2 | Settings docked in a sidebar | 3 | M |
-| 2 | Applying a style | 3 | M |
-| 2 | Bars and layout | 13 | M–L |
-| 2 | Sidebars | 7 | M |
-| 2 | Edit mode and groups | 6 | L |
-| 2 | Peeks | 6 | M |
-| 2 | Island | 6 | M–L |
-| 2 | Cards and scrolling | 6 | M |
-| 2 | Notifications | 2 | M–L |
-| 2 | Desk | 2 | S–M |
-| 2 | Lock and greeter | 3 | M |
-| 2 | Web dock, card and host | 17 | M–L |
-| 2 | Bundled mods, follow-ups | 13 | M |
-| 2 | Fonts and handwriting | 5 | M |
-| 3 | Audio control | 3 | M–L |
-| 3 | Quiet time | 3 | L |
-| 3 | niri config from Settings | 3 | L |
-| 3 | Windows and previews | 4 | M–L |
-| 3 | One search and quick capture | 2 | L |
-| 3 | AI mod | 2 | L |
-| 3 | Any module on any surface | 12 | L |
-| 3 | Module variants (K72) | 7 | L |
-| 3 | Web dock, engine | 10 | L |
-| 3 | Mod catalogue | 3 | L |
-| 3 | Gestures | 2 | L |
-| 3 | Standalone features | 4 | L each |
-| 4 | Looks and chrome, fixes | 16 | M–L |
-| 4 | Style families | 8 | L |
-| 4 | Joins | 4 | M–L |
-| 4 | Frame | 5 | M |
-| 4 | Motion, fixes | 23 | M–L |
-| 4 | Motion, new | 7 | L |
-| 4 | Text effects | 4 | L |
-| 4 | Light, texture and effects | 11 | L |
-| 4 | Wallpaper, ideas | 3 | L |
-| 4 | Theme in other apps and compositors | 12 | M–L |
-| 5 | Memory and performance | 34 | L |
-| 5 | Structure: the core and the mods | 15 | L |
-| 5 | Mod API additions | 10 | M |
-| 5 | Daemon, schema, adapters | 11 | M |
-| 5 | Suites and test tools | 71 | L |
-| 5 | Mock parity | 3 | S |
-| 5 | Nix | 3 | S |
-| 5 | Docs and process | 6 | S–M |
-| 6 | Rows whose status is behind | 17 | S |
-| 6 | Review with you | 3 | — |
+| 1 | Launcher, small | 2 of 3 | S |
+| 1 | Web dock in the bar | 0 of 9 | S–M |
+| 1 | Settings, fixes | 0 of 9 | S–M |
+| 1 | Mods page and Mod Editor | 0 of 7 | S–M |
+| 1 | Quick settings, small | 0 of 9 | S–M |
+| 1 | Wallpaper picker | 0 of 5 | S–M |
+| 1 | Icons and glyph sizes | 0 of 5 | M |
+| 1 | Media, small | 0 of 3 | S–M |
+| 2 | Settings, structure | 0 of 10 | M–L |
+| 2 | Settings, theming pages | 0 of 7 | M |
+| 2 | Settings docked in a sidebar | 0 of 3 | M |
+| 2 | Applying a style | 0 of 3 | M |
+| 2 | Bars and layout | 0 of 13 | M–L |
+| 2 | Sidebars | 0 of 7 | M |
+| 2 | Edit mode and groups | 0 of 6 | L |
+| 2 | Peeks | 0 of 6 | M |
+| 2 | Island | 0 of 6 | M–L |
+| 2 | Cards and scrolling | 0 of 6 | M |
+| 2 | Notifications | 0 of 2 | M–L |
+| 2 | Desk | 0 of 2 | S–M |
+| 2 | Lock and greeter | 0 of 3 | M |
+| 2 | Web dock, card and host | 0 of 17 | M–L |
+| 2 | Bundled mods, follow-ups | 0 of 13 | M |
+| 2 | Fonts and handwriting | 0 of 5 | M |
+| 3 | Audio control | 0 of 3 | M–L |
+| 3 | Quiet time | 0 of 3 | L |
+| 3 | niri config from Settings | 0 of 3 | L |
+| 3 | Windows and previews | 0 of 4 | M–L |
+| 3 | One search and quick capture | 0 of 2 | L |
+| 3 | AI mod | 0 of 2 | L |
+| 3 | Any module on any surface | 0 of 12 | L |
+| 3 | Module variants (K72) | 0 of 7 | L |
+| 3 | Web dock, engine | 0 of 10 | L |
+| 3 | Mod catalogue | 0 of 3 | L |
+| 3 | Gestures | 0 of 2 | L |
+| 3 | Standalone features | 0 of 5 | L each |
+| 4 | Looks and chrome, fixes | 0 of 16 | M–L |
+| 4 | Style families | 0 of 8 | L |
+| 4 | Joins | 0 of 4 | M–L |
+| 4 | Frame | 0 of 5 | M |
+| 4 | Motion, fixes | 0 of 23 | M–L |
+| 4 | Motion, new | 0 of 7 | L |
+| 4 | Text effects | 0 of 4 | L |
+| 4 | Light, texture and effects | 0 of 11 | L |
+| 4 | Wallpaper, ideas | 0 of 3 | L |
+| 4 | Theme in other apps and compositors | 0 of 12 | M–L |
+| 5 | Memory and performance | 0 of 34 | L |
+| 5 | Structure: the core and the mods | 0 of 15 | L |
+| 5 | Mod API additions | 0 of 10 | M |
+| 5 | Daemon, schema, adapters | 0 of 11 | M |
+| 5 | Suites and test tools | 0 of 71 | L |
+| 5 | Mock parity | 0 of 3 | S |
+| 5 | Nix | 0 of 3 | S |
+| 5 | Docs and process | 0 of 6 | S–M |
+| 6 | Rows whose status is behind | 0 of 17 | S |
+| 6 | Review with you | 0 of 3 | — |
 
 ## 1. Quick polish (hours to a day each, user-facing)
 
@@ -75,8 +76,8 @@ Shares: the launcher's prefix handling and its rows; one suite, one niri look. A
 
 | Row | | What |
 |---|---|---|
-| I539 | U | With the terminal mod off (not enabled in Home-Manager), `!` in the launcher silently searches apps. It should say the … |
-| I572 |  | A `>` command that needs words shows nothing until they are typed (`> task` alone lists no row). A hint row ("Add task … |
+| I539 | U | **done** — With the terminal mod off (not enabled in Home-Manager), `!` in the launcher silently searches apps. It should say the … |
+| I572 |  | **done** — A `>` command that needs words shows nothing until they are typed (`> task` alone lists no row). A hint row ("Add task … |
 | I138 |  | Launcher: a `launcher.keys` bind in `docs/niri-binds.kdl` and HM defaults; mock parity for the new actions; paste after … |
 
 ### Web dock in the bar
@@ -530,10 +531,11 @@ Shares: motion that follows the finger. Size: L. Needs you: —.
 
 ### Standalone features
 
-Shares: nothing shared: each is its own card (screen tools, phone link, config timeline, accessibility pack). Size: L each. Needs you: which, if any.
+Shares: nothing shared: each is its own card (a lightweight mode, screen tools, phone link, config timeline, accessibility pack). Size: L each. Needs you: which, if any.
 
 | Row | | What |
 |---|---|---|
+| I608 | U | A lightweight / performance mode: one switch (and an automatic one) that makes the shell use as little as it can — to … |
 | I522 | U | Screen tools in one place: screenshot, recording, colour picker and OCR from the launcher or a bar module; annotate a … |
 | I523 | U | Phone link: KDE Connect in a sidebar section — phone notifications and replies, sending files, find my phone. |
 | I536 | U | Config timeline (改善, Kaizen): every config change as a timeline with a visual diff and "restore to here", grouped by … |

@@ -85,6 +85,11 @@ impl NativeMod for TasksMod {
             }
         );
         act!(
+            "tasks.notes.add",
+            "mod-tasks.action.notes_add",
+            actions::notes_add
+        );
+        act!(
             "tasks.notes.set",
             "mod-tasks.action.notes_set",
             actions::notes_set

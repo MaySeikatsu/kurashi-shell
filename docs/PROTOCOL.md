@@ -248,7 +248,11 @@ Launcher rows (W37, rows 405, 407): app rows carry `icon_path` (an absolute file
 `theme.icon_theme` or the desktop's theme, its inherited themes, hicolor and pixmaps; `null` when none has the icon —
 the frontend draws its letter tile). The `>` command mode lists "Shortcut settings" (id `settings:keys`) and, when the
 query names one, "Settings: <page>" rows (id `settings:<page>`, a schema page or `mod:<id>`); `launcher.launch` of a
-`settings:<page>` id sends `settings.open {page}`.
+`settings:<page>` id sends `settings.open {page}`. K162: a declared `>` command that needs words and has none yet
+(`> task`) is a row of kind `fill` (id `fill:<action>`), whose `fill` is the query the launcher puts into its field
+(`"> task "`); the launcher does not launch it. A query that starts with the prefix of a mod that is installed and
+switched off gets one row (id `settings:mods`, `mod: <id>`) that says so and opens Settings' Mods view. Rows of kind
+`mod` and `fill` carry a Material Symbols name in `icon`.
 
 Layout actions (K71): `layout.toggle {target, output?}` brings a `hidden` component out or puts it away (targets as in
 `runtime.ui.shown`, plus `sidebar:<side>`, which runs `sidebar.toggle {side, output?}`; the focused output when `output` is absent; refused with `layout.error.target` for a target that is
@@ -304,7 +308,8 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
 - `tray.menu.open {id}` also takes `module:<id>` (K90): the `tray` panel then shows that bar module's own options, the rows of
   `schema.settings` whose `modules` lists it (a mod's widget: its page). `runtime.ui.tray` carries the same id.
 - `settings.open {key?, page?}`: opens Settings (the Quickshell window in `settings/`) on the setting `key`, or on
-  the page `page` (a schema page id such as `keys`, or `mod:<id>`; I40) when no `key` is given. A window
+  the page `page` (a schema page id such as `keys`, `mod:<id>`, `mods` for the Mods view (K162) or `mods.new`; I40)
+  when no `key` is given. A window
   that runs jumps to the row (`qs -p <dir> ipc call settings jump <key>`, or `… settings page <page>`); otherwise one
   starts with `KURASHI_SETTINGS_KEY=<key>` (or `KURASHI_SETTINGS_PAGE=<page>`) (detached, no shell). An unknown page is
   `invalid` with `error.settings.unknown_page` (`{page}`). Answers `{opened: "launched"|"jumped"|"open"}`; `open`

@@ -84,8 +84,8 @@ B = [
    "I526 I570 I564"),
   ("Gestures", "motion that follows the finger", "L", "—",
    "I531 I346"),
-  ("Standalone features", "nothing shared: each is its own card (screen tools, phone link, config timeline, accessibility pack)", "L each", "which, if any",
-   "I522 I523 I536 I537"),
+  ("Standalone features", "nothing shared: each is its own card (a lightweight mode, screen tools, phone link, config timeline, accessibility pack)", "L each", "which, if any",
+   "I608 I522 I523 I536 I537"),
  ]),
  ("4. The visual system (looks, motion, light)", [
   ("Looks and chrome, fixes", "the chromes, shadows and corner shapes", "M–L", "B79 (Glow) is your report",
@@ -144,18 +144,17 @@ def rows():
         c = [x.strip() for x in line.strip().strip("|").split(" | ")]
         if len(c) < 5 or set(c[0]) <= set("-: ") or c[0] in ("#", "ID"):
             continue
-        if c[-1].lower().startswith(CLOSED):
-            continue
         text = re.sub(r"\*\*", "", " | ".join(c[3:-1])).replace("|", "/")
         if len(text) > 120:
             text = text[:120].rsplit(" ", 1)[0] + " …"
         user = "user" in c[2].lower()
-        out.setdefault(c[0], (text, user, c[-1]))
+        out.setdefault(c[0], (text, user, c[-1].lower().startswith(CLOSED)))
     return out
 
 
 def main():
-    open_rows = rows()
+    all_rows = rows()
+    open_rows = {i: r for i, r in all_rows.items() if not r[2]}
     seen = {}
     for _, batches in B:
         for title, _, _, _, ids in batches:
@@ -164,36 +163,41 @@ def main():
                     sys.exit(f"{i} is in two batches: {seen[i]} and {title}")
                 seen[i] = title
     missing = [i for i in open_rows if i not in seen]
-    unknown = [i for i in seen if i not in open_rows]
+    unknown = [i for i in seen if i not in all_rows]
     if missing or unknown:
-        sys.exit(f"in no batch: {missing}\nnot an open row: {unknown}")
+        sys.exit(f"in no batch: {missing}\nnot a row: {unknown}")
+    done = lambda ids: sum(1 for i in ids.split() if all_rows[i][2])
 
     out = [
         "# Backlog, sorted into batches",
         "",
         f"Every open row of `docs/BACKLOG.md` ({len(open_rows)} on 2026-11-16), each in exactly one batch: rows that share files, a",
         "design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's",
-        "full text and status are there; this file only groups the ids. `U` marks a row that came from the user. Sizes are",
-        "the lead's estimate (S: hours, M: a day or two, L: several days or a brief first), not measured.",
+        "full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row",
+        "that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured",
+        "(S: under an hour of edits, builds and suite runs; M: one to three hours; L: longer, or a brief first).",
         "",
         "Written by `python3 tools/backlog-batches.py .`, which holds the batches and fails when an open row is in no",
         "batch or in two: give a new row its batch there, then run it again.",
         "",
-        "| Section | Batch | Rows | Size |",
+        "| Section | Batch | Done | Size |",
         "|---|---|---|---|",
     ]
     for section, batches in B:
         for title, _, size, _, ids in batches:
-            out.append(f"| {section.split('.')[0]} | {title} | {len(ids.split())} | {size} |")
+            out.append(f"| {section.split('.')[0]} | {title} | {done(ids)} of {len(ids.split())} | {size} |")
     for section, batches in B:
         out += ["", f"## {section}"]
         for title, shares, size, needs, ids in batches:
             out += ["", f"### {title}", "", f"Shares: {shares}. Size: {size}. Needs you: {needs}.", "", "| Row | | What |", "|---|---|---|"]
             for i in ids.split():
-                text, user, _ = open_rows[i]
-                out.append(f"| {i} | {'U' if user else ''} | {text} |")
+                text, user, closed = all_rows[i]
+                out.append(f"| {i} | {'U' if user else ''} | {'**done** — ' if closed else ''}{text} |")
     open(f"{ROOT}/docs/BACKLOG-BATCHES.md", "w").write("\n".join(out) + "\n")
-    print(f"{len(open_rows)} rows, {sum(len(b) for _, b in B)} batches")
+    for section, batches in B:
+        ids = " ".join(b[4] for b in batches)
+        print(f"{section.split('(')[0].strip()}: {done(ids)} of {len(ids.split())} done")
+    print(f"{len(open_rows)} open rows, {sum(len(b) for _, b in B)} batches")
 
 
 main()

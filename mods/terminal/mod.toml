@@ -233,6 +233,8 @@ help = "mods.terminal.dir_opens.help"
 key = "run_prefix"
 type = "string"
 default = "!"
+# K162: the launcher says so when this prefix is typed while the mod is off.
+launcher = "run"
 label = "mods.terminal.run_prefix"
 help = "mods.terminal.run_prefix.help"
 
