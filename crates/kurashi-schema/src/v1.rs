@@ -880,6 +880,22 @@ pub struct MediaColors {
         requires = "theme.colors.media.blend != direct"
     )]
     pub blend_ms: u32,
+    /// Now Playing card
+    /// The card with the cover and the titles keeps the cover's own colours and changes with the track at once. Or it
+    /// changes over the same time as the shell does; or it takes the shell's colours instead of the cover's.
+    #[kurashi(default = MediaCard::Cover, requires = "theme.colors.media.follow == true", advanced)]
+    pub card: MediaCard,
+}
+
+/// I398: what the Now Playing card does while Dynamic Media Color is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MediaCard {
+    /// The cover's colours, at once
+    Cover,
+    /// The cover's colours, changing with the shell
+    Blend,
+    /// The shell's colours
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
