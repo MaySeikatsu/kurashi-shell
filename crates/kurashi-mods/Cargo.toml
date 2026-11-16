@@ -14,7 +14,7 @@ thiserror.workspace = true
 semver = { version = "1", features = ["serde"] }
 # The catalogue (K155, W98): a mod tree's hash is the one Nix computes (SHA-256 over its NAR), so one hash serves both routes.
 sha2 = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 # One validator for records (K38, rule 3): a mod's `records` default goes through the schema's check.
 kurashi-schema = { path = "../kurashi-schema" }
 
