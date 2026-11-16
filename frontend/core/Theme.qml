@@ -21,6 +21,10 @@ Singleton {
     property int fadeShow: 0
     property int fadeRun: 0
     property int fadeMs: 320
+    // B89: how the pictures are mixed — a cross-fade, or round the colour wheel (`media.blend = wheel_*`), turning by
+    // `fadeTurn` radians (the surface's way round; components/ColorFade.qml picks the shader).
+    property string fadeKind: "fade"
+    property real fadeTurn: 0
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
     // K87: the colours in between while ColorBlend moves the shell from one track's colours to the next; null at rest.
     property var liveColors: null
