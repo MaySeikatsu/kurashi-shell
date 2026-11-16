@@ -93,27 +93,17 @@ Flickable {
             width: col.width
             text: I18n.tr("settings.ui.changed")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: col.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.changed_help")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.changedCount === 0
             width: col.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.changed_empty")
         }
         ResetFlow {
@@ -135,15 +125,10 @@ Flickable {
 
                 Row {
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         topPadding: Theme.gap
-                        color: Theme.dim
-                        font.pixelSize: Theme.fs
+                        dim: true
                         font.bold: true
-                        font.family: Theme.fam(text, Theme.families)
                         text: group.modelData.label + "  ·  " + group.modelData.entries.length
                     }
                 }
@@ -165,18 +150,12 @@ Flickable {
                             + (entry.userSet ? resetBox.height + Theme.gap / 2 : 0)
                             + (entry.modelData.held ? heldLine.height + Theme.gap / 2 : 0) + Theme.gap
 
-                        Text {
+                        Label {
                             id: name
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             x: 0
                             y: 6
                             width: p.labelW
                             elide: Text.ElideRight
-                            color: Theme.fg
-                            font.pixelSize: Theme.fs
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr(entry.row.label) + (entry.modelData.output ? " (" + entry.modelData.output + ")" : "")
                         }
                         Row {
@@ -184,17 +163,11 @@ Flickable {
                             x: entry.valueX
                             y: 4
                             spacing: Theme.gap
-                            Text {
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
-                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                            Label {
                                 height: Theme.controlH - 8
                                 verticalAlignment: Text.AlignVCenter
                                 width: Math.min(implicitWidth, 200)
                                 elide: Text.ElideRight
-                                color: Theme.fg
-                                font.pixelSize: Theme.fs
-                                font.family: Theme.fam(text, Theme.families)
                                 text: entry.prov.value !== undefined ? Store.displayValue(entry.prov.value) : ""
                             }
                             ProvenanceChip {
@@ -221,19 +194,15 @@ Flickable {
                         // A held-back value: the layer that keeps it out of effect, and the value in effect (I64 (3)). No Reset
                         // here: a forced value is read-only (UX brief, settings: nix-forced), and resetting the held one changes
                         // nothing in effect.
-                        Text {
+                        Label {
                             id: heldLine
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             x: entry.valueX
                             y: line.height + Theme.gap / 2 + 4
                             width: Math.min(entry.width - entry.valueX, 480)
                             visible: entry.modelData.held === true
                             wrapMode: Text.WordWrap
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 1
-                            font.family: Theme.fam(text, Theme.families)
                             text: entry.modelData.held === true
                                 ? I18n.fmt("settings.ui.held_back", { reason: Store.forcedText(entry.effective),
                                                                        value: Store.displayValue(entry.effective.value) })
