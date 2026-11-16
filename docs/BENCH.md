@@ -948,3 +948,8 @@ Suites (session 33's last full run, `-j 4`): the merge set of 50 took 38 min wal
 
 `target/` had reached 301 GB (221 GB `deps`, 77 GB `incremental`); `cargo sweep --time 7` took 131 GiB, 191 GB stayed
 (a week's builds). With the profile above a week weighs less; `just sweep` runs at session start and end.
+
+**Under Nix, around a version bump (K156, W97; machine A, 2026-11-16, six cores, a suite runner beside it).** `nix build
+.#kurashi` from nothing: 657 s (the dependencies in release, then our crates). After `[workspace.package] version` alone
+changed: 280 s, and the log has no `kurashi-deps>` line — the dependency derivation is the same store path for both
+versions (`nix eval --raw .#kurashi.cargoArtifacts.drvPath`). Before, every bump rebuilt the ~400 dependencies (~11 min).

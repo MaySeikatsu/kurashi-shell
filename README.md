@@ -84,6 +84,7 @@ What `nix build .#kurashi` / `nix run .#` costs since K76 (machine A, measured 2
 | QML, strings, profiles, mods | 34–78 min, typically ~45 | ~5 s (data copy only) |
 | Our Rust, `looks/`, `styles/`, `palettes/` | same | ~5 min (dependencies cached) |
 | `Cargo.lock` (dependency update) | same | ~11 min |
+| The version alone (every PR bumps it, K151) | ~11 min: the dependencies were rebuilt with it | ~5 min, as any edit of our Rust (K156, W97: measured 2026-11-16 — 657 s from nothing, 280 s after a bump, no dependency compiled) |
 
 The package build no longer runs the tests; run them with `just check` or `nix build .#checks.x86_64-linux.tests`.
 Flakes see only git-tracked files: `git add` a new file before `nix build` or `nix run .#`.
