@@ -11,6 +11,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 ## [0.4.0] — 2026-11-16
 
 ### Added
+- **New mod…** (Settings › Mods, or `> new mod` in the launcher): a page that writes a new mod from the templates —
+  what it is, what it starts as, where it shows, what it uses — with the files and the check shown live before
+  anything is written. It makes the same files as `kurashi mod new`.
 - **For mod authors and the coming catalogue:** `kurashi mod hash <folder>` prints a mod's tree hash (the value
   `nix hash path` prints), `kurashi mod check --summary` what the mod adds, reads, may reach and runs; `tools/mod-index/`
   is the index repository's layout and CI script with an example entry. Installing from an index is not built yet.

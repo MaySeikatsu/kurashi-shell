@@ -425,7 +425,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S35.4 | W91 mods read and call from Rust (K158) | ✅ functional (crates' tests, three suites on niri) · — UX (a waiting mod not seen on niri: I592) | integration |
 | S35.5 | W93 a mod's own program (K155) | ✅ functional (`host_programs.rs`, `test-mod-host.sh` on niri) · 🟡 UX: the sentence at the switch seen light and dark; the ask-once not built (I593) | integration |
 | S35.6 | W97 the Nix dependency derivation without the version (K156) | ✅ (657 s → 280 s, no dependency compiled) | integration |
-| S35.7 | W96 the red suites | 🟡 three of them green and in the merge set, `# needs:` in the runner; the rest open (I594) | integration |
-| S35.8 | W94 the Mod Editor | 🟡 contract, copy, the daemon's and the mock's side; the page not built | `feat/s35-w94-mod-editor` |
-| S35.9 | W98 the catalogue | 🟡 its UX brief | integration |
-| S35.10 | W92 the core names no mod | ⬜ not started | — |
+| S35.7 | W96 the red suites | 🟡 launcher, media, lyrics in the merge set; modqml green once; mods-live to phase 2 (I603); the rest open (I594) | integration |
+| S35.8 | W94 the Mod Editor | 🟡 functional: contract, daemon, mock, the page, `> new mod`, its suite in the merge set · 🟡 UX: fresh / id taken / passed / created seen on niri in two looks, light and dark; the icon picker, the folder action and the other states on niri open | integration |
+| S35.9 | W98 the catalogue | 🟡 its UX brief (not read by the user) and step 1: tree hash, index entries, summary, `.source`, `tools/mod-index/` (K161) | integration |
+| S35.10 | W92 the core names no mod | 🟡 rows 1–3 of 6: `svc.location` (K159), the desk's weather card (K160, schema 8), the clock's peek (I602) | integration |
