@@ -31,7 +31,7 @@ FaceBase {
             name: f.icon
             glyph: f.glyph
             filled: true
-            size: Theme.fs + 5
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.present ? Theme.warning : Theme.dim
         }
         LevelMeter {
@@ -68,7 +68,7 @@ FaceBase {
             name: f.icon
             glyph: f.glyph
             filled: true
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

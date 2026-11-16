@@ -48,7 +48,7 @@ FaceBase {
             Accessible.ignored: true
             name: "schedule"
             glyph: "◷"
-            size: Theme.fs + 4
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
         }
     }
 }

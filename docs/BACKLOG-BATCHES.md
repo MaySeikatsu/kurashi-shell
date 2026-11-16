@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (479 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (469 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -15,10 +15,10 @@ batch or in two: give a new row its batch there, then run it again.
 | 1 | Web dock in the bar | 0 of 9 | S–M |
 | 1 | Settings, fixes | 0 of 9 | S–M |
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
-| 1 | Quick settings, small | 0 of 9 | S–M |
+| 1 | Quick settings, small | 6 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
-| 1 | Icons and glyph sizes | 0 of 5 | M |
-| 1 | Media, small | 0 of 3 | S–M |
+| 1 | Icons and glyph sizes | 2 of 5 | M |
+| 1 | Media, small | 1 of 3 | S–M |
 | 2 | Settings, structure | 0 of 10 | M–L |
 | 2 | Settings, theming pages | 0 of 7 | M |
 | 2 | Settings docked in a sidebar | 0 of 3 | M |
@@ -28,7 +28,7 @@ batch or in two: give a new row its batch there, then run it again.
 | 2 | Edit mode and groups | 0 of 6 | L |
 | 2 | Peeks | 0 of 6 | M |
 | 2 | Island | 0 of 6 | M–L |
-| 2 | Cards and scrolling | 0 of 6 | M |
+| 2 | Cards and scrolling | 1 of 6 | M |
 | 2 | Notifications | 0 of 2 | M–L |
 | 2 | Desk | 0 of 2 | S–M |
 | 2 | Lock and greeter | 0 of 3 | M |
@@ -132,15 +132,15 @@ Shares: the quick card and the control modules. Size: S–M. Needs you: —.
 
 | Row | | What |
 |---|---|---|
-| I586 |  | `frontend/components/quick/QuickTile.qml`'s compact label is a `Text` without the look's render block, so in pixel … |
+| I586 |  | **done** — `frontend/components/quick/QuickTile.qml`'s compact label is a `Text` without the look's render block, so in pixel … |
 | I204 |  | Quick settings follow-ups: the accent badge on its on-state container is 2.39:1 in dark wa-iro (3.16 light), below 3:1 … |
-| I108 |  | Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService … |
-| B71 |  | `modules/Volume.qml`'s WheelHandler has no `acceptedDevices` (the control modules needed `Mouse \/ TouchPad` to hear … |
-| B72 |  | `Stage.qml` `ownKey`: the quick card comes out under any module pressed in the last 1.5 s, not only a control module; … |
-| B73 |  | Control centre loose ends: `PhoneFrame` is still instantiated (invisible) in card style (Ma: should be a Loader); an … |
+| I108 |  | **done** — Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService … |
+| B71 |  | **done** — `modules/Volume.qml`'s WheelHandler has no `acceptedDevices` (the control modules needed `Mouse \/ TouchPad` to hear … |
+| B72 |  | **done** — `Stage.qml` `ownKey`: the quick card comes out under any module pressed in the last 1.5 s, not only a control module; … |
+| B73 |  | **done** — Control centre loose ends: `PhoneFrame` is still instantiated (invisible) in card style (Ma: should be a Loader); an … |
 | B75 |  | `docs/ux/control-centre-modules.md` "Others": written from memory, no other shell was looked up (GNOME quick settings, … |
 | I484 |  | Controls, round two. A parts-sheet row for every slider and switch face in every state (I326); vertical faces drawn for … |
-| I326 |  | Sliders never seen in shots: the sandbox has no audio or brightness, so `slider/Fluent`, `slider/Classic` and the … |
+| I326 |  | **done** — Sliders never seen in shots: the sandbox has no audio or brightness, so `slider/Fluent`, `slider/Classic` and the … |
 
 ### Wallpaper picker
 
@@ -161,9 +161,9 @@ Shares: `Icon.qml` and the bar's glyph metrics. Size: M. Needs you: —.
 | Row | | What |
 |---|---|---|
 | B61 | U | Bar glyphs are not one size: on the user's bar they run from 12 to 20 px tall (tray icons most), two sit 1.5 to 2 px … |
-| B52 |  | Island faces other than media keep their own sizes (notifications at fs+4, the media pause icon at fs+3) and are not … |
+| B52 |  | **done** — Island faces other than media keep their own sizes (notifications at fs+4, the media pause icon at fs+3) and are not … |
 | B62 |  | Icon tint (K110, session 27 rework), not seen: a notification's app icon (a test notification gave no popup in the … |
-| B70 |  | `QML Icon at components/modules/ControlModule.qml: Binding loop detected for property "drawFamily"` when the look … |
+| B70 |  | **done** — `QML Icon at components/modules/ControlModule.qml: Binding loop detected for property "drawFamily"` when the look … |
 | I214 |  | Icon follow-ups: the fallback tier is measured, not known — a name of one letter, or a family whose missing-glyph is … |
 
 ### Media, small
@@ -173,7 +173,7 @@ Shares: the media face and Dynamic Media Color. Size: S–M. Needs you: I398: wh
 | Row | | What |
 |---|---|---|
 | I133 |  | Media: a config key for fetching http covers (env `KURASHI_MEDIA_ART_FETCH=0` today); `art_colors` and … |
-| I398 | U | An option for the Now Playing card under Dynamic Media Color (K87): today it keeps its own cover colours and changes at … |
+| I398 | U | **done** — An option for the Now Playing card under Dynamic Media Color (K87): today it keeps its own cover colours and changes at … |
 | B89 |  | After K125: Dynamic Media Color's wheel blends (`media.blend = wheel_*`) still step every colour in JS and will stutter … |
 
 ## 2. Passes over one area (one to a few days each)
@@ -308,7 +308,7 @@ Shares: the Stage's cards (where and how large they open) and the shared scroll 
 
 | Row | | What |
 |---|---|---|
-| I606 | U | A large card joined to the bar's centre as a place any module's card can open at. The user likes the size and place of … |
+| I606 | U | **done** — A large card joined to the bar's centre as a place any module's card can open at. The user likes the size and place of … |
 | I494 | U | Content cut by a scroll edge blends out: a short progressive blur and fade toward the edge instead of a hard cut, only … |
 | I504 | U | Cards have a maximum size and scroll beyond it (settings for both); floating cards keep one even gap to the nearest … |
 | I505 | U | Notification cards and OSD follow the style system; the launcher opened at the edge follows the theme and its edges … |

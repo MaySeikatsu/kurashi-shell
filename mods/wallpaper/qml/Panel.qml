@@ -21,7 +21,11 @@ Item {
     // The Stage gives the content width (the card minus 2 x 16 px), so this is the width the picker lays out for.
     property int cardWidth: 720
     implicitWidth: cardWidth - 2 * (Theme.pad + 4)
-    implicitHeight: 640
+    // I538, I606: the picker wants room for its pictures: a large card (the Stage hands its height as `fillHeight`); in
+    // a sidebar it takes the height on offer as before.
+    readonly property bool cardLarge: true
+    property real fillHeight: 0
+    implicitHeight: fillHeight > 0 ? fillHeight : 640
 
     // ---- documents (the daemon's state; nothing is inferred here) ----------------------------
     Watch { doc: "mod.wallpaper" }
@@ -70,7 +74,8 @@ Item {
     readonly property bool onLibrary: tab === "library"
 
     readonly property int pageSize: 48
-    readonly property int columns: Math.max(2, Math.floor(grid.width / 160))
+    // (I538: with room, the pictures are larger, not only more)
+    readonly property int columns: Math.max(2, Math.floor(grid.width / (grid.width >= 900 ? 220 : 160)))
     property var rowCache: ({})         // library index -> row, as wallpaper.thumbs returns it
     property var pending: ({})          // page offset -> true while its request is out
     property int total: 0

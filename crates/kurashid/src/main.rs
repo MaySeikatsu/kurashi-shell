@@ -44,7 +44,7 @@ async fn run() -> anyhow::Result<()> {
     let hub = Hub::new();
     hub.register(
         "daemon",
-        json!({"version": env!("CARGO_PKG_VERSION")}),
+        json!({"version": env!("CARGO_PKG_VERSION"), "user": kurashid::user::document()}),
         None,
     );
     let locale = kurashid::i18n::locale_from_env();

@@ -25,7 +25,7 @@ FaceBase {
             name: f.dnd ? "notifications_off" : (f.unread > 0 ? "notifications_active" : "notifications")
             glyph: f.dnd ? "⊘" : "◉"
             filled: f.unread > 0
-            size: Theme.fs + 4
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.unread > 0 ? Theme.accent : Theme.dim
         }
         Text {
@@ -63,7 +63,7 @@ FaceBase {
             name: f.dnd ? "notifications_off" : "notifications"
             glyph: f.dnd ? "⊘" : "◉"
             filled: f.unread > 0
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.unread > 0 ? Theme.accent : Theme.dim
         }
         Text {

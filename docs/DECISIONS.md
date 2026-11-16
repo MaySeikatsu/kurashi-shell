@@ -1834,3 +1834,46 @@ runs no code); launching the hint row as the command with an empty argument (an 
 `launcher.open {query?}`: the launcher with `query` in its field (a key can open a mode: `;` the clipboard, `:` emoji,
 `>` commands), closing it when called again with the same query, as `launcher.keys` does for `?`.
 
+## K163 — The daemon says who the session belongs to (session 36, I108, rule 1)
+**Problem.** The quick card's greeting row and the sidebar's header each read `$USER` in QML and drew its first letter:
+state read in the frontend, twice, and no full name or picture.
+**Decision.** The `daemon` document carries `user: {name, full_name, icon}`: the login, the full name from the
+account's GECOS field, and the account's picture (AccountsService's file, else `~/.face`, `~/.face.icon`), read once
+at start. One component, `frontend/components/Avatar.qml`, draws it (picture, else the name's first letter, else a
+person) for both places.
+**Rejected.** A D-Bus call to AccountsService (the file it writes is what every greeter reads; no service to wait for);
+a document of its own (three fields that never change belong with the daemon's other facts).
+**Contract.** `daemon.user` (PROTOCOL §5, `fixtures/ipc/server/snap_daemon.json`).
+
+## K164 — A large card at the bar's centre (session 36, I606, I538, I504)
+**Problem.** A card is at most a third of the screen wide and half of it tall (I504, the user's rule for ordinary
+cards). The wallpaper picker asked for 720 px and got 633 on a 1920 screen: two or three small columns. The user
+likes the size and place of the terminal's sheet (60 % × 45 % of the screen, joined to the bar's centre) and wants it
+as a place any module's card can open at.
+**Decision.** The Stage knows one more size: **large**. A large card is `bar.card_large_width` × `bar.card_large_height`
+of its screen (60 and 45 by default, the terminal sheet's numbers) and comes out at the bar's centre whatever opened
+it. A mod's panel asks for it with `property bool cardLarge: true` and is handed the height as `fillHeight` (the
+property sidebars already hand a panel); the user makes any module's card large by naming it in `bar.popups_large`.
+The three keys are Advanced. The launcher's appearance menu takes the same size. The wallpaper picker is the first
+panel that asks.
+**Rejected.** Raising the ordinary limits (every card would grow); a per-mod size in the core's defaults (the core
+would name a mod); a placement the manifest declares (a second place for what the panel's own property says).
+**Contract.** MODS.md "Panels": `cardLarge`. No IPC shape changes.
+
+## K165 — Sidebars on the top and bottom edges are the terminal's sheet made general (session 36, I607)
+**Problem.** The user wants sidebars on the top and bottom edges, in sizes: the full width, or a part of it such as
+the terminal's sheet. The side sidebars' surface (`Sidebar.qml`) is a column: its shape, its slide and its geometry
+(`runtime.layout.sidebars`) are for a left or right edge.
+**Decision.** `sidebar.top` and `sidebar.bottom` are a surface of their own, `SidebarSheet.qml`, built from what the
+terminal's drop-down already was: its geometry and its frame move into two shared components (`SheetGeom`: where a
+sheet stands on an output; `SheetFrame`: the joined card or the look's card, and the slide), which the terminal's
+surface now uses too. The sheet holds the sidebars' sections as pages with tabs (`LeftColumn`) and follows the same
+open-on-output rule (`OpenOn`, taken out of `Sidebar.qml`). Size: `span` (a centred part, or the whole edge), `length`
+(the part's share, 66 %) and `height` (45 %, the terminal's); the two numbers are Advanced. A sidebar exists only while
+its `sections` list is not empty. Opened by `sidebar.toggle {side: top | bottom}` and the `>` commands; no default key.
+**Rejected.** Teaching `Sidebar.qml` four sides (1100 lines of column geometry would fork per side); a mod (it hosts
+the core's sections and the other mods' panels: it is a host, which the core is); pinning with reserved space in v1
+(half the screen reserved; needs a strip size first).
+**Contract.** `sidebar.toggle` / `sidebar.open` take `side: "top" | "bottom"`; `runtime.ui.sidebar` may be `top` or
+`bottom`; actions `sidebar.top.toggle`, `sidebar.bottom.toggle` (PROTOCOL §6). Brief: `docs/ux/edge-sidebars.md`.
+

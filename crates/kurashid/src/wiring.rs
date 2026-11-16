@@ -287,7 +287,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     );
     // I154: each side as an action of its own, without arguments — what the launcher's `>` commands and a plain bind
     // run (the frontend's focused output).
-    for side in ["left", "right"] {
+    for side in ["left", "right", "top", "bottom"] {
         let open = sidebar_open(hub.clone(), true);
         actions.register(
             &format!("sidebar.{side}.toggle"),
@@ -499,7 +499,8 @@ pub(crate) fn open_sidebar(
     output: Option<String>,
     toggle: bool,
 ) -> Result<Option<Value>, ActionError> {
-    if side == "left" && left_sidebar_empty(hub) {
+    // (K165: the top and bottom sidebars exist only while they have sections; the right one has its own by default)
+    if side != "right" && sidebar_empty(hub, side) {
         return Err(ActionError::Invalid(SIDEBAR_NO_TABS.into()));
     }
     hub.update("runtime.ui", None, |d| {
@@ -538,6 +539,8 @@ fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError
     let side = match a["side"].as_str() {
         Some("left") => "left",
         Some("right") => "right",
+        Some("top") => "top",
+        Some("bottom") => "bottom",
         _ => return Err(invalid()),
     };
     let output = match a.get("output") {
@@ -548,10 +551,10 @@ fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError
     Ok((side, output))
 }
 
-/// Whether `sidebar.left.sections` lists no tab in effect (the `config` document's value; unknown counts as not empty).
-fn left_sidebar_empty(hub: &Hub) -> bool {
+/// Whether `sidebar.<side>.sections` lists no tab in effect (the `config` document's value; unknown counts as not empty).
+fn sidebar_empty(hub: &Hub, side: &str) -> bool {
     hub.snapshot(crate::config::DOC).is_ok_and(|(_, d)| {
-        d["values"]["sidebar.left.sections"]["value"]
+        d["values"][format!("sidebar.{side}.sections")]["value"]
             .as_array()
             .is_some_and(Vec::is_empty)
     })
@@ -4211,7 +4214,7 @@ mod tests {
         // Bad arguments; a left sidebar the config gives no tab.
         for bad in [
             json!({}),
-            json!({"side": "top"}),
+            json!({"side": "middle"}),
             json!({"side": "left", "output": ""}),
         ] {
             assert!(actions.invoke("sidebar.toggle", bad).await.is_err());

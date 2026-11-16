@@ -1,3 +1,4 @@
+Avatar 1.0 Avatar.qml
 Block 1.0 Block.qml
 ModuleMenu 1.0 ModuleMenu.qml
 StillCopy 1.0 StillCopy.qml
@@ -43,6 +44,8 @@ Caret 1.0 Caret.qml
 KineticWheel 1.0 KineticWheel.qml
 ScrollEdge 1.0 ScrollEdge.qml
 JoinedCard 1.0 JoinedCard.qml
+SheetFrame 1.0 SheetFrame.qml
+SheetGeom 1.0 SheetGeom.qml
 Wash 1.0 Wash.qml
 IconTint 1.0 IconTint.qml
 EdgeWarp 1.0 EdgeWarp.qml

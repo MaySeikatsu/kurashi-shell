@@ -31,7 +31,10 @@ Item {
     readonly property var players: d.players || []
     // The cover's colours, once the daemon extracted them for the shown track (K48 `art_colors`: bg, fg, accent).
     readonly property var artColors: !idle && d.art_colors && typeof d.art_colors.bg === "string" ? d.art_colors : null
-    readonly property bool tinted: artColors !== null
+    // I398 (`theme.colors.media.card`, while Dynamic Media Color is on): the cover's colours at once (the default), the
+    // cover's colours over the shell's own change, or the shell's colours (no tint of its own).
+    readonly property string cardMode: String(Theme.tok("media.card", "cover"))
+    readonly property bool tinted: artColors !== null && cardMode !== "theme"
     readonly property color heroFg: tinted ? artColors.fg : Theme.fg
     property string errText: ""
     Refusal { id: refusal }
@@ -119,7 +122,10 @@ Item {
             readonly property real inset: view.tinted ? Theme.pad : 0
             radius: Theme.rLg
             color: view.tinted ? view.artColors.bg : "transparent"
-            Behavior on color { enabled: Theme.springOn && view.visible; ColorAnimation { duration: 320 } }
+            Behavior on color {
+                enabled: Theme.springOn && view.visible
+                ColorAnimation { duration: view.cardMode === "blend" ? Math.max(120, Number(Theme.tok("media.blend_ms", 1200))) : 320 }
+            }
             Row {
                 id: heroRow
                 x: hero.inset

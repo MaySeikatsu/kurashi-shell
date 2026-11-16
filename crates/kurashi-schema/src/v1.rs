@@ -285,6 +285,19 @@ pub struct Bar {
     /// stay usable, so on a narrow screen this can be exceeded.
     #[kurashi(default = 33, range = 20..=100, step = 1, unit = "%", since = 7)]
     pub card_max_width: u32,
+    /// Large card width
+    /// How wide a large card is, as a share of its screen's width. A large card opens at the bar's centre: a module's
+    /// card that asks for the room (the wallpaper picker), and the modules listed under "Modules that open large".
+    #[kurashi(default = 60, range = 30..=100, step = 5, unit = "%", advanced)]
+    pub card_large_width: u32,
+    /// Large card height
+    /// How tall a large card is, as a share of its screen's height.
+    #[kurashi(default = 45, range = 20..=95, step = 5, unit = "%", advanced)]
+    pub card_large_height: u32,
+    /// Modules that open large
+    /// These modules' cards open as a large card at the bar's centre instead of at their usual size.
+    #[kurashi(default = strings(&[]), choices_from = "modules", advanced)]
+    pub popups_large: Vec<String>,
     /// Keep a closed card ready
     /// A card that has closed keeps what it showed for a minute, off screen, so it opens again at once and at its
     /// size. It costs its memory for that minute, and what it watches stays watched. Off: a closed card is gone at once
@@ -867,6 +880,22 @@ pub struct MediaColors {
         requires = "theme.colors.media.blend != direct"
     )]
     pub blend_ms: u32,
+    /// Now Playing card
+    /// The card with the cover and the titles keeps the cover's own colours and changes with the track at once. Or it
+    /// changes over the same time as the shell does; or it takes the shell's colours instead of the cover's.
+    #[kurashi(default = MediaCard::Cover, requires = "theme.colors.media.follow == true", advanced)]
+    pub card: MediaCard,
+}
+
+/// I398: what the Now Playing card does while Dynamic Media Color is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum MediaCard {
+    /// The cover's colours, at once
+    Cover,
+    /// The cover's colours, changing with the shell
+    Blend,
+    /// The shell's colours
+    Theme,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -2823,6 +2852,44 @@ sidebar_side!(
     SidebarMode::Pages
 );
 
+/// How much of its edge a top or bottom sidebar takes (K165).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum SheetSpan {
+    /// A part of the edge, centred
+    Part,
+    /// The whole edge
+    Full,
+}
+
+// K165 (docs/ux/edge-sidebars.md): a sidebar on the top or the bottom edge. Off until it has sections.
+macro_rules! sidebar_edge {
+    ($name:ident, $section:literal) => {
+        #[derive(Debug, Clone, PartialEq, KurashiSchema)]
+        #[kurashi(section = $section)]
+        pub struct $name {
+            /// Sections
+            /// What this sidebar holds, one page each with tabs above: the same sections the side ones offer, and the
+            /// mods' panels. Empty: there is no sidebar on this edge.
+            #[kurashi(default = strings(&[]), choices_from = "sidebar.sections")]
+            pub sections: Vec<String>,
+            /// Width
+            /// The whole edge, or a centred part of it (how much: "Share of the edge", under Advanced).
+            #[kurashi(default = SheetSpan::Part)]
+            pub span: SheetSpan,
+            /// Share of the edge
+            /// How wide a sidebar that takes a part of its edge is, as a share of the screen's width.
+            #[kurashi(default = 66, range = 30..=100, step = 1, unit = "%", advanced)]
+            pub length: u32,
+            /// Height
+            /// How far it reaches into the screen, as a share of the screen's height.
+            #[kurashi(default = 45, range = 20..=95, step = 5, unit = "%", advanced)]
+            pub height: u32,
+        }
+    };
+}
+sidebar_edge!(SidebarTop, "top_sidebar");
+sidebar_edge!(SidebarBottom, "bottom_sidebar");
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "sidebar", section = "sidebar")]
 pub struct Sidebar {
@@ -2830,6 +2897,10 @@ pub struct Sidebar {
     pub right: SidebarRight,
     #[kurashi(nested)]
     pub left: SidebarLeft,
+    #[kurashi(nested)]
+    pub top: SidebarTop,
+    #[kurashi(nested)]
+    pub bottom: SidebarBottom,
     /// Quick settings opens the right sidebar
     /// The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own
     /// buttons stay; put them in the bar or take them out below.

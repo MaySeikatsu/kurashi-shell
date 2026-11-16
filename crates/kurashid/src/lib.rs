@@ -21,6 +21,7 @@ pub mod intents;
 pub mod island;
 pub mod keys;
 pub mod launcher_mods;
+pub mod user;
 pub mod location;
 pub mod lock;
 pub mod native;

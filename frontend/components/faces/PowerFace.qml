@@ -34,7 +34,7 @@ FaceBase {
             // U+FE0E: text presentation, so the glyph does not turn into a coloured emoji.
             glyph: f.onBattery ? "▮" : "⚡︎"
             filled: true
-            size: Theme.fs + 5
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
@@ -60,7 +60,7 @@ FaceBase {
             name: f.icon
             glyph: f.onBattery ? "▮" : "⚡︎"
             filled: true
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
