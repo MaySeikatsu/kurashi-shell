@@ -3,6 +3,7 @@
 
 pub mod check;
 pub mod contract;
+pub mod editor;
 pub mod manifest;
 pub mod points;
 pub mod registry;

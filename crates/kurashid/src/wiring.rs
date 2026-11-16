@@ -1863,59 +1863,18 @@ fn adopt_mod_strings(hub: &Hub, reg: &kurashi_mods::Registry) {
     }
 }
 
-/// W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the check's report as the page and the CLI read it.
-fn report_json(r: &kurashi_mods::check::Report) -> Value {
-    use kurashi_mods::check::Level;
-    json!({
-        "id": r.id,
-        "passed": r.passed(),
-        "errors": r.count(Level::Error),
-        "notes": r.count(Level::Warn),
-        "findings": r.findings.iter().map(|f| json!({
-            "rule": f.rule, "level": f.level, "at": f.at, "detail": f.detail,
-        })).collect::<Vec<_>>(),
-    })
+/// W94 (K154; PROTOCOL §6 "The Mod Editor's four"): a scaffold refusal as an action's — its key (`mods.new.error.*`);
+/// a folder that cannot be written is `unavailable`, everything else `invalid`.
+fn scaffold_error(e: kurashi_mods::scaffold::ScaffoldError) -> ActionError {
+    match kurashi_mods::editor::error_key(&e) {
+        (key, true) => ActionError::Unavailable(key),
+        (key, false) => ActionError::Invalid(key),
+    }
 }
 
 /// The scaffold's spec from an action's `spec` argument.
 fn spec_of(v: &Value) -> Result<kurashi_mods::scaffold::Spec, ActionError> {
-    let text = |k: &str| v[k].as_str().unwrap_or_default().to_owned();
-    let list = |k: &str| -> Vec<String> {
-        v[k].as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|x| x.as_str().map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default()
-    };
-    if !v.is_object() {
-        return Err(ActionError::Invalid(ARGS_INVALID.into()));
-    }
-    Ok(kurashi_mods::scaffold::Spec {
-        id: text("id"),
-        name: text("name"),
-        icon: text("icon"),
-        description: text("description"),
-        with: list("with"),
-        uses: list("uses"),
-        host: v["host"].as_str().map(str::to_owned),
-    })
-}
-
-/// The scaffold's refusal as an action's: its key (`mods.new.error.*`); a folder that cannot be written is
-/// `unavailable`, everything else `invalid`.
-fn scaffold_error(e: kurashi_mods::scaffold::ScaffoldError) -> ActionError {
-    let key = e
-        .to_string()
-        .split(':')
-        .next()
-        .unwrap_or_default()
-        .to_owned();
-    match e {
-        kurashi_mods::scaffold::ScaffoldError::Write(_) => ActionError::Unavailable(key),
-        _ => ActionError::Invalid(key),
-    }
+    kurashi_mods::editor::spec(v).ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
 }
 
 fn crate_version() -> semver::Version {
@@ -1933,32 +1892,23 @@ fn mod_check(v: &Value, state: &Mutex<ModsState>) -> ActionResult {
             .get(id)
             .map(|e| e.dir.clone())
             .ok_or_else(|| ActionError::Invalid("mods.error.unknown".into()))?;
-        return Ok(Some(report_json(&kurashi_mods::check::check_dir(
-            &dir,
-            &crate_version(),
-        ))));
+        return Ok(Some(kurashi_mods::editor::report(
+            &kurashi_mods::check::check_dir(&dir, &crate_version()),
+        )));
     }
     let spec = spec_of(&v["spec"])?;
     if state.lock().expect("mods lock").reg.get(&spec.id).is_some() {
         return Err(ActionError::Invalid("mods.new.error.id_taken".into()));
     }
-    let files = spec.files().map_err(scaffold_error)?;
     static DRAFTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let tmp = std::env::temp_dir().join(format!(
+    let scratch = std::env::temp_dir().join(format!(
         "kurashi-mod-draft-{}-{}",
         std::process::id(),
         DRAFTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
-    let report = spec
-        .write(&tmp)
-        .map(|dir| kurashi_mods::check::check_dir(&dir, &crate_version()));
-    let _ = std::fs::remove_dir_all(&tmp);
-    let mut data = report_json(&report.map_err(scaffold_error)?);
-    data["files"] = files
-        .iter()
-        .map(|(path, text)| json!({"path": path.to_string_lossy(), "text": text}))
-        .collect();
-    Ok(Some(data))
+    kurashi_mods::editor::check_draft(&spec, &scratch, &crate_version())
+        .map(Some)
+        .map_err(scaffold_error)
 }
 
 /// `mod.rescan {}`: the mod roots are read again without a restart. A new folder appears as `available`, a removed one
@@ -2028,7 +1978,7 @@ fn mod_new(
     mod_rescan(hub, state, config, roots);
     let report = kurashi_mods::check::check_dir(&dir, &crate_version());
     Ok(Some(
-        json!({ "path": dir.to_string_lossy(), "check": report_json(&report) }),
+        json!({ "path": dir.to_string_lossy(), "check": kurashi_mods::editor::report(&report) }),
     ))
 }
 

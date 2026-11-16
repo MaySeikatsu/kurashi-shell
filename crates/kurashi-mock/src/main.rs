@@ -10,6 +10,7 @@
 
 mod appearance;
 mod documents;
+mod editor;
 mod power;
 mod state;
 mod tasks;
