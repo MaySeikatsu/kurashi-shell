@@ -53,7 +53,7 @@ FaceBase {
             name: f.title === "" ? "music_note" : "pause"
             glyph: f.title === "" ? "♪" : "⏸"
             filled: true
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: f.title === "" ? Theme.dim : Theme.accent
         }
         LevelBars {
@@ -99,7 +99,7 @@ FaceBase {
             name: f.title === "" ? "music_note" : (f.d.playing ? "play_arrow" : "pause")
             glyph: f.title === "" ? "♪" : (f.d.playing ? "▶" : "⏸")
             filled: true
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
         }
     }
 }

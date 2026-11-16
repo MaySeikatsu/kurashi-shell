@@ -21,7 +21,7 @@ FaceBase {
             anchors.verticalCenter: parent.verticalCenter
             name: "bluetooth_connected"
             glyph: "ᛒ"
-            size: Theme.fs + 5
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: Theme.secondary
         }
         Text {
@@ -48,7 +48,7 @@ FaceBase {
             anchors.horizontalCenter: parent.horizontalCenter
             name: "bluetooth_connected"
             glyph: "ᛒ"
-            size: Theme.fs + 3
+            size: Theme.iconSize   // B52: one size with the bar's glyphs
             color: Theme.secondary
         }
     }
