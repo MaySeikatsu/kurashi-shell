@@ -712,16 +712,11 @@ Flickable {
                 }
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.view.length === 0
             width: col.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             // A mod without settings has an empty page: its head, with the switch, says what there is. A search that
             // finds nothing names what it looked through.
             text: !Store.live ? I18n.tr("settings.ui.disconnected")
@@ -836,16 +831,11 @@ Flickable {
                                     Keys.onSpacePressed: event => { p.jumpRequested(modelData.pageId, modelData.row, true); event.accepted = true }
                                     Accessible.role: Accessible.Link
                                     Accessible.name: modelData.crumb
-                                    Text {
-                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                        antialiasing: !Theme.pixelType
-                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                                    Label {
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width
                                         elide: Text.ElideRight
-                                        color: Theme.fg
                                         font.pixelSize: Theme.fs - 2
-                                        font.family: Theme.fam(text, Theme.families)
                                         font.underline: hover.hovered || crumb.activeFocus
                                         text: modelData.crumb
                                     }
@@ -909,15 +899,11 @@ Flickable {
             visible: !p.searching && p.relatedPages.length > 0
             topPadding: Theme.pad
             spacing: Theme.gap
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 height: Theme.controlH - 8
                 verticalAlignment: Text.AlignVCenter
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.ui.related") + ":"
             }
             Repeater {

@@ -245,25 +245,15 @@ Flickable {
             width: parent.width
             text: I18n.tr("settings.ui.profiles")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.profiles_help")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.profiles.length === 0
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.profiles_empty")
         }
         Flow {
@@ -287,17 +277,12 @@ Flickable {
                     Keys.onSpacePressed: event => { p.choose(tile.modelData.name); event.accepted = true }
                     Accessible.role: Accessible.Button
                     Accessible.name: tile.modelData.name + ", " + p.origin(tile.modelData)
-                    Text {
+                    Label {
                         id: n
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         x: Theme.pad
                         anchors.verticalCenter: parent.verticalCenter
                         // Text on the accent fill takes on_accent (4.5:1).
                         color: tile.on ? Theme.fgOnAccent : Theme.fg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: tile.modelData.name
                     }
                     Chip {
@@ -328,15 +313,10 @@ Flickable {
             visible: p.selected !== ""
             width: parent.width
             spacing: Theme.gap
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.fg
                 font.pixelSize: Theme.fsTitle
-                font.family: Theme.fam(text, Theme.families)
                 text: p.diff === null ? p.selected
                     : I18n.fmt(p.differ === 0 ? "settings.ui.profile_none_differ"
                                : p.differ === 1 ? "settings.ui.profile_differ_one" : "settings.ui.profile_differ",
@@ -364,14 +344,9 @@ Flickable {
                     onClicked: p.load()
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: p.reading
-                color: Theme.dim
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
+                dim: true
                 text: I18n.tr("settings.ui.profile_reading")
             }
             // The changes, with what they replace and what Nix holds back; the line under them counts what stays of yours.
@@ -386,15 +361,11 @@ Flickable {
                     held: p.held
                     kept: p.keptUser
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: loadBox.width
                     wrapMode: Text.WordWrap
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: I18n.tr("settings.ui.profile_keep_hint")
                 }
             }
@@ -402,14 +373,9 @@ Flickable {
 
         Rectangle { width: parent.width; height: 1; color: Theme.containerHigh }
 
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: Theme.dim
-            font.pixelSize: Theme.fs
+        Label {
+            dim: true
             font.bold: true
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.save_current")
         }
         Row {
@@ -434,25 +400,16 @@ Flickable {
         Rectangle { width: parent.width; height: 1; color: Theme.containerHigh }
 
         // Export (profile.export): a path to write, and what the file leaves out because it names this machine.
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: Theme.dim
-            font.pixelSize: Theme.fs
+        Label {
+            dim: true
             font.bold: true
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.export_head")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 1
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.export_help")
         }
         Row {
@@ -472,28 +429,19 @@ Flickable {
                 onClicked: p.exportSelected()
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.selected === ""
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 1
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.export_pick")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.exportMsg !== ""
             width: parent.width
             wrapMode: Text.WordWrap
             color: p.exportFailed ? Theme.error : Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: p.exportMsg
         }
         Column {
@@ -501,28 +449,20 @@ Flickable {
             visible: p.exportLeftOut !== null
             width: parent.width
             spacing: Theme.gap / 2
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: p.exportLeftOut !== null && p.exportLeftOut.length === 0
                 width: leftOutBox.width
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 1
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.ui.export_none_left")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: p.exportLeftOut !== null && p.exportLeftOut.length > 0
                 width: leftOutBox.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 1
                 font.bold: true
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.ui.export_left_out")
             }
             Repeater {
@@ -544,25 +484,16 @@ Flickable {
         Rectangle { width: parent.width; height: 1; color: Theme.containerHigh }
 
         // Import (profile.import): a file is reviewed first, the same way as a load; Apply loads it, Cancel drops it.
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            color: Theme.dim
-            font.pixelSize: Theme.fs
+        Label {
+            dim: true
             font.bold: true
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.import_head")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 1
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.import_help")
         }
         Row {
@@ -583,26 +514,17 @@ Flickable {
                 onClicked: p.reviewImport()
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.importText.trim() !== ""
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.fmt("settings.ui.import_reads", { path: p.importPathOf(p.importText) })
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.importing
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.import_reading")
         }
         // The review: the same lines as a load, then Apply or Cancel. Nothing changes before Apply; Esc cancels.
@@ -612,16 +534,10 @@ Flickable {
             width: parent.width
             spacing: Theme.gap
             Keys.onEscapePressed: event => { p.cancelReview(); event.accepted = true }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: reviewBox.width
                 wrapMode: Text.WordWrap
-                color: Theme.fg
-                font.pixelSize: Theme.fs
                 font.bold: true
-                font.family: Theme.fam(text, Theme.families)
                 text: p.review ? I18n.fmt(ProfileDiff.valueChanges(p.review.entries) === 1
                                           ? "settings.ui.import_title_one" : "settings.ui.import_title",
                                           { name: p.review.name, n: ProfileDiff.valueChanges(p.review.entries) }) : ""
@@ -633,15 +549,11 @@ Flickable {
                 kept: p.review ? p.review.kept : 0
                 diagnostics: p.review ? p.review.diagnostics : []
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: reviewBox.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.ui.import_keys")
             }
             Row {
@@ -663,16 +575,11 @@ Flickable {
                 }
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.importMsg !== ""
             width: parent.width
             wrapMode: Text.WordWrap
             color: p.importFailed ? Theme.error : Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: p.importMsg
         }
         // After an apply: what the file held back, as the apply answered it.
@@ -695,16 +602,11 @@ Flickable {
             }
         }
 
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.message !== ""
             width: parent.width
             wrapMode: Text.WordWrap
             color: p.failed ? Theme.error : Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: p.message
         }
     }

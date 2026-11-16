@@ -577,15 +577,11 @@ ShellRoot {
                     label: Theme.iconFamily !== "" ? "" : "✕"
                     accessibleName: I18n.tr("settings.sheet.close")
                     onClicked: win.dismiss()
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: Theme.iconFamily !== ""
                         anchors.centerIn: parent
                         font.family: Theme.iconFamily
                         font.pixelSize: Theme.fs + 6
-                        color: Theme.fg
                         text: "close"
                     }
                 }
@@ -615,15 +611,10 @@ ShellRoot {
                             color: win.navShown ? Theme.fgOnAccent : Theme.fg
                         }
                     }
-                    Text {
+                    Label {
                         visible: !win.compact
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.fg
                         font.pixelSize: Theme.fsTitle
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("settings.ui.title")
                     }
                     TextField {
@@ -664,15 +655,9 @@ ShellRoot {
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.gap
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             height: Theme.controlH
                             verticalAlignment: Text.AlignVCenter
-                            color: Theme.fg
-                            font.pixelSize: Theme.fs
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("settings.ui.advanced")
                         }
                         Item {
@@ -686,16 +671,11 @@ ShellRoot {
                             }
                         }
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(0, parent.width - x - Theme.pad)
                         elide: Text.ElideRight
                         color: Store.notice !== "" || !Store.live ? Theme.error : Theme.dim
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: !Store.live ? I18n.tr("settings.ui.disconnected") : Store.notice
                     }
                     }
@@ -714,14 +694,9 @@ ShellRoot {
                     anchors.fill: parent
                     anchors.margins: Theme.gap
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.dim
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
+                        dim: true
                         text: I18n.tr("settings.ui.output")
                     }
                     Segmented {
@@ -882,11 +857,8 @@ ShellRoot {
                                         ? I18n.fmt("settings.ui.mod_nav", { name: shownName, state: I18n.tr(modOn ? "settings.ui.on" : "settings.ui.off") })
                                         : shownName
                                     // The selected page is a tonal pill with a bold label, so the choice is not colour alone.
-                                    Text {
+                                    Label {
                                         id: navIcon
-                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                        antialiasing: !Theme.pixelType
-                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                         visible: Theme.iconFamily !== "" && entry.icon !== "" && !entry.isMod
                                         x: Theme.pad
                                         anchors.verticalCenter: parent.verticalCenter
@@ -907,18 +879,13 @@ ShellRoot {
                                         border.width: 2
                                         border.color: entry.modOn ? Theme.statusOn : Theme.statusOff
                                     }
-                                    Text {
-                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                        antialiasing: !Theme.pixelType
-                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                                    Label {
                                         x: entry.isMod ? Theme.pad + 18 : (navIcon.visible ? Theme.pad + 28 : Theme.pad)
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - x - Theme.pad
                                         elide: Text.ElideRight
                                         color: entry.on ? Theme.fgOnSelected : Theme.dim
                                         font.weight: entry.on ? Theme.wBold : Theme.wMedium
-                                        font.pixelSize: Theme.fs
-                                        font.family: Theme.fam(text, Theme.families)
                                         text: entry.shownName
                                     }
                                     MouseArea {
