@@ -1121,6 +1121,22 @@ impl Dock {
         Ok(())
     }
 
+    /// `webdock.unload {pin}` (I599, the pin's menu): the page leaves the host now, and opens at its pin's address the
+    /// next time. A page that is not loaded, or that is on screen (the edge card's, the sidebar's, the bar card's), is
+    /// refused: there is nothing to unload, or it would be loaded again at once.
+    pub fn unload(&mut self, pin: &str) -> Result<(), DockError> {
+        self.web_pin(pin)?;
+        let shown = [self.edge_web(), self.side_web(), self.card_web()]
+            .iter()
+            .any(|s| s.as_deref() == Some(pin));
+        if shown || !self.states.get(pin).is_some_and(|st| st.loaded) {
+            return Err(DockError::Argument);
+        }
+        // (`keep` is the recent sites: one that is not among them is no longer kept, and the host lets it go)
+        self.recent.retain(|id| id != pin);
+        Ok(())
+    }
+
     /// `webdock.host.url {pin, url}` (W76): the page's address now; kept while it is not the pin's own (`at`).
     /// A pin that is gone already (a "+" page dropped while its page moved on) is no error: there is nothing to keep.
     pub fn page_url(&mut self, pin: &str, url: &str) -> Result<(), DockError> {
@@ -3861,6 +3877,36 @@ mod tests {
         d.unpin_undo("chat");
         assert!(d.temp_of("chat").is_none());
         assert!(pin_of(&d.doc(), "chat").get("temporary").is_none());
+    }
+
+    /// I599: "Unload" in a pin's menu lets a loaded page go; a page on screen, or one that is not loaded, is refused.
+    #[test]
+    fn the_menus_unload_lets_a_page_that_is_not_on_screen_go() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        assert_eq!(
+            d.unload("mail"),
+            Err(DockError::Argument),
+            "not loaded: nothing to unload"
+        );
+        // Two sites shown one after the other: both are kept, `chat` is on screen.
+        d.open("mail", None).unwrap();
+        d.loaded("mail", None).unwrap();
+        d.open("chat", None).unwrap();
+        d.loaded("chat", None).unwrap();
+        assert!(d.keep().contains(&"mail".to_string()) && d.keep().contains(&"chat".to_string()));
+        assert_eq!(
+            d.unload("chat"),
+            Err(DockError::Argument),
+            "on screen: it would load again at once"
+        );
+        d.unload("mail").unwrap();
+        assert!(
+            !d.keep().contains(&"mail".to_string()),
+            "the host lets it go"
+        );
+        assert!(d.keep().contains(&"chat".to_string()));
+        assert_eq!(d.unload("no-such-pin"), Err(DockError::UnknownPin));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (465 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (463 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -12,10 +12,10 @@ batch or in two: give a new row its batch there, then run it again.
 | Section | Batch | Done | Size |
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
-| 1 | Web dock in the bar | 0 of 9 | S–M |
+| 1 | Web dock in the bar | 1 of 9 | S–M |
 | 1 | Settings, fixes | 5 of 9 | S–M |
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
-| 1 | Quick settings, small | 6 of 9 | S–M |
+| 1 | Quick settings, small | 7 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
 | 1 | Icons and glyph sizes | 2 of 5 | M |
 | 1 | Media, small | 1 of 3 | S–M |
@@ -86,7 +86,7 @@ Shares: the dock's bar widget and the mod's `[[menu]]` rows; the five suite rows
 
 | Row | | What |
 |---|---|---|
-| I599 | U | Web dock: a site's icon has no right-click menu: refresh, unload, pin the page it shows now, and so on (the shell's one … |
+| I599 | U | **done** — Web dock: a site's icon has no right-click menu: refresh, unload, pin the page it shows now, and so on (the shell's one … |
 | I600 | U | Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
 | I69 | U | Web dock: a browse/search section to find sites, and "pin this page" while on a site (not required for v1). |
 | I73 |  | Web dock composition: pins as a launcher provider; unread count from a page title as a badge and an Island signal; a … |
@@ -138,7 +138,7 @@ Shares: the quick card and the control modules. Size: S–M. Needs you: —.
 | B71 |  | **done** — `modules/Volume.qml`'s WheelHandler has no `acceptedDevices` (the control modules needed `Mouse \/ TouchPad` to hear … |
 | B72 |  | **done** — `Stage.qml` `ownKey`: the quick card comes out under any module pressed in the last 1.5 s, not only a control module; … |
 | B73 |  | **done** — Control centre loose ends: `PhoneFrame` is still instantiated (invisible) in card style (Ma: should be a Loader); an … |
-| B75 |  | `docs/ux/control-centre-modules.md` "Others": written from memory, no other shell was looked up (GNOME quick settings, … |
+| B75 |  | **done** — `docs/ux/control-centre-modules.md` "Others": written from memory, no other shell was looked up (GNOME quick settings, … |
 | I484 |  | Controls, round two. A parts-sheet row for every slider and switch face in every state (I326); vertical faces drawn for … |
 | I326 |  | **done** — Sliders never seen in shots: the sandbox has no audio or brightness, so `slider/Fluent`, `slider/Classic` and the … |
 

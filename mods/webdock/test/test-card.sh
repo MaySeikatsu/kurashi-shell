@@ -690,13 +690,13 @@ wait_until 20 eval '[ "$(loads o)" -gt '"$r0"' ]' || fail "the page did not relo
 ok "the menu's Reload reloads the pin's page"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('at') == 'file://$R/s.html'" || fail "the page's address went ($(pin_of o at))"
 menu
-keys tab tab tab return                          # … Reload, Update pin to this page (live: the page is not at home)
+keys tab tab tab tab return                      # … Reload, Unload (I599), Update pin to this page (live: the page is not at home)
 wait_until 5 eval 'K get mods.webdock.pins | grep -qF "file://$R/s.html"' || fail "Update pin to this page did not move the pin ($(K get mods.webdock.pins))"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('target') == 'file://$R/s.html' and 'at' not in [p for p in d['pins'] if p['id'] == 'o'][0]" \
   || fail "the pin's address is not the page's ($(pin_of o target), at $(pin_of o at))"
 ok "the menu's Update pin to this page: the pin's address is where its page is"
 menu
-keys tab tab tab return                          # … Reload, Unpin but keep open (Update is inert now: the page is at home)
+keys tab tab tab tab return                      # … Reload, Unload, Unpin but keep open (Update is inert now: the page is at home)
 wait_until 5 eval '! K get mods.webdock.pins | grep -qF "\"o\""' || fail "Unpin but keep open kept the row ($(K get mods.webdock.pins))"
 wait_until 5 doc_is "[p for p in d['pins'] if p['id'] == 'o'][0].get('temporary') == True and [p for p in d['pins'] if p['id'] == 'o'][0].get('loaded') == True" \
   || fail "the unpinned page was not kept open ($(doc "[p for p in d['pins'] if p['id'] == 'o']"))"

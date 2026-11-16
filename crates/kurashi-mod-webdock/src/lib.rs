@@ -949,6 +949,11 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
         s.with_dock(|d| d.reload(pin).map_err(dock_error))?;
         Ok(None)
     })?;
+    sync_action(ctx, s, "webdock.unload", |s, a| {
+        let pin = pin_arg(&a)?;
+        s.with_dock(|d| d.unload(pin).map_err(dock_error))?;
+        Ok(None)
+    })?;
     sync_action(ctx, s, "webdock.host.url", |s, a| s.host_url(&a))?;
     sync_action(ctx, s, "webdock.host.loaded", |s, a| s.host_loaded(&a))?;
     sync_action(ctx, s, "webdock.host.unloaded", |s, a| s.host_unloaded(&a))?;
