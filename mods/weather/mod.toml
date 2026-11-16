@@ -19,6 +19,7 @@ provides = [
     "slot:clock.expanded.aside",
     "slot:clock.expanded.daymark",
     "location:weather",
+    "desk:weather",
 ]
 capabilities = ["network", "fs:scoped"]
 cost = "low"
@@ -108,5 +109,4 @@ action = "weather.place.next"
 
 # K72: the variants it does not ship, and why.
 [skips]
-desk = "the desk's weather card is still the core's (BACKLOG I555): it becomes this mod's desk card"
 quick-tile = "nothing to switch"

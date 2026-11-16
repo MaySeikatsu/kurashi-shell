@@ -96,7 +96,74 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 7,
             apply: v6_to_v7,
         },
+        kurashi_config::Migration {
+            from: 7,
+            to: 8,
+            apply: v7_to_v8,
+        },
     ]
+}
+
+/// The desk card id the weather mod's own card has (W92 row 2).
+const WEATHER_CARD: &str = "mod:weather:weather";
+
+/// Session 35 (W92 row 2, K28): the desk's weather card is the weather mod's own (`desk:weather`), no longer a core
+/// card with a switch. A file keeps what it showed: `"weather"` in `desktop.left`, `desktop.right` and
+/// `desktop.hidden` becomes the mod card's id, and `desktop.weather = false` (the key is gone) becomes an entry in
+/// `desktop.hidden`. Root and `[outputs.*]` tables.
+fn v7_to_v8(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    fn one(t: &mut dyn toml_edit::TableLike) {
+        let Some(desk) = t
+            .get_mut("desktop")
+            .and_then(toml_edit::Item::as_table_like_mut)
+        else {
+            return;
+        };
+        for list in ["left", "right", "hidden"] {
+            let Some(a) = desk.get_mut(list).and_then(toml_edit::Item::as_array_mut) else {
+                continue;
+            };
+            for v in a.iter_mut() {
+                if v.as_str() == Some("weather") {
+                    let decor = v.decor().clone();
+                    *v = WEATHER_CARD.into();
+                    *v.decor_mut() = decor;
+                }
+            }
+        }
+        let off = desk.get("weather").and_then(toml_edit::Item::as_bool) == Some(false);
+        desk.remove("weather");
+        if off {
+            match desk
+                .get_mut("hidden")
+                .and_then(toml_edit::Item::as_array_mut)
+            {
+                Some(a) => {
+                    if !a.iter().any(|v| v.as_str() == Some(WEATHER_CARD)) {
+                        a.push(WEATHER_CARD);
+                    }
+                }
+                None => {
+                    let mut a = toml_edit::Array::new();
+                    a.push(WEATHER_CARD);
+                    desk.insert("hidden", toml_edit::value(a));
+                }
+            }
+        }
+    }
+    let root = doc.as_table_mut();
+    one(root);
+    if let Some(outputs) = root
+        .get_mut("outputs")
+        .and_then(toml_edit::Item::as_table_like_mut)
+    {
+        for (_, t) in outputs.iter_mut() {
+            if let Some(t) = t.as_table_like_mut() {
+                one(t);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Session 17 (I297): the material `glass` became `translucent` with its blur switch on, and blur's default became off
@@ -806,7 +873,7 @@ fn offers_now(
     // The desk's cards for its two columns (`desktop.left`, `desktop.right`): the core ones, then the mods'.
     offers.insert(
         "desktop.cards".to_string(),
-        ["clock", "calendar", "media", "weather"]
+        ["clock", "calendar", "media"]
             .iter()
             .map(|c| Offer::on(c, format!("config.desktop.{c}.label")))
             .chain(mod_desks.iter().cloned())
@@ -3252,10 +3319,7 @@ mod tests {
             ]
         );
         assert_eq!(values("sidebar.tabs"), values("sidebar.sections"));
-        assert_eq!(
-            values("desktop.cards"),
-            ["clock", "calendar", "media", "weather"]
-        );
+        assert_eq!(values("desktop.cards"), ["clock", "calendar", "media"]);
         let ok = |src: &str, v: Value| offered(&offers, src, &v);
         assert_eq!(ok("sidebar.tabs", json!(["mod:ai:ai"])), Some(true));
         assert_eq!(ok("sidebar.tabs", json!(["mod:tasks:tasks"])), Some(false));

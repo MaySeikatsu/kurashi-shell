@@ -136,3 +136,6 @@
 "mod-weather.preview.loading" = "Fetching the forecast…"
 "mod-weather.hours.rain" = "Rain"
 "mod-weather.days.span" = "Range {min} to {max}"
+# The desk card (`desk:weather`): its name in the desk's edit mode and when it shows.
+"mod-weather.desk.weather" = "Weather"
+"mod-weather.desk.weather.note" = "Shows once a place is saved and its weather is there."

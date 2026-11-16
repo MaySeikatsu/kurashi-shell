@@ -3,7 +3,7 @@
 # start, the island in the middle, the levels, the clock, quick settings and the tray at its end, the desk off. Loading it
 # puts a changed layout back to the defaults kanso is measured on (K53). Offered with the style ("Also use its layout"),
 # never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "kanso"
