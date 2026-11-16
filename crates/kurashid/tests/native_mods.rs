@@ -1416,3 +1416,158 @@ async fn an_unlinked_mod_with_daemon_provides_is_not_offered_and_a_frontend_only
     assert_eq!(d.state("glass"), "enabled");
     assert_eq!(d.entry("glass")["errors"], json!([]));
 }
+
+// ---- W91 (K154 step 5): a mod reads another's document and calls another's action, as its manifest's `uses` say ----
+
+/// Serves `mod.giver` `{n}` and counts pokes.
+struct Giver(Arc<AtomicUsize>);
+
+impl NativeMod for Giver {
+    fn id(&self) -> &'static str {
+        "giver"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.service("giver", json!({"n": 1}), |_publish, _settings| {
+            std::future::pending()
+        })?;
+        let pokes = self.0.clone();
+        ctx.action("giver.poke", "action.giver.poke", move |_| {
+            pokes.fetch_add(1, Ordering::SeqCst);
+            async { Ok::<Option<Value>, ModActionError>(None) }
+        })
+    }
+}
+
+/// Follows `mod.giver` while its own service runs and publishes what it saw; `taker.poke` calls `giver.poke`.
+struct Taker;
+
+impl NativeMod for Taker {
+    fn id(&self) -> &'static str {
+        "taker"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let giver = ctx.follow("mod.giver")?;
+        let poke = ctx.calls("giver.poke")?;
+        ctx.service("taker", json!({"seen": 0}), move |publish, _settings| {
+            let giver = giver.clone();
+            async move {
+                let mut rx = giver.watch();
+                loop {
+                    publish(json!({ "seen": rx.borrow_and_update()["n"] }));
+                    if rx.changed().await.is_err() {
+                        std::future::pending::<()>().await;
+                    }
+                }
+            }
+        })?;
+        ctx.action("taker.poke", "action.taker.poke", move |args| {
+            let poke = poke.clone();
+            async move { poke.call(args).await }
+        })
+    }
+}
+
+/// Reads a document its manifest does not name.
+struct Snoop;
+
+impl NativeMod for Snoop {
+    fn id(&self) -> &'static str {
+        "snoop"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.follow("mod.giver").map(|_| ())
+    }
+}
+
+fn manifest(id: &str, provides: &str, uses: &str) -> String {
+    format!(
+        "id = \"{id}\"\nname = \"{id}\"\nversion = \"0.1.0\"\ntier = \"native\"\nkurashi = \">=0.0.1\"\n\
+         provides = [{provides}]\nuses = [{uses}]\n"
+    )
+}
+
+#[tokio::test]
+async fn a_mod_waits_for_a_required_use_then_follows_and_calls_it() {
+    let extra = scratch("uses-mods");
+    write(
+        &extra.join("giver/mod.toml"),
+        &manifest("giver", "\"service:giver\", \"action:giver.poke\"", ""),
+    );
+    write(
+        &extra.join("taker/mod.toml"),
+        &manifest(
+            "taker",
+            "\"service:taker\", \"action:taker.poke\"",
+            "\"doc:mod.giver\", \"action:giver.poke\"",
+        ),
+    );
+    let pokes = Arc::new(AtomicUsize::new(0));
+    let d = start(
+        &scratch("uses"),
+        std::slice::from_ref(&extra),
+        vec![
+            Box::new(Giver(pokes.clone())) as Box<dyn NativeMod>,
+            Box::new(Taker),
+        ],
+    );
+
+    // The use is not there: switched on, inert, with the use's name as the reason (Shōjiki).
+    d.act("mod.enable", "taker").await.unwrap();
+    assert_eq!(d.state("taker"), "enabled");
+    let errors = d.entry("taker")["errors"].clone();
+    assert_eq!(errors[0]["key"], "mods.uses.missing");
+    assert_eq!(errors[0]["detail"], "doc:mod.giver");
+    assert!(
+        d.hub.snapshot("mod.taker").is_err(),
+        "nothing of it is registered"
+    );
+
+    // The use appears: the mod comes alive without being asked again.
+    d.act("mod.enable", "giver").await.unwrap();
+    assert_eq!(d.entry("taker")["errors"], json!([]), "the reason is gone");
+    assert_eq!(
+        d.hub.subscribers("mod.giver"),
+        0,
+        "nobody watches the taker: it reads nothing (Ma)"
+    );
+
+    // Its service runs for a subscriber, and reads the other mod's document for as long.
+    d.hub.subscribe("mod.taker").unwrap();
+    eventually(|| d.hub.snapshot("mod.taker").unwrap().1["seen"] == 1).await;
+    assert_eq!(d.hub.subscribers("mod.giver"), 1);
+    d.hub.set("mod.giver", json!({"n": 2}), None).unwrap();
+    eventually(|| d.hub.snapshot("mod.taker").unwrap().1["seen"] == 2).await;
+    d.hub.unsubscribe("mod.taker");
+    eventually(|| d.hub.subscribers("mod.giver") == 0).await;
+
+    // And calls the other mod's action.
+    d.actions.invoke("taker.poke", json!({})).await.unwrap();
+    assert_eq!(pokes.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_use_the_manifest_does_not_name_refuses_the_enable() {
+    let extra = scratch("snoop-mods");
+    write(
+        &extra.join("giver/mod.toml"),
+        &manifest("giver", "\"service:giver\", \"action:giver.poke\"", ""),
+    );
+    write(&extra.join("snoop/mod.toml"), &manifest("snoop", "", ""));
+    let d = start(
+        &scratch("snoop"),
+        std::slice::from_ref(&extra),
+        vec![
+            Box::new(Giver(Arc::default())) as Box<dyn NativeMod>,
+            Box::new(Snoop),
+        ],
+    );
+    d.act("mod.enable", "giver").await.unwrap();
+    d.act("mod.enable", "snoop").await.unwrap();
+    assert_eq!(d.state("snoop"), "disabled");
+    let errors = d.entry("snoop")["errors"].clone();
+    assert_eq!(errors[0]["key"], "mods.error.not_used");
+    assert_eq!(errors[0]["detail"], "doc:mod.giver is not declared in uses");
+}

@@ -33,6 +33,8 @@ async fn the_pin_writes_reach_the_document_and_a_rest_on_the_edge_reveals_it() {
     std::fs::create_dir_all(&dir).unwrap();
 
     let hub = Hub::new();
+    // The web dock's manifest requires `doc:svc.clock` (W91: a required use that is not there keeps a mod inert).
+    hub.register("svc.clock", json!({}), None);
     let store: Arc<ConfigStore> = ConfigStore::open(
         hub.clone(),
         kurashi_schema::v1::registry(),
@@ -146,6 +148,8 @@ async fn the_dock_serves_its_document_once_enabled_and_refuses_what_it_must() {
     std::fs::create_dir_all(&dir).unwrap();
 
     let hub = Hub::new();
+    // The web dock's manifest requires `doc:svc.clock` (W91: a required use that is not there keeps a mod inert).
+    hub.register("svc.clock", json!({}), None);
     let store: Arc<ConfigStore> = ConfigStore::open(
         hub.clone(),
         kurashi_schema::v1::registry(),

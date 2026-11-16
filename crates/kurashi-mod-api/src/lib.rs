@@ -203,6 +203,13 @@ pub enum ModError {
     /// this build links no code for the mod. Set by the daemon, not by the mod (B15).
     #[error("the mod's daemon code is not linked into this build")]
     NotBuilt,
+    /// The manifest's `uses` does not list this document or action (`doc:<name>`, `action:<id>`; K154 step 5).
+    #[error("{0} is not declared in uses")]
+    NotUsed(String),
+    /// A use the manifest requires (no `?`) is not there: the other mod is off, the action is not registered. Set by
+    /// the daemon; the mod stays switched on and inert, and comes alive when the use appears (W91).
+    #[error("{0}")]
+    MissingUse(String),
 }
 
 impl ModError {
@@ -212,6 +219,8 @@ impl ModError {
             Self::Duplicate(_) => "mods.error.duplicate",
             Self::Failed(_) => "mods.error.enable_failed",
             Self::NotBuilt => "mods.error.not_built",
+            Self::NotUsed(_) => "mods.error.not_used",
+            Self::MissingUse(_) => "mods.uses.missing",
         }
     }
 }
@@ -297,6 +306,97 @@ pub trait Hooks: Send + Sync {
     }
     /// The mod's contribution to slot `slot` needs setup (`reason`, an i18n key) or not (`None`) (K28, row 72).
     fn slot_reason(&self, _slot: &str, _reason: Option<&str>) {}
+    /// A read-only feed of document `doc` (K154 step 5, W91): its data now, then every change. The daemon counts the
+    /// receiver as a subscriber of the document until it and its clones are dropped (the document's service runs for
+    /// it, Ma). A document that is not there answers [`unavailable`]. A `Hooks` without a hub answers that always.
+    fn follow(&self, _doc: &str) -> watch::Receiver<Value> {
+        unavailable_feed()
+    }
+    /// Invokes action `action` with `args` (K154 step 5, W91). A `Hooks` without a registry answers `Unavailable`.
+    fn call(&self, _action: &str, _args: Value) -> BoxFuture<Result<Option<Value>, ActionError>> {
+        Box::pin(async { Err(ActionError::Unavailable(USE_UNAVAILABLE.into())) })
+    }
+}
+
+/// What a feed carries while its document is not there (the other mod is off): `{"available": false}`.
+pub fn unavailable() -> Value {
+    serde_json::json!({ "available": false })
+}
+
+/// The reason (an i18n key) of a call whose action is not there.
+pub const USE_UNAVAILABLE: &str = "mods.uses.unavailable";
+
+/// A feed that says [`unavailable`] and never changes (its `changed()` ends at once: nothing will ever be sent).
+pub fn unavailable_feed() -> watch::Receiver<Value> {
+    watch::channel(unavailable()).1
+}
+
+/// A document the mod may read (K154 step 5, W91), from [`ModCtx::follow`]. Cheap to clone; it holds nothing. The
+/// reading starts with [`Follow::watch`], inside the mod's service or job, and ends when that receiver is dropped — so
+/// the document's own service runs only while the mod's does (Ma).
+#[derive(Clone)]
+pub struct Follow {
+    doc: String,
+    optional: bool,
+    hooks: Arc<dyn Hooks>,
+}
+
+impl Follow {
+    pub fn doc(&self) -> &str {
+        &self.doc
+    }
+
+    /// Whether the manifest marks the use optional (`doc:<name>?`): then it may answer [`unavailable`].
+    pub fn optional(&self) -> bool {
+        self.optional
+    }
+
+    /// The document's data now and every change after it. Held: the daemon counts a subscriber.
+    pub fn watch(&self) -> watch::Receiver<Value> {
+        self.hooks.follow(&self.doc)
+    }
+}
+
+impl std::fmt::Debug for Follow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Follow")
+            .field("doc", &self.doc)
+            .field("optional", &self.optional)
+            .finish()
+    }
+}
+
+/// An action the mod may call (K154 step 5, W91), from [`ModCtx::calls`]. Cheap to clone.
+#[derive(Clone)]
+pub struct Call {
+    action: String,
+    optional: bool,
+    hooks: Arc<dyn Hooks>,
+}
+
+impl Call {
+    pub fn action(&self) -> &str {
+        &self.action
+    }
+
+    /// Whether the manifest marks the use optional (`action:<id>?`): then a call may answer `Unavailable`.
+    pub fn optional(&self) -> bool {
+        self.optional
+    }
+
+    /// Invokes the action; its answer, or its failure (`Unavailable` with [`USE_UNAVAILABLE`] when it is not there).
+    pub async fn call(&self, args: Value) -> Result<Option<Value>, ActionError> {
+        self.hooks.call(&self.action, args).await
+    }
+}
+
+impl std::fmt::Debug for Call {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Call")
+            .field("action", &self.action)
+            .field("optional", &self.optional)
+            .finish()
+    }
 }
 
 /// The mod's contribution to one core view slot (K28, row 72). A contribution that needs setup before it has
@@ -536,6 +636,9 @@ pub trait PictureFilter: Send + Sync {
 /// even when the mod ignored the error.
 pub struct ModCtx {
     provides: Vec<String>,
+    /// What the mod may read and call beyond its own: the manifest's `uses` and the base set, as `doc:<name>` and
+    /// `action:<id>` (a trailing `?` marks an optional one).
+    uses: Vec<String>,
     capabilities: Vec<String>,
     settings: Settings,
     hooks: Arc<dyn Hooks>,
@@ -553,6 +656,7 @@ impl ModCtx {
     pub fn new(provides: &[String], settings: Settings, hooks: Arc<dyn Hooks>) -> Self {
         Self {
             provides: provides.to_vec(),
+            uses: Vec::new(),
             capabilities: Vec::new(),
             settings,
             hooks,
@@ -573,6 +677,51 @@ impl ModCtx {
 
     pub fn picture_filter(&self) -> Option<Arc<dyn PictureFilter>> {
         self.picture_filter.clone()
+    }
+
+    /// The manifest's `uses` (`doc:<name>`, `action:<id>`, a trailing `?` for an optional one) and the base set every
+    /// mod has: what [`ModCtx::follow`] and [`ModCtx::calls`] answer for (K154 step 5, W91).
+    pub fn with_uses(mut self, uses: &[String]) -> Self {
+        self.uses = uses.to_vec();
+        self
+    }
+
+    /// Document `doc`, to read from the mod's own service or job. Refused (and the enable with it) unless the
+    /// manifest names it in `uses` or it belongs to the base set.
+    pub fn follow(&mut self, doc: &str) -> Result<Follow, ModError> {
+        let optional = self.used("doc", doc)?;
+        Ok(Follow {
+            doc: doc.into(),
+            optional,
+            hooks: self.hooks.clone(),
+        })
+    }
+
+    /// Action `action`, to call from the mod's own code. Refused (and the enable with it) unless the manifest names
+    /// it in `uses` or it belongs to the base set.
+    pub fn calls(&mut self, action: &str) -> Result<Call, ModError> {
+        let optional = self.used("action", action)?;
+        Ok(Call {
+            action: action.into(),
+            optional,
+            hooks: self.hooks.clone(),
+        })
+    }
+
+    /// Whether `uses` names `kind:name`, and as optional; an entry that is not there refuses the enable.
+    fn used(&mut self, kind: &str, name: &str) -> Result<bool, ModError> {
+        let key = format!("{kind}:{name}");
+        let found = self.uses.iter().find_map(|u| {
+            let (body, optional) = match u.strip_suffix('?') {
+                Some(b) => (b, true),
+                None => (u.as_str(), false),
+            };
+            (body == key).then_some(optional)
+        });
+        match found {
+            Some(optional) => Ok(optional),
+            None => Err(self.refuse(ModError::NotUsed(key))),
+        }
     }
 
     /// The manifest's capabilities, which a host process checks its `exec:<binary>` against (K38).
@@ -823,6 +972,113 @@ mod tests {
         let provides: Vec<String> = provides.iter().map(|p| p.to_string()).collect();
         let (_, rx) = watch::channel(Values::new());
         ModCtx::new(&provides, Settings::new(rx), Arc::new(Record::default()))
+    }
+
+    /// A daemon's end for `follow` and `call`: one document it has, one action it answers.
+    struct Uses {
+        media: watch::Sender<Value>,
+    }
+
+    impl Hooks for Uses {
+        fn face(&self, _: &str, _: FaceUpdate) {}
+        fn choices_changed(&self, _: &str) {}
+        fn follow(&self, doc: &str) -> watch::Receiver<Value> {
+            if doc == "svc.media" {
+                self.media.subscribe()
+            } else {
+                unavailable_feed()
+            }
+        }
+        fn call(&self, action: &str, args: Value) -> BoxFuture<Result<Option<Value>, ActionError>> {
+            let known = action == "terminal.run";
+            Box::pin(async move {
+                if known {
+                    Ok(Some(args))
+                } else {
+                    Err(ActionError::Unavailable(USE_UNAVAILABLE.into()))
+                }
+            })
+        }
+    }
+
+    fn uses_ctx(uses: &[&str]) -> (ModCtx, watch::Sender<Value>) {
+        let (media, _) = watch::channel(json!({"available": true, "title": "a"}));
+        let (_, rx) = watch::channel(Values::new());
+        let uses: Vec<String> = uses.iter().map(|u| u.to_string()).collect();
+        let hooks = Arc::new(Uses {
+            media: media.clone(),
+        });
+        (
+            ModCtx::new(&[], Settings::new(rx), hooks).with_uses(&uses),
+            media,
+        )
+    }
+
+    /// K154 step 5 (W91): a mod reads and calls what its manifest names in `uses`, and nothing else.
+    #[test]
+    fn an_undeclared_follow_or_call_refuses_the_enable() {
+        let (mut c, _) = uses_ctx(&["doc:svc.media"]);
+        assert_eq!(
+            c.follow("svc.audio").unwrap_err(),
+            ModError::NotUsed("doc:svc.audio".into())
+        );
+        assert_eq!(
+            c.calls("terminal.run").unwrap_err(),
+            ModError::NotUsed("action:terminal.run".into())
+        );
+        assert_eq!(
+            ModError::NotUsed(String::new()).i18n_key(),
+            "mods.error.not_used"
+        );
+        // The enable does not go through with a refused use.
+        assert!(c.finish().is_err());
+    }
+
+    #[tokio::test]
+    async fn a_declared_document_is_followed_and_a_declared_action_called() {
+        let (mut c, media) =
+            uses_ctx(&["doc:svc.media", "action:terminal.run?", "doc:mod.terminal?"]);
+        let follow = c.follow("svc.media").unwrap();
+        assert!(!follow.optional());
+        let mut rx = follow.watch();
+        assert_eq!(rx.borrow()["title"], "a");
+        media
+            .send(json!({"available": true, "title": "b"}))
+            .unwrap();
+        rx.changed().await.unwrap();
+        assert_eq!(rx.borrow()["title"], "b");
+
+        let run = c.calls("terminal.run").unwrap();
+        assert!(run.optional());
+        assert_eq!(
+            run.call(json!({"cmd": "ls"})).await,
+            Ok(Some(json!({"cmd": "ls"})))
+        );
+
+        // An optional use that is not there: the feed says so, and it is the mod's to handle.
+        let term = c.follow("mod.terminal").unwrap();
+        assert!(term.optional());
+        assert_eq!(*term.watch().borrow(), unavailable());
+        assert!(c.finish().is_ok());
+    }
+
+    #[tokio::test]
+    async fn hooks_without_a_daemon_answer_unavailable() {
+        let (_, rx) = watch::channel(Values::new());
+        let uses = vec![
+            "doc:svc.media".to_string(),
+            "action:notify.send".to_string(),
+        ];
+        let mut c =
+            ModCtx::new(&[], Settings::new(rx), Arc::new(Record::default())).with_uses(&uses);
+        assert_eq!(
+            *c.follow("svc.media").unwrap().watch().borrow(),
+            unavailable()
+        );
+        assert_eq!(
+            c.calls("notify.send").unwrap().call(json!({})).await,
+            Err(ActionError::Unavailable(USE_UNAVAILABLE.into()))
+        );
     }
 
     #[test]

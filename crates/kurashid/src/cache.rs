@@ -81,6 +81,9 @@ mod tests {
 
     #[test]
     fn a_missing_folder_is_nothing_to_do() {
-        assert_eq!(keep_newest(Path::new("/nonexistent/kurashi"), 1, |_| true), 0);
+        assert_eq!(
+            keep_newest(Path::new("/nonexistent/kurashi"), 1, |_| true),
+            0
+        );
     }
 }

@@ -153,6 +153,55 @@ fn code(line: &str) -> &str {
     }
 }
 
+/// What a bundled mod's crate follows and calls (W91, K154 step 5): the literals of `follow("…")` and `calls("…")` in
+/// `crates/kurashi-mod-<id>/src`, two folders up from the mod's own (`mods/<id>`). A mod outside the tree has no crate
+/// here, and nothing is read.
+fn crate_reach(dir: &Path, id: &str) -> Reach {
+    let mut r = Reach::default();
+    let Some(src) = dir
+        .parent()
+        .and_then(Path::parent)
+        .map(|root| {
+            root.join("crates")
+                .join(format!("kurashi-mod-{id}"))
+                .join("src")
+        })
+        .filter(|p| p.is_dir())
+    else {
+        return r;
+    };
+    let mut stack = vec![src.clone()];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
+        for p in rd.flatten().map(|e| e.path()) {
+            if p.is_dir() {
+                stack.push(p);
+                continue;
+            }
+            if p.extension().is_none_or(|x| x != "rs") {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&p) else {
+                continue;
+            };
+            let rel = p.strip_prefix(&src).unwrap_or(&p).display().to_string();
+            for (n, line) in text.lines().enumerate() {
+                let line = code(line);
+                let at = format!("{rel}:{}", n + 1);
+                for doc in literals_after(line, ".follow(") {
+                    r.docs.push((doc.to_string(), at.clone()));
+                }
+                for action in literals_after(line, ".calls(") {
+                    r.actions.push((action.to_string(), at.clone()));
+                }
+            }
+        }
+    }
+    r
+}
+
 fn reach_of(src: &[Source]) -> Reach {
     let mut r = Reach::default();
     for s in src {
@@ -295,7 +344,7 @@ pub fn check_dir(dir: &Path, daemon: &Version) -> Report {
     };
     let src = sources(dir);
     check_manifest(&m, &mut findings);
-    check_reach(&m, &reach_of(&src), &mut findings);
+    check_reach(&m, &reach_of(&src), &crate_reach(dir, &m.id), &mut findings);
     lints(&src, &mut findings);
     Report { id, findings }
 }
@@ -351,7 +400,7 @@ fn check_manifest(m: &Manifest, out: &mut Vec<Finding>) {
     }
 }
 
-fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
+fn check_reach(m: &Manifest, r: &Reach, in_crate: &Reach, out: &mut Vec<Finding>) {
     let mut seen: Vec<String> = Vec::new();
     for (doc, at) in &r.docs {
         if !m.contract.may_read(&m.id, doc) && !seen.contains(doc) {
@@ -386,11 +435,18 @@ fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
             });
         }
     }
-    // The other way round: a use nothing in the views names is noted (a crate may be its reader).
+    // The other way round: a use neither a view nor the mod's crate names is noted (W91: the crate's `follow("…")`
+    // and `calls("…")` count).
     for u in &m.contract.uses {
         let named = match u.kind {
-            crate::contract::UseKind::Doc => r.docs.iter().any(|(d, _)| d == &u.id),
-            crate::contract::UseKind::Action => r.actions.iter().any(|(a, _)| a == &u.id),
+            crate::contract::UseKind::Doc => {
+                r.docs.iter().chain(&in_crate.docs).any(|(d, _)| d == &u.id)
+            }
+            crate::contract::UseKind::Action => r
+                .actions
+                .iter()
+                .chain(&in_crate.actions)
+                .any(|(a, _)| a == &u.id),
             crate::contract::UseKind::Intent => r.intents.iter().any(|(a, _)| a == &u.id),
         };
         let base = BASE_DOCS.contains(&u.id.as_str()) || BASE_ACTIONS.contains(&u.id.as_str());
@@ -406,7 +462,10 @@ fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
                 rule: "use_unseen",
                 level: Level::Warn,
                 at: "mod.toml: uses".into(),
-                detail: format!("`{}` is declared and no view names it", u.id),
+                detail: format!(
+                    "`{}` is declared and neither a view nor the crate names it",
+                    u.id
+                ),
             });
         }
     }
