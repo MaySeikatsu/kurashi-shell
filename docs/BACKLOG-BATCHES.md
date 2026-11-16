@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (462 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (463 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -23,7 +23,7 @@ batch or in two: give a new row its batch there, then run it again.
 | 2 | Settings, theming pages | 0 of 7 | M |
 | 2 | Settings docked in a sidebar | 0 of 3 | M |
 | 2 | Applying a style | 0 of 3 | M |
-| 2 | Bars and layout | 0 of 13 | M–L |
+| 2 | Bars and layout | 0 of 14 | M–L |
 | 2 | Sidebars | 0 of 7 | M |
 | 2 | Edit mode and groups | 0 of 6 | L |
 | 2 | Peeks | 0 of 6 | M |
@@ -235,6 +235,7 @@ Shares: the layout document, zones and holders, side bars. Size: M–L. Needs yo
 
 | Row | | What |
 |---|---|---|
+| I609 | U | Cards beside a side bar. The user: with a bar on a side edge, cards "should grow out of the bar … NOT somewhere random … |
 | I85 |  | Side bars: the bar widgets keep their horizontal layout on a vertical bar — sysmon's "CPU % · RAM" overflows the ~32 px … |
 | I221 |  | Several bars on one edge; a bar thickness per edge (K71 keeps one `bar.height`). |
 | I250 |  | A hidden bar brought out by key: "a click elsewhere" closes it only once it has had focus; keyboard focus on map is not … |

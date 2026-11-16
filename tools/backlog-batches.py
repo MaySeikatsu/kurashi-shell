@@ -37,7 +37,7 @@ B = [
   ("Applying a style", "how a style, a profile's own theme entries and run-time packs layer (I280 is your report: \"picking a style does nothing\")", "M", "—",
    "I280 I146 I294"),
   ("Bars and layout", "the layout document, zones and holders, side bars", "M–L", "—",
-   "I85 I221 I250 I266 B51 B97 B121 B139 I237 I240 I264 I265 I271"),
+   "I609 I85 I221 I250 I266 B51 B97 B121 B139 I237 I240 I264 I265 I271"),
   ("Sidebars", "the sidebar's window and sections", "M", "I607: a brief for top and bottom sidebars; I465: how a hover-opened sidebar closes",
    "I607 I500 I152 I465 I150 I149 I255"),
   ("Edit mode and groups", "dragging things into place on the screen: modules, desk cards, groups", "L", "a UX brief first (I220)",

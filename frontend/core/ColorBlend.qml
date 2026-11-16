@@ -97,7 +97,8 @@ Scope {
     // ---- The cross-fade (session 27; components/ColorFade.qml). A change of colour that fades (`motion.blend_colors`, or
     // Dynamic Media Color's `fade`) is not stepped colour by colour: the gate holds the new tokens back, every window
     // takes a picture of itself, the tokens come in under the pictures and the pictures fade. The wheel blends of
-    // Dynamic Media Color still step (below): they turn colours, which a cross-fade cannot.
+    // Dynamic Media Color go the same way since B89, mixed by a shader that turns the hues (shaders/color_wheel.frag);
+    // the stepping below is left for a change that arrives while the gate does not hold (motion coming back mid-way).
     property bool holding: false
     property bool crossed: false
     // KURASHI_FADE_LOG=1: which colours started a cross-fade (an idle shell must start none: test-frame's idle check).
@@ -108,7 +109,9 @@ Scope {
         if (!was || !Theme.springOn) return false
         var nowTint = "" + (next["media.tint"] || ""), tinted = nowTint !== cb.tint
         var kind = "" + (next["media.blend"] || "fade")
-        if (tinted ? kind !== "fade" : next["motion.blend_colors"] !== true) return false
+        // (B89: the wheel blends go the same way — two pictures on the GPU, their hues turned by a shader — instead of
+        // every colour stepped in script; only "at once" is no blend)
+        if (tinted ? kind === "direct" : next["motion.blend_colors"] !== true) return false
         // (not for the material's ink alone: it arrives with the material's tiles, seconds after a change of look, and
         // the tiles themselves come in as a cut — a fade of every window for that one colour is a redraw of the idle
         // shell)
@@ -118,7 +121,15 @@ Scope {
         if (n === 0) return false
         if (cb.logs) console.log("kurashi-fade gate", n, why.slice(0, 12).join(", "))
         if (ticker.running) settle()
-        Theme.fadeMs = tinted ? Number(next["media.blend_ms"] || 1200) : Math.max(120, Number(next["motion.blend_colors_ms"] || 320))
+        var wheel = tinted && kind !== "fade"
+        Theme.fadeKind = wheel ? kind : "fade"
+        if (wheel) {
+            // The surface's way round the wheel, the short way or the long one (as `surfaceTurn`).
+            var sa = lab(was["color.surface"] || "#808080"), sb = lab(nf["color.surface"] || "#808080")
+            var d = wrap(Math.atan2(sb.b, sb.a) - Math.atan2(sa.b, sa.a))
+            Theme.fadeTurn = kind === "wheel_furthest" ? d - (d >= 0 ? 2 : -2) * Math.PI : d
+        }
+        Theme.fadeMs = tinted ? Number(next["media.blend_ms"] || 1200) * (wheel ? 1.5 : 1) : Math.max(120, Number(next["motion.blend_colors_ms"] || 320))
         cb.holding = true
         cb.crossed = true
         Theme.fadeCapture++

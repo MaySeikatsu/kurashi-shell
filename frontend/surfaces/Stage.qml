@@ -391,12 +391,25 @@ PanelWindow {
     readonly property bool aligned: contentKind === "tray" && !pointerMenuShown && (!moduleMenuShown || bars.vertical || besideAt !== null)
     readonly property bool menuBeside: aligned && (bars.vertical || besideAt !== null)
     // A module on a side edge: the rect it reports (`side:<id>`), and the card stands beside it.
+    // Session 36 (the user: a card grows out of its bar on a side edge too, never "somewhere random on the screen"): not
+    // only a module's menu — every card. The module that opened it; else its mod's own module; else the island's place
+    // on the side bar. Null where none of them stands on a side edge (a top or bottom bar: as before).
     readonly property var besideAt: {
         var rev = IslandGeom.revision
-        if (!moduleMenuShown || !(shown || open)) return null
-        return IslandGeom.rectOf(outName, "side:" + shownTray.substring("module:".length))
+        if (!(shown || open)) return null
+        if (moduleMenuShown) return IslandGeom.rectOf(outName, "side:" + shownTray.substring("module:".length))
+        if (contentKind === "tray" || contentKind === "session" || placed) return null
+        var r = openedFrom !== "" && openedFrom !== "island" ? IslandGeom.rectOf(outName, "side:" + openedFrom) : null
+        if (r === null && contentKind === "mod") r = IslandGeom.rectOf(outName, "side:mod:" + shownPanelMod)
+        if (r === null && contentKind === "quick") r = IslandGeom.rectOf(outName, "side:quick")
+        if (r === null) r = IslandGeom.rectOf(outName, "side:island")
+        return r
     }
     readonly property string besideEdge: besideAt !== null && besideAt.edge !== "" ? besideAt.edge : bars.edge
+    // (a card beside its side bar that is not a module's menu: flush to the bar where surfaces join, a gap off it where
+    // they float)
+    readonly property bool cardBeside: besideAt !== null && !aligned && !peekLayout
+    readonly property real besideGap: floats ? Theme.gap : 0
 
     readonly property int slide: 12     // px the card travels while revealing
     // The reveal's progress 0..1 where the card does not grow out of a bar (a side bar, a look whose cards stand apart),
@@ -424,8 +437,8 @@ PanelWindow {
     anchors {
         top: placed || (peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside) || besideAt !== null))
         bottom: !placed && (peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : ((bars.atBottom || menuBeside) && besideAt === null)))
-        left: placed || (peekLayout ? shownEdge !== "right" : (morphLayout || floatUnder || (menuBeside && besideEdge === "left")))
-        right: !placed && (peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!menuBeside || besideEdge === "right")))
+        left: placed || (peekLayout ? shownEdge !== "right" : (morphLayout || floatUnder || ((menuBeside || cardBeside) && besideEdge === "left")))
+        right: !placed && (peekLayout ? shownEdge === "right" : (!morphLayout && ((aligned && (!menuBeside || besideEdge === "right")) || (cardBeside && besideEdge === "right"))))
     }
     margins {
         top: placed ? placedY - placedRoom : peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
@@ -435,9 +448,11 @@ PanelWindow {
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
             : (morphLayout ? 0 : (menuBeside ? Theme.pad : floats ? holeOf("bottom") + Theme.gap : bars.bottomInset - (hangs ? 4 : 0)))
         left: placed ? placedX - placedRoom : peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
-            : (morphLayout ? boxL : (floatUnder ? floatX : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : 0)))
+            : (morphLayout ? boxL : (floatUnder ? floatX : (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap
+                : (cardBeside ? bars.insetOf(besideEdge) + Theme.barH + besideGap : 0))))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
-            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : sideR) : 0))
+            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(besideEdge) + Theme.barH + Theme.gap : sideR)
+                : (cardBeside ? bars.insetOf(besideEdge) + Theme.barH + besideGap : 0)))
     }
     implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width + 2 * placedRoom)
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height + 2 * placedRoom)
@@ -1363,7 +1378,7 @@ PanelWindow {
     // ShapeLayer instead, in the card's own frame: from the edge it comes from (`slideEdge`), its origin a third of that
     // edge at its middle.
     readonly property bool formWant: open && shown && !gate && (morphMode ? sizeKnown : true)
-    readonly property string slideEdge: menuBeside ? besideEdge : (bars.atBottom ? "bottom" : "top")
+    readonly property string slideEdge: menuBeside || cardBeside ? besideEdge : (bars.atBottom ? "bottom" : "top")
     readonly property bool slideAcross: slideEdge === "left" || slideEdge === "right"
     readonly property real formFrameW: slideAcross ? card.height : card.width
     readonly property real formFrameH: slideAcross ? card.width : card.height
