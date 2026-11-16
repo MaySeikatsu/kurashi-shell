@@ -12,7 +12,38 @@ side ones do. It is the terminal's drop-down made general — the same place, th
 whatever the user likes to have "down there" opens the way the terminal does.
 
 ## Others
-(Filled from the session's research, with sources: `docs/ux/edge-sidebars.research.md`.)
+Looked up on 2026-11-16 (every fact with its source in `docs/ux/edge-sidebars.research.md`; what could not be confirmed
+is listed there as such — GNOME, macOS and Windows document no width, height or closing rule for their panels).
+- **Caelestia** (Quickshell): a dashboard anchored to the **top** edge and a launcher to the **bottom** edge, both
+  centred; they open on hover into the edge zone (a gate per drawer) or by a drag past a threshold, and close when
+  the pointer leaves unless a key opened them. One instance per screen.
+  https://github.com/caelestia-dots/shell/blob/main/modules/drawers/Panels.qml
+- **Noctalia**: every panel is *attached* (against the bar's inward edge, borderless on that side, a layer surface of
+  its own) or *floating* (8 px off the edge by default); with two bars on one edge the attachment is ambiguous and
+  needs a named anchor bar. Width is a setting (the control centre: 700 px, 600–1200); no panel has a height key.
+  https://docs.noctalia.dev/noctalia/v5.4.1/configuration/shell/
+- **DankMaterialShell**: popouts "are anchored to the bar and slide out accordingly", on whichever edge the bar is.
+  https://duxlabs.dev/docs/dms/layers
+- **COSMIC**: panels on any edge; with "Extend panel to screen edges" off a panel "shrinks in width and hugs the
+  content, which will be centered"; gap and extend are separate switches; corners at the screen boundary are square.
+  https://github.com/pop-os/cosmic-epoch/issues/102
+- **KDE Plasma 6**: panels on any edge; 6.0 replaced "Windows Can Cover" with "Dodge Windows", and users miss having
+  the clock and tray stay visible. https://community.kde.org/Plasma/Plasma_6
+- **Drop-down terminals**: Yakuake defaults to 90 % of the width and 50 % of the height, on the screen that holds the
+  pointer, and stays open when the focus leaves (https://lxr.kde.org/source/utilities/yakuake/app/config/yakuake.kcfg);
+  Guake: 100 % × 50 %, hiding on focus loss only when asked; ddterm could not give a real width for years — "one of
+  the window's dimensions still takes full screen size" (https://github.com/ddterm/gnome-shell-extension-ddterm/issues/129).
+- **GNOME, macOS, Windows 11**: no general top or bottom drawer. Their top-edge panels (quick settings, Control
+  Centre) hang from the bar's corner at a fixed size; Windows' Widgets board comes from the side.
+
+**Taken.** One sheet type with an edge and a width mode (Caelestia, COSMIC: full, or a centred part); attached to the
+bar on its edge, the look's card where there is none (Noctalia's two kinds, chosen by what stands on the edge, not by
+a setting); width and height as shares of the screen (the drop-down terminals), with the terminal sheet's own numbers;
+click outside and Esc close it, said in the brief (most shells do not document theirs); the screen is the one that
+asked, else the focused one (Yakuake's pointer screen is our focused output). **Not taken.** Hover at the edge as the
+way in (Caelestia's default for the dashboard): the edge already reveals a hidden bar and the edge modules, and a
+sheet half the screen tall that opens by accident is worse than a key. A height the content decides (Noctalia): a
+sheet that changes height with its page moves under the pointer.
 
 ## Design
 - **Where.** `sidebar.top` and `sidebar.bottom`. Each exists only while it has sections (`sidebar.<edge>.sections`,

@@ -70,7 +70,7 @@ pub const POINTS: &[Point] = &[
         "panel",
         Variant,
         "panel:<name>",
-        "The expanded view: a Stage card, a sidebar section, a web dock view (`qml/Panel.qml`); `fillHeight`, `placement`, `cardPlacement`",
+        "The expanded view: a Stage card, a sidebar section, a web dock view (`qml/Panel.qml`); `fillHeight`, `placement`, `cardPlacement`, `cardLarge`",
         true,
     ),
     point(

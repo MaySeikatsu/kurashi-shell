@@ -381,6 +381,10 @@ id = "webdock.reload"
 label = "action.webdock.reload"
 
 [[action]]
+id = "webdock.unload"
+label = "action.webdock.unload"
+
+[[action]]
 id = "webdock.remove"
 label = "action.webdock.remove"
 
