@@ -415,8 +415,9 @@ PY
   K act ui.close >/dev/null; sleep 0.5
   # Row 387, I40: the Settings links in the `>` mode.
   check "$(rows '>' | grep -q '"id": "settings:keys"' && echo 1 || echo 0)" "> lists Shortcut settings (settings:keys)"
-  check "$(rows '>settings bar' | python3 -I -c 'import json,sys; print(1 if any(r.get("id") == "settings:bar" and r.get("name") == "Settings: Bar" for r in map(json.loads, filter(str.strip, sys.stdin))) else 0)')" ">settings bar lists Settings: Bar"
-  check "$(rows '>' | grep -q '"id": "settings:bar"' && echo 0 || echo 1)" "an empty > lists no page rows"
+  # (the schema's page for the bars is `layout` since K71; the suite still asked for `bar`, B145)
+  check "$(rows '>settings layout' | python3 -I -c 'import json,sys; print(1 if any(r.get("id") == "settings:layout" and r.get("name") == "Settings: Layout" for r in map(json.loads, filter(str.strip, sys.stdin))) else 0)')" ">settings layout lists Settings: Layout"
+  check "$(rows '>' | grep -q '"id": "settings:layout"' && echo 0 || echo 1)" "an empty > lists no page rows"
   out=$(K act launcher.launch '{"id":"settings:nope"}' 2>&1) && st=0 || st=$?
   check "$([ "$st" != 0 ] && grep -qi 'page' <<<"$out" && echo 1 || echo 0)" "a link to a page Settings lacks is refused ($out)"
 fi

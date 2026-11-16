@@ -12,6 +12,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 - **Mods read services and call each other from their own code** (for mod authors): `ModCtx::follow` gives a crate a
   document its manifest names in `uses`, `ModCtx::calls` an action. A mod whose required use is not there stays switched
   on and says what it waits for, and comes alive when it appears.
+- **A mod can bring a program of its own, in any language.** Its manifest names the program (`[[host]]`); the shell
+  starts it while a view of the mod is up, stops it with the mod, and lets it publish the mod's documents and answer
+  its actions — and nothing its manifest does not say. `kurashi mod new --host python` writes a working one, and a
+  mod's Settings page says so when it runs a program (docs/MODDING.md "A program of its own").
 - `just soak`: an hour of ordinary use in the sandbox, each process's memory once a minute, with growth budgets.
 
 ### Fixed
@@ -21,6 +25,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   update removes the old swatches.
 - Lyrics follow the player even when their view came up after the song started.
 - `just bench-gate` measured binaries of 9 October; it builds and measures the tree's own now.
+- The sessions mod's Settings row without noren opens the mod's page (it named a page that does not exist).
+- The frontend still grows under continuous use of the island's card and quick settings (about 200 MiB an hour on the
+  soak): known, not fixed in this release (docs/BACKLOG.md B156).
 
 ### Breaking
 - **IPC / mods:** the actions `lyrics.track`, `sessions.handed` and `sessions.undelivered` are gone, and `mod.sessions`
