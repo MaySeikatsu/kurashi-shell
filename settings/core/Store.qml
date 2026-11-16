@@ -108,6 +108,12 @@ Singleton {
             if (cb) cb(m)
         })
     }
+    // A query (PROTOCOL §6): the `results` items to `cb`, or null when the daemon refused it (`m` says why).
+    function query(kind, q, cb) {
+        return request({ t: "query", kind: kind, q: q || "" }, function (m) {
+            if (cb) cb(m.t === "results" ? (m.items || []) : null, m)
+        })
+    }
     // A change went through: refusal lines still shown by rows are stale now (B8), and Redo is the daemon's again.
     function noteApplied() { rowErrors = ({}); fieldErrors = ({}); redoHidden = false; changeApplied() }
 

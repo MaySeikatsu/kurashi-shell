@@ -171,6 +171,7 @@ pub fn run(cmd: ModCmd, json: bool) -> Out {
             dir,
         } => {
             let spec = kurashi_mods::scaffold::Spec {
+                skips: Default::default(),
                 name: name.unwrap_or_else(|| id.clone()),
                 description: if description.is_empty() {
                     format!("{id}: say in one line what it is for")

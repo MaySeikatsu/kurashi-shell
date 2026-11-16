@@ -347,6 +347,7 @@ async fn an_enabled_native_mod_names_the_component_files_that_exist() {
 async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
     let extra = scratch("scaffold");
     let spec = kurashi_mods::scaffold::Spec {
+        skips: Default::default(),
         id: "tea".into(),
         name: "Tea".into(),
         icon: "emoji_food_beverage".into(),
@@ -1571,6 +1572,123 @@ async fn a_use_the_manifest_does_not_name_refuses_the_enable() {
     let errors = d.entry("snoop")["errors"].clone();
     assert_eq!(errors[0]["key"], "mods.error.not_used");
     assert_eq!(errors[0]["detail"], "doc:mod.giver is not declared in uses");
+}
+
+// ---- W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the editor's generator and ruleset as actions ----
+
+#[tokio::test]
+async fn the_editors_actions_check_a_draft_write_it_and_find_it_without_a_restart() {
+    // The last root is the user's: where `mod.new` writes.
+    let user = scratch("editor-mods");
+    let d = start(&scratch("editor"), std::slice::from_ref(&user), hello());
+    let spec = json!({
+        "id": "tea", "name": "Tea", "icon": "emoji_food_beverage", "description": "A cup, on time.",
+        "with": ["widget", "panel"], "uses": [],
+    });
+
+    // A draft is checked without being written, and its files come back for the preview.
+    let r = d
+        .actions
+        .invoke("mod.check", json!({ "spec": spec }))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(r["passed"], true, "{r}");
+    assert_eq!(r["id"], "tea");
+    let files = r["files"].as_array().unwrap();
+    assert!(
+        files.iter().any(
+            |f| f["path"] == "mod.toml" && f["text"].as_str().unwrap().contains("id = \"tea\"")
+        )
+    );
+    assert!(files.iter().any(|f| f["path"] == "qml/Widget.qml"));
+    assert!(!user.join("tea").exists(), "nothing of a draft stays");
+
+    // A spec the scaffold refuses answers with the scaffold's key.
+    assert_eq!(
+        d.actions
+            .invoke(
+                "mod.check",
+                json!({"spec": {"id": "Tea!", "name": "x", "icon": "extension", "with": ["widget"]}})
+            )
+            .await,
+        Err(ActionError::Invalid("mods.new.error.id_invalid".into()))
+    );
+    assert_eq!(
+        d.actions
+            .invoke(
+                "mod.new",
+                json!({"spec": {"id": "tea", "name": "Tea", "icon": "extension", "with": []}})
+            )
+            .await,
+        Err(ActionError::Invalid("mods.new.error.nothing_chosen".into()))
+    );
+
+    // Written: listed at once, not enabled, and it passes the check where it lies.
+    let n = d
+        .actions
+        .invoke("mod.new", json!({ "spec": spec }))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(n["path"], user.join("tea").to_string_lossy().as_ref());
+    assert_eq!(n["check"]["passed"], true, "{n}");
+    assert_eq!(d.state("tea"), "available");
+    assert_eq!(
+        d.actions
+            .invoke("mod.check", json!({"id": "tea"}))
+            .await
+            .unwrap()
+            .unwrap()["passed"],
+        true
+    );
+    // The id is taken now, for a draft and for a second write.
+    for action in ["mod.check", "mod.new"] {
+        assert_eq!(
+            d.actions.invoke(action, json!({ "spec": spec })).await,
+            Err(ActionError::Invalid("mods.new.error.id_taken".into()))
+        );
+    }
+
+    // It can be turned on; its folder removed by hand, a rescan switches it off and takes it out of the list.
+    d.act("mod.enable", "tea").await.unwrap();
+    assert_eq!(d.state("tea"), "enabled");
+    std::fs::remove_dir_all(user.join("tea")).unwrap();
+    d.actions.invoke("mod.rescan", json!({})).await.unwrap();
+    let (_, doc) = d.hub.snapshot("mods").unwrap();
+    assert!(
+        !doc["mods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == "tea"),
+        "the removed mod is gone from the list"
+    );
+    // A folder that appears is found by the next rescan.
+    write(
+        &user.join("later/mod.toml"),
+        "id = \"later\"\nname = \"Later\"\nversion = \"0.1.0\"\ntier = \"native\"\nkurashi = \">=0.0.1\"\nprovides = []\n",
+    );
+    d.actions.invoke("mod.rescan", json!({})).await.unwrap();
+    assert_eq!(d.state("later"), "available");
+}
+
+#[test]
+fn the_points_query_lists_the_registry_with_the_part_that_makes_each() {
+    let daemon = kurashid::Daemon::new(
+        Hub::new(),
+        ActionRegistry::default(),
+        kurashid::Intents::default(),
+    );
+    let items = daemon.queries["points"]("");
+    assert_eq!(items.len(), kurashi_mods::points::POINTS.len());
+    let glance = items.iter().find(|p| p["id"] == "glance").expect("glance");
+    assert_eq!(glance["kind"], "variant");
+    assert_eq!(glance["expected"], true);
+    assert_eq!(glance["part"], "widget");
+    assert_eq!(glance["fill"], "widget:<name>");
+    // A point the scaffold has no part for carries none.
+    assert!(items.iter().any(|p| p.get("part").is_none()));
 }
 
 /// W92: a mod that knows places, one per value of its setting `city`.

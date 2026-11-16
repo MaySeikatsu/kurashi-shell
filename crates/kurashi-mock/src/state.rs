@@ -369,6 +369,10 @@ impl State {
         if stage && self.data("runtime.ui")["polkit"] == true {
             return Err(Fail::invalid(UI_POLKIT));
         }
+        // W94: the Mod Editor's generator and ruleset (crate::editor).
+        if let Some(answer) = crate::editor::act(action, args) {
+            return answer;
+        }
         match action {
             // K68, as kurashid: the island steps through the faces its list shows (`faces`), never one it leaves out.
             "island.next" | "island.prev" => {
@@ -893,6 +897,8 @@ impl State {
     pub fn query(&self, kind: &str, q: &str) -> Result<Vec<Value>, Fail> {
         match kind {
             "launcher" => Ok(launcher_rows(q)),
+            // W94: the Mod Editor's checklist, from the registry itself.
+            "points" => Ok(crate::editor::points()),
             _ => Err(Fail::invalid(format!("no query provider {kind}"))),
         }
     }

@@ -226,7 +226,8 @@ ShellRoot {
             onActivated: search.focusInput()
         }
 
-        // "" = first schema page; "@changed", "@mods" and "@profiles" = the Changed view, the Mods and the profiles pages.
+        // "" = first schema page; "@changed", "@mods" and "@profiles" = the Changed view, the Mods and the profiles pages;
+        // "@modnew" = the Mod Editor (W94), reached from the Mods page and listed under it.
         property string page: ""
         property string query: ""
         property bool advanced: false
@@ -234,7 +235,7 @@ ShellRoot {
         readonly property var pages: Store.schema.pages || []
         readonly property string current: page !== "" ? page : (pages.length ? pages[0].id : "")
         readonly property bool searching: query.trim() !== ""
-        readonly property bool special: current === "@changed" || current === "@mods" || current === "@profiles"
+        readonly property bool special: current === "@changed" || current === "@mods" || current === "@profiles" || current === "@modnew"
         // The sidebar: the core pages keep their order, and each mod's page sits among them by name, before the first core
         // page that sorts after it (K25). Then Changed, Mods and Profiles. `mod` is a mod's id, "" otherwise.
         // A page's name in the nav: a mod's from its own strings (`mods.<id>.name`, I244), else the label it came with.
@@ -283,6 +284,7 @@ ShellRoot {
         // A page link (I40): `mod:<id>` names a mod's page (`mods.<id>` in the schema), anything else a page id. The page
         // opens at its top, out of a search; unknown pages open nothing (the daemon refuses them first).
         function pageIdOf(link: string): string {
+            if (link === "mods.new") return "@modnew"
             const id = link.indexOf("mod:") === 0 ? "mods." + link.slice(4) : link
             return win.pages.some(function (x) { return x.id === id }) ? id : ""
         }
@@ -389,6 +391,10 @@ ShellRoot {
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
             function modLoad(id: string): void { modsPage.load(id) }
             function modUnload(id: string): void { modsPage.unload(id) }
+            // Mod Editor test (W94): the page's state as JSON, "none" while it is not shown.
+            function modNew(): string { return modNewPage.item ? modNewPage.item.state() : "none" }
+            // The Mods page's check of a mod (W94): its report as JSON, {"error": text}, or "none" before a Check.
+            function modCheck(id: string): string { const c = modsPage.checks[id]; return c ? JSON.stringify(c.report || { error: c.error }) : "none" }
             // Mod pages test (K25): the sidebar's entries in order, as ids; the core pages keep theirs.
             function navOrder(): string { return win.navItems.map(function (x) { return x.id }).join(",") }
             // Dropdown test (I9): opens the dropdown of a row on this page, as Enter does on its focus.
@@ -817,7 +823,7 @@ ShellRoot {
                                 }
                                 RoundBox {
                                     id: entry
-                                    readonly property bool on: !win.searching && navEntry.modelData.id === win.current
+                                    readonly property bool on: !win.searching && navEntry.modelData.id === (win.current === "@modnew" ? "@mods" : win.current)
                                     // A mod's page (K25) shows its state: a filled dot = on, a hollow ring = loaded, off.
                                     // The shape carries it; the colour (color.status.*) only repeats it.
                                     readonly property bool isMod: navEntry.modelData.mod !== ""
@@ -1034,6 +1040,18 @@ ShellRoot {
                         id: modsPage
                         anchors.fill: parent
                         visible: !win.searching && win.current === "@mods"
+                        onNewRequested: win.page = "@modnew"
+                    }
+                    // Nothing while it is not the page (its budget, docs/ux/mod-editor.md): each visit starts fresh.
+                    Loader {
+                        id: modNewPage
+                        anchors.fill: parent
+                        active: win.current === "@modnew"
+                        visible: !win.searching
+                        sourceComponent: ModEditorPage {
+                            onLeave: { win.page = "@mods"; modsPage.focusNew() }
+                            onPageRequested: link => win.openPage(link)
+                        }
                     }
                     ProfilesPage {
                         id: profiles
@@ -1045,6 +1063,7 @@ ShellRoot {
                     ScrollEdge { view: settingsPages }
                     ScrollEdge { view: changedPage }
                     ScrollEdge { view: modsPage }
+                    ScrollEdge { view: modNewPage.item }
                     ScrollEdge { view: profiles }
                 }
             }

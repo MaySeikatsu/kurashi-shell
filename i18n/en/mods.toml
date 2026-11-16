@@ -97,3 +97,8 @@
 "mods.sysmon.name" = "System monitor"
 "mods.lyrics.name" = "Lyrics"
 "mods.weather.name" = "Weather"
+
+# W94: the Mod Editor's actions (PROTOCOL §6).
+"action.mod.check" = "Check a mod against the rules"
+"action.mod.new" = "Create a new mod"
+"action.mod.rescan" = "Look for new mods"

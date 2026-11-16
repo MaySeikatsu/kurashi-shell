@@ -127,6 +127,7 @@ test holds the shell's `SlotHost { slot: … }` names to it.
 | `quick-tile` · | variant | `slot:quick.tiles` | A tile in quick settings (`qml/slots/quick.tiles.qml`) |
 | `command` · | reach | `[[action]] command = "<word>"` | A `>` command in the launcher, listed by `kurashi act --list`, offered to key binds |
 | `menu` · | reach | `[[menu]] at = "module"` | Rows in the module's own menu (right-click on its glance, its desk card, its panel's header) |
+| `settings` | reach | `[[setting]]` | A page of its own in Settings, generated from its settings: labels, controls, defaults, provenance |
 | `launcher` | reach | `launcher:<name>` | A launcher provider with an optional prefix (K150): rows that run the mod's own actions |
 | `location` | feed | `location:<name>` | A place the mod knows (`ModCtx::location`): the shell's `svc.location` carries it while no place is set by hand — the night light's sun schedule and the light's daytime read it |
 | `surface` | variant | `surface:<name>` | A layer-shell surface of the mod's own, one per output (`qml/surfaces/<name>.qml`) |

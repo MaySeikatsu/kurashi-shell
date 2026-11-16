@@ -1263,6 +1263,19 @@ impl Native {
 }
 
 impl Native {
+    /// W94 (`mod.rescan`): the active mods whose folder is gone from `reg` are switched off before they leave the list.
+    pub fn drop_missing(&mut self, reg: &Registry) {
+        let gone: Vec<String> = self
+            .active
+            .keys()
+            .filter(|id| reg.get(id).is_none())
+            .cloned()
+            .collect();
+        for id in gone {
+            self.deactivate(&id);
+        }
+    }
+
     /// Whether this build can run a mod (B15, I281): one whose manifest declares daemon code needs its `NativeMod`
     /// linked. A mod without it is not offered at all — no list entry, no settings page, no switch that cannot work.
     pub fn can_run(&self, e: &ModEntry) -> bool {

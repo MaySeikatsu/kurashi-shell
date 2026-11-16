@@ -24,6 +24,21 @@ pub const PARTS: &[(&str, &str)] = &[
     ("settings", "a setting, shown on the mod's Settings page"),
 ];
 
+/// The part of [`PARTS`] that makes the extension point `point` (`points::POINTS`), where the scaffold has one: the
+/// Mod Editor's checklist ticks parts (W94).
+pub fn part_of(point: &str) -> Option<&'static str> {
+    Some(match point {
+        "glance" => "widget",
+        "peek" => "peek",
+        "panel" => "panel",
+        "desk" => "desk",
+        "quick.tiles" | "quick-tile" => "tile",
+        "module" | "menu" => "menu",
+        "settings" => "settings",
+        _ => return None,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Spec {
     pub id: String,
@@ -36,6 +51,9 @@ pub struct Spec {
     pub uses: Vec<String>,
     /// K155 (W93): a program of the mod's own, from the template of that language (`python`); `None`: views only.
     pub host: Option<String>,
+    /// W94: the author's own reason for a variant the mod does not ship (`[skips]` key → one line), in place of
+    /// the template's. A reason given empty is refused: a skip says why.
+    pub skips: std::collections::BTreeMap<String, String>,
 }
 
 /// The languages a host program's template exists in.
@@ -93,6 +111,8 @@ pub enum ScaffoldError {
     NothingChosen,
     #[error("mods.new.error.id_taken")]
     IdTaken,
+    #[error("mods.new.error.skip_empty: {0}")]
+    SkipEmpty(String),
     #[error("mods.new.error.write: {0}")]
     Write(String),
 }
@@ -132,6 +152,10 @@ impl Spec {
             && !HOSTS.contains(&h.as_str())
         {
             return Err(ScaffoldError::PartUnknown(format!("host:{h}")));
+        }
+        // W94: a skip says why — a reason given empty is refused, naming the variant.
+        if let Some((key, _)) = self.skips.iter().find(|(_, why)| why.trim().is_empty()) {
+            return Err(ScaffoldError::SkipEmpty(key.clone()));
         }
         // A mod with a program of its own may draw nothing (a command).
         if self.host.is_none()
@@ -274,6 +298,8 @@ impl Spec {
             }
             m.push_str("\n# K72: the variants it does not ship, and why (for the next reader, not the user).\n[skips]\n");
             for (key, why) in skips {
+                // W94: the author's line where one was given.
+                let why = self.skips.get(key).map_or(why, |own| own.trim());
                 m.push_str(&format!("{key} = {}\n", toml_str(why)));
             }
         }
@@ -526,6 +552,7 @@ mod tests {
 
     fn spec(with: &[&str]) -> Spec {
         Spec {
+            skips: Default::default(),
             id: "tea-timer".into(),
             name: "Tea \"timer\"".into(),
             icon: "emoji_food_beverage".into(),

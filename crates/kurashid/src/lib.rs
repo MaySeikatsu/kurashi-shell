@@ -77,6 +77,11 @@ impl Daemon {
                 reg.query(q, &strings)
             }),
         );
+        // W94 (K154; PROTOCOL §6): the registry of extension points, for the Mod Editor's checklist.
+        queries.insert(
+            "points".into(),
+            Arc::new(|_q: &str| kurashi_mods::editor::points()),
+        );
         Daemon {
             hub,
             actions,
