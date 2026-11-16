@@ -104,49 +104,30 @@ Flickable {
             width: parent.width
             text: I18n.tr("settings.ui.mods")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.mods_help")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: "⊘ " + (p.forcedLoaded !== "" ? p.forcedLoaded : p.forcedEnabled)
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.loaded && p.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.mods_empty")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: !p.loaded && !Store.live
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.disconnected")
         }
 
@@ -209,14 +190,8 @@ Flickable {
                         spacing: 3
                         Row {
                             spacing: Theme.gap
-                            Text {
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
-                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                                color: Theme.fg
-                                font.pixelSize: Theme.fs
+                            Label {
                                 font.bold: true
-                                font.family: Theme.fam(text, Theme.families)
                                 text: I18n.tr(entry.mod.name)
                             }
                             Chip {
@@ -229,51 +204,35 @@ Flickable {
                                 text: I18n.tr("settings.ui.mod_shadows")
                             }
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: text !== ""
                             width: parent.width
                             wrapMode: Text.WordWrap
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 1
-                            font.family: Theme.fam(text, Theme.families)
                             text: entry.mod.description ? I18n.tr(entry.mod.description) : ""
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: text !== ""
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: p.facts(entry.mod)
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             width: parent.width
                             wrapMode: Text.WordWrap
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.mod.capabilities, "settings.ui.cap.")
                                 + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.mod) || I18n.tr("settings.ui.mod_none"))
                         }
                         // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: entry.isLoaded
                             width: parent.width
                             wrapMode: Text.WordWrap
                             color: entry.mod.running ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: (entry.mod.running_reasons || []).length > 0
                                 ? I18n.fmt("settings.mods.running_now", { reasons: Store.joinedWords(entry.mod.running_reasons, "") })
                                 : I18n.tr("settings.mods.not_running")
@@ -282,28 +241,20 @@ Flickable {
                         }
                     }
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: entry.invalid
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: "✕ " + p.problems(entry.mod)
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: entry.failure !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
                 }
                 Rectangle {
