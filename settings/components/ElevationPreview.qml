@@ -35,16 +35,12 @@ Row {
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         anchors.verticalCenter: parent.verticalCenter
         width: Math.max(120, (ep.parent ? ep.parent.width : 420) - 256 - ep.spacing - 8)
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.elevation." + (Theme.tok("elevation.mode", "off")))
     }
 }

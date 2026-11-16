@@ -22,15 +22,11 @@ Column {
         cancellable: false
         onPicked: v => Store.setValue(modes.rowKey, v, "")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: parent.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.layout.draw_modes")
     }
 }

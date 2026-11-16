@@ -283,30 +283,21 @@ Column {
                     anchors.rightMargin: Theme.gap
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         width: parent.width
                         // A path keeps its start and its last folder in view.
                         elide: l.paths ? Text.ElideMiddle : Text.ElideRight
                         color: entry.known ? Theme.fg : Theme.dim
-                        font.pixelSize: Theme.fs
                         font.bold: entry.isGroup
-                        font.family: Theme.fam(text, Theme.families)
                         text: (entry.index + 1) + ".  " + (entry.isGroup
                             ? I18n.fmt("settings.groups.row", { name: entry.name, n: entry.members.length }) : entry.name)
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: entry.reason !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
                         color: Theme.error
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: entry.reason
                     }
                 }
@@ -559,16 +550,11 @@ Column {
     }
 
     // A free list with no entries says so (and, for paths, what one looks like).
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: l.free && l.items.length === 0
         width: l.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
+        dim: true
         text: I18n.tr(l.paths ? "settings.ui.list_empty_paths" : "settings.ui.list_empty")
     }
     TextField {

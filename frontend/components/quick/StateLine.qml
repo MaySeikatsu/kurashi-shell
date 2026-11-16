@@ -12,15 +12,11 @@ Row {
     visible: req !== null && (req.pending || failed)
     spacing: Theme.gap
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: line.width - (retry.visible ? retry.width + Theme.gap : 0)
         wrapMode: Text.WordWrap
         color: line.failed ? Theme.error : Theme.dim
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: line.failed ? line.req.failure : line.pendingText
     }
     Button {

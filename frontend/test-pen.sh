@@ -18,6 +18,7 @@
 #   its PPMs; PEN_NEW=<frontend dir> compares another frontend (PEN_NEW=<base export> is the noise control).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-${KURASHI_SB_PREFIX:-}w32-pen}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 BASE=${PEN_BASE:-$(git -C "$ROOT" merge-base HEAD main)}
@@ -101,22 +102,13 @@ cat > "$TMP/ppmdiff.py" <<'PY'
 import sys
 
 
-def read(path):
-    data = open(path, "rb").read()
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
-wa, ha, a = read(sys.argv[1])
-wb, hb, b = read(sys.argv[2])
+wa, ha, a = read_ppm(sys.argv[1])
+wb, hb, b = read_ppm(sys.argv[2])
 if (wa, ha) != (wb, hb):
     print(f"test-pen: {sys.argv[3]}: sizes differ {wa}x{ha} vs {wb}x{hb}")
     sys.exit(1)

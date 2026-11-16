@@ -81,17 +81,10 @@ cat > "$W/ink.py" <<'PY'
 import sys
 ppm, bg = sys.argv[1], sys.argv[2]
 B = tuple(int(bg.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-data = open(ppm, "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-raster = data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+_, _, raster = read_ppm(ppm)
 n = sum(1 for o in range(0, len(raster) - 2, 3) if max(abs(raster[o + k] - B[k]) for k in range(3)) > 24)
 print(n)
 PY

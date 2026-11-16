@@ -65,31 +65,21 @@ Item {
         }
         Row {
             anchors.fill: parent
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 color: s.chosenIndex === 0 ? Theme.fgOnAccent : Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: s.choices[0] ? I18n.tr(s.choices[0].label) : ""
                 id: first
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 color: s.chosenIndex === 1 ? Theme.fgOnAccent : Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: s.choices[1] ? I18n.tr(s.choices[1].label) : ""
                 id: second
             }

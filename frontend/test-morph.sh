@@ -21,6 +21,7 @@
 # sekai-bottom, washi-none (motion off: cuts), plain (no style: translucent flat strip, the I160 head), glass (soft: I122). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${MORPH_SANDBOX:-${KURASHI_SB_PREFIX:-}w34-stage-morph}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/morph}
@@ -64,28 +65,7 @@ bar_edge() {
   done
   return 1
 }
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode()); f.flush()
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        print(json.dumps(m.get("data")) if m["t"] == "snap" else "null")
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc sub "$@"; }
 panel() { ipc runtime.ui | python3 -I -c 'import json,sys; d=json.load(sys.stdin) or {}; print(d.get("panel") or "")'; }
 OUTPUT=HEADLESS-1
 

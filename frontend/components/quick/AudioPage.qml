@@ -77,29 +77,21 @@ Column {
         backName: I18n.tr("island.quick.back")
         onBack: aud.backRequested()
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !aud.avail
         width: aud.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.unavailable")
     }
 
     // Output
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.output")
     }
     LevelRow {
@@ -115,16 +107,10 @@ Column {
         visible: aud.avail
         width: aud.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width - sound.width - Theme.gap
             anchors.verticalCenter: sound.verticalCenter
             elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.audio.sound")
         }
         ToggleSwitch {
@@ -158,15 +144,11 @@ Column {
             onActivated: { if (!isDefault && aud.sinkReq !== null) aud.sinkReq.begin(sid) }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail && sinkRows.count === 0
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.none")
     }
     StateLine {
@@ -176,15 +158,11 @@ Column {
     }
 
     // Input
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.input")
     }
     Row {
@@ -194,26 +172,16 @@ Column {
         Column {
             width: parent.width - mic.width - Theme.gap
             anchors.verticalCenter: mic.verticalCenter
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.quick.audio.microphone")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 visible: aud.src.id !== undefined
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.quick.audio.level").replace("{n}", String(Math.round(Number(aud.src.volume || 0) * 100)))
             }
         }
@@ -247,15 +215,11 @@ Column {
             onActivated: { if (!isDefault && aud.srcReq !== null) aud.srcReq.begin(sid) }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail && srcRows.count === 0
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.no_input")
     }
     StateLine {
@@ -265,26 +229,18 @@ Column {
     }
 
     // Applications: each playing stream, its level (0..150 %, the slider spans the full range) and mute.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.apps")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.avail && streamRows.count === 0
         width: aud.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.no_apps")
     }
     Repeater {
@@ -297,15 +253,9 @@ Column {
             required property bool muted
             width: aud.width
             spacing: Theme.xs
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: stream.width
                 elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: stream.app
             }
             Row {
@@ -326,16 +276,12 @@ Column {
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: aud.errText !== ""
         width: aud.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: aud.errText
     }
     // W71 (I475 3): the options of the module that opened the page (its click among them), as its menu lists them;

@@ -11,6 +11,7 @@
 #     timeout 900 nix develop -c mods/ai/test-ai.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w28-ai-live}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/ai/shots
@@ -149,59 +150,7 @@ start_fake() {
 }
 
 # `ipc.py <doc>` prints the first snapshot's data of a document; `ipc.py <doc> count <seconds>` counts its patches.
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys, time
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-counting = len(sys.argv) > 3 and sys.argv[2] == "count"
-end = None
-patches = 0
-while True:
-    try:
-        line = f.readline()
-    except socket.timeout:
-        line = b""
-        if counting:
-            break
-    if not line:
-        if counting:
-            break
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("t") == "err":
-        sys.exit("ipc: " + json.dumps(m))
-    if not counting:
-        if m.get("id") == "s" and m["t"] == "snap":
-            print(json.dumps(m.get("data")))
-            sys.exit(0)
-        continue
-    if m["t"] == "snap" and end is None:
-        end = time.monotonic() + float(sys.argv[3])
-        sock.settimeout(max(0.05, end - time.monotonic()))
-    elif m["t"] == "patch" and m.get("doc") == sys.argv[1]:
-        patches += 1
-    if end is not None:
-        left = end - time.monotonic()
-        if left <= 0:
-            break
-        sock.settimeout(left)
-print(patches)
-PY
-ipc() { timeout 15 python3 -I "$W/ipc.py" "$@"; }
+ipc() { timeout 15 python3 -I "$KIT/ipc.py" "$@"; }
 # doc_is <python condition on d>: 0 when it holds for mod.ai now.
 doc_is() { ipc mod.ai | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; m = (d.get('current') or {}).get('messages') or []; sys.exit(0 if ($1) else 1)" 2>/dev/null; }
 wait_doc() { local i; for i in $(seq "$2"); do doc_is "$1" && return 0; sleep 0.25; done; return 0; }
