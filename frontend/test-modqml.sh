@@ -53,7 +53,9 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME/kurashi/mods/hello" "$XDG_CACHE_HOME"
 # Pixel checks of the plain look (K53: a fresh install wears the style washi; this test reads layout and fills).
 mkdir -p "$XDG_CONFIG_HOME/kurashi"
-printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+# `bar.card_keep_loaded = false`: a closed card's view is destroyed at once (I493 keeps it for a minute by default), so
+# the suite sees a component's destruction where it closes it.
+printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n[bar]\ncard_keep_loaded = false\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 # The test mod as kurashid discovers it in its data dir: the checkout's qml with the live manifest (see live.mod.toml).
 cp -r "$HELLO/qml" "$XDG_DATA_HOME/kurashi/mods/hello/"
 cp "$HELLO/live.mod.toml" "$XDG_DATA_HOME/kurashi/mods/hello/mod.toml"
@@ -69,6 +71,8 @@ import json, sys
 SURFACE = (0x1b, 0x1a, 0x1e)   # color.surface, the default palette (I277: a card is the bar's sheet)
 TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 900   # the output is 2560 wide: a card is centred on 1280, under the 36 px bar
+if len(sys.argv) > 2 and sys.argv[2] == "anywhere":   # a mod's panel stands at its module (K102): the whole width
+    X0, X1 = 0, 2560
 
 
 import os, sys
@@ -102,23 +106,25 @@ mid = rows.get((y0 + y1) // 2) if n else None
 print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None,
                   "mid": [mid[0], y0, mid[1], y1] if mid else None}))
 PY
-analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
+analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" "${2:-}"; }
 
 ppm_shot() {  # ppm_shot <name> <seconds>: waits, then takes the whole output as a PPM for the analysis
   sleep "$2"
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
 }
-# card <name> <width>: the card is drawn at the width asked for, centred on the output; the crop is the evidence shot.
+# card <name> <width> [anywhere]: the card is drawn at the width asked for, centred on the output — or, with `anywhere`,
+# wherever its module stands (a mod's panel, K102); the crop is the evidence shot.
 card() {
-  local res x0 y0 x1 y1 cx cy
+  local res x0 y0 x1 y1 cx cy centre=4
+  [ "${3:-}" = anywhere ] && centre=2560
   ppm_shot "$1" 2.5
-  res=$(analyse "$1") || fail "$1: analysis failed"
+  res=$(analyse "$1" "${3:-}") || fail "$1: analysis failed"
   echo "$1: $res"
   # The whole shape's box (the phone: its body) or its middle row (a card under a liquid neck) has the view's width.
-  jq -e --argjson w "$2" 'def fits(b): b != null and (((b[2] - b[0] + 1) - ($w - 2)) | fabs) <= 4
-      and (((b[0] + b[2]) / 2 - 1280) | fabs) <= 4;
+  jq -e --argjson w "$2" --argjson c "$centre" 'def fits(b): b != null and (((b[2] - b[0] + 1) - ($w - 2)) | fabs) <= 4
+      and (((b[0] + b[2]) / 2 - 1280) | fabs) <= $c;
       .surface >= 15000 and (fits(.bbox) or fits(.mid))' <<<"$res" >/dev/null \
-    || fail "$1: no card of width $2 centred on the output ($res)"
+    || fail "$1: no card of width $2 where it is expected ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   cx=$((x0 - 24)); cy=$((y0 - 24))
   ((cx < 0)) && cx=0
@@ -247,7 +253,7 @@ panel_open() {  # panel_open <panel>: mod.panel.open for hello, then the daemon'
   fail "runtime.ui does not name the mod panel (act answered: $out; runtime.ui: $(ipc runtime.ui | jq -c .))"
 }
 panel_open hello
-card mod-panel 360
+card mod-panel 360 anywhere
 expect_min "panel created" "panel open: the hello panel loads" 1
 expect_min "slot clock.expanded.footer destroyed" "panel open: the footer is gone" 1
 expect_min "slot clock.expanded.aside destroyed" "panel open: the aside is gone" 1
@@ -322,7 +328,7 @@ closed closed-notifications
 # 9. quick settings: the tile at the top of the quick card.
 K act quick.toggle >/dev/null
 sleep 2
-card quick-tiles 400
+card quick-tiles 400 anywhere   # the quick card stands at its module
 expect_min "slot quick.tiles created" "quick settings: the tile loads" 1
 K act ui.close >/dev/null
 sleep 1
