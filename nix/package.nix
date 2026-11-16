@@ -124,7 +124,8 @@ let
   # - the lock file is this tree's with the members' entries at 0.0.0, written at evaluation (no import from a
   #   derivation: `builtins.readFile` of a path, `writeText` of the result, so its hash follows its content);
   # - the vendored registry comes from the real lock (the members have no source and are not part of it).
-  # Checked by nix/tests: the derivation is the same for two versions.
+  # To check: `nix eval --raw .#kurashi.cargoArtifacts.drvPath` before and after a bump of the version names the same
+  # derivation (session 35: it does, and the second `nix build` compiled no dependency).
   members = lib.attrNames (lib.filterAttrs (_: t: t == "directory") (builtins.readDir ../crates));
   memberNames = map (d: (lib.importTOML (../crates + "/${d}/Cargo.toml")).package.name) members;
   lockWithoutVersion = writeText "Cargo.lock" (
