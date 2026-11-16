@@ -115,7 +115,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### webdock
 
-- [bug] Right-click context menu on a websites icon is missing. It should have a context menu with options to refresh, unload, pin the current updated site and so on → I599
+- [x] [bug] Right-click context menu on a website's icon — done S36 (I599: the pin menu in the bar card and the sidebar; Reload, Unload, Update pin to this page, Unpin but keep open, Move, Remove)
 - [bug] a click on the bar widget does not ask for the dock's card → B145 (W96)
 - [bug] 20 reveal/hide cycles grow the shell by 5–6.6 MiB (budget 1) → B145, B156 (the same growth as the island's card: the windows that unmap)
 - [idea] WebDock Sites should get Option to be pinned directly to the Bar as icons, which then can open the website/webdock directly from there. → I600
