@@ -84,8 +84,8 @@ B = [
    "I526 I570 I564"),
   ("Gestures", "motion that follows the finger", "L", "—",
    "I531 I346"),
-  ("Standalone features", "nothing shared: each is its own card (screen tools, phone link, config timeline, accessibility pack)", "L each", "which, if any",
-   "I522 I523 I536 I537"),
+  ("Standalone features", "nothing shared: each is its own card (a lightweight mode, screen tools, phone link, config timeline, accessibility pack)", "L each", "which, if any",
+   "I608 I522 I523 I536 I537"),
  ]),
  ("4. The visual system (looks, motion, light)", [
   ("Looks and chrome, fixes", "the chromes, shadows and corner shapes", "M–L", "B79 (Glow) is your report",

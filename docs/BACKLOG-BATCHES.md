@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (480 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (481 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. Sizes are
 the lead's estimate (S: hours, M: a day or two, L: several days or a brief first), not measured.
@@ -45,7 +45,7 @@ batch or in two: give a new row its batch there, then run it again.
 | 3 | Web dock, engine | 10 | L |
 | 3 | Mod catalogue | 3 | L |
 | 3 | Gestures | 2 | L |
-| 3 | Standalone features | 4 | L each |
+| 3 | Standalone features | 5 | L each |
 | 4 | Looks and chrome, fixes | 16 | M–L |
 | 4 | Style families | 8 | L |
 | 4 | Joins | 4 | M–L |
@@ -530,10 +530,11 @@ Shares: motion that follows the finger. Size: L. Needs you: —.
 
 ### Standalone features
 
-Shares: nothing shared: each is its own card (screen tools, phone link, config timeline, accessibility pack). Size: L each. Needs you: which, if any.
+Shares: nothing shared: each is its own card (a lightweight mode, screen tools, phone link, config timeline, accessibility pack). Size: L each. Needs you: which, if any.
 
 | Row | | What |
 |---|---|---|
+| I608 | U | A lightweight / performance mode: one switch (and an automatic one) that makes the shell use as little as it can — to … |
 | I522 | U | Screen tools in one place: screenshot, recording, colour picker and OCR from the launcher or a bar module; annotate a … |
 | I523 | U | Phone link: KDE Connect in a sidebar section — phone notifications and replies, sending files, find my phone. |
 | I536 | U | Config timeline (改善, Kaizen): every config change as a timeline with a visual diff and "restore to here", grouped by … |
