@@ -80,6 +80,7 @@
 
 "mods.new.error.id_invalid" = "An id is lowercase letters, digits and hyphens, starting with a letter, at most 32"
 "mods.new.error.id_taken" = "A mod with this id already exists"
+"mods.new.error.skip_empty" = "Say in a line why it leaves this one out"
 "mods.new.error.name_empty" = "Give it a name"
 "mods.new.error.icon_invalid" = "Choose an icon from the list"
 "mods.new.error.part_unknown" = "That is not a part a mod can have"

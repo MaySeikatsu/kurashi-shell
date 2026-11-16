@@ -25,13 +25,15 @@ pub fn points() -> Vec<Value> {
         .collect()
 }
 
-/// The check's report: `{id, passed, errors, notes, findings: [{rule, level, at, detail}]}`.
+/// The check's report: `{id, passed, errors, notes, rules: [rule…], findings: [{rule, level, at, detail}]}`.
 pub fn report(r: &Report) -> Value {
     json!({
         "id": r.id,
         "passed": r.passed(),
         "errors": r.count(Level::Error),
         "notes": r.count(Level::Warn),
+        // Every rule the check holds a mod to, in the order a list shows them: the ones with no finding are met.
+        "rules": check::RULES,
         "findings": r.findings.iter().map(|f| json!({
             "rule": f.rule, "level": f.level, "at": f.at, "detail": f.detail,
         })).collect::<Vec<_>>(),
@@ -61,6 +63,12 @@ pub fn spec(v: &Value) -> Option<Spec> {
         with: list("with"),
         uses: list("uses"),
         host: v["host"].as_str().map(str::to_owned),
+        skips: v["skips"]
+            .as_object()
+            .into_iter()
+            .flatten()
+            .filter_map(|(k, why)| Some((k.clone(), why.as_str()?.to_owned())))
+            .collect(),
     })
 }
 
@@ -125,5 +133,28 @@ mod tests {
             ("mods.new.error.id_invalid".to_string(), false)
         );
         assert_eq!(points().len(), POINTS.len());
+        // The author's own reason is written; one given empty is refused, naming the variant.
+        let own = spec(&json!({
+            "id": "tea", "name": "Tea", "icon": "emoji_food_beverage", "with": ["widget"],
+            "skips": {"desk": "it has nothing to say at rest", "peek": "  "},
+        }))
+        .unwrap();
+        let e = check_draft(&own, &scratch, &v).unwrap_err();
+        assert_eq!(error_key(&e).0, "mods.new.error.skip_empty");
+        let own = Spec {
+            skips: [(
+                "desk".to_string(),
+                "it has nothing to say at rest".to_string(),
+            )]
+            .into(),
+            ..own
+        };
+        let d = check_draft(&own, &scratch, &v).unwrap();
+        let manifest = d["files"][0]["text"].as_str().unwrap();
+        assert!(
+            manifest.contains("desk = \"it has nothing to say at rest\""),
+            "{manifest}"
+        );
+        assert_eq!(d["rules"].as_array().unwrap().len(), check::RULES.len());
     }
 }

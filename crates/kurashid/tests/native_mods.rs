@@ -347,6 +347,7 @@ async fn an_enabled_native_mod_names_the_component_files_that_exist() {
 async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
     let extra = scratch("scaffold");
     let spec = kurashi_mods::scaffold::Spec {
+        skips: Default::default(),
         id: "tea".into(),
         name: "Tea".into(),
         icon: "emoji_food_beverage".into(),
@@ -1688,7 +1689,7 @@ fn the_points_query_lists_the_registry_with_the_part_that_makes_each() {
     assert_eq!(glance["fill"], "widget:<name>");
     // A point the scaffold has no part for carries none.
     assert!(items.iter().any(|p| p.get("part").is_none()));
-||||||| a9097691
+}
 
 /// W92: a mod that knows places, one per value of its setting `city`.
 struct Atlas(

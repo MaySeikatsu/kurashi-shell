@@ -1,1 +1,1 @@
-{"t":"done","id":"22","data":{"path":"/home/u/.local/share/kurashi/mods/tea","check":{"id":"tea","passed":true,"errors":0,"notes":0,"findings":[]}}}
+{"t":"done","id":"22","data":{"path":"/home/u/.local/share/kurashi/mods/tea","check":{"id":"tea","passed":true,"errors":0,"notes":0,"rules":["manifest","use_undeclared","use_unseen","use_base","variant","icon","description","actions_declared","setting_label","no_process","kit_only","colour_literal","font_literal","copy_literal","host_exec"],"findings":[]}}}

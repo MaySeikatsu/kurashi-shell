@@ -79,6 +79,7 @@
 
 "mods.new.error.id_invalid" = "ID は英小文字で始まり、英小文字・数字・ハイフンで 32 文字までです"
 "mods.new.error.id_taken" = "この ID のモッドは既にあります"
+"mods.new.error.skip_empty" = "これを省く理由を一行で書いてください"
 "mods.new.error.name_empty" = "名前を入力してください"
 "mods.new.error.icon_invalid" = "一覧からアイコンを選んでください"
 "mods.new.error.part_unknown" = "モッドに付けられない部品です"

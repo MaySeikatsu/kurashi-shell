@@ -334,15 +334,18 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
 **The Mod Editor's four (K154, W94; docs/ux/mod-editor.md).** The page, `kurashi mod new|check` and these share one
 generator (`kurashi_mods::scaffold`) and one ruleset (`kurashi_mods::check`); none holds a list of its own.
 - `{"t":"query","id":"20","kind":"points"}` → `items`: the registry of extension points in the order the docs list
-  them: `{id, kind: "variant"|"slot"|"menu"|"reach", fill, about, expected, part?}` — `fill` is how a manifest fills it,
+  them: `{id, kind: "variant"|"slot"|"menu"|"reach"|"feed", fill, about, expected, part?}` — `fill` is how a manifest fills it,
   `expected` whether a placeable module must ship it or say why not (`[skips]`), `part` the scaffold's part that makes
   it (absent where the scaffold has none).
 - `mod.check {id}` checks an installed mod's folder; `mod.check {spec}` checks a draft **without writing it** (the
   files are generated into a temporary folder, checked, removed). `spec` is the scaffold's: `{id, name, icon,
-  description, with: [part…], uses: [entry…]}`. Answer `data`: `{id, passed, errors, notes, findings: [{rule, level:
-  "error"|"warn", at, detail}], files?: [{path, text}]}` (`files`, a draft's tree, for the page's preview). A spec the
-  scaffold refuses is `invalid` with its key (`mods.new.error.id_invalid`, `…name_empty`, `…icon_invalid`,
-  `…part_unknown`, `…nothing_chosen`, `…id_taken`).
+  description, with: [part…], uses: [entry…], host?: "python", skips?: {variant: reason}}` — `skips` are the author's
+  own lines for the variants the mod does not ship (`[skips]`), in place of the template's. Answer `data`: `{id, passed,
+  errors, notes, rules: [rule…], findings: [{rule, level: "error"|"warn", at, detail}], files?: [{path, text}]}` —
+  `rules` is every rule the check holds a mod to, in list order (`kurashi_mods::check::RULES`; one with no finding is
+  met; `mods.check.<rule>` names each); `files`, a draft's tree, is for the page's preview. A spec the scaffold refuses
+  is `invalid` with its key (`mods.new.error.id_invalid`, `…name_empty`, `…icon_invalid`, `…part_unknown`,
+  `…nothing_chosen`, `…id_taken`, `…skip_empty: <variant>` for a reason given empty).
 - `mod.new {spec}` writes the mod into the user's mods folder (`$XDG_DATA_HOME/kurashi/mods/<id>/`: a temporary folder
   beside it, then a rename — nothing half-written), rescans, and answers `{path, check}`. Refused as `mod.check`'s
   draft is, and with `mods.new.error.write` (`unavailable`) when the folder cannot be written. The mod is `available`;

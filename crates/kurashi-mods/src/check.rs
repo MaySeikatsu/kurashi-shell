@@ -20,6 +20,26 @@ pub enum Level {
     Warn,
 }
 
+/// Every rule the check holds a mod to, in the order a list shows them (`mods.check.<rule>` names each). A rule with no
+/// finding is met. The Mod Editor's list and the report's `rules` are this (rule 3); a test holds the source to it.
+pub const RULES: &[&str] = &[
+    "manifest",
+    "use_undeclared",
+    "use_unseen",
+    "use_base",
+    "variant",
+    "icon",
+    "description",
+    "actions_declared",
+    "setting_label",
+    "no_process",
+    "kit_only",
+    "colour_literal",
+    "font_literal",
+    "copy_literal",
+    "host_exec",
+];
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Finding {
     /// The rule's id; `mods.check.<rule>` is its i18n key.
@@ -511,6 +531,51 @@ pub fn reach(dir: &Path) -> Reach {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// W94: the rule list is the rules the code reports, and each has its name in both catalogues.
+    #[test]
+    fn the_rule_list_is_what_the_check_reports_and_every_rule_has_a_name() {
+        let src = include_str!("check.rs");
+        let mut found = std::collections::BTreeSet::new();
+        for marker in ["rule: \"", "add(\""] {
+            for part in src.split(marker).skip(1) {
+                let id: String = part
+                    .chars()
+                    .take_while(|c| c.is_ascii_lowercase() || *c == '_')
+                    .collect();
+                if part[id.len()..].starts_with('"') && !id.is_empty() {
+                    found.insert(id);
+                }
+            }
+        }
+        // `add(` on a line of its own, the rule on the next.
+        for part in src.split("add(\n").skip(1) {
+            let line = part.trim_start();
+            if let Some(rest) = line.strip_prefix('"') {
+                found.insert(rest.chars().take_while(|c| *c != '"').collect());
+            }
+        }
+        let listed: std::collections::BTreeSet<String> =
+            RULES.iter().map(|r| (*r).to_string()).collect();
+        assert_eq!(
+            found, listed,
+            "RULES and the rules the check reports differ"
+        );
+        for lang in ["en", "ja"] {
+            let dir =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../i18n/{lang}"));
+            let catalogue = ["mod-editor.toml", "mods.toml"]
+                .iter()
+                .map(|f| std::fs::read_to_string(dir.join(f)).unwrap())
+                .collect::<String>();
+            for r in RULES {
+                assert!(
+                    catalogue.contains(&format!("\"mods.check.{r}\"")),
+                    "{lang}: mods.check.{r} has no name"
+                );
+            }
+        }
+    }
 
     fn write(dir: &Path, rel: &str, text: &str) {
         let p = dir.join(rel);

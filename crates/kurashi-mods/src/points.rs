@@ -109,6 +109,13 @@ pub const POINTS: &[Point] = &[
         true,
     ),
     point(
+        "settings",
+        Reach,
+        "[[setting]]",
+        "A page of its own in Settings, generated from its settings: labels, controls, defaults, provenance",
+        false,
+    ),
+    point(
         "launcher",
         Reach,
         "launcher:<name>",

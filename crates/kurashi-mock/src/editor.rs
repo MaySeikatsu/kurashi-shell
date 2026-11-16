@@ -51,7 +51,8 @@ pub fn points() -> Vec<Value> {
 pub fn act(action: &str, args: &Value) -> Option<Result<Option<Value>, Fail>> {
     Some(match action {
         "mod.check" if args["id"].is_string() => Ok(Some(json!({
-            "id": args["id"], "passed": true, "errors": 0, "notes": 0, "findings": [],
+            "id": args["id"], "passed": true, "errors": 0, "notes": 0,
+            "rules": kurashi_mods::check::RULES, "findings": [],
         }))),
         "mod.check" => draft(&args["spec"]).map(Some),
         "mod.new" => draft(&args["spec"]).map(|mut d| {

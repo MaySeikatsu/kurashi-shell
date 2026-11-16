@@ -2117,8 +2117,12 @@ impl ConfigStore {
 
     /// Whether Settings has the page `page` (I40, K65): a page id of the published `schema.settings`
     /// (what Settings shows, Shōjiki), or `mod:<id>` for a loaded mod's page `mods.<id>`. Settings'
-    /// own views (`@changed`, `@mods`, `@profiles`) are not pages.
+    /// own views (`@changed`, `@mods`, `@profiles`) are not pages — but for the Mod Editor, `mods.new` (W94), which
+    /// the launcher's `> new mod` and a link open.
     pub fn has_settings_page(&self, page: &str) -> bool {
+        if page == "mods.new" {
+            return true;
+        }
         let id = match page.strip_prefix("mod:") {
             Some(m) if !m.is_empty() => format!("mods.{m}"),
             Some(_) => return false,

@@ -824,6 +824,8 @@ struct CommandLabels {
     revs: (u64, u64),
     actions: std::collections::HashMap<String, String>,
     shortcuts: String,
+    /// W94: the Mod Editor's row, "New mod".
+    new_mod: String,
     /// `(page argument, row name)`: `bar` or `mod:<id>`, "Settings: Bar".
     pages: Vec<(String, String)>,
 }
@@ -860,6 +862,7 @@ impl CommandLabels {
             revs,
             actions,
             shortcuts: tr("launcher.cmd.shortcuts").unwrap_or_else(|| "Shortcut settings".into()),
+            new_mod: tr("mods.new.title").unwrap_or_else(|| "New mod".into()),
             pages,
         }
     }
@@ -879,6 +882,15 @@ impl CommandLabels {
             self.shortcuts.to_lowercase()
         )) {
             links.push(row("keys", &self.shortcuts, "keyboard"));
+        }
+        // W94: `> new mod` opens the Mod Editor (Settings' own view `mods.new`); only for a query that names it.
+        if !words.is_empty()
+            && hits(&format!(
+                "{} new mod create make extension",
+                self.new_mod.to_lowercase()
+            ))
+        {
+            links.push(row("mods.new", &self.new_mod, "extension"));
         }
         if !words.is_empty() {
             links.extend(
