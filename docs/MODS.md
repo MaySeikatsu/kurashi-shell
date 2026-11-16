@@ -392,7 +392,8 @@ label = "mod-tea.action.start"
 - **Trust, said plainly.** A host program is the user's code running as the user: no sandbox is promised that is not
   there. Before the first enable of a mod that has one, the Mods page says "This mod runs a program: `tea-host`", names
   its `uses` and capabilities, and asks once; the catalogue (W98) carries the source's hash. bubblewrap for hosts is a
-  later row.
+  later row. The `mods` document's entry carries `hosts: [{name, exec, start}]` for such a mod (absent for every other),
+  and `kurashi mod check` holds the program to being a file in `bin/` or an `exec:` capability (`host_exec`).
 - **Templates.** `kurashi mod new --host python|rust|go` writes a host that says hello, publishes one document and
   answers one action, and passes `kurashi mod check`. No client library is shipped: the protocol is ten lines of NDJSON.
 
