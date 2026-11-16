@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (478 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (480 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. Sizes are
 the lead's estimate (S: hours, M: a day or two, L: several days or a brief first), not measured.
@@ -23,11 +23,11 @@ batch or in two: give a new row its batch there, then run it again.
 | 2 | Settings docked in a sidebar | 3 | M |
 | 2 | Applying a style | 3 | M |
 | 2 | Bars and layout | 13 | M–L |
-| 2 | Sidebars | 6 | M |
+| 2 | Sidebars | 7 | M |
 | 2 | Edit mode and groups | 6 | L |
 | 2 | Peeks | 6 | M |
 | 2 | Island | 6 | M–L |
-| 2 | Cards and scrolling | 5 | M |
+| 2 | Cards and scrolling | 6 | M |
 | 2 | Notifications | 2 | M–L |
 | 2 | Desk | 2 | S–M |
 | 2 | Lock and greeter | 3 | M |
@@ -250,10 +250,11 @@ Shares: the layout document, zones and holders, side bars. Size: M–L. Needs yo
 
 ### Sidebars
 
-Shares: the sidebar's window and sections. Size: M. Needs you: I465: how a hover-opened sidebar closes.
+Shares: the sidebar's window and sections. Size: M. Needs you: I607: a brief for top and bottom sidebars; I465: how a hover-opened sidebar closes.
 
 | Row | | What |
 |---|---|---|
+| I607 | U | Sidebars on the top and bottom edges, with size options: the full width, or a centred part of it (about two thirds of … |
 | I500 | U | Sidebars: width per output (a resize on one monitor leaves the other); tabs in one clean row (no wrapping); a "+" to … |
 | I152 |  | Sidebar: click outside to close (niri has no layer-surface focus grab); measure 20 open/close cycles for USS growth … |
 | I465 |  | Open on hover: the sidebar buttons stay click only, because a sidebar is not closed by `ui.close` and a hover-opened … |
@@ -302,10 +303,11 @@ Shares: the island's surface, faces and card. Size: M–L. Needs you: I1: the mo
 
 ### Cards and scrolling
 
-Shares: the Stage's cards and the shared scroll host. Size: M. Needs you: —.
+Shares: the Stage's cards (where and how large they open) and the shared scroll host. Size: M. Needs you: I606: the list of placements.
 
 | Row | | What |
 |---|---|---|
+| I606 | U | A large card joined to the bar's centre as a place any module's card can open at. The user likes the size and place of … |
 | I494 | U | Content cut by a scroll edge blends out: a short progressive blur and fade toward the edge instead of a hard cut, only … |
 | I504 | U | Cards have a maximum size and scroll beyond it (settings for both); floating cards keep one even gap to the nearest … |
 | I505 | U | Notification cards and OSD follow the style system; the launcher opened at the edge follows the theme and its edges … |
