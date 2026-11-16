@@ -30,6 +30,9 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
+    // "New mod…" opens the Mod Editor (W94); back from it, the focus returns to that row.
+    signal newRequested()
+    function focusNew() { Qt.callLater(function () { newBtn.forceActiveFocus() }) }
     // Public so the test hooks can drive the page like a click would.
     function setEnabled(id, on) { request(on ? "mod.enable" : "mod.disable", id) }
     function load(id) { request("mod.load", id) }
@@ -109,6 +112,28 @@ Flickable {
             wrapMode: Text.WordWrap
             dim: true
             text: I18n.tr("settings.ui.mods_help")
+        }
+        // W94: the Mod Editor (docs/ux/mod-editor.md), at the list's top.
+        Item {
+            width: parent.width
+            height: newBtn.height
+            Label {
+                anchors.left: parent.left
+                anchors.right: newBtn.left
+                anchors.rightMargin: Theme.pad
+                anchors.verticalCenter: parent.verticalCenter
+                wrapMode: Text.WordWrap
+                dim: true
+                font.pixelSize: Theme.fs - 1
+                text: I18n.tr("mods.new.intro")
+            }
+            Button {
+                id: newBtn
+                objectName: "mods-new"
+                anchors.right: parent.right
+                label: I18n.tr("mods.new.row")
+                onClicked: p.newRequested()
+            }
         }
         Label {
             visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""

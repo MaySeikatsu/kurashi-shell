@@ -38,6 +38,7 @@
 "mods.new.part.settings" = "A setting"
 "mods.new.skip.reason" = "Why it has none"
 "mods.new.skip.suggest" = "Nothing to show there"
+"mods.new.skip.template" = "The template writes its own line for now; change it in mod.toml once it is written"
 
 "mods.new.group.uses" = "What it uses"
 "mods.new.uses.help" = "Documents it reads and actions it calls beyond its own. Everything here is shown to whoever installs it."
@@ -53,6 +54,7 @@
 "mods.new.runs.tree.about" = "First-party: a crate beside the shell's own"
 "mods.new.runs.luau" = "Luau"
 "mods.new.runs.luau.about" = "With portable mods — not yet"
+"mods.new.runs.tree.inert" = "Only in a checkout of the shell's source"
 
 "mods.new.files" = "Files"
 "mods.new.files.none" = "Give it a name to see its files"
@@ -61,6 +63,7 @@
 "mods.new.check.not_met" = "not met"
 "mods.new.check.passed" = "Every rule is met"
 "mods.new.check.failed" = "{n} rules are not met"
+"mods.new.check.failed_one" = "1 rule is not met"
 "mods.new.check.notes" = "{n} notes"
 "mods.new.create" = "Create"
 "mods.new.create.needs_name" = "Give it a name"
@@ -69,6 +72,7 @@
 "mods.new.turn_on" = "Turn it on"
 "mods.new.open_folder" = "Open the folder"
 "mods.new.open_page" = "Open its page"
+"mods.new.open_page.needs_on" = "Its page is in Settings once it is turned on"
 "mods.new.discard" = "Discard this mod?"
 "mods.new.discard.keep" = "Keep editing"
 "mods.new.discard.leave" = "Discard"

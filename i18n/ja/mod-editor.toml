@@ -37,6 +37,7 @@
 "mods.new.part.settings" = "設定項目"
 "mods.new.skip.reason" = "ない理由"
 "mods.new.skip.suggest" = "そこに表示するものがありません"
+"mods.new.skip.template" = "今はテンプレートが自分の一行を書きます。書き出したあと mod.toml で変えてください"
 
 "mods.new.group.uses" = "使うもの"
 "mods.new.uses.help" = "自分のもの以外に読むドキュメントと呼ぶアクションです。ここに書いたものはインストールする人に表示されます。"
@@ -52,6 +53,7 @@
 "mods.new.runs.tree.about" = "ファーストパーティ：シェルのクレートと並ぶクレート"
 "mods.new.runs.luau" = "Luau"
 "mods.new.runs.luau.about" = "ポータブルモッドとともに — まだ使えません"
+"mods.new.runs.tree.inert" = "シェルのソースのチェックアウトの中でだけ"
 
 "mods.new.files" = "ファイル"
 "mods.new.files.none" = "名前を入力するとファイルが表示されます"
@@ -60,6 +62,7 @@
 "mods.new.check.not_met" = "不適合"
 "mods.new.check.passed" = "すべてのルールに適合しています"
 "mods.new.check.failed" = "{n} 件のルールに適合していません"
+"mods.new.check.failed_one" = "1 件のルールに適合していません"
 "mods.new.check.notes" = "{n} 件の注記"
 "mods.new.create" = "作成"
 "mods.new.create.needs_name" = "名前を入力してください"
@@ -68,6 +71,7 @@
 "mods.new.turn_on" = "オンにする"
 "mods.new.open_folder" = "フォルダを開く"
 "mods.new.open_page" = "ページを開く"
+"mods.new.open_page.needs_on" = "オンにすると、そのページが設定に加わります"
 "mods.new.discard" = "このモッドを破棄しますか？"
 "mods.new.discard.keep" = "編集を続ける"
 "mods.new.discard.leave" = "破棄"
