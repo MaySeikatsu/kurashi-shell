@@ -285,6 +285,19 @@ pub struct Bar {
     /// stay usable, so on a narrow screen this can be exceeded.
     #[kurashi(default = 33, range = 20..=100, step = 1, unit = "%", since = 7)]
     pub card_max_width: u32,
+    /// Large card width
+    /// How wide a large card is, as a share of its screen's width. A large card opens at the bar's centre: a module's
+    /// card that asks for the room (the wallpaper picker), and the modules listed under "Modules that open large".
+    #[kurashi(default = 60, range = 30..=100, step = 5, unit = "%", advanced)]
+    pub card_large_width: u32,
+    /// Large card height
+    /// How tall a large card is, as a share of its screen's height.
+    #[kurashi(default = 45, range = 20..=95, step = 5, unit = "%", advanced)]
+    pub card_large_height: u32,
+    /// Modules that open large
+    /// These modules' cards open as a large card at the bar's centre instead of at their usual size.
+    #[kurashi(default = strings(&[]), choices_from = "modules", advanced)]
+    pub popups_large: Vec<String>,
     /// Keep a closed card ready
     /// A card that has closed keeps what it showed for a minute, off screen, so it opens again at once and at its
     /// size. It costs its memory for that minute, and what it watches stays watched. Off: a closed card is gone at once

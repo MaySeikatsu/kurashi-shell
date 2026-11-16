@@ -166,7 +166,7 @@ PanelWindow {
         return openedFrom !== "" && openedFrom !== "island" && placeOf(openedFrom) === "module"
             && IslandGeom.rectOf(outName, "module:" + openedFrom) !== null
     }
-    readonly property bool toCentre: openedFrom !== "" && openedFrom !== "island" && placeOf(openedFrom) === "centre"
+    readonly property bool toCentre: openedFrom !== "" && openedFrom !== "island" && (placeOf(openedFrom) === "centre" || large)
     Timer {
         id: swap
         interval: 90
@@ -296,7 +296,23 @@ PanelWindow {
     // takes it within 360..1100 px and the output's width (the handwriting mod's drawing board is the wide one); the panel
     // gets the card's content width.
     readonly property var modPanel: contentKind === "mod" && view.item ? view.item.item : null
+    // I606 (K164): a large card — a share of the screen (`bar.card_large_width` × `bar.card_large_height`, the size of
+    // the terminal's sheet by default), joined at the bar's centre whatever opened it. A panel asks for it
+    // (`property bool cardLarge: true`; it is handed the height as `fillHeight`), or the user names its module
+    // (`bar.popups_large`).
+    readonly property bool large: contentKind === "mod" && !full
+        && ((modPanel !== null && modPanel.cardLarge === true)
+            || (bars.valueOf("bar.popups_large", []) || []).indexOf(shownPanelMod) >= 0)
+    readonly property real largeW: screen ? Math.round(screen.width * Number(bars.valueOf("bar.card_large_width", 60)) / 100) : 1100
+    readonly property real largeH: screen ? Math.round(screen.height * Number(bars.valueOf("bar.card_large_height", 45)) / 100) : 480
+    Binding {
+        target: stage.modPanel
+        property: "fillHeight"
+        value: stage.large ? Math.max(160, stage.largeH - 2 * stage.cardPad - stage.titleH - 2 * stage.frameW) : 0
+        when: stage.modPanel !== null && stage.modPanel.fillHeight !== undefined && !stage.mapsSurface
+    }
     readonly property int modCardWidth: {
+        if (large) return Math.max(360, Math.min(largeW, screen ? screen.width - 2 * Theme.pad : largeW))
         var want = modPanel && modPanel.cardWidth > 0 ? modPanel.cardWidth : 360
         var room = screen ? screen.width - 2 * Theme.pad : 720
         return Math.max(360, Math.min(want, 1100, room))
@@ -1585,8 +1601,9 @@ PanelWindow {
     // must hold still, and the web dock sizes its card itself)
     readonly property bool mapsSurface: modPanel !== null && (modPanel.cardPlacement !== undefined || modPanel.placement !== undefined)
     readonly property bool limited: viewing && !full && !ownChrome && !mapsSurface
-    readonly property real maxCardH: screen ? Math.max(160, Math.round(screen.height * Number(bars.valueOf("bar.card_max_height", 50)) / 100)) : 100000
-    readonly property real maxCardW: screen ? Math.max(400, Math.round(screen.width * Number(bars.valueOf("bar.card_max_width", 33)) / 100)) : 100000
+    // (I606: a large card's limits are its own size)
+    readonly property real maxCardH: large ? largeH : screen ? Math.max(160, Math.round(screen.height * Number(bars.valueOf("bar.card_max_height", 50)) / 100)) : 100000
+    readonly property real maxCardW: large ? largeW : screen ? Math.max(400, Math.round(screen.width * Number(bars.valueOf("bar.card_max_width", 33)) / 100)) : 100000
     // A view with its own chrome: the shape dissolves into it (all of it but the bar's rule copy, I161).
     readonly property real shapeFade: ownChrome ? 1 - contentP : 1
 
