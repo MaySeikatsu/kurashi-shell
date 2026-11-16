@@ -297,20 +297,9 @@ Flickable {
     Keys.onEscapePressed: event => { p.goBack(); event.accepted = true }
 
     // Scrolls the least that brings the item into view.
-    function reveal(item) {
-        var top = item.mapToItem(p.contentItem, 0, 0).y
-        var bottom = top + item.height
-        if (top < p.contentY) p.contentY = Math.max(0, top - Theme.pad)
-        else if (bottom > p.contentY + p.height) p.contentY = Math.min(bottom - p.height + Theme.pad, p.contentHeight - p.height)
-    }
+    function reveal(item) { follow.reveal(item) }
     // The keyboard focus follows into view (a long form scrolls under it).
-    Connections {
-        target: p.Window.window
-        function onActiveFocusItemChanged() {
-            var f = p.Window.window ? p.Window.window.activeFocusItem : null
-            for (var it = f; it; it = it.parent) if (it === p) { p.reveal(f); return }
-        }
-    }
+    FocusFollow { id: follow; view: p }
 
     // The test hook's view of the page (the suite reads it; shell.qml `modNew`).
     function state() {
