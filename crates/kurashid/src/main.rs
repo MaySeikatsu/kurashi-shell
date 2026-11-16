@@ -20,6 +20,7 @@ fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
+    kurashid::alloc::check();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
@@ -248,6 +249,7 @@ async fn run() -> anyhow::Result<()> {
             system: kurashid::services::Bus::System.connect(),
         },
     );
+    kurashid::location::wire(&hub, config.as_ref());
     kurashid::wiring::nightlight(&hub, &mut actions, config.clone());
     kurashid::wiring::recorder(
         &hub,

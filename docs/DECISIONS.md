@@ -1713,3 +1713,104 @@ general". Measured in session 34: with `cargo` a bump recompiles the workspace's
 (BENCH "Build loop"); under `nix build` every PR's bump (K151) rebuilt all dependencies in release, because the version is
 an input of the dependency derivation and stands in both files it reads. The user chose normalising over moving the
 version out of `Cargo.toml` and over leaving it.
+
+## K157 — The daemon's allocator is jemalloc, configured at build time; caches have a bound (session 35, W90, B147)
+**What.** `kurashid` runs on jemalloc (`tikv-jemallocator`) with two arenas, freed pages back to the system after one
+second and jemalloc's own purging thread (`.cargo/config.toml`: `JEMALLOC_SYS_WITH_MALLOC_CONF =
+"narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:0,background_thread:true"`). `kurashid::alloc::check` warns at start when a
+build did not carry it, and a test holds `just check` to it. Every cache the daemon keeps has a size and an eviction
+(`kurashid::cache::keep_newest`; the tiles held in memory: four).
+**Why.** The user's 0.2.0 session after 42 h (read through `/proc`, session 35): `kurashid` 648 MiB PSS, of it 571 MiB in
+eleven glibc arena heaps of 50–60 MiB each, 57 MiB in the main heap; its documents were small (the largest 288 KB). glibc
+gives a thread an arena of its own, the blocking pool's threads come and go, and each arena kept the peak of the largest
+job that ever ran on it — a 4K wallpaper's decode is 33 MiB. `tools/bench/soak.py` reproduces it in two minutes (66 →
+260 MiB). Measured on the same three-minute soak, the daemon's PSS:
+
+| allocator | start → end |
+|---|---|
+| glibc (0.3.0) | 66 → 260, climbing |
+| glibc, `MALLOC_ARENA_MAX=2` | 56 → 92–134 |
+| glibc, `MALLOC_ARENA_MAX=2` and `MALLOC_MMAP_THRESHOLD_=1048576` | 50 → 55–60 |
+| mimalloc 0.1.52 | 101 → 120–135 |
+| jemalloc, its defaults (four arenas per CPU, ten seconds) | 159 → 140–180 |
+| jemalloc, two arenas, one second, background purging | 60 → 59–66 |
+
+**Not chosen.** glibc's tunables did as well, but they are environment variables: the daemon would have to start itself
+again with them, and the 51 places that start a child process (the launcher's apps among them) would hand them on —
+`std::env::remove_var` is `unsafe` in this edition and the workspace forbids `unsafe` (the same reason there is no
+`malloc_conf` symbol). mimalloc doubles the daemon at rest. A wrapper script or the unit's `Environment=` would leave
+`just dev`, the suites and any binary started by hand without it.
+**Cost.** One C library in the dependency build (cached by Nix with the other dependencies); about 8 MiB more at rest
+than tuned glibc. Quickshell already links jemalloc and `frontend/launch.sh` holds it to two arenas the same way (W42).
+
+## K158 — A mod's crate reads and calls what its manifest's `uses` name; a missing use waits (session 35, W91, K154 step 5)
+**What.** `kurashi-mod-api`: `ModCtx::follow(doc) -> Follow` and `ModCtx::calls(action) -> Call`, both refused at
+enable (`ModError::NotUsed`) unless the manifest names the document or action in `uses` or it is in the base set.
+`Follow::watch()` subscribes when it is called — inside the mod's service or job — and the daemon counts a subscriber
+of that document until the receiver is dropped, so a core service runs for a mod exactly as it does for a view and
+stops with it (Ma). `Call::call(args)` goes through the action registry, declared arguments checked as for any caller.
+A use the manifest requires (no `?`) and that is not there at enable — the other mod is off — does not switch the mod
+off: it stays enabled and inert with `mods.uses.missing` and the use's name in the `mods` document, and every sync
+tries again (in passes, so it comes alive in the same reconcile that enables the other mod). An optional use reads
+`{available: false}` and a call to it answers `unavailable`. A host process's connection reaches what
+`Contract::may_read` / `may_call` allow, not a fixed list.
+**Why.** Two mods worked around the missing reads in QML, against rule 1: lyrics' views sent the playing track with an
+action on every change (so lyrics followed the player only while a view was up), and the sessions mod put the calls it
+wanted into its document for a QML surface to relay — which sent them without any declaration (the manifest never named
+`webdock.open`). CONTRACT-CHANGE 126 and 810 asked for exactly this.
+**Removed (Breaking).** `lyrics.track`; `sessions.handed`, `sessions.undelivered`, and `handoff` in `mod.sessions`.
+**Chosen without asking.** `follow` returns a handle, not the receiver the card sketched: a receiver made at enable
+would hold the subscription for as long as the mod is on. `calls` is per action and checked at enable, like `follow`,
+so an undeclared call is a refused enable, not a run-time error. The feed for a missing optional document takes it up
+when it is registered (`Hub::registrations`, a channel of its own: the document events must not reach a connection that
+still holds a subscription to a removed document). A mod that already runs is not made inert again when a required use
+goes away later; its feed says unavailable. The timer keeps its own notification call: no core action makes a
+notification (CONTRACT-CHANGE row for `notify.send`).
+
+## K159 — The core's place is `svc.location`: set by hand, or offered by whichever mod knows one (session 35, W92 row 1, K28)
+**Was.** The night light's sun schedule and the light's daytime read the weather mod's saved places from its state file
+and its setting (`kurashi_mod_weather::places`, `mods.weather.place`), and the night light followed `mod.weather` for
+changes: the core named a mod three times, and read its file even while the mod was off.
+**Now.** A core document `svc.location` `{available, lat, lon, name, source}` (PROTOCOL; fixture `server/snap_location.json`).
+The place in effect is, in this order: the one set by hand (`location.manual` with `location.latitude` and
+`location.longitude`, on Settings › Power beside the night light), else the first one an enabled mod offers. A mod offers
+one with `provides = ["location:<name>"]` and `ModCtx::location(name, read)`: the daemon calls `read` at enable, after
+each change of the mod's settings, and when the mod's `LocationHandle::changed()` says so; the offer leaves with the mod.
+The readers take the place from the config store (`ConfigStore::location`, a watch for followers) — it already holds what
+mods offer to settings (choice sources), and every reader has it. The weather mod offers the place its setting names,
+else its first saved one. `location` is a point of kind `feed` in `kurashi_mods::points::POINTS`.
+**Changed for users.** With the weather mod off, its saved place no longer reaches the night light: the sun schedule
+then says it needs a place (`power.nightlight.reason.no_place`) until one is set by hand or the mod is on — a mod that is
+off does nothing (Shōjiki). **Not built:** a name for a place set by hand, geolocation (GeoClue) as a third source.
+
+## K160 — The desk's weather card is the weather mod's `desk:weather`; schema v8 (session 35, W92 row 2, K28, K46)
+**Was.** `frontend/surfaces/Desktop.qml` drew a core weather card over `mod.weather`, with a core switch
+(`desktop.weather`) and the id `weather` in `desktop.left` / `desktop.right`: the frontend and the schema named a mod.
+**Now.** The card is `mods/weather/qml/desk/weather.qml`, declared as `desk:weather` like every other mod's card (K46):
+it stands after the core cards in mod order, is hidden through `desktop.hidden`, and opens the mod's panel on a click.
+Its name and its "when it shows" note in the desk's edit mode come from the mod's own strings
+(`mod-<id>.desk.<name>`, `mod-<id>.desk.<name>.note` — any mod card may bring the note). The desk card's shape,
+copied in two mods and inlined in two, is one component: `frontend/components/DeskCard.qml`.
+**Schema v8, `v7_to_v8`.** `desktop.weather` is gone; the default of `desktop.right` is `clock, calendar, media`. A file
+keeps what it showed: `"weather"` in the three lists becomes `mod:weather:weather`; `desktop.weather = false` becomes an
+entry in `desktop.hidden` (root and `[outputs.*]`). The bundled profiles that had the card off hide it the same way.
+**Changed for users.** With several mods' cards on the desk the weather stands among them in mod order (after the
+timer), not above them; `desktop.left` / `desktop.right` place it as before.
+
+## K161 — The catalogue's index: one hash for the app and for Nix, a summary nobody types (session 35, W98 step 1, K155)
+**Decided (from the brief `docs/ux/mod-catalogue.md`; the user has not read the brief yet — each point can change).**
+- **The hash of a version is the SRI hash of its unpacked tree as Nix computes it** (SHA-256 over the NAR):
+  `kurashi_mods::nar::hash`, `kurashi mod hash <folder>`; a test holds it to `nix hash path`'s value. One value serves
+  the in-app install's check and `programs.kurashi.mods.<id>.hash`; an archive's own checksum would have needed a second
+  one, and would change with the compression.
+- **An entry** (`mods/<id>.toml`, the same shape in `index.json`; `kurashi_mods::index`): id, names by language, and
+  versions with the shell range, the source (git over https with a full revision, or an archive) and the hash. The Rust
+  validator and the index's CI script (`tools/mod-index/build.py`) hold the same rules; a broken entry in a fetched
+  index is left out and named, the rest stay usable.
+- **`[version.summary]` is written by CI** from the mod's own manifest (`kurashi mod check --summary`): what it adds,
+  reads, may reach and runs. `Summary::gained` is what an update's sheet lists; nothing gained, no sheet.
+- **`.source`** in an installed mod's folder says where it came from; a folder without it is never updated or removed
+  by the catalogue.
+**Not built yet:** fetching the index, `mod.add` / `update` / `remove` in the daemon, Browse, the Home-Manager option
+(W98 steps 2–7).
+

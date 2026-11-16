@@ -94,24 +94,12 @@ TOL = 3
 X0, X1, Y0, Y1 = 0, 2560, 40, 1000   # the output is 2560 wide; the card grows from its bar button (W36), under the 36 px bar
 
 
-def read_ppm(data):
-    # Four whitespace-separated fields (magic, width, height, maxval), one whitespace byte, the raster.
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
-with open(sys.argv[1], "rb") as f:
-    w, h, raster = read_ppm(f.read())
+w, h, raster = read_ppm(sys.argv[1])
 n = 0
 x0 = y0 = 1 << 30
 x1 = y1 = -1
@@ -742,23 +730,13 @@ fpath, rpath, x, y, w, h, hexc = sys.argv[1], sys.argv[2], *map(int, sys.argv[3:
 RING = tuple(int(hexc[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def read(path):
-    with open(path, "rb") as f:
-        data = f.read()
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
-W, H, A = read(fpath)
-_, _, B = read(rpath)
+W, H, A = read_ppm(fpath)
+_, _, B = read_ppm(rpath)
 
 
 def ring(px, py):

@@ -133,11 +133,11 @@ there. "Save desk" takes the focused output's active workspace.
   the output the request names): the look's card (`MenuCard`: elevation, corners, outline or pen, material), the
   launcher's rows (`MenuRowFace`, its tonal highlight where the look leaves it), a fade and a 0.96 → 1 scale (a cut with
   motion off). The same card serves the section and the bar module, so it stays after a launcher step exists.
-- **Handoffs** (CONTRACT-CHANGE 810): a native mod cannot invoke another mod's action, so "In Kurashi" (`terminal.run`),
-  a desk's terminal tabs (`terminal.open_dir`) and web page (`webdock.open`), and the Settings page without noren
-  (`settings.open`) ride `handoff: [{seq, action, args}]` in `mod.sessions`; the first screen's chooser sends each while
-  that mod is on and answers `sessions.handed {seq}`. A desk just saved asks the shell for those mods' parts the same way
-  (`collect` → `sessions.desk.extras`).
+- **Calls to other mods** (W91, K158; until 0.3.0 a relay through the chooser, CONTRACT-CHANGE 810): "In Kurashi"
+  (`terminal.run`), a desk's terminal tabs (`terminal.open_dir`) and web page (`webdock.open`), and the Settings page
+  without noren (`settings.open`) are called by the crate itself (`ModCtx::calls`, named in the manifest's `uses`) after
+  the action that asked for them; no surface needs to be mapped. A desk just saved still asks the shell for those mods'
+  parts (`collect` → `sessions.desk.extras`).
 - **The line typed into the terminal** names noren by its absolute path, both words quoted
   (`'/nix/store/…/bin/noren' connect 'kurashi'`): the tab's shell may have another PATH, and a name cannot run a command.
 - **Without noren** the mod enables (no manifest `requires` yet, CONTRACT-CHANGE 813): `noren {state: missing, reason}`,
@@ -160,9 +160,8 @@ there. "Save desk" takes the focused output's active workspace.
 - **No `i18n` provide**: two mods that both declare `i18n` refuse each other's enable as a provide conflict (the
   terminal's and this one's, seen; the terminal's and the web dock's by the same rule, `conflicts_with`, not run); the
   files load by domain without it.
-- **In Kurashi with the terminal mod off** never does nothing: the shell answers `sessions.undelivered` and the step
-  comes back with In Kurashi grey and its reason (shot `step-terminal-off-*`). Handoff numbers start from the clock, so
-  a shell that outlives a daemon restart does not skip them.
+- **In Kurashi with the terminal mod off** never does nothing: the call answers `unavailable` and the step comes back
+  with In Kurashi grey and its reason (shot `step-terminal-off-*`).
 - A fresh list ends old news (a failure, "Desk saved", "Desk restored"); kill asks once more ("Kill again to confirm",
   3 s); the section reads the list again when it opens.
 

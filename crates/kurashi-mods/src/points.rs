@@ -15,6 +15,8 @@ pub enum PointKind {
     Menu,
     /// Something the mod is reached by rather than drawn in: a `>` command, a launcher provider, a settings page.
     Reach,
+    /// Something the mod hands the core rather than shows: a place for `svc.location` (W92).
+    Feed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -46,7 +48,7 @@ const fn point(
     }
 }
 
-use PointKind::{Menu, Reach, Slot, Variant};
+use PointKind::{Feed, Menu, Reach, Slot, Variant};
 
 /// Every extension point, in the order the docs and the editor list them.
 pub const POINTS: &[Point] = &[
@@ -107,10 +109,24 @@ pub const POINTS: &[Point] = &[
         true,
     ),
     point(
+        "settings",
+        Reach,
+        "[[setting]]",
+        "A page of its own in Settings, generated from its settings: labels, controls, defaults, provenance",
+        false,
+    ),
+    point(
         "launcher",
         Reach,
         "launcher:<name>",
         "A launcher provider with an optional prefix (K150): rows that run the mod's own actions",
+        false,
+    ),
+    point(
+        "location",
+        Feed,
+        "location:<name>",
+        "A place the mod knows (`ModCtx::location`): the shell's `svc.location` carries it while no place is set by hand — the night light's sun schedule and the light's daytime read it",
         false,
     ),
     point(
@@ -239,6 +255,7 @@ pub fn markdown() -> String {
             Slot => "slot",
             Menu => "menu",
             Reach => "reach",
+            Feed => "feed",
         };
         let must = if p.expected { " ·" } else { "" };
         out.push_str(&format!(

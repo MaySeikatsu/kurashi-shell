@@ -2,7 +2,7 @@
 # upward over a gold hairline, the MENU word at its start, the island in the middle and the clock at its end where the
 # game counts its souls (docs/ux/styles.md §9.3). Offered with the style ("Also use its layout"), never applied by itself
 # (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "souls"

@@ -8,6 +8,54 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-16
+
+### Added
+- **New mod…** (Settings › Mods, or `> new mod` in the launcher): a page that writes a new mod from the templates —
+  what it is, what it starts as, where it shows, what it uses — with the files and the check shown live before
+  anything is written. It makes the same files as `kurashi mod new`.
+- **For mod authors and the coming catalogue:** `kurashi mod hash <folder>` prints a mod's tree hash (the value
+  `nix hash path` prints), `kurashi mod check --summary` what the mod adds, reads, may reach and runs; `tools/mod-index/`
+  is the index repository's layout and CI script with an example entry. Installing from an index is not built yet.
+- **Location** (Settings › Power): set this computer's place by hand (latitude, longitude) for the night light's sunset
+  schedule and the light's daytime. Left off, the place a mod knows is used — the Weather mod's, as before.
+- **For mod authors:** a mod can offer the shell its place with `provides = ["location:<name>"]` and `ModCtx::location`;
+  the document `svc.location` says which place is in effect and where it comes from.
+- **Mods read services and call each other from their own code** (for mod authors): `ModCtx::follow` gives a crate a
+  document its manifest names in `uses`, `ModCtx::calls` an action. A mod whose required use is not there stays switched
+  on and says what it waits for, and comes alive when it appears.
+- **A mod can bring a program of its own, in any language.** Its manifest names the program (`[[host]]`); the shell
+  starts it while a view of the mod is up, stops it with the mod, and lets it publish the mod's documents and answer
+  its actions — and nothing its manifest does not say. `kurashi mod new --host python` writes a working one, and a
+  mod's Settings page says so when it runs a program (docs/MODDING.md "A program of its own").
+- `just soak`: an hour of ordinary use in the sandbox, each process's memory once a minute, with growth budgets.
+
+### Changed
+- The desk's weather card is the Weather mod's own card now: it stands with the other mods' cards (after the core
+  ones, in mod order) and a click opens the weather panel. Your columns and a card you had switched off are kept.
+- With the Weather mod switched off, its saved place is no longer used for the night light's sunset schedule: set a
+  place under Location, or switch the mod on. The schedule says so when it has no place.
+
+### Fixed
+- **Memory.** The daemon no longer keeps the peak of every large job (641 MiB after 42 hours on one machine; it stays
+  near 60–70 now), the closed notification centre no longer holds a card for every notification in the history (up to
+  270 MiB in the frontend), and the texture cache on disk has a bound (it had reached 8.6 GB). The first start after the
+  update removes the old swatches.
+- Lyrics follow the player even when their view came up after the song started.
+- `just bench-gate` measured binaries of 9 October; it builds and measures the tree's own now.
+- The sessions mod's Settings row without noren opens the mod's page (it named a page that does not exist).
+- The frontend still grows under continuous use of the island's card and quick settings (about 200 MiB an hour on the
+  soak): known, not fixed in this release (docs/BACKLOG.md B156).
+
+### Breaking
+- **Config schema 8:** `desktop.weather` is gone (hide the card with `desktop.hidden = ["mod:weather:weather"]`), and
+  the card's id in `desktop.left` / `desktop.right` is `mod:weather:weather`. Files are migrated on first start (a backup
+  `.bak-v7` is kept); Nix-managed configs that set `desktop.weather` need the new form.
+- **IPC / mods:** the actions `lyrics.track`, `sessions.handed` and `sessions.undelivered` are gone, and `mod.sessions`
+  no longer carries `handoff`: the mods do this themselves. A bind or script that called them drops the call.
+- **Host processes:** a mod's host connection reads `svc.clock` only when the manifest names `doc:svc.clock` in `uses`
+  (the web dock does); in return it may read the base set every mod has and what `uses` names.
+
 ## [0.3.0] — 2026-11-15
 
 ### Added

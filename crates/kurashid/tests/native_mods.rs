@@ -347,6 +347,7 @@ async fn an_enabled_native_mod_names_the_component_files_that_exist() {
 async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
     let extra = scratch("scaffold");
     let spec = kurashi_mods::scaffold::Spec {
+        skips: Default::default(),
         id: "tea".into(),
         name: "Tea".into(),
         icon: "emoji_food_beverage".into(),
@@ -357,6 +358,7 @@ async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
         .map(String::from)
         .to_vec(),
         uses: Vec::new(),
+        host: None,
     };
     let dir = spec.write(&extra).unwrap();
     let d = start(
@@ -1415,4 +1417,384 @@ async fn an_unlinked_mod_with_daemon_provides_is_not_offered_and_a_frontend_only
     d.act("mod.enable", "glass").await.unwrap();
     assert_eq!(d.state("glass"), "enabled");
     assert_eq!(d.entry("glass")["errors"], json!([]));
+}
+
+// ---- W91 (K154 step 5): a mod reads another's document and calls another's action, as its manifest's `uses` say ----
+
+/// Serves `mod.giver` `{n}` and counts pokes.
+struct Giver(Arc<AtomicUsize>);
+
+impl NativeMod for Giver {
+    fn id(&self) -> &'static str {
+        "giver"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.service("giver", json!({"n": 1}), |_publish, _settings| {
+            std::future::pending()
+        })?;
+        let pokes = self.0.clone();
+        ctx.action("giver.poke", "action.giver.poke", move |_| {
+            pokes.fetch_add(1, Ordering::SeqCst);
+            async { Ok::<Option<Value>, ModActionError>(None) }
+        })
+    }
+}
+
+/// Follows `mod.giver` while its own service runs and publishes what it saw; `taker.poke` calls `giver.poke`.
+struct Taker;
+
+impl NativeMod for Taker {
+    fn id(&self) -> &'static str {
+        "taker"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let giver = ctx.follow("mod.giver")?;
+        let poke = ctx.calls("giver.poke")?;
+        ctx.service("taker", json!({"seen": 0}), move |publish, _settings| {
+            let giver = giver.clone();
+            async move {
+                let mut rx = giver.watch();
+                loop {
+                    publish(json!({ "seen": rx.borrow_and_update()["n"] }));
+                    if rx.changed().await.is_err() {
+                        std::future::pending::<()>().await;
+                    }
+                }
+            }
+        })?;
+        ctx.action("taker.poke", "action.taker.poke", move |args| {
+            let poke = poke.clone();
+            async move { poke.call(args).await }
+        })
+    }
+}
+
+/// Reads a document its manifest does not name.
+struct Snoop;
+
+impl NativeMod for Snoop {
+    fn id(&self) -> &'static str {
+        "snoop"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.follow("mod.giver").map(|_| ())
+    }
+}
+
+fn manifest(id: &str, provides: &str, uses: &str) -> String {
+    format!(
+        "id = \"{id}\"\nname = \"{id}\"\nversion = \"0.1.0\"\ntier = \"native\"\nkurashi = \">=0.0.1\"\n\
+         provides = [{provides}]\nuses = [{uses}]\n"
+    )
+}
+
+#[tokio::test]
+async fn a_mod_waits_for_a_required_use_then_follows_and_calls_it() {
+    let extra = scratch("uses-mods");
+    write(
+        &extra.join("giver/mod.toml"),
+        &manifest("giver", "\"service:giver\", \"action:giver.poke\"", ""),
+    );
+    write(
+        &extra.join("taker/mod.toml"),
+        &manifest(
+            "taker",
+            "\"service:taker\", \"action:taker.poke\"",
+            "\"doc:mod.giver\", \"action:giver.poke\"",
+        ),
+    );
+    let pokes = Arc::new(AtomicUsize::new(0));
+    let d = start(
+        &scratch("uses"),
+        std::slice::from_ref(&extra),
+        vec![
+            Box::new(Giver(pokes.clone())) as Box<dyn NativeMod>,
+            Box::new(Taker),
+        ],
+    );
+
+    // The use is not there: switched on, inert, with the use's name as the reason (Shōjiki).
+    d.act("mod.enable", "taker").await.unwrap();
+    assert_eq!(d.state("taker"), "enabled");
+    let errors = d.entry("taker")["errors"].clone();
+    assert_eq!(errors[0]["key"], "mods.uses.missing");
+    assert_eq!(errors[0]["detail"], "doc:mod.giver");
+    assert!(
+        d.hub.snapshot("mod.taker").is_err(),
+        "nothing of it is registered"
+    );
+
+    // The use appears: the mod comes alive without being asked again.
+    d.act("mod.enable", "giver").await.unwrap();
+    assert_eq!(d.entry("taker")["errors"], json!([]), "the reason is gone");
+    assert_eq!(
+        d.hub.subscribers("mod.giver"),
+        0,
+        "nobody watches the taker: it reads nothing (Ma)"
+    );
+
+    // Its service runs for a subscriber, and reads the other mod's document for as long.
+    d.hub.subscribe("mod.taker").unwrap();
+    eventually(|| d.hub.snapshot("mod.taker").unwrap().1["seen"] == 1).await;
+    assert_eq!(d.hub.subscribers("mod.giver"), 1);
+    d.hub.set("mod.giver", json!({"n": 2}), None).unwrap();
+    eventually(|| d.hub.snapshot("mod.taker").unwrap().1["seen"] == 2).await;
+    d.hub.unsubscribe("mod.taker");
+    eventually(|| d.hub.subscribers("mod.giver") == 0).await;
+
+    // And calls the other mod's action.
+    d.actions.invoke("taker.poke", json!({})).await.unwrap();
+    assert_eq!(pokes.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn a_use_the_manifest_does_not_name_refuses_the_enable() {
+    let extra = scratch("snoop-mods");
+    write(
+        &extra.join("giver/mod.toml"),
+        &manifest("giver", "\"service:giver\", \"action:giver.poke\"", ""),
+    );
+    write(&extra.join("snoop/mod.toml"), &manifest("snoop", "", ""));
+    let d = start(
+        &scratch("snoop"),
+        std::slice::from_ref(&extra),
+        vec![
+            Box::new(Giver(Arc::default())) as Box<dyn NativeMod>,
+            Box::new(Snoop),
+        ],
+    );
+    d.act("mod.enable", "giver").await.unwrap();
+    d.act("mod.enable", "snoop").await.unwrap();
+    assert_eq!(d.state("snoop"), "disabled");
+    let errors = d.entry("snoop")["errors"].clone();
+    assert_eq!(errors[0]["key"], "mods.error.not_used");
+    assert_eq!(errors[0]["detail"], "doc:mod.giver is not declared in uses");
+}
+
+// ---- W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the editor's generator and ruleset as actions ----
+
+#[tokio::test]
+async fn the_editors_actions_check_a_draft_write_it_and_find_it_without_a_restart() {
+    // The last root is the user's: where `mod.new` writes.
+    let user = scratch("editor-mods");
+    let d = start(&scratch("editor"), std::slice::from_ref(&user), hello());
+    let spec = json!({
+        "id": "tea", "name": "Tea", "icon": "emoji_food_beverage", "description": "A cup, on time.",
+        "with": ["widget", "panel"], "uses": [],
+    });
+
+    // A draft is checked without being written, and its files come back for the preview.
+    let r = d
+        .actions
+        .invoke("mod.check", json!({ "spec": spec }))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(r["passed"], true, "{r}");
+    assert_eq!(r["id"], "tea");
+    let files = r["files"].as_array().unwrap();
+    assert!(
+        files.iter().any(
+            |f| f["path"] == "mod.toml" && f["text"].as_str().unwrap().contains("id = \"tea\"")
+        )
+    );
+    assert!(files.iter().any(|f| f["path"] == "qml/Widget.qml"));
+    assert!(!user.join("tea").exists(), "nothing of a draft stays");
+
+    // A spec the scaffold refuses answers with the scaffold's key.
+    assert_eq!(
+        d.actions
+            .invoke(
+                "mod.check",
+                json!({"spec": {"id": "Tea!", "name": "x", "icon": "extension", "with": ["widget"]}})
+            )
+            .await,
+        Err(ActionError::Invalid("mods.new.error.id_invalid".into()))
+    );
+    assert_eq!(
+        d.actions
+            .invoke(
+                "mod.new",
+                json!({"spec": {"id": "tea", "name": "Tea", "icon": "extension", "with": []}})
+            )
+            .await,
+        Err(ActionError::Invalid("mods.new.error.nothing_chosen".into()))
+    );
+
+    // Written: listed at once, not enabled, and it passes the check where it lies.
+    let n = d
+        .actions
+        .invoke("mod.new", json!({ "spec": spec }))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(n["path"], user.join("tea").to_string_lossy().as_ref());
+    assert_eq!(n["check"]["passed"], true, "{n}");
+    assert_eq!(d.state("tea"), "available");
+    assert_eq!(
+        d.actions
+            .invoke("mod.check", json!({"id": "tea"}))
+            .await
+            .unwrap()
+            .unwrap()["passed"],
+        true
+    );
+    // The id is taken now, for a draft and for a second write.
+    for action in ["mod.check", "mod.new"] {
+        assert_eq!(
+            d.actions.invoke(action, json!({ "spec": spec })).await,
+            Err(ActionError::Invalid("mods.new.error.id_taken".into()))
+        );
+    }
+
+    // It can be turned on; its folder removed by hand, a rescan switches it off and takes it out of the list.
+    d.act("mod.enable", "tea").await.unwrap();
+    assert_eq!(d.state("tea"), "enabled");
+    std::fs::remove_dir_all(user.join("tea")).unwrap();
+    d.actions.invoke("mod.rescan", json!({})).await.unwrap();
+    let (_, doc) = d.hub.snapshot("mods").unwrap();
+    assert!(
+        !doc["mods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == "tea"),
+        "the removed mod is gone from the list"
+    );
+    // A folder that appears is found by the next rescan.
+    write(
+        &user.join("later/mod.toml"),
+        "id = \"later\"\nname = \"Later\"\nversion = \"0.1.0\"\ntier = \"native\"\nkurashi = \">=0.0.1\"\nprovides = []\n",
+    );
+    d.actions.invoke("mod.rescan", json!({})).await.unwrap();
+    assert_eq!(d.state("later"), "available");
+}
+
+#[test]
+fn the_points_query_lists_the_registry_with_the_part_that_makes_each() {
+    let daemon = kurashid::Daemon::new(
+        Hub::new(),
+        ActionRegistry::default(),
+        kurashid::Intents::default(),
+    );
+    let items = daemon.queries["points"]("");
+    assert_eq!(items.len(), kurashi_mods::points::POINTS.len());
+    let glance = items.iter().find(|p| p["id"] == "glance").expect("glance");
+    assert_eq!(glance["kind"], "variant");
+    assert_eq!(glance["expected"], true);
+    assert_eq!(glance["part"], "widget");
+    assert_eq!(glance["fill"], "widget:<name>");
+    // A point the scaffold has no part for carries none.
+    assert!(items.iter().any(|p| p.get("part").is_none()));
+}
+
+/// W92: a mod that knows places, one per value of its setting `city`.
+struct Atlas(
+    Arc<Mutex<Option<kurashi_mod_api::LocationHandle>>>,
+    Arc<Mutex<f64>>,
+);
+
+impl NativeMod for Atlas {
+    fn id(&self) -> &'static str {
+        "atlas"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let (settings, kyoto_lat) = (ctx.settings().clone(), self.1.clone());
+        let handle = ctx.location("home", move || {
+            match settings.get("city").as_ref().and_then(|v| v.as_str()) {
+                Some("kyoto") => Some(kurashi_mod_api::Location {
+                    lat: *kyoto_lat.lock().unwrap(),
+                    lon: 135.77,
+                    name: "Kyoto".into(),
+                }),
+                Some("berlin") => Some(kurashi_mod_api::Location {
+                    lat: 52.52,
+                    lon: 13.4,
+                    name: "Berlin".into(),
+                }),
+                _ => None,
+            }
+        })?;
+        *self.0.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// W92 (K159): `svc.location` carries the place an enabled mod offers, follows the mod's setting and its handle, yields
+/// to a place set by hand, and says why there is none once the mod is off.
+#[tokio::test]
+async fn the_place_in_effect_is_a_mods_until_one_is_set_by_hand() {
+    let extra = scratch("atlas-mods");
+    write(
+        &extra.join("atlas/mod.toml"),
+        "id = \"atlas\"\nname = \"Atlas\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"location:home\"]\n\n[[setting]]\n\
+         key = \"city\"\ntype = \"string\"\ndefault = \"kyoto\"\n",
+    );
+    let (handle, lat) = (Arc::new(Mutex::new(None)), Arc::new(Mutex::new(35.01)));
+    let linked = vec![Box::new(Atlas(handle.clone(), lat.clone())) as Box<dyn NativeMod>];
+    let d = start(&scratch("atlas"), std::slice::from_ref(&extra), linked);
+    kurashid::location::wire(&d.hub, Some(&d.store));
+    let doc = |d: &Daemon| d.hub.snapshot("svc.location").unwrap().1;
+    assert_eq!(
+        doc(&d),
+        json!({"available": false, "reason": "power.location.none"})
+    );
+    let mut feed = d.store.location_feed();
+
+    d.act("mod.enable", "atlas").await.unwrap();
+    eventually(|| doc(&d)["name"] == "Kyoto").await;
+    assert_eq!(
+        doc(&d),
+        json!({"available": true, "lat": 35.01, "lon": 135.77, "name": "Kyoto", "source": "mod:atlas"})
+    );
+    assert!(
+        feed.has_changed().unwrap(),
+        "a follower hears the mod's offer"
+    );
+    feed.borrow_and_update();
+
+    // The mod's setting names another place: no handle needed.
+    let set = |key: &str, value: Value| {
+        d.store
+            .apply(&[ApplyOp::Set {
+                set: key.into(),
+                value,
+                output: None,
+            }])
+            .unwrap();
+    };
+    set("mods.atlas.city", json!("berlin"));
+    eventually(|| doc(&d)["name"] == "Berlin").await;
+    // The place itself moved (a place edited in the mod): the handle says so.
+    set("mods.atlas.city", json!("kyoto"));
+    *lat.lock().unwrap() = 34.99;
+    handle.lock().unwrap().as_ref().unwrap().changed();
+    eventually(|| doc(&d)["lat"] == 34.99).await;
+
+    // A place set by hand wins, and names its source.
+    set("location.latitude", json!(48.14));
+    set("location.longitude", json!(11.58));
+    assert_eq!(
+        doc(&d)["source"],
+        "mod:atlas",
+        "the numbers alone change nothing"
+    );
+    set("location.manual", json!(true));
+    eventually(|| doc(&d)["source"] == "config").await;
+    assert_eq!(
+        d.store.location().map(|p| (p.lat, p.lon)),
+        Some((48.14, 11.58))
+    );
+    set("location.manual", json!(false));
+    eventually(|| doc(&d)["source"] == "mod:atlas").await;
+
+    // The mod goes: so does its place.
+    d.act("mod.disable", "atlas").await.unwrap();
+    eventually(|| doc(&d)["available"] == false).await;
+    assert_eq!(d.store.location(), None);
 }

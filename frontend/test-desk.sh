@@ -94,7 +94,7 @@ shot() { # shot <name>
   echo "shot $1"
 }
 kp() { for k in "$@"; do echo "$k" >&3; sleep 0.35; done; }
-DEFAULT='["clock","calendar","media","weather"]'
+DEFAULT='["clock","calendar","media"]'
 
 start_all() { # start_all <decor>
   stop_pointer
@@ -170,7 +170,7 @@ for DECOR in $DECORS; do
   kp return
   wait_val desktop.media false
   # The mod cards come after, in the manifest's `provides` order (W36: tasks, then notes; the qml map would sort them the other way).
-  check "$(val desktop.right | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:4] == ["calendar","clock","media","weather"] and o[4:] == ["mod:tasks:tasks","mod:tasks:notes"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar and the mod cards in manifest order ($(val desktop.right))"
+  check "$(val desktop.right | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:3] == ["calendar","clock","media"] and o[3:] == ["mod:tasks:tasks","mod:tasks:notes"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar and the mod cards in manifest order ($(val desktop.right))"
   check "$([ "$(val desktop.media)" = false ] && echo 1 || echo 0)" "$DECOR Space hid the media card (desktop.media = $(val desktop.media))"
   shot "saved-$DECOR"
   K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo was refused"
@@ -187,15 +187,15 @@ for DECOR in $DECORS; do
   echo "== $DECOR: Return on a card key is Done (I196)"
   edit_key
   kp alt+down tab return    # the clock moves below the calendar; Tab lands on its up key, which now is enabled
-  wait_val desktop.right '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]'
-  check "$([ "$(val desktop.right)" = '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR Return on the up key saved the edit ($(val desktop.right))"
+  wait_val desktop.right '["calendar","clock","media","mod:tasks:tasks","mod:tasks:notes"]'
+  check "$([ "$(val desktop.right)" = '["calendar","clock","media","mod:tasks:tasks","mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR Return on the up key saved the edit ($(val desktop.right))"
   K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo of the Return save was refused"
   wait_val desktop.right "$DEFAULT"
 
   echo "== $DECOR: hidden cards by Tab and Space, Done, undo"
   edit_key
   kp tab tab space          # the clock: Tab to its down key, then its eye; Space hides it (its switch)
-  kp down down down down    # focus to the tasks card, the fifth card (the eye key keeps Down for the card)
+  kp down down down         # focus to the tasks card, the fourth card (the eye key keeps Down for the card)
   kp tab tab tab space      # the tasks card: its up and down keys, then its eye; Space hides it (desktop.hidden)
   shot "hidden-edit-$DECOR"
   kp up return              # Up moves the focus off the eye onto a card; Return is Done from a card

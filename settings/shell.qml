@@ -226,7 +226,8 @@ ShellRoot {
             onActivated: search.focusInput()
         }
 
-        // "" = first schema page; "@changed", "@mods" and "@profiles" = the Changed view, the Mods and the profiles pages.
+        // "" = first schema page; "@changed", "@mods" and "@profiles" = the Changed view, the Mods and the profiles pages;
+        // "@modnew" = the Mod Editor (W94), reached from the Mods page and listed under it.
         property string page: ""
         property string query: ""
         property bool advanced: false
@@ -234,7 +235,7 @@ ShellRoot {
         readonly property var pages: Store.schema.pages || []
         readonly property string current: page !== "" ? page : (pages.length ? pages[0].id : "")
         readonly property bool searching: query.trim() !== ""
-        readonly property bool special: current === "@changed" || current === "@mods" || current === "@profiles"
+        readonly property bool special: current === "@changed" || current === "@mods" || current === "@profiles" || current === "@modnew"
         // The sidebar: the core pages keep their order, and each mod's page sits among them by name, before the first core
         // page that sorts after it (K25). Then Changed, Mods and Profiles. `mod` is a mod's id, "" otherwise.
         // A page's name in the nav: a mod's from its own strings (`mods.<id>.name`, I244), else the label it came with.
@@ -283,6 +284,7 @@ ShellRoot {
         // A page link (I40): `mod:<id>` names a mod's page (`mods.<id>` in the schema), anything else a page id. The page
         // opens at its top, out of a search; unknown pages open nothing (the daemon refuses them first).
         function pageIdOf(link: string): string {
+            if (link === "mods.new") return "@modnew"
             const id = link.indexOf("mod:") === 0 ? "mods." + link.slice(4) : link
             return win.pages.some(function (x) { return x.id === id }) ? id : ""
         }
@@ -389,6 +391,10 @@ ShellRoot {
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
             function modLoad(id: string): void { modsPage.load(id) }
             function modUnload(id: string): void { modsPage.unload(id) }
+            // Mod Editor test (W94): the page's state as JSON, "none" while it is not shown.
+            function modNew(): string { return modNewPage.item ? modNewPage.item.state() : "none" }
+            // The Mods page's check of a mod (W94): its report as JSON, {"error": text}, or "none" before a Check.
+            function modCheck(id: string): string { const c = modsPage.checks[id]; return c ? JSON.stringify(c.report || { error: c.error }) : "none" }
             // Mod pages test (K25): the sidebar's entries in order, as ids; the core pages keep theirs.
             function navOrder(): string { return win.navItems.map(function (x) { return x.id }).join(",") }
             // Dropdown test (I9): opens the dropdown of a row on this page, as Enter does on its focus.
@@ -577,15 +583,11 @@ ShellRoot {
                     label: Theme.iconFamily !== "" ? "" : "✕"
                     accessibleName: I18n.tr("settings.sheet.close")
                     onClicked: win.dismiss()
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: Theme.iconFamily !== ""
                         anchors.centerIn: parent
                         font.family: Theme.iconFamily
                         font.pixelSize: Theme.fs + 6
-                        color: Theme.fg
                         text: "close"
                     }
                 }
@@ -615,15 +617,10 @@ ShellRoot {
                             color: win.navShown ? Theme.fgOnAccent : Theme.fg
                         }
                     }
-                    Text {
+                    Label {
                         visible: !win.compact
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.fg
                         font.pixelSize: Theme.fsTitle
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("settings.ui.title")
                     }
                     TextField {
@@ -664,15 +661,9 @@ ShellRoot {
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.gap
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             height: Theme.controlH
                             verticalAlignment: Text.AlignVCenter
-                            color: Theme.fg
-                            font.pixelSize: Theme.fs
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("settings.ui.advanced")
                         }
                         Item {
@@ -686,16 +677,11 @@ ShellRoot {
                             }
                         }
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(0, parent.width - x - Theme.pad)
                         elide: Text.ElideRight
                         color: Store.notice !== "" || !Store.live ? Theme.error : Theme.dim
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: !Store.live ? I18n.tr("settings.ui.disconnected") : Store.notice
                     }
                     }
@@ -714,14 +700,9 @@ ShellRoot {
                     anchors.fill: parent
                     anchors.margins: Theme.gap
                     spacing: Theme.gap
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.dim
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
+                        dim: true
                         text: I18n.tr("settings.ui.output")
                     }
                     Segmented {
@@ -842,7 +823,7 @@ ShellRoot {
                                 }
                                 RoundBox {
                                     id: entry
-                                    readonly property bool on: !win.searching && navEntry.modelData.id === win.current
+                                    readonly property bool on: !win.searching && navEntry.modelData.id === (win.current === "@modnew" ? "@mods" : win.current)
                                     // A mod's page (K25) shows its state: a filled dot = on, a hollow ring = loaded, off.
                                     // The shape carries it; the colour (color.status.*) only repeats it.
                                     readonly property bool isMod: navEntry.modelData.mod !== ""
@@ -882,11 +863,8 @@ ShellRoot {
                                         ? I18n.fmt("settings.ui.mod_nav", { name: shownName, state: I18n.tr(modOn ? "settings.ui.on" : "settings.ui.off") })
                                         : shownName
                                     // The selected page is a tonal pill with a bold label, so the choice is not colour alone.
-                                    Text {
+                                    Label {
                                         id: navIcon
-                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                        antialiasing: !Theme.pixelType
-                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                         visible: Theme.iconFamily !== "" && entry.icon !== "" && !entry.isMod
                                         x: Theme.pad
                                         anchors.verticalCenter: parent.verticalCenter
@@ -907,18 +885,13 @@ ShellRoot {
                                         border.width: 2
                                         border.color: entry.modOn ? Theme.statusOn : Theme.statusOff
                                     }
-                                    Text {
-                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                        antialiasing: !Theme.pixelType
-                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                                    Label {
                                         x: entry.isMod ? Theme.pad + 18 : (navIcon.visible ? Theme.pad + 28 : Theme.pad)
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - x - Theme.pad
                                         elide: Text.ElideRight
                                         color: entry.on ? Theme.fgOnSelected : Theme.dim
                                         font.weight: entry.on ? Theme.wBold : Theme.wMedium
-                                        font.pixelSize: Theme.fs
-                                        font.family: Theme.fam(text, Theme.families)
                                         text: entry.shownName
                                     }
                                     MouseArea {
@@ -1067,6 +1040,18 @@ ShellRoot {
                         id: modsPage
                         anchors.fill: parent
                         visible: !win.searching && win.current === "@mods"
+                        onNewRequested: win.page = "@modnew"
+                    }
+                    // Nothing while it is not the page (its budget, docs/ux/mod-editor.md): each visit starts fresh.
+                    Loader {
+                        id: modNewPage
+                        anchors.fill: parent
+                        active: win.current === "@modnew"
+                        visible: !win.searching
+                        sourceComponent: ModEditorPage {
+                            onLeave: { win.page = "@mods"; modsPage.focusNew() }
+                            onPageRequested: link => win.openPage(link)
+                        }
                     }
                     ProfilesPage {
                         id: profiles
@@ -1078,6 +1063,7 @@ ShellRoot {
                     ScrollEdge { view: settingsPages }
                     ScrollEdge { view: changedPage }
                     ScrollEdge { view: modsPage }
+                    ScrollEdge { view: modNewPage.item }
                     ScrollEdge { view: profiles }
                 }
             }

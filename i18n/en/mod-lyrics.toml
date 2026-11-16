@@ -12,7 +12,6 @@
 "mods.lyrics.bar_line.help" = "The bar widget shows the line being sung. Off: only the note icon."
 
 # Daemon: actions, states and reasons.
-"mod-lyrics.action.track" = "Show lyrics for the playing song"
 "mod-lyrics.action.retry" = "Look the lyrics up again"
 "mod-lyrics.none" = "No lyrics for this song"
 "mod-lyrics.online_off" = "Online lookup is off"

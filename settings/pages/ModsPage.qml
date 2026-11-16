@@ -12,6 +12,8 @@ Flickable {
     id: p
     // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
     KineticWheel { view: p }
+    // W94: a row's Check or switch reached by Tab comes into view.
+    FocusFollow { id: follow; view: p }
     QQC.ScrollBar.vertical: PageScrollBar {}
     // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with its code) and
     // the state the row had then. The line goes once the row changes state, and on any change that goes through (B8).
@@ -30,6 +32,28 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
+    // "New mod…" opens the Mod Editor (W94); back from it, the focus returns to that row.
+    signal newRequested()
+    function focusNew() { Qt.callLater(function () { newBtn.forceActiveFocus() }) }
+    // W94: a mod's own check (`mod.check {id}`, the ruleset the Mod Editor shows): mod id -> {report} or {error}, and the
+    // ids being checked. A check changes nothing, so it goes as a plain request (not counted as an applied change).
+    property var checks: ({})
+    property var checking: ({})
+    // `row` (optional): the mod's row, brought into view with its result once the answer is in.
+    function check(id, row) {
+        var c = Object.assign({}, checking)
+        c[id] = true
+        checking = c
+        Store.request({ t: "act", action: "mod.check", args: { id: id } }, function (m) {
+            var r = Object.assign({}, p.checks)
+            r[id] = m.t === "done" ? { report: m.data || null } : { error: Store.actError(m, "settings.err.unknown_action") }
+            p.checks = r
+            var d = Object.assign({}, p.checking)
+            delete d[id]
+            p.checking = d
+            if (row) Qt.callLater(function () { follow.reveal(row) })
+        })
+    }
     // Public so the test hooks can drive the page like a click would.
     function setEnabled(id, on) { request(on ? "mod.enable" : "mod.disable", id) }
     function load(id) { request("mod.load", id) }
@@ -45,9 +69,10 @@ Flickable {
             p.failures = g
         })
     }
+    // (read from the Store, not `entries`: a handler of Store.modsChanged may run before that binding is renewed, W94)
     function stateOf(id) {
-        for (var i = 0; i < entries.length; i++) if (entries[i].id === id) return entries[i].state
-        return ""
+        var m = Store.modEntry(id)
+        return m ? m.state : ""
     }
     // Drops every refusal whose row is no longer in the state it was refused in.
     function pruneFailures() {
@@ -59,7 +84,7 @@ Flickable {
         if (dropped) failures = f
     }
     function refreshIds() {
-        var list = entries.map(function (m) { return m.id })
+        var list = ((Store.mods && Store.mods.mods) || []).map(function (m) { return m.id })
         var sig = list.join("\n")
         if (sig !== idsSig) {
             idsSig = sig
@@ -104,49 +129,52 @@ Flickable {
             width: parent.width
             text: I18n.tr("settings.ui.mods")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.mods_help")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        // W94: the Mod Editor (docs/ux/mod-editor.md), at the list's top.
+        Item {
+            width: parent.width
+            height: newBtn.height
+            Label {
+                anchors.left: parent.left
+                anchors.right: newBtn.left
+                anchors.rightMargin: Theme.pad
+                anchors.verticalCenter: parent.verticalCenter
+                wrapMode: Text.WordWrap
+                dim: true
+                font.pixelSize: Theme.fs - 1
+                text: I18n.tr("mods.new.intro")
+            }
+            Button {
+                id: newBtn
+                objectName: "mods-new"
+                anchors.right: parent.right
+                label: I18n.tr("mods.new.row")
+                onClicked: p.newRequested()
+            }
+        }
+        Label {
             visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: "⊘ " + (p.forcedLoaded !== "" ? p.forcedLoaded : p.forcedEnabled)
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: p.loaded && p.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.mods_empty")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             visible: !p.loaded && !Store.live
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
+            dim: true
             text: I18n.tr("settings.ui.disconnected")
         }
 
@@ -173,6 +201,13 @@ Flickable {
                         anchors.right: parent.right
                         anchors.top: parent.top
                         spacing: Theme.gap
+                        Button {
+                            objectName: "mod-check:" + entry.modelData
+                            label: I18n.tr("mods.new.check")
+                            accessibleName: I18n.tr("mods.new.check") + ": " + I18n.tr(entry.mod.name)
+                            enabled: Store.live && !p.checking[entry.modelData]
+                            onClicked: p.check(entry.modelData, entry)
+                        }
                         Button {
                             visible: entry.available
                             primary: true
@@ -209,14 +244,8 @@ Flickable {
                         spacing: 3
                         Row {
                             spacing: Theme.gap
-                            Text {
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
-                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                                color: Theme.fg
-                                font.pixelSize: Theme.fs
+                            Label {
                                 font.bold: true
-                                font.family: Theme.fam(text, Theme.families)
                                 text: I18n.tr(entry.mod.name)
                             }
                             Chip {
@@ -229,51 +258,35 @@ Flickable {
                                 text: I18n.tr("settings.ui.mod_shadows")
                             }
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: text !== ""
                             width: parent.width
                             wrapMode: Text.WordWrap
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 1
-                            font.family: Theme.fam(text, Theme.families)
                             text: entry.mod.description ? I18n.tr(entry.mod.description) : ""
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: text !== ""
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: p.facts(entry.mod)
                         }
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             width: parent.width
                             wrapMode: Text.WordWrap
-                            color: Theme.dim
+                            dim: true
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.mod.capabilities, "settings.ui.cap.")
                                 + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.mod) || I18n.tr("settings.ui.mod_none"))
                         }
                         // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             visible: entry.isLoaded
                             width: parent.width
                             wrapMode: Text.WordWrap
                             color: entry.mod.running ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fs - 2
-                            font.family: Theme.fam(text, Theme.families)
                             text: (entry.mod.running_reasons || []).length > 0
                                 ? I18n.fmt("settings.mods.running_now", { reasons: Store.joinedWords(entry.mod.running_reasons, "") })
                                 : I18n.tr("settings.mods.not_running")
@@ -282,29 +295,39 @@ Flickable {
                         }
                     }
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: entry.invalid
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: "✕ " + p.problems(entry.mod)
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: entry.failure !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
+                }
+                // Its check, once asked: "Every rule is met", or the findings with where and what (the editor's wording).
+                CheckReport {
+                    readonly property var result: p.checks[entry.modelData] || null
+                    visible: !!result && !!result.report
+                    width: parent.width
+                    compact: true
+                    report: result ? result.report : null
+                    summaryName: "mod-check-result:" + entry.modelData
+                }
+                Label {
+                    readonly property var result: p.checks[entry.modelData] || null
+                    visible: !!result && !!result.error
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.error
+                    font.pixelSize: Theme.fs - 2
+                    text: result && result.error ? "✕ " + result.error : ""
                 }
                 Rectangle {
                     width: parent.width

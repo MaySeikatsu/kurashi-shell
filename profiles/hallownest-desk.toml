@@ -2,7 +2,7 @@
 # word with its fleur and the workspaces at its start (where the game keeps its masks), the island in the middle, the
 # tray and the clock at its end (docs/ux/styles.md §9.4). Offered with the style ("Also use its layout"), never applied
 # by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "hallownest"

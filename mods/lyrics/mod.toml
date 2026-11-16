@@ -52,10 +52,6 @@ icon = "sync"
 command = "lyrics"
 no_args = true
 
-[[action]]
-id = "lyrics.track"
-label = "mod-lyrics.action.track"
-
 [[menu]]
 at = "module"
 action = "lyrics.retry"

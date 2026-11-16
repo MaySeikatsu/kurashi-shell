@@ -2,7 +2,7 @@
 # middle, the levels, the tray and the clock at the end, as Mac OS X 10.2–10.4's menu extras — and the Dock floating at
 # the bottom with its icons on the shelf (the menu bar height measured on a 1:1 Jaguar capture, docs/ux/styles.md §5).
 # Offered with the style ("Also use its layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "aqua"

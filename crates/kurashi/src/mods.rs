@@ -17,7 +17,13 @@ pub enum ModCmd {
         /// Count the notes as failures too
         #[arg(long)]
         strict: bool,
+        /// Print what the mod adds, reads, may reach and runs, as an index entry's `[version.summary]` (K155, W98:
+        /// the catalogue's CI writes it; with --json, as JSON). One PATH; exit 1 when the check fails
+        #[arg(long)]
+        summary: bool,
     },
+    /// The hash of a mod's tree as the catalogue and Nix write it (`sha256-…`, what `nix hash path` prints)
+    Hash { path: PathBuf },
     /// The shell's extension points (`--markdown`: docs/MODS.md's table)
     Points {
         #[arg(long)]
@@ -44,6 +50,9 @@ pub enum ModCmd {
         /// What it reads and calls beyond its own, comma-separated (`doc:svc.clock,action:island.expand?`)
         #[arg(long, value_delimiter = ',')]
         uses: Vec<String>,
+        /// A program of its own beside the views, from that language's template: python (docs/MODDING.md 7a)
+        #[arg(long)]
+        host: Option<String>,
         /// Where its folder goes (default: your mods, $XDG_DATA_HOME/kurashi/mods; `mods` in a checkout)
         #[arg(long)]
         dir: Option<PathBuf>,
@@ -58,7 +67,51 @@ pub struct Out {
 pub fn run(cmd: ModCmd, json: bool) -> Out {
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     match cmd {
-        ModCmd::Check { paths, all, strict } => {
+        ModCmd::Hash { path } => match kurashi_mods::nar::hash(&path) {
+            Ok(h) => Out { text: h, code: 0 },
+            Err(e) => Out {
+                text: format!("kurashi mod hash: {}: {e}", path.display()),
+                code: 2,
+            },
+        },
+        ModCmd::Check {
+            paths,
+            summary: true,
+            ..
+        } => {
+            let [dir] = paths.as_slice() else {
+                return Out {
+                    text: "kurashi mod check --summary: name one mod's folder".into(),
+                    code: 2,
+                };
+            };
+            let report = check::check_dir(dir, &version);
+            let id = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+            let manifest = std::fs::read_to_string(dir.join("mod.toml"))
+                .ok()
+                .and_then(|text| kurashi_mods::manifest::parse(id, &text, &version).ok());
+            let (Some(m), true) = (manifest, report.passed()) else {
+                return Out {
+                    text: report.text(),
+                    code: 1,
+                };
+            };
+            let summary = kurashi_mods::index::Summary::of(&m);
+            Out {
+                text: if json {
+                    serde_json::to_string_pretty(&summary).expect("summary serializes")
+                } else {
+                    toml::to_string(&summary)
+                        .expect("summary serializes")
+                        .trim_end()
+                        .to_owned()
+                },
+                code: 0,
+            }
+        }
+        ModCmd::Check {
+            paths, all, strict, ..
+        } => {
             let mut dirs = paths;
             if let Some(root) = all {
                 dirs.extend(kurashi_mods::mod_dirs(&root));
@@ -114,9 +167,11 @@ pub fn run(cmd: ModCmd, json: bool) -> Out {
             description,
             with,
             uses,
+            host,
             dir,
         } => {
             let spec = kurashi_mods::scaffold::Spec {
+                skips: Default::default(),
                 name: name.unwrap_or_else(|| id.clone()),
                 description: if description.is_empty() {
                     format!("{id}: say in one line what it is for")
@@ -127,6 +182,7 @@ pub fn run(cmd: ModCmd, json: bool) -> Out {
                 icon,
                 with,
                 uses,
+                host,
             };
             let root = dir.unwrap_or_else(|| {
                 std::env::var_os("XDG_DATA_HOME")

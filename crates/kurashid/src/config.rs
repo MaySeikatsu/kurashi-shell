@@ -96,7 +96,74 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 7,
             apply: v6_to_v7,
         },
+        kurashi_config::Migration {
+            from: 7,
+            to: 8,
+            apply: v7_to_v8,
+        },
     ]
+}
+
+/// The desk card id the weather mod's own card has (W92 row 2).
+const WEATHER_CARD: &str = "mod:weather:weather";
+
+/// Session 35 (W92 row 2, K28): the desk's weather card is the weather mod's own (`desk:weather`), no longer a core
+/// card with a switch. A file keeps what it showed: `"weather"` in `desktop.left`, `desktop.right` and
+/// `desktop.hidden` becomes the mod card's id, and `desktop.weather = false` (the key is gone) becomes an entry in
+/// `desktop.hidden`. Root and `[outputs.*]` tables.
+fn v7_to_v8(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    fn one(t: &mut dyn toml_edit::TableLike) {
+        let Some(desk) = t
+            .get_mut("desktop")
+            .and_then(toml_edit::Item::as_table_like_mut)
+        else {
+            return;
+        };
+        for list in ["left", "right", "hidden"] {
+            let Some(a) = desk.get_mut(list).and_then(toml_edit::Item::as_array_mut) else {
+                continue;
+            };
+            for v in a.iter_mut() {
+                if v.as_str() == Some("weather") {
+                    let decor = v.decor().clone();
+                    *v = WEATHER_CARD.into();
+                    *v.decor_mut() = decor;
+                }
+            }
+        }
+        let off = desk.get("weather").and_then(toml_edit::Item::as_bool) == Some(false);
+        desk.remove("weather");
+        if off {
+            match desk
+                .get_mut("hidden")
+                .and_then(toml_edit::Item::as_array_mut)
+            {
+                Some(a) => {
+                    if !a.iter().any(|v| v.as_str() == Some(WEATHER_CARD)) {
+                        a.push(WEATHER_CARD);
+                    }
+                }
+                None => {
+                    let mut a = toml_edit::Array::new();
+                    a.push(WEATHER_CARD);
+                    desk.insert("hidden", toml_edit::value(a));
+                }
+            }
+        }
+    }
+    let root = doc.as_table_mut();
+    one(root);
+    if let Some(outputs) = root
+        .get_mut("outputs")
+        .and_then(toml_edit::Item::as_table_like_mut)
+    {
+        for (_, t) in outputs.iter_mut() {
+            if let Some(t) = t.as_table_like_mut() {
+                one(t);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Session 17 (I297): the material `glass` became `translucent` with its blur switch on, and blur's default became off
@@ -806,7 +873,7 @@ fn offers_now(
     // The desk's cards for its two columns (`desktop.left`, `desktop.right`): the core ones, then the mods'.
     offers.insert(
         "desktop.cards".to_string(),
-        ["clock", "calendar", "media", "weather"]
+        ["clock", "calendar", "media"]
             .iter()
             .map(|c| Offer::on(c, format!("config.desktop.{c}.label")))
             .chain(mod_desks.iter().cloned())
@@ -1373,6 +1440,10 @@ pub struct ConfigStore {
     /// Options of the mods' choice sources (K28 (3)), by source name. A source a manifest declares
     /// is known here even while its mod is off (no options): its values are then inert, not unjudged.
     mod_sources: Mutex<BTreeMap<String, Vec<Offer>>>,
+    /// W92: the places the enabled mods offer (`location:<name>`), keyed `<mod>:<name>`.
+    place_feeds: Mutex<BTreeMap<String, kurashi_mod_api::Location>>,
+    /// The place in effect (`svc.location`): its followers hear a change of the setting or of a mod's offer.
+    place: tokio::sync::watch::Sender<Option<crate::location::Place>>,
     /// The (style, look) whose recipes are the `theme:` layer now (K42, K53).
     appearance: Mutex<(String, String)>,
 }
@@ -1608,6 +1679,8 @@ impl ConfigStore {
             started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
             mod_sources: Mutex::new(BTreeMap::new()),
+            place_feeds: Mutex::new(BTreeMap::new()),
+            place: tokio::sync::watch::channel(None).0,
             appearance: Mutex::new((String::new(), String::new())),
         });
         store.apply_couplings();
@@ -2044,8 +2117,12 @@ impl ConfigStore {
 
     /// Whether Settings has the page `page` (I40, K65): a page id of the published `schema.settings`
     /// (what Settings shows, Shōjiki), or `mod:<id>` for a loaded mod's page `mods.<id>`. Settings'
-    /// own views (`@changed`, `@mods`, `@profiles`) are not pages.
+    /// own views (`@changed`, `@mods`, `@profiles`) are not pages — but for the Mod Editor, `mods.new` (W94), which
+    /// the launcher's `> new mod` and a link open.
     pub fn has_settings_page(&self, page: &str) -> bool {
+        if page == "mods.new" {
+            return true;
+        }
         let id = match page.strip_prefix("mod:") {
             Some(m) if !m.is_empty() => format!("mods.{m}"),
             Some(_) => return false,
@@ -2064,6 +2141,7 @@ impl ConfigStore {
         self.apply_appearance();
         self.publish_settings();
         let _ = self.hub.set(DOC, self.document(), None);
+        self.sync_place();
         for l in self.listeners.lock().expect("listeners").iter() {
             l(self);
         }
@@ -2088,6 +2166,58 @@ impl ConfigStore {
     pub fn set_mod_sources(&self, sources: BTreeMap<String, Vec<Offer>>) {
         *self.mod_sources.lock().expect("mod sources") = sources;
         self.refresh_choices();
+    }
+
+    /// W92: the place in effect — set by hand, else the first an enabled mod offers ([`crate::location::resolve`]).
+    pub fn location(&self) -> Option<crate::location::Place> {
+        let on = self
+            .get("location.manual", None)
+            .is_some_and(|p| p.value == true);
+        let num = |key: &str| self.get(key, None).and_then(|p| p.value.as_f64());
+        let manual = match (on, num("location.latitude"), num("location.longitude")) {
+            (true, Some(lat), Some(lon)) => Some((lat, lon)),
+            _ => None,
+        };
+        crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"))
+    }
+
+    /// The place in effect, for a follower: a new value on every change of it.
+    pub fn location_feed(&self) -> tokio::sync::watch::Receiver<Option<crate::location::Place>> {
+        self.sync_place();
+        self.place.subscribe()
+    }
+
+    /// A mod's offer for `svc.location` (`<mod>:<name>`); `None` takes it back.
+    pub fn set_place_feed(&self, key: &str, place: Option<kurashi_mod_api::Location>) {
+        {
+            let mut feeds = self.place_feeds.lock().expect("place feeds");
+            match place {
+                Some(p) => feeds.insert(key.to_string(), p),
+                None => feeds.remove(key),
+            };
+        }
+        self.sync_place();
+    }
+
+    /// Every offer of mod `id` goes (it was switched off).
+    pub fn drop_place_feeds(&self, id: &str) {
+        let prefix = format!("{id}:");
+        self.place_feeds
+            .lock()
+            .expect("place feeds")
+            .retain(|k, _| !k.starts_with(&prefix));
+        self.sync_place();
+    }
+
+    fn sync_place(&self) {
+        let now = self.location();
+        self.place.send_if_modified(|p| {
+            let changed = *p != now;
+            if changed {
+                *p = now;
+            }
+            changed
+        });
     }
 
     /// One mod choice source's options changed (`ChoicesHandle::changed`, K28 (3)).
@@ -3193,10 +3323,7 @@ mod tests {
             ]
         );
         assert_eq!(values("sidebar.tabs"), values("sidebar.sections"));
-        assert_eq!(
-            values("desktop.cards"),
-            ["clock", "calendar", "media", "weather"]
-        );
+        assert_eq!(values("desktop.cards"), ["clock", "calendar", "media"]);
         let ok = |src: &str, v: Value| offered(&offers, src, &v);
         assert_eq!(ok("sidebar.tabs", json!(["mod:ai:ai"])), Some(true));
         assert_eq!(ok("sidebar.tabs", json!(["mod:tasks:tasks"])), Some(false));

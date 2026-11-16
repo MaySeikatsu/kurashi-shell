@@ -32,26 +32,15 @@ Flow {
                 id: row
                 anchors.centerIn: parent
                 spacing: 6
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
                     font.underline: seg.activeFocus || hover.hovered
-                    font.family: Theme.fam(text, Theme.families)
                     text: seg.modelData.text
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: seg.index < st.segments.length - 1
                     anchors.verticalCenter: parent.verticalCenter
-                    color: Theme.dim
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
+                    dim: true
                     text: "·"
                 }
             }

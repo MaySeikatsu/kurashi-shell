@@ -22,29 +22,20 @@ Column {
     // The displays the compositor reports: the keys of the workspaces document's outputs, less the "*" entry.
     readonly property int displayCount: Object.keys((Store.docs["svc.workspaces"] || ({})).outputs || ({})).filter(function (k) { return k !== "*" }).length
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: view.width
-        color: Theme.fg
         font.pixelSize: Theme.fsTitle
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.brightness.heading")
     }
     StaleNote { face: "brightness" }
 
     // One row per display that can be adjusted: the built-in panel (the backlight) for now.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.present
         width: view.width
         elide: Text.ElideRight
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.brightness.builtin") + " · " + (view.d.device ?? "")
     }
     Row {
@@ -70,45 +61,31 @@ Column {
             a11y: I18n.tr("island.brightness.builtin")
             onMoved: v => Store.intent("brightness.set", v, view.origin)
         }
-        Text {
+        Label {
             id: readout
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: Theme.controlH
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
-            font.pixelSize: Theme.fs
             font.weight: Theme.wMedium
             font.features: { "tnum": 1 }
-            font.family: Theme.fam(text, Theme.families)
             text: view.present ? Math.round(view.level * 100) + "%" : ""
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !view.loaded || !view.present
         width: view.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: view.loaded ? I18n.tr("error.brightness.no_device") : "…"
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.displayCount > 1
         width: view.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.brightness.others")
     }
 
@@ -131,25 +108,15 @@ Column {
         Column {
             id: nightCol
             anchors { left: moon.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.brightness.night")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.brightness.night.none")
             }
         }

@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]   # glob: parallel task crates never conflict here
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 repository = "https://example.invalid/kurashi-shell"
@@ -37,6 +37,11 @@ debug = "line-tables-only"
 # The material generators run whole images through loops: unoptimised, six of their tests took 1.5–4 min each and were
 # most of `just check`'s test time.
 [profile.dev.package.kurashi-texture]
+opt-level = 2
+
+# W90 (K157): jemalloc's configure cannot compile its probes at -O0 under Nix's hardening flags (_FORTIFY_SOURCE wants
+# optimisation: "cannot determine return type of strerror_r"); the allocator is built optimised in every profile.
+[profile.dev.package.tikv-jemalloc-sys]
 opt-level = 2
 
 [profile.release]

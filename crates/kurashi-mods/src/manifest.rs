@@ -114,6 +114,8 @@ pub enum Provide {
     /// A card on the desktop widget column (K43, K46, row 120): `qml/desk/<name>.qml`, drawn by the desk
     /// with the core cards while `desktop.enabled`; it fills the width it is given.
     Desk(String),
+    /// A place the mod knows, for the shell's `svc.location` (W92, `ModCtx::location`).
+    Location(String),
     I18n,
 }
 
@@ -158,6 +160,7 @@ impl Provide {
             "host" => Self::Host(id),
             "surface" => Self::Surface(id),
             "desk" => Self::Desk(id),
+            "location" => Self::Location(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -181,6 +184,7 @@ impl Provide {
             (Self::Slot(_), Self::Slot(_))
             | (Self::Job(_), Self::Job(_))
             | (Self::Host(_), Self::Host(_))
+            | (Self::Location(_), Self::Location(_))
             | (Self::I18n, Self::I18n)
             | (Self::Launcher(_), Self::Launcher(_)) => false,
             _ => self == other,
@@ -206,6 +210,7 @@ impl fmt::Display for Provide {
             Self::Host(i) => write!(f, "host:{i}"),
             Self::Surface(i) => write!(f, "surface:{i}"),
             Self::Desk(i) => write!(f, "desk:{i}"),
+            Self::Location(i) => write!(f, "location:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }
@@ -279,6 +284,33 @@ pub struct Manifest {
     /// them: `Setting` is inline in `registry::Contribution`, and clippy's large_enum_variant limits its size.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub records: Vec<(String, RecordSpec)>,
+    /// The mod's own programs (K155, W93; MODS.md "Host programs"): `[[host]]`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<HostProgram>,
+}
+
+/// When the daemon starts a mod's host program (K155, W93).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HostStart {
+    /// While the mod is on.
+    Enabled,
+    /// While one of the mod's documents has a subscriber (the default: Ma).
+    Subscribed,
+    /// At the first invocation of one of its actions.
+    Action,
+}
+
+/// A program of the mod's own that serves its documents and actions over a scoped connection (K155, W93):
+/// `[[host]] name, exec, args, env, start`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct HostProgram {
+    pub name: String,
+    /// A file name: a file in the mod's `bin/`, else a program on `PATH` (then the capability `exec:<exec>`).
+    pub exec: String,
+    pub args: Vec<String>,
+    pub env: std::collections::BTreeMap<String, String>,
+    pub start: HostStart,
 }
 
 impl Manifest {
@@ -324,6 +356,25 @@ struct Raw {
     skips: std::collections::BTreeMap<String, String>,
     #[serde(default, rename = "setting")]
     settings: Vec<RawSetting>,
+    #[serde(default, rename = "host")]
+    hosts: Vec<RawHost>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawHost {
+    name: String,
+    exec: String,
+    #[serde(default)]
+    args: Vec<String>,
+    #[serde(default)]
+    env: std::collections::BTreeMap<String, String>,
+    #[serde(default = "default_start")]
+    start: String,
+}
+
+fn default_start() -> String {
+    "subscribed".into()
 }
 
 fn default_cost() -> String {
@@ -957,6 +1008,55 @@ pub fn parse(
         }
     }
 
+    // K155 (W93): the mod's own programs.
+    let mut hosts: Vec<HostProgram> = Vec::new();
+    for (i, h) in raw.hosts.iter().enumerate() {
+        let at = |f: &str| format!("host[{i}].{f}");
+        if !ident_ok(&h.name) {
+            errs.push(ValidationError::new(
+                "host_name_invalid",
+                at("name"),
+                &h.name,
+            ));
+        } else if hosts.iter().any(|x| x.name == h.name) {
+            errs.push(ValidationError::new(
+                "host_name_duplicate",
+                at("name"),
+                &h.name,
+            ));
+        }
+        // A file name, never a path: the daemon looks in the mod's `bin/`, then on `PATH`.
+        if h.exec.is_empty() || h.exec.contains('/') || h.exec.starts_with('.') {
+            errs.push(ValidationError::new(
+                "host_exec_invalid",
+                at("exec"),
+                &h.exec,
+            ));
+        }
+        let start = match h.start.as_str() {
+            "enabled" => Some(HostStart::Enabled),
+            "subscribed" => Some(HostStart::Subscribed),
+            "action" => Some(HostStart::Action),
+            other => {
+                errs.push(ValidationError::new(
+                    "host_start_invalid",
+                    at("start"),
+                    other,
+                ));
+                None
+            }
+        };
+        if let Some(start) = start {
+            hosts.push(HostProgram {
+                name: h.name.clone(),
+                exec: h.exec.clone(),
+                args: h.args.clone(),
+                env: h.env.clone(),
+                start,
+            });
+        }
+    }
+
     let contract = crate::contract::parse(
         &raw.id,
         &provides,
@@ -986,6 +1086,7 @@ pub fn parse(
             contract,
             settings,
             records: record_specs,
+            hosts,
         }),
         _ => Err(errs),
     }
@@ -1006,6 +1107,59 @@ mod tests {
         match parse("demo", t, &Version::new(0, 1, 0)) {
             Ok(_) => vec![],
             Err(errs) => errs.iter().map(|e| e.code).collect(),
+        }
+    }
+
+    /// K155 (W93): a mod's own program, declared in the manifest.
+    #[test]
+    fn a_host_program_is_declared_with_its_name_file_and_start() {
+        let host = "[[host]]\nname = \"main\"\nexec = \"tea-host\"\nargs = [\"--state\", \"{state_dir}\"]\n\
+                    env = { TEA_LOG = \"info\" }\n";
+        let m = parse(
+            "demo",
+            &text("\"service:demo\"", host),
+            &Version::new(0, 1, 0),
+        )
+        .unwrap();
+        assert_eq!(m.hosts.len(), 1);
+        let h = &m.hosts[0];
+        assert_eq!((h.name.as_str(), h.exec.as_str()), ("main", "tea-host"));
+        assert_eq!(h.args, ["--state", "{state_dir}"]);
+        assert_eq!(h.env["TEA_LOG"], "info");
+        assert_eq!(
+            h.start,
+            HostStart::Subscribed,
+            "the default: it runs while a view is up"
+        );
+
+        let on_action = "[[host]]\nname = \"main\"\nexec = \"tea-host\"\nstart = \"action\"\n";
+        let m = parse("demo", &text("", on_action), &Version::new(0, 1, 0)).unwrap();
+        assert_eq!(m.hosts[0].start, HostStart::Action);
+
+        // A path is not a file name; a start that is none of the three; two of one name.
+        for (bad, code) in [
+            (
+                "[[host]]\nname = \"main\"\nexec = \"../evil\"\n",
+                "host_exec_invalid",
+            ),
+            (
+                "[[host]]\nname = \"main\"\nexec = \"/usr/bin/python3\"\n",
+                "host_exec_invalid",
+            ),
+            (
+                "[[host]]\nname = \"main\"\nexec = \"a\"\nstart = \"always\"\n",
+                "host_start_invalid",
+            ),
+            (
+                "[[host]]\nname = \"Main\"\nexec = \"a\"\n",
+                "host_name_invalid",
+            ),
+            (
+                "[[host]]\nname = \"main\"\nexec = \"a\"\n[[host]]\nname = \"main\"\nexec = \"b\"\n",
+                "host_name_duplicate",
+            ),
+        ] {
+            assert_eq!(codes(&text("", bad)), [code], "{bad}");
         }
     }
 

@@ -11,6 +11,8 @@
 #                                        12 lines) claims paths under crates/ and i18n/; any other change to
 #                                        frontend/core, crates/ or i18n/ runs the merge set (I545)
 #   --list                               print the suites the arguments select and stop (no build, no run)
+#   A suite's `# needs: example:<package>/<name> feature:test-mods` line (its first 12 lines) names what the plain build
+#   lacks; the runner builds it (I579).
 #   tools/test-suites.sh --all           every suite script
 #   tools/test-suites.sh dock frame …    these (frontend/test-<name>.sh, or a path); after --changed/--all: added
 #   -j N                                 parallel jobs (default 4)
@@ -36,7 +38,7 @@ while [ $# -gt 0 ]; do
 done
 
 # The set the lead runs before a merge (session 16–17); the others run with --all or by name.
-MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu context-menus mods/webdock/test/test-page-menu.sh niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion settings-groups osd appearance-menu mods/terminal/test/test-terminal-outputs.sh mods/sessions/test/test-sessions.sh mod-contract)
+MERGE_SET=(mods/handwriting/test-outlines.sh mods/webdock/test/test-real.sh mods/webdock/test/test-card.sh mods/webdock/test/test-background.sh card-edges light-outputs corners sheet-shadow popover-joins window-frame terminals browsers stage quick-sections dock sidebars sidebar-panel bars edge-modules frame polkit island-join settings settings-dock motion recipes dynamic-media wallpaper-grade module-menu context-menus mods/webdock/test/test-page-menu.sh niri-motion previews font-mix bar-fit mods/handwriting/test-handwriting.sh bar-hover colour-blend quick-modules glow edges follow outline media-idle ws-motion settings-groups osd appearance-menu mods/terminal/test/test-terminal-outputs.sh mods/sessions/test/test-sessions.sh mod-contract mod-host launcher media mods/lyrics/test-lyrics.sh settings/test-mod-editor.sh)
 path_of() {
   case "$1" in
     */*) echo "$1" ;;
@@ -118,10 +120,49 @@ touch "$OUT/.started"
 if ! cargo build -p kurashid -p kurashi -p kurashi-mock > "$OUT/build.log" 2>&1; then
   echo "test-suites: build failed (see $OUT/build.log)"; exit 1
 fi
+# I579 (W96): what a suite needs beyond the three binaries, named in its first 12 lines:
+#   # needs: example:<package>/<name> feature:test-mods
+# An example is built into $CARGO_TARGET_DIR/debug/examples (where the suites look). A suite that needs the daemon with
+# `--features test-mods` (the linked test mod `hello`) gets a folder of its own with that daemon, so every other suite
+# still runs the daemon as it ships.
+needs_of() { sed -n '1,12s/^# needs: *//p' "$1" | tr ' ' '\n' | awk 'NF'; }
+declare -A want_example=() needs_feature=()
+for s in "${suites[@]}"; do
+  [ -f "$s" ] || continue
+  for n in $(needs_of "$s"); do
+    case "$n" in
+      example:*/*) want_example[${n#example:}]=1 ;;
+      feature:test-mods) needs_feature[$s]=1 ;;
+      *) echo "test-suites: $s: unknown need '$n'"; exit 1 ;;
+    esac
+  done
+done
+for e in "${!want_example[@]}"; do
+  if ! cargo build -p "${e%%/*}" --example "${e##*/}" >> "$OUT/build.log" 2>&1; then
+    echo "test-suites: example $e did not build (see $OUT/build.log)"; exit 1
+  fi
+done
+FEATURE_BIN=$OUT/bin-test-mods
+if [ ${#needs_feature[@]} -gt 0 ]; then
+  mkdir -p "$FEATURE_BIN"
+  if ! cargo build -p kurashid --features test-mods >> "$OUT/build.log" 2>&1; then
+    echo "test-suites: kurashid --features test-mods did not build (see $OUT/build.log)"; exit 1
+  fi
+  cp "$CARGO_TARGET_DIR/debug/kurashid" "$CARGO_TARGET_DIR/debug/kurashi" "$CARGO_TARGET_DIR/debug/kurashi-mock" "$FEATURE_BIN/"
+  [ -d "$CARGO_TARGET_DIR/debug/examples" ] && ln -s "$CARGO_TARGET_DIR/debug/examples" "$FEATURE_BIN/examples"
+  # (and the daemon as it ships again, for the others)
+  if ! cargo build -p kurashid >> "$OUT/build.log" 2>&1; then
+    echo "test-suites: build failed (see $OUT/build.log)"; exit 1
+  fi
+fi
 
 run_one() {   # run_one <script> <log> → prints "rc seconds"
   local s=$1 log=$2 t0=$(date +%s)
-  timeout 1800 "$s" > "$log" 2>&1
+  if [ -n "${needs_feature[$s]:-}" ]; then
+    KURASHI_BIN_DIR=$FEATURE_BIN timeout 1800 "$s" > "$log" 2>&1
+  else
+    timeout 1800 "$s" > "$log" 2>&1
+  fi
   echo "$? $(( $(date +%s) - t0 ))"
 }
 declare -A rc=() secs=()

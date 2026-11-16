@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: example:kurashi-mock/fake_mpris_art
 # Live audio levels, cover colours and the Wallhaven tab in the REAL shell (W24-media, K48), invisibly: the real kurashid
 # and the real Quickshell frontend in the headless sway sandbox, `desktop.enabled = true`, the wallpaper mod on with a
 # fake awww; a FAKE cava first on PATH (prints a fixed frame, logs when it starts and stops), a fake MPRIS player with a
@@ -16,6 +17,7 @@
 # (`cargo build -p kurashid -p kurashi` and `cargo build -p kurashi-mock --example fake_mpris_art` first.)
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-${KURASHI_SB_PREFIX:-}w24-med-1}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 PLAYER_BIN=${KURASHI_FAKE_MPRIS_ART:-$BIN/examples/fake_mpris_art}
@@ -223,35 +225,6 @@ start_server() {
 }
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in mods/lyrics/test-lyrics.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
 # AA contrast of art_colors (WCAG 2.x), in Python: exit 0 when fg on bg >= 4.5 and accent on bg >= 3.
 cat > "$W/aa.py" <<'PY'
 import json, sys
@@ -272,7 +245,7 @@ except Exception:
 print(json.dumps(c))
 sys.exit(0 if ok else 1)
 PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 doc_is() { ipc "$1" | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($2) else 1)" 2>/dev/null; }
 wait_doc() { local i; for i in $(seq "$3"); do doc_is "$1" "$2" && return 0; sleep 0.5; done; return 0; }
 cava_running() { pgrep -f "$R/fakebin/cava" >/dev/null 2>&1; }

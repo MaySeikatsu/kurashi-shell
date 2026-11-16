@@ -6,6 +6,8 @@
 //! sources. K38 adds host processes (`hosts`): a mod's own program, started and supervised here.
 
 pub mod hosts;
+pub mod program;
+pub mod served;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -19,8 +21,9 @@ use kurashi_mod_api::{
     ActiveFn, Choice, ChoicesFn, FaceUpdate, Forced, Hooks, JobCtx, JobFn, ModCtx, ModError,
     NativeMod, Publish, Registration, ServiceFn, Settings, SettingsError, Values,
 };
+use kurashi_mods::contract::{BASE_ACTIONS, BASE_DOCS};
 use kurashi_mods::{
-    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
+    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier, UseKind,
 };
 use serde_json::{Map, Value, json};
 use tokio::runtime::Handle;
@@ -416,8 +419,12 @@ struct Link {
     /// The mod, and the keys of its own settings: a `SettingsWriter` writes only these (K38).
     mod_id: String,
     keys: BTreeSet<String>,
-    /// For `runtime.slots` reasons (row 72).
+    /// For `runtime.slots` reasons (row 72), and the documents the mod follows (W91).
     hub: Weak<Hub>,
+    /// The actions the mod calls (W91: `ModCtx::calls`).
+    actions: ActionRegistry,
+    /// Where a feed's forwarder runs.
+    runtime: Option<Handle>,
     /// Slot contributions that need setup, with their reason (row 72). A lock of their own, never held while the
     /// hub is touched: `slots()` reads it under the slots document's lock, and `state` is held across hub calls
     /// (a choice source's change), so sharing `state` here deadlocked (found by the live all-mods test).
@@ -434,6 +441,8 @@ struct LinkState {
     offers: BTreeMap<String, Vec<Offer>>,
     /// The host processes of this enable (K38), by name.
     hosts: BTreeMap<String, Arc<HostCore>>,
+    /// W92: the functions that read the mod's places (`location:<name>`), by name.
+    locations: BTreeMap<String, kurashi_mod_api::LocationFn>,
 }
 
 impl Hooks for Link {
@@ -481,6 +490,10 @@ impl Hooks for Link {
         }
     }
 
+    fn location_changed(&self, name: &str) {
+        self.sync_location(name);
+    }
+
     fn slot_reason(&self, slot: &str, reason: Option<&str>) {
         if !self.state.lock().expect("link lock").live {
             return;
@@ -512,6 +525,37 @@ impl Hooks for Link {
     }
 
     /// `mods.<id>.<key>` in the user layer, through the config's own apply path (K38): one undoable transaction.
+    fn follow(&self, doc: &str) -> watch::Receiver<Value> {
+        match (self.hub.upgrade(), &self.runtime) {
+            (Some(hub), Some(rt)) if self.state.lock().expect("link").live => {
+                crate::follow::feed(hub, rt, doc)
+            }
+            _ => kurashi_mod_api::unavailable_feed(),
+        }
+    }
+
+    fn call(
+        &self,
+        action: &str,
+        args: Value,
+    ) -> kurashi_mod_api::BoxFuture<Result<Option<Value>, kurashi_mod_api::ActionError>> {
+        use kurashi_mod_api::ActionError as E;
+        let (actions, action) = (self.actions.clone(), action.to_string());
+        let live = self.state.lock().expect("link").live;
+        Box::pin(async move {
+            if !live {
+                return Err(E::Unavailable(kurashi_mod_api::USE_UNAVAILABLE.into()));
+            }
+            actions.invoke(&action, args).await.map_err(|e| match e {
+                // Not registered: its mod is off.
+                ActionError::Unknown(_) => E::Unavailable(kurashi_mod_api::USE_UNAVAILABLE.into()),
+                ActionError::Invalid(m) => E::Invalid(m),
+                ActionError::Unavailable(m) => E::Unavailable(m),
+                ActionError::Internal(m) => E::Internal(m),
+            })
+        })
+    }
+
     fn set_setting(&self, key: &str, value: Value) -> Result<(), SettingsError> {
         if !self.state.lock().expect("link lock").live {
             return Err(SettingsError::Unavailable);
@@ -542,6 +586,36 @@ impl Hooks for Link {
 }
 
 impl Link {
+    /// W92: asks the mod for its place `name` and hands it to `svc.location` (the store's feed). The mod's function
+    /// runs without the link's lock.
+    fn sync_location(&self, name: &str) {
+        let read = {
+            let state = self.state.lock().expect("link lock");
+            match state.locations.get(name) {
+                Some(f) if state.live => f.clone(),
+                _ => return,
+            }
+        };
+        let place = read();
+        if !self.state.lock().expect("link lock").live {
+            return;
+        }
+        if let Some(store) = self.config.as_ref().and_then(Weak::upgrade) {
+            store.set_place_feed(&format!("{}:{name}", self.mod_id), place);
+        }
+    }
+
+    /// Every place of the mod, again: its settings changed.
+    fn sync_locations(&self) {
+        let names: Vec<String> = {
+            let state = self.state.lock().expect("link lock");
+            state.locations.keys().cloned().collect()
+        };
+        for name in names {
+            self.sync_location(&name);
+        }
+    }
+
     /// The host `name` of this enable, while the enable is live: a handle the mod kept after a disable does nothing.
     fn host(&self, name: &str) -> Option<Arc<HostCore>> {
         let state = self.state.lock().expect("link lock");
@@ -630,6 +704,13 @@ impl Native {
     /// enabled is deactivated. A refused enable leaves the mod disabled in the registry, and so does
     /// an enabled mod whose daemon code is not linked (B15): switched on, it would do nothing.
     pub fn sync(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) {
+        // W91: a mod that waits for another mod's document or action comes alive in a later pass, once that mod is.
+        while self.sync_pass(reg, store) {}
+    }
+
+    /// One pass over the registry; true when a mod was activated in it (another pass may find its uses there now).
+    fn sync_pass(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) -> bool {
+        let mut activated = false;
         let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
         for id in ids {
             let on = reg.get(&id).is_some_and(|e| e.state == ModState::Enabled);
@@ -644,20 +725,40 @@ impl Native {
             if active {
                 continue;
             }
-            let Some(module) = self.linked.get(&id).cloned() else {
-                let needs_code = reg
-                    .get(&id)
-                    .and_then(|e| e.manifest.as_ref())
-                    .is_some_and(needs_daemon_code);
-                if needs_code {
-                    self.refused.insert(id.clone(), ModError::NotBuilt);
+            let manifest = reg.get(&id).and_then(|e| e.manifest.as_ref());
+            let has_program = manifest.is_some_and(|m| !m.hosts.is_empty());
+            let module: Arc<dyn NativeMod> = match self.linked.get(&id).cloned() {
+                // K155 (W93): one or the other — a crate would register what the program serves.
+                Some(_) if has_program => {
+                    self.refused.insert(
+                        id.clone(),
+                        ModError::Failed("mods.error.host_and_native".into()),
+                    );
                     let _ = reg.disable(&id);
+                    continue;
                 }
-                continue;
+                Some(module) => module,
+                // K155 (W93): a mod whose code is its own program needs no crate.
+                None if has_program => match manifest {
+                    Some(m) => Arc::new(program::ProgramMod::new(m)),
+                    None => continue,
+                },
+                None => {
+                    if manifest.is_some_and(needs_daemon_code) {
+                        self.refused.insert(id.clone(), ModError::NotBuilt);
+                        let _ = reg.disable(&id);
+                    }
+                    continue;
+                }
             };
             match self.activate(module.as_ref(), reg, store) {
                 Ok(()) => {
                     self.refused.remove(&id);
+                    activated = true;
+                }
+                // Switched on and inert, with the reason; the next sync tries again (W91, Shōjiki).
+                Err(e @ ModError::MissingUse(_)) => {
+                    self.refused.insert(id.clone(), e);
                 }
                 Err(e) => {
                     self.refused.insert(id.clone(), e);
@@ -665,6 +766,23 @@ impl Native {
                 }
             }
         }
+        activated
+    }
+
+    /// The first use the contract requires (no `?`, no glob) that is not there: `doc:<name>` or `action:<id>`.
+    fn missing_use(&self, contract: &kurashi_mods::Contract) -> Option<String> {
+        contract.uses.iter().find_map(|u| {
+            if u.optional || u.id.contains('*') {
+                return None;
+            }
+            match u.kind {
+                UseKind::Doc if self.hub.snapshot(&u.id).is_err() => Some(format!("doc:{}", u.id)),
+                UseKind::Action if !self.actions.contains(&u.id) => {
+                    Some(format!("action:{}", u.id))
+                }
+                _ => None,
+            }
+        })
     }
 
     /// Runs `enable` and applies what it registered. Registrations are applied only after it
@@ -700,18 +818,60 @@ impl Native {
             values: watch::channel(values).0,
             forced: watch::channel(forced_of(store, &keys)).0,
         });
-        let provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
+        let mut provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
+        let mut capabilities = manifest.capabilities.clone();
+        // K155 (W93): `[[host]]` declares the program: it stands for `host:<name>` (and the job that keeps a program
+        // started with the mod running), and a file in the mod's own `bin/` needs no `exec:` capability.
+        let bin_dir = reg
+            .get(module.id())
+            .map(|e| e.dir.join("bin"))
+            .unwrap_or_default();
+        for h in &manifest.hosts {
+            provides.push(format!("host:{}", h.name));
+            if h.start == kurashi_mods::HostStart::Enabled {
+                provides.push(format!("job:host-{}", h.name));
+            }
+            if hosts::is_executable(&bin_dir.join(&h.exec)) {
+                capabilities.push(format!("exec:{}", h.exec));
+            }
+        }
         let link = Arc::new(Link {
             island: self.island.clone(),
             config: self.config.clone(),
             mod_id: module.id().to_string(),
             keys: manifest.settings.iter().map(|s| s.key.clone()).collect(),
             hub: Arc::downgrade(&self.hub),
+            actions: self.actions.clone(),
+            runtime: self.runtime.clone(),
             slot_reasons: Mutex::default(),
             state: Mutex::default(),
         });
+        // W91: a use the manifest requires and that is not there keeps the mod inert, with its name as the reason.
+        if let Some(missing) = self.missing_use(&manifest.contract) {
+            return Err(ModError::MissingUse(missing));
+        }
+        let uses: Vec<String> = manifest
+            .contract
+            .uses
+            .iter()
+            .filter_map(|u| {
+                let kind = match u.kind {
+                    UseKind::Doc => "doc",
+                    UseKind::Action => "action",
+                    UseKind::Intent => return None,
+                };
+                Some(format!(
+                    "{kind}:{}{}",
+                    u.id,
+                    if u.optional { "?" } else { "" }
+                ))
+            })
+            .chain(BASE_DOCS.iter().map(|d| format!("doc:{d}")))
+            .chain(BASE_ACTIONS.iter().map(|a| format!("action:{a}")))
+            .collect();
         let mut ctx = ModCtx::new(&provides, settings.settings(), link.clone())
-            .with_capabilities(&manifest.capabilities)
+            .with_uses(&uses)
+            .with_capabilities(&capabilities)
             .with_picture_filter(Some(crate::texture::picture_filter()));
         module.enable(&mut ctx)?;
         let declared_jobs = ctx.take_jobs();
@@ -762,6 +922,8 @@ impl Native {
                 ),
                 // K150: a provider's name is the mod's own (`<mod>:<name>`); its prefix is judged at query time.
                 Registration::Launcher { name, .. } => (false, format!("launcher:{name}")),
+                // W92: several mods may know a place; the first in order is the one in effect.
+                Registration::Location { name, .. } => (false, format!("location:{name}")),
             };
             if taken {
                 return Err(ModError::Duplicate(id));
@@ -872,12 +1034,22 @@ impl Native {
                     self.hub.launcher_mods.insert(module.id(), &name, spec);
                     publish_launcher(&self.hub);
                 }
+                Registration::Location { name, read } => {
+                    link.state
+                        .lock()
+                        .expect("link lock")
+                        .locations
+                        .insert(name.clone(), read);
+                    link.sync_location(&name);
+                }
             }
         }
         // K38: the mod's host processes, made once its registrations are in effect. A host belongs to its mod
         // alone; its name is unique within the enable (`ModCtx::claim`).
+        let host_contract = Arc::new(manifest.contract.clone());
         for decl in declared_hosts {
             let core = HostCore::new(HostParams {
+                contract: host_contract.clone(),
                 mod_id: module.id().to_string(),
                 name: decl.name.clone(),
                 spec: decl.spec,
@@ -913,8 +1085,14 @@ impl Native {
         let Some(ledger) = self.active.remove(id) else {
             return;
         };
+        // K155 (W93): a host program of this mod serves nothing from now on.
+        served::of(id).provides(Default::default(), Default::default());
         // The mod's handles stop reaching the island and the config before anything is taken back.
         ledger.link.state.lock().expect("link lock").live = false;
+        // W92: its places leave `svc.location` with it.
+        if let Some(store) = ledger.link.config.as_ref().and_then(Weak::upgrade) {
+            store.drop_place_feeds(id);
+        }
         for job in &ledger.jobs {
             job.stop();
         }
@@ -971,6 +1149,8 @@ impl Native {
                     true
                 }
             });
+            // W92: a place may be one of the mod's settings (the weather's `place`).
+            ledger.link.sync_locations();
             // After the send: a job started now reads the settings in effect.
             for job in &ledger.jobs {
                 let wanted = job.wants(&ledger.settings.values.borrow());
@@ -1083,10 +1263,27 @@ impl Native {
 }
 
 impl Native {
+    /// W94 (`mod.rescan`): the active mods whose folder is gone from `reg` are switched off before they leave the list.
+    pub fn drop_missing(&mut self, reg: &Registry) {
+        let gone: Vec<String> = self
+            .active
+            .keys()
+            .filter(|id| reg.get(id).is_none())
+            .cloned()
+            .collect();
+        for id in gone {
+            self.deactivate(&id);
+        }
+    }
+
     /// Whether this build can run a mod (B15, I281): one whose manifest declares daemon code needs its `NativeMod`
     /// linked. A mod without it is not offered at all — no list entry, no settings page, no switch that cannot work.
     pub fn can_run(&self, e: &ModEntry) -> bool {
-        self.linked.contains_key(&e.id) || !e.manifest.as_ref().is_some_and(needs_daemon_code)
+        self.linked.contains_key(&e.id)
+            || !e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| needs_daemon_code(m) && m.hosts.is_empty())
     }
 }
 

@@ -230,16 +230,12 @@ RoundBox {
             if (event.key === Qt.Key_Home) { pv.moveChip(0); event.accepted = true }
             else if (event.key === Qt.Key_End) { pv.moveChip(pv.barOrder.length - 1); event.accepted = true }
         }
-        Text {
+        Label {
             id: lbl
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.centerIn: parent
             color: chip.on ? Theme.fgOnSelected : Theme.fg
             font.pixelSize: Theme.fs - 2
             font.weight: chip.shownHere ? Font.DemiBold : Font.Normal
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("motion.ui.preview.class." + chip.modelData)
         }
         // The class shown (closed or scrubbed) is marked under its name, not by colour alone.
@@ -552,15 +548,10 @@ RoundBox {
                     event.accepted = true
                 }
                 onActiveFocusChanged: if (!activeFocus) pv.compare(false)
-                Text {
+                Label {
                     id: cmpTxt
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.centerIn: parent
                     color: pv.comparing ? Theme.fgOnSelected : Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: "◐ " + I18n.tr("motion.ui.preview.compare")
                 }
                 MouseArea {

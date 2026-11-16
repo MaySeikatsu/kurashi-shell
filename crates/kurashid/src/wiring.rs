@@ -824,6 +824,8 @@ struct CommandLabels {
     revs: (u64, u64),
     actions: std::collections::HashMap<String, String>,
     shortcuts: String,
+    /// W94: the Mod Editor's row, "New mod".
+    new_mod: String,
     /// `(page argument, row name)`: `bar` or `mod:<id>`, "Settings: Bar".
     pages: Vec<(String, String)>,
 }
@@ -860,6 +862,7 @@ impl CommandLabels {
             revs,
             actions,
             shortcuts: tr("launcher.cmd.shortcuts").unwrap_or_else(|| "Shortcut settings".into()),
+            new_mod: tr("mods.new.title").unwrap_or_else(|| "New mod".into()),
             pages,
         }
     }
@@ -879,6 +882,15 @@ impl CommandLabels {
             self.shortcuts.to_lowercase()
         )) {
             links.push(row("keys", &self.shortcuts, "keyboard"));
+        }
+        // W94: `> new mod` opens the Mod Editor (Settings' own view `mods.new`); only for a query that names it.
+        if !words.is_empty()
+            && hits(&format!(
+                "{} new mod create make extension",
+                self.new_mod.to_lowercase()
+            ))
+        {
+            links.push(row("mods.new", &self.new_mod, "extension"));
         }
         if !words.is_empty() {
             links.extend(
@@ -1735,35 +1747,7 @@ pub fn mods_native(
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     let reg = Registry::discover(&roots, &version);
-    // K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
-    if let Ok((_, doc)) = hub.snapshot("i18n") {
-        let locale = doc["locale"]
-            .as_str()
-            .unwrap_or(crate::i18n::FALLBACK)
-            .to_owned();
-        let mut own = serde_json::Map::new();
-        for e in reg.iter() {
-            let ships = e
-                .manifest
-                .as_ref()
-                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
-            if ships {
-                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
-                    own.insert(k, Value::String(v));
-                }
-            }
-        }
-        if !own.is_empty() {
-            let _ = hub.update("i18n", None, |d| {
-                if let Some(s) = d["strings"].as_object_mut() {
-                    for (k, v) in own {
-                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
-                        s.entry(k).or_insert(v);
-                    }
-                }
-            });
-        }
-    }
+    adopt_mod_strings(hub, &reg);
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }
@@ -1829,6 +1813,185 @@ pub fn mods_native(
             },
         );
     }
+    // W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the generator and the ruleset the CLI uses, as actions.
+    {
+        let state = state.clone();
+        actions.register("mod.check", "action.mod.check", move |v: Value| {
+            let state = state.clone();
+            async move { mod_check(&v, &state) }
+        });
+    }
+    {
+        let (hub, state, config, roots) =
+            (hub.clone(), state.clone(), config.clone(), roots.clone());
+        actions.register("mod.new", "action.mod.new", move |v: Value| {
+            let (hub, state, config, roots) =
+                (hub.clone(), state.clone(), config.clone(), roots.clone());
+            async move { mod_new(&v, &hub, &state, config.as_deref(), &roots) }
+        });
+    }
+    {
+        let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
+        actions.register("mod.rescan", "action.mod.rescan", move |_v: Value| {
+            let (hub, state, config, roots) =
+                (hub.clone(), state.clone(), config.clone(), roots.clone());
+            async move {
+                mod_rescan(&hub, &state, config.as_deref(), &roots);
+                Ok(None)
+            }
+        });
+    }
+}
+
+/// K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
+fn adopt_mod_strings(hub: &Hub, reg: &kurashi_mods::Registry) {
+    if let Ok((_, doc)) = hub.snapshot("i18n") {
+        let locale = doc["locale"]
+            .as_str()
+            .unwrap_or(crate::i18n::FALLBACK)
+            .to_owned();
+        let mut own = serde_json::Map::new();
+        for e in reg.iter() {
+            let ships = e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
+            if ships {
+                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
+                    own.insert(k, Value::String(v));
+                }
+            }
+        }
+        if !own.is_empty() {
+            let _ = hub.update("i18n", None, |d| {
+                if let Some(s) = d["strings"].as_object_mut() {
+                    for (k, v) in own {
+                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
+                        s.entry(k).or_insert(v);
+                    }
+                }
+            });
+        }
+    }
+}
+
+/// W94 (K154; PROTOCOL §6 "The Mod Editor's four"): a scaffold refusal as an action's — its key (`mods.new.error.*`);
+/// a folder that cannot be written is `unavailable`, everything else `invalid`.
+fn scaffold_error(e: kurashi_mods::scaffold::ScaffoldError) -> ActionError {
+    match kurashi_mods::editor::error_key(&e) {
+        (key, true) => ActionError::Unavailable(key),
+        (key, false) => ActionError::Invalid(key),
+    }
+}
+
+/// The scaffold's spec from an action's `spec` argument.
+fn spec_of(v: &Value) -> Result<kurashi_mods::scaffold::Spec, ActionError> {
+    kurashi_mods::editor::spec(v).ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
+fn crate_version() -> semver::Version {
+    semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version")
+}
+
+/// `mod.check {id}`: an installed mod's folder. `mod.check {spec}`: a draft, written into a temporary folder, checked
+/// and removed — nothing of it stays. The draft's answer carries its files, for the page's preview.
+fn mod_check(v: &Value, state: &Mutex<ModsState>) -> ActionResult {
+    if let Some(id) = v["id"].as_str() {
+        let dir = state
+            .lock()
+            .expect("mods lock")
+            .reg
+            .get(id)
+            .map(|e| e.dir.clone())
+            .ok_or_else(|| ActionError::Invalid("mods.error.unknown".into()))?;
+        return Ok(Some(kurashi_mods::editor::report(
+            &kurashi_mods::check::check_dir(&dir, &crate_version()),
+        )));
+    }
+    let spec = spec_of(&v["spec"])?;
+    if state.lock().expect("mods lock").reg.get(&spec.id).is_some() {
+        return Err(ActionError::Invalid("mods.new.error.id_taken".into()));
+    }
+    static DRAFTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let scratch = std::env::temp_dir().join(format!(
+        "kurashi-mod-draft-{}-{}",
+        std::process::id(),
+        DRAFTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    kurashi_mods::editor::check_draft(&spec, &scratch, &crate_version())
+        .map(Some)
+        .map_err(scaffold_error)
+}
+
+/// `mod.rescan {}`: the mod roots are read again without a restart. A new folder appears as `available`, a removed one
+/// goes (switched off first), a changed manifest is read again; a mod's own strings join `i18n`.
+fn mod_rescan(
+    hub: &Hub,
+    state: &Mutex<ModsState>,
+    config: Option<&crate::config::ConfigStore>,
+    roots: &[std::path::PathBuf],
+) {
+    let mut fresh = kurashi_mods::Registry::discover(roots, &crate_version());
+    adopt_mod_strings(hub, &fresh);
+    // The registry is swapped under the mods lock; the config store is told after it is released — `sync_mods` runs
+    // the change listeners, and the mods' own listener takes this lock (holding it here deadlocked).
+    let table = {
+        let mut st = state.lock().expect("mods lock");
+        {
+            let native = &st.native;
+            fresh.retain(|e| native.can_run(e));
+        }
+        st.native.drop_missing(&fresh);
+        let (loaded, enabled): (BTreeSet<String>, BTreeSet<String>) = match config {
+            Some(c) => lists_of(c),
+            // No config: what was loaded and on stays so.
+            None => st.reg.iter().fold(Default::default(), |(mut l, mut e), m| {
+                match m.state.name() {
+                    "enabled" => {
+                        l.insert(m.id.clone());
+                        e.insert(m.id.clone());
+                    }
+                    "disabled" => {
+                        l.insert(m.id.clone());
+                    }
+                    _ => {}
+                }
+                (l, e)
+            }),
+        };
+        log_refused(fresh.reconcile(&loaded, &enabled));
+        st.reg = fresh;
+        st.reg.clone()
+    };
+    if let Some(c) = config {
+        c.sync_mods(&table);
+    }
+    let mut st = state.lock().expect("mods lock");
+    refresh(hub, &mut st, config);
+}
+
+/// `mod.new {spec}`: writes the mod into the user's mods folder (the last root), reads the roots again, and answers
+/// where it is and what the check says of it. Nothing is enabled.
+fn mod_new(
+    v: &Value,
+    hub: &Hub,
+    state: &Mutex<ModsState>,
+    config: Option<&crate::config::ConfigStore>,
+    roots: &[std::path::PathBuf],
+) -> ActionResult {
+    let spec = spec_of(&v["spec"])?;
+    if state.lock().expect("mods lock").reg.get(&spec.id).is_some() {
+        return Err(ActionError::Invalid("mods.new.error.id_taken".into()));
+    }
+    let root = roots
+        .last()
+        .ok_or_else(|| ActionError::Unavailable("mods.new.error.write".into()))?;
+    let dir = spec.write(root).map_err(scaffold_error)?;
+    mod_rescan(hub, state, config, roots);
+    let report = kurashi_mods::check::check_dir(&dir, &crate_version());
+    Ok(Some(
+        json!({ "path": dir.to_string_lossy(), "check": kurashi_mods::editor::report(&report) }),
+    ))
 }
 
 #[derive(Clone, Copy)]
@@ -5495,11 +5658,8 @@ fn cfg_str(c: Option<&ConfigStore>, key: &str, dflt: &str) -> String {
 }
 
 fn night_config(c: Option<&ConfigStore>) -> NightConfig {
-    let places =
-        kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
-    let configured = cfg_str(c, "mods.weather.place", "");
-    let place =
-        kurashi_mod_weather::places::effective(&places, &configured, None).map(|p| (p.lat, p.lon));
+    // W92: the place in effect (`svc.location`): set by hand, else the one an enabled mod offers.
+    let place = c.and_then(ConfigStore::location).map(|p| (p.lat, p.lon));
     NightConfig {
         enabled: cfg_bool(c, "night_light.enabled", false),
         temperature: c.map_or(4000, |c| cfg_u32(c, "night_light.temperature", 4000)),
@@ -5573,22 +5733,12 @@ pub fn nightlight(hub: &Arc<Hub>, actions: &mut ActionRegistry, cfg: Option<Arc<
         store.on_change(move |c| {
             let _ = on_config.send(night_config(Some(c)));
         });
-        // I187: a place added, moved or chosen in the weather mod changes the sun schedule without a config change:
-        // follow the mod's document (its places live in it), event-driven like the greeter cache.
+        // I187, W92: a place that changes without a config change (a mod's offer: a place added, moved or chosen
+        // there) changes the sun schedule: follow the place in effect, event-driven.
         if let Ok(rt) = tokio::runtime::Handle::try_current() {
-            let (mut events, store) = (hub.events(), Arc::downgrade(store));
+            let (mut place, store) = (store.location_feed(), Arc::downgrade(store));
             rt.spawn(async move {
-                loop {
-                    match events.recv().await {
-                        Ok(msg) => match msg.as_ref() {
-                            kurashi_ipc::ServerMsg::Snap { doc, .. }
-                            | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                                if doc == "mod.weather" => {}
-                            _ => continue,
-                        },
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                    }
+                while place.changed().await.is_ok() {
                     let Some(store) = store.upgrade() else { break };
                     if tx.send(night_config(Some(&store))).is_err() {
                         break;

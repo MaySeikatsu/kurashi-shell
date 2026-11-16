@@ -1,3 +1,4 @@
+Label 1.0 Label.qml
 Button 1.0 Button.qml
 Chip 1.0 Chip.qml
 ProvenanceChip 1.0 ProvenanceChip.qml
@@ -65,3 +66,5 @@ DockHost 1.0 DockHost.qml
 ElsewhereNote 1.0 ElsewhereNote.qml
 ScrollEdge 1.0 ScrollEdge.qml
 BarPreview 1.0 BarPreview.qml
+CheckReport 1.0 CheckReport.qml
+FocusFollow 1.0 FocusFollow.qml

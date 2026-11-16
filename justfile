@@ -13,6 +13,7 @@ check:
     sh frontend/test-launch.sh
     sh tools/check-icon-names.sh
     python3 tools/clones.py --check
+    cargo build -q -p kurashi && KURASHI="${CARGO_TARGET_DIR:-target}/debug/kurashi" python3 -I tools/mod-index/test.py
 
 # The merge gate (K153, rule 11): everything a merge to `main` needs, once, at the end of the work — `just check`, the
 # suites' merge set, the Home-Manager evaluation and the package. It writes the commit it passed on to
@@ -36,11 +37,12 @@ gate *ARGS:
     echo "$line" | tee tools/bench/results/gate.txt
 
 # Build artifacts older than DAYS leave `target/`, then the oldest until it is under CAP (K153, rule 11; the user,
-# session 34: 60 GB). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
+# session 34: 60 GB); sandboxes a run left behind go too (tools/sweep-sandboxes.sh). Session start and end. The agents' build dirs are removed by hand after their merge (B23).
 sweep days="7" cap="60GB":
     cargo sweep --time {{days}}
     cargo sweep --maxsize {{cap}}
     @du -sh "${CARGO_TARGET_DIR:-target}" | awk '{print "sweep: target is now " $1}'
+    @tools/sweep-sandboxes.sh
 
 # What the Rust loop costs here: no-op, link, daemon, leaf mod, schema (tools/bench/build-timings.sh)
 timings:
@@ -87,8 +89,15 @@ nix-eval-test:
 
 # Budgets (docs/BENCH.md) on the real stack: kurashid + frontend in a headless sandbox (rule 9)
 bench-gate:
-    python3 tools/bench/measure.py --name frontend-real --daemon real -- frontend/launch.sh
+    cargo build --release -p kurashid -p kurashi -p kurashi-mock
+    KURASHI_BIN_DIR="${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-target}/release}" python3 tools/bench/measure.py --name frontend-real --daemon real --max-load 1.5 -- frontend/launch.sh
     python3 tools/bench/budget.py tools/bench/results/frontend-real.json
+
+# What grows in an hour of ordinary use (W90; docs/BENCH.md "Soak"): the real stack in the headless sandbox, one round of
+# use over and over, each process's memory once a minute → tools/bench/results/soak-<name>.json. Release binaries from
+# $KURASHI_BIN_DIR, tools/bench/bin or target/release (measure.py's order). Before a release, on a quiet machine.
+soak minutes="60" *ARGS:
+    python3 tools/bench/soak.py --minutes {{minutes}} {{ARGS}} -- frontend/launch.sh
 
 # W33 (docs/BENCH.md "2026-10-22"): the textured shell on the real stack, nine scenarios × three runs, medians in
 # tools/bench/results/w33-<scenario>.json. Copies the binaries into tools/bench/bin (from $CARGO_TARGET_DIR or target/).

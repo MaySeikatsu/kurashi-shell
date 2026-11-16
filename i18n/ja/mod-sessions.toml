@@ -106,7 +106,6 @@
 "action.sessions.cancel" = "「開く場所」を閉じる"
 "action.sessions.refresh" = "セッションを読み直す"
 "action.sessions.forget" = "プロジェクトの開く場所をまたたずねる"
-"action.sessions.handed" = "セッション：引き渡し済み"
 "action.sessions.help" = "セッションの設定"
 "action.sessions.pin" = "セッションのピン留めを切り替える"
 "action.sessions.kill" = "セッションを終了"
@@ -116,4 +115,3 @@
 "action.sessions.desk.restore" = "プロジェクトのデスクを戻す"
 "action.sessions.desk.forget" = "プロジェクトのデスクを忘れる"
 "sessions.notice.mod_off" = "送れませんでした：{detail} の mod がオフです。"
-"action.sessions.undelivered" = "セッション：送れなかったもの"

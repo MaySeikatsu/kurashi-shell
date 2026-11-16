@@ -21,10 +21,6 @@ CFG=$OUT/config.toml
 ALL='"ai", "calendar", "handwriting", "lyrics", "sessions", "sysmon", "tasks", "terminal", "timer", "wallpaper", "weather", "webdock"'
 printf '[idle]\nenabled = false\n\n[mods]\nloaded = [%s]\nenabled = [%s]\n' "$ALL" "$ALL" > "$CFG"
 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
-K() { "$SB" act "$@"; }
-raw() { K raw "$1" 2>&1 | head -1; }
-doc() { raw "{\"t\":\"sub\",\"id\":\"s\",\"doc\":\"$1\"}"; }
-has() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac; }
 
 enabled() { has "$(doc mods)" '"id":"timer"' && has "$(raw '{"t":"query","id":"a","kind":"actions","q":"timer.start"}')" '"timer.start"'; }
 wait_until 15 enabled || fail "the timer mod did not come up: $(doc mods | cut -c1-300)"

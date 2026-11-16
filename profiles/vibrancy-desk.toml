@@ -2,7 +2,7 @@
 # in the middle, the menu extras, Control Centre (quick settings) and the clock at the end, as macOS 11–14 — and the
 # floating Dock at the bottom, a gap off the screen's edge (docs/ux/styles.md §6). Offered with the style ("Also use its
 # layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "vibrancy"

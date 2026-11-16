@@ -40,6 +40,9 @@ pub struct Hub {
     /// Taken while `docs` is held, never the other way round.
     retired: Mutex<HashMap<String, Rev>>,
     tx: broadcast::Sender<Arc<ServerMsg>>,
+    /// The name of every document as it is registered (W91): a mod's feed of a document that was not there takes it
+    /// up then. Apart from `tx`: a connection still holding a subscription to a removed document must not be sent to.
+    reg_tx: broadcast::Sender<String>,
     /// Lets `subscribe` hand providers an owning handle without callers passing one around.
     me: std::sync::Weak<Hub>,
     /// K150: the mods' launcher providers — filled by the native mods' enable, read by the launcher's query (both hold
@@ -60,6 +63,7 @@ impl Hub {
             docs: Mutex::new(HashMap::new()),
             retired: Mutex::new(HashMap::new()),
             tx,
+            reg_tx: broadcast::channel(64).0,
             me: me.clone(),
             launcher_mods: Default::default(),
             osd: Default::default(),
@@ -69,6 +73,11 @@ impl Hub {
     /// Patches and pushed snapshots for every document; connections filter by subscription.
     pub fn events(&self) -> broadcast::Receiver<Arc<ServerMsg>> {
         self.tx.subscribe()
+    }
+
+    /// Document names, each as it is registered ([`Hub::register`]).
+    pub fn registrations(&self) -> broadcast::Receiver<String> {
+        self.reg_tx.subscribe()
     }
 
     pub fn register(&self, name: &str, mut initial: Value, provider: Option<Arc<dyn Provider>>) {
@@ -91,6 +100,8 @@ impl Hub {
                 lifecycle: Arc::default(),
             },
         );
+        drop(docs);
+        let _ = self.reg_tx.send(name.to_string());
     }
 
     /// Removes a document at runtime (K26: a disabled mod's documents). Its provider stops first if

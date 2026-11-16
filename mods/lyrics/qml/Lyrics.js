@@ -33,7 +33,7 @@ function untilNext(lines, idx, ms) {
     return Math.max(0, lines[n].t_ms - ms)
 }
 
-// The track svc.media shows, as `lyrics.track` takes it ({} when nothing plays).
+// The track svc.media shows ({} when nothing plays), to tell whether the document is about it.
 function trackOf(media) {
     if (!media || media.available === false) return {}
     var title = String(media.title || "").trim()

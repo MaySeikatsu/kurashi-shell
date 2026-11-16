@@ -127,7 +127,9 @@ test holds the shell's `SlotHost { slot: … }` names to it.
 | `quick-tile` · | variant | `slot:quick.tiles` | A tile in quick settings (`qml/slots/quick.tiles.qml`) |
 | `command` · | reach | `[[action]] command = "<word>"` | A `>` command in the launcher, listed by `kurashi act --list`, offered to key binds |
 | `menu` · | reach | `[[menu]] at = "module"` | Rows in the module's own menu (right-click on its glance, its desk card, its panel's header) |
+| `settings` | reach | `[[setting]]` | A page of its own in Settings, generated from its settings: labels, controls, defaults, provenance |
 | `launcher` | reach | `launcher:<name>` | A launcher provider with an optional prefix (K150): rows that run the mod's own actions |
+| `location` | feed | `location:<name>` | A place the mod knows (`ModCtx::location`): the shell's `svc.location` carries it while no place is set by hand — the night light's sun schedule and the light's daytime read it |
 | `surface` | variant | `surface:<name>` | A layer-shell surface of the mod's own, one per output (`qml/surfaces/<name>.qml`) |
 | `clock.expanded.aside` | slot | `slot:clock.expanded.aside` | Beside the clock view's month, 140 px wide |
 | `clock.expanded.day` | slot | `slot:clock.expanded.day` | Under the month: the chosen day (`extra.date`) |
@@ -219,7 +221,7 @@ daemon code is frontend-only (it draws core documents it `uses`) or runs a host 
 | 2. The bundled manifests declare them | built in 0.3.0 (the test `kurashi-mods/tests/bundled.rs` holds them; `easter-eggs` waits for its code, I286) |
 | 3. `kurashi mod check` | built in 0.3.0: errors fail it (manifest, undeclared uses, variants, icon, labels, a view that starts a process); the native-feel lints are notes until the bundled mods are clean (I557) |
 | 4. `>` commands and menus from declarations | built in 0.3.0 (the launcher, the desktop's and a module's menu); open: key binds from declarations, the core's other reads of mods by name (I555) |
-| 5. `ModCtx::follow` / `call`; a host's scope from `uses` (I127, I552) | open |
+| 5. `ModCtx::follow` / `calls`; a host's scope from `uses` (I127, I552) | built in 0.4.0 (W91, K158): a crate reads a document with `ctx.follow("svc.media")?` → `Follow::watch()` inside its service or job (the daemon counts a subscriber for as long as the receiver lives, Ma) and calls an action with `ctx.calls("terminal.run")?` → `Call::call(args)`; a use the manifest does not name refuses the enable; a required use that is not there keeps the mod switched on and inert with `mods.uses.missing` until it appears; an optional one (`?`) reads `{available: false}` and answers `unavailable`. A host's connection reaches what `Contract::may_read` / `may_call` allow. `kurashi mod check` counts the crate's `follow("…")` and `calls("…")` literals |
 | 6. `qs.kit`, `Label`, `kurashi mod new`, a mod's own strings | built in 0.3.0; open: the Mod Editor page (docs/ux/mod-editor.md) with `mod.new`, `mod.check` and a rescan without a restart; the bundled mods on the kit |
 
 ## States, persistence and Settings (K25)
@@ -325,7 +327,8 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
-  `choices:<source>` → `ModCtx::choices(source, fn)`; `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
+  `choices:<source>` → `ModCtx::choices(source, fn)`; `location:<name>` → `ModCtx::location(name, fn)` (W92, K159: the
+  mod's place for the shell's `svc.location`; `LocationHandle::changed()` when it moved); `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
   marks the contribution as needing setup (row 72; `runtime.slots` `reason`). See `docs/ux/COMPOSITION.md` for the slot list.
 - **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
 - A bar widget may take part in the bar's fit (K112, `docs/ux/bar-fit.md`; CONTRACT-CHANGE row 695 (a)): optional inputs
@@ -357,6 +360,45 @@ and that talks to the daemon over a **scoped connection** (PROTOCOL §2): only t
   `mods.<id>.<key>` to the user layer as one undoable transaction (the same path as `apply set`), refused with the
   config's error key when the key is forced or the value invalid. For a mod action that changes its own setting (the
   web dock's mobile/desktop toggle).
+
+### Host programs (K155, W93): a mod's own code without a crate
+A mod someone downloads cannot link a crate into the daemon. Its code is a **host program** the manifest declares; the
+daemon starts and supervises it exactly as a native mod's host (above: its own process group, the scope token, one
+restart, `Failed` with the log's path, stopped with the mod) and the program serves the mod's documents and actions over
+its scoped connection (PROTOCOL §2 "Host programs": `pub`, `serve`, `call`). Any language that can write a line of JSON
+to a Unix socket will do; MODDING.md shows the whole exchange.
+```toml
+provides = ["service:tea", "action:tea.start", "action:tea.stop", "bar:tea"]
+capabilities = []                     # `exec:<name>` when the program is a name on PATH instead of a file of the mod
+uses = ["doc:svc.clock"]              # what the program (and the views) may read and call beyond the mod's own
+
+[[host]]
+name = "main"
+exec = "tea-host"                     # a file in the mod's `bin/`, else a name on PATH (then `exec:tea-host` above)
+args = ["--state", "{state_dir}"]     # `{mod_dir}`, `{data_dir}`, `{cache_dir}`, `{state_dir}` as for a native host
+env = { TEA_LOG = "info" }
+start = "subscribed"                  # when the daemon starts it: "enabled" | "subscribed" (default) | "action"
+
+[[action]]
+id = "tea.start"
+label = "mod-tea.action.start"
+```
+- **`start`.** `subscribed` (the default, Ma): the program runs while one of the mod's documents has a subscriber — a
+  view is up — and stops 10 s after the last one left. `enabled`: while the mod is on (a program that must watch
+  something with no view up; the Mods page shows it as running, with its reason). `action`: started by the first
+  invocation of one of its actions, stopped as `subscribed`.
+- **What it may do.** Publish the documents the manifest provides; answer the actions it provides and declares; read
+  and call what `uses` names. Anything else is refused and logged with the mod's id — a host cannot register what its
+  manifest does not say.
+- **A mod is one or the other.** A manifest with `[[host]]` and a linked `NativeMod` of the same id is refused
+  (`mods.error.host_and_native`): the crate would register what the program serves.
+- **Trust, said plainly.** A host program is the user's code running as the user: no sandbox is promised that is not
+  there. Before the first enable of a mod that has one, the Mods page says "This mod runs a program: `tea-host`", names
+  its `uses` and capabilities, and asks once; the catalogue (W98) carries the source's hash. bubblewrap for hosts is a
+  later row. The `mods` document's entry carries `hosts: [{name, exec, start}]` for such a mod (absent for every other),
+  and `kurashi mod check` holds the program to being a file in `bin/` or an `exec:` capability (`host_exec`).
+- **Templates.** `kurashi mod new --host python|rust|go` writes a host that says hello, publishes one document and
+  answers one action, and passes `kurashi mod check`. No client library is shipped: the protocol is ten lines of NDJSON.
 
 ### First native mod: wallpaper (K26)
 Rendering by an external daemon — **awww** (or **swww**), chosen by `mods.wallpaper.backend`

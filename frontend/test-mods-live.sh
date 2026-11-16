@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: feature:test-mods
 # Every bundled mod and the test mod `hello` through the real shell (W14, BACKLOG I21, I34), invisibly: the real kurashid
 # built with `--features test-mods` (it links `hello`), an isolated XDG and data dir holding a copy of the checkout's
 # frontend, i18n and mods, and the frontend in the headless sway sandbox. Per mod, in turn: `mod.enable`; the `qml` the
@@ -21,6 +22,7 @@
 #     timeout 1500 nix develop -c frontend/test-mods-live.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-modslive-$$}   # unique per run: other agents' runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 HELLO_SRC=$ROOT/crates/kurashid/tests/data/mods/hello
@@ -116,7 +118,7 @@ QML_FILES = {
     # K46 row 120: a card on the desktop widget column.
     "desk": [("", "desk/{name}.qml")],
 }
-NO_QML = {"service", "action", "palette", "decor", "launcher", "choices", "job", "host", "i18n"}
+NO_QML = {"service", "action", "palette", "decor", "launcher", "choices", "job", "host", "i18n", "location"}
 
 
 def daemon_kinds(manifest_rs):
@@ -149,33 +151,24 @@ def expect(moddir, manifest, manifest_rs):
     return 0
 
 
-def read_ppm(data):
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
 def card(ppm, surface, alpha="1"):
     """Pixels of the surface colour in the band under the bar (where cards are drawn): count and bounding box. The
-    island's shape is drawn at the panel's opacity (W22, I114), so the colour blended over the desk counts too."""
+    island's shape is drawn at the panel's opacity (W22, I114), so the colour blended over the desk counts too. The
+    whole width: a mod's panel stands at its module (K102), not in the middle."""
     t = [int(surface.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
-    w, h, raster = read_ppm(pathlib.Path(ppm).read_bytes())
+    w, h, raster = read_ppm(ppm)
     a = float(alpha)
     b = ((h - 60) * w + (w - 60)) * 3   # the desk's own colour, near the bottom-right corner (past the screen corner, K74)
     blend = [round(t[k] * a + raster[b + k] * (1 - a)) for k in range(3)]
     n, x0, y0, x1, y1 = 0, 1 << 30, 1 << 30, -1, -1
     for y in range(40, min(1000, h)):
         row = y * w * 3
-        for x in range(640, min(1920, w)):
+        for x in range(0, w):
             o = row + x * 3
             if any(abs(raster[o] - c[0]) <= 3 and abs(raster[o + 1] - c[1]) <= 3 and abs(raster[o + 2] - c[2]) <= 3
                    for c in (t, blend)):
@@ -349,16 +342,18 @@ sleep 4
 # Wait for the frontend's first documents, then the card surface colour of this theme (color.surface_container).
 SURFACE=$(doc theme | jq -r '.tokens["color.surface"] // "#1b1a1e"')   # (I277: a card is the bar's sheet)
 ALPHA=$(doc theme | jq -r '.tokens["color.surface_alpha"] // 1')
+# A closed card's view is destroyed at once here (I493 keeps it for a minute by default): the suite counts releases.
+K set bar.card_keep_loaded false >/dev/null || fail "bar.card_keep_loaded could not be set"
 echo "surface colour: $SURFACE"
 
-# A card of the surface colour, centred on the output (the Stage and the expanded Island), cropped as evidence.
+# A card of the surface colour under the bar, wherever its module stands (K102), cropped as evidence.
 card() {  # card <name>
   local res x0 y0 x1 y1
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
   res=$(python3 -I "$W/tool.py" card "$W/$1.ppm" "$SURFACE" "$ALPHA") || fail "$1: analysis failed"
   echo "  card $1: $res"
-  jq -e '.surface >= 15000 and .bbox != null and (((.bbox[0] + .bbox[2]) / 2 - (.width / 2)) | fabs) <= 4' \
-    <<<"$res" >/dev/null || fail "$1: no card centred on the output ($res)"
+  # (8000 px: the smallest panel, the test mod's one line, is about 360 x 45; a closed Stage draws under 500)
+  jq -e '.surface >= 8000 and .bbox != null' <<<"$res" >/dev/null || fail "$1: no card is drawn ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   local cx=$((x0 - 24)) cy=$((y0 - 24))
   ((cx < 0)) && cx=0
@@ -516,7 +511,9 @@ unlinked_block() {
   m=$(mark)
   entry=$(mod_entry "$id")
   if [ "$(jq -r .state <<<"$entry")" != enabled ]; then
-    act mod.enable "{\"id\":\"$id\"}"
+    # A mod that needs code the daemon was not built with is refused (`mods.error.not_built`), or stays off: either way
+    # it must not end up enabled.
+    K act mod.enable "{\"id\":\"$id\"}" >/dev/null 2>&1 || echo "  mod.enable $id: refused"
     settle 2
   fi
   entry=$(mod_entry "$id")
@@ -527,7 +524,7 @@ unlinked_block() {
   [ "$(count "$m" load "$id" "")" = 0 ] || fail "$id: a component loaded without a linked crate"
   echo "  state $state, qml none, slots none, loads 0"
   [ "$state" != enabled ] || finding "$id: state enabled while no native crate is linked (nothing runs; the mods page would show it on)"
-  if [ "$id" != easter-eggs ]; then
+  if [ "$id" != easter-eggs ] && [ "$state" = enabled ]; then
     act mod.disable "{\"id\":\"$id\"}"
     settle 1
   fi

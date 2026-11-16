@@ -10,9 +10,8 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{broadcast, mpsc, watch};
 
 use crate::Daemon;
-use crate::native::hosts::{
-    ScopeHold, ScopeRefused, connect_scope, scope_allows_action, scope_allows_doc,
-};
+use crate::native::hosts::{ScopeHold, ScopeRefused, connect_scope};
+use crate::native::served;
 
 /// Replies queued per connection before the client is dropped (review finding 11). The hub's own
 /// patches go through its broadcast ring, so this bounds what one client's requests can pile up.
@@ -83,18 +82,26 @@ fn err(id: Option<String>, kind: &str, msg: impl Into<String>) -> ServerMsg {
     }
 }
 
-/// What a scoped connection of `mod_id` may send (PROTOCOL §2): `ping`, its own documents (`sub`, `unsub`,
-/// `resync`, with `theme` and `i18n`) and its own actions (`act`). Everything else is `forbidden`.
-fn scoped_allows(mod_id: &str, msg: &ClientMsg) -> bool {
+/// What a scoped connection of `mod_id` may send (PROTOCOL §2): `ping`, `sub` / `unsub` / `resync` of the documents and
+/// `act` of the actions its mod's contract reaches (W91: its own, the base set, its `uses`). Everything else is `forbidden`.
+fn scoped_allows(mod_id: &str, hold: &ScopeHold, msg: &ClientMsg) -> bool {
     match msg {
         ClientMsg::Ping => true,
         ClientMsg::Sub { doc, .. } | ClientMsg::Unsub { doc } | ClientMsg::Resync { doc } => {
-            scope_allows_doc(mod_id, doc)
+            hold.allows_doc(mod_id, doc)
         }
-        ClientMsg::Act { action, .. } => scope_allows_action(mod_id, action),
+        ClientMsg::Act { action, .. } => hold.allows_action(mod_id, action),
+        // K155 (W93): a host program's own messages; what each may name is checked where it is handled.
+        ClientMsg::Pub { .. }
+        | ClientMsg::Serve { .. }
+        | ClientMsg::Done { .. }
+        | ClientMsg::Err { .. } => true,
         _ => false,
     }
 }
+
+/// Numbers the connections (K155, W93: a host's calls belong to the connection that took the action).
+static NEXT_CONN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// The `id` a request carries, so that its refusal reaches the right request.
 fn request_id(msg: &ClientMsg) -> Option<String> {
@@ -106,7 +113,9 @@ fn request_id(msg: &ClientMsg) -> Option<String> {
         | ClientMsg::Undo { id }
         | ClientMsg::Redo { id }
         | ClientMsg::Act { id, .. }
+        | ClientMsg::Serve { id, .. }
         | ClientMsg::Query { id, .. } => Some(id.clone()),
+        ClientMsg::Pub { id, .. } => id.clone(),
         _ => None,
     }
 }
@@ -226,6 +235,10 @@ async fn connection(
         }
     });
 
+    // This connection among a mod's hosts (K155, W93: the one that serves, and the one that closed), and the mod it
+    // speaks for once its scoped hello was taken.
+    let conn_id = NEXT_CONN.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let scoped_mod: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
     let session = async {
         let reply = |m: ServerMsg| out.push(m);
         let mut greeted = false;
@@ -236,8 +249,8 @@ async fn connection(
                 reply(err(None, "invalid", "hello first"));
                 continue;
             }
-            if let Some((mod_id, _)) = &host_scope
-                && !scoped_allows(mod_id, &msg)
+            if let Some((mod_id, hold)) = &host_scope
+                && !scoped_allows(mod_id, hold, &msg)
             {
                 reply(err(
                     request_id(&msg),
@@ -264,7 +277,11 @@ async fn connection(
                             continue;
                         }
                         match connect_scope(&scope) {
-                            Ok(hold) => host_scope = Some((scope.mod_id, hold)),
+                            Ok(hold) => {
+                                *scoped_mod.lock().expect("scope lock") =
+                                    Some(scope.mod_id.clone());
+                                host_scope = Some((scope.mod_id, hold));
+                            }
                             Err(ScopeRefused) => {
                                 reply(ServerMsg::Goodbye {
                                     reason: "scope".into(),
@@ -389,6 +406,76 @@ async fn connection(
                         format!("no query provider {kind}"),
                     )),
                 },
+                // K155 (W93; PROTOCOL §2 "Host programs"): a mod's own program publishes the mod's documents and takes
+                // its actions. Only a scoped connection speaks for a mod.
+                ClientMsg::Pub { id, doc, data } => {
+                    let Some((mod_id, _)) = &host_scope else {
+                        reply(err(id, "forbidden", "only a mod's host program publishes"));
+                        continue;
+                    };
+                    let served = served::of(mod_id);
+                    let refused = if !served.may_pub(&doc) {
+                        tracing::warn!(%mod_id, %doc, "a host published a document its manifest does not provide");
+                        Some(("forbidden", "not a document this mod provides".to_string()))
+                    } else if !data.is_object() {
+                        Some(("invalid", "a document is an object".to_string()))
+                    } else if data.to_string().len() > served::PUB_MAX {
+                        Some(("invalid", served::TOO_LARGE.to_string()))
+                    } else {
+                        None
+                    };
+                    match refused {
+                        Some((kind, msg)) => reply(err(id, kind, msg)),
+                        None => {
+                            let set = daemon.hub.set(&doc, data, None);
+                            if let Some(id) = id {
+                                match set {
+                                    Ok(()) => reply(ServerMsg::Done { id, data: None }),
+                                    Err(e) => reply(err(Some(id), "unknown_doc", e.to_string())),
+                                }
+                            }
+                        }
+                    }
+                }
+                ClientMsg::Serve { id, actions } => {
+                    let Some((mod_id, _)) = &host_scope else {
+                        reply(err(
+                            Some(id),
+                            "forbidden",
+                            "only a mod's host program serves actions",
+                        ));
+                        continue;
+                    };
+                    let out = out.clone();
+                    let push: Arc<dyn Fn(ServerMsg) + Send + Sync> = Arc::new(move |m| out.push(m));
+                    match served::of(mod_id).serve(conn_id, push, actions) {
+                        Ok(()) => reply(ServerMsg::Done { id, data: None }),
+                        Err(action) => {
+                            tracing::warn!(%mod_id, %action, "a host asked for an action its manifest does not declare");
+                            reply(err(
+                                Some(id),
+                                "forbidden",
+                                format!("{action} is not an action this mod provides"),
+                            ));
+                        }
+                    }
+                }
+                ClientMsg::Done { id, data } => {
+                    if let Some((mod_id, _)) = &host_scope {
+                        served::of(mod_id).answer(conn_id, &id, Ok(data));
+                    }
+                }
+                ClientMsg::Err { id, kind, msg } => {
+                    if let Some((mod_id, _)) = &host_scope {
+                        use kurashi_mod_api::ActionError as E;
+                        let e = match kind.as_str() {
+                            "invalid" => E::Invalid(msg),
+                            "unavailable" => E::Unavailable(msg),
+                            _ => E::Internal(msg),
+                        };
+                        served::of(mod_id).answer(conn_id, &id, Err(e));
+                    }
+                }
                 ClientMsg::Ping => reply(ServerMsg::Pong),
                 ClientMsg::MockTick
                 | ClientMsg::MockFace { .. }
@@ -414,6 +501,19 @@ async fn connection(
         }
     };
 
+    // K155 (W93): a host program is gone, however its connection ended — its calls fail, and its documents say so
+    // instead of showing what it last published.
+    if let Some(mod_id) = scoped_mod.lock().expect("scope lock").take() {
+        let served = served::of(&mod_id);
+        served.closed(conn_id);
+        for doc in served.docs() {
+            let _ = daemon.hub.set(
+                &doc,
+                serde_json::json!({ "available": false, "reason": served::STARTING }),
+                None,
+            );
+        }
+    }
     // Disconnect releases every subscription so providers can stop (Ma).
     for doc in subscribed.lock().expect("subs lock").drain() {
         daemon.hub.unsubscribe(&doc);

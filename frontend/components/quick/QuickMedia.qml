@@ -39,27 +39,17 @@ Column {
                 id: names
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width
                     elide: Text.ElideRight
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: String(mini.d.title ?? "")
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width
                     visible: text !== ""
                     elide: Text.ElideRight
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
                     text: String(mini.d.artist ?? "")
                 }
             }
@@ -93,16 +83,12 @@ Column {
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: mini.errText !== ""
         width: mini.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: mini.errText
     }
 }

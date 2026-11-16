@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: example:kurashi-mod-lyrics/fake_mpris
 # The lyrics mod in the REAL shell (W23-auth-media, K47), invisibly: the real kurashid and the real Quickshell frontend in
 # the headless sway sandbox, `desktop.enabled = true`, the mod on, a fake MPRIS player on the sandbox's session bus
 # (crates/kurashi-mod-lyrics/examples/fake_mpris.rs) and a fake LRCLIB on the sandbox's loopback
@@ -12,6 +13,7 @@
 # (`cargo build -p kurashid -p kurashi` and `cargo build -p kurashi-mod-lyrics --example fake_mpris` first.)
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w23-aut-lyrics}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 PLAYER_BIN=${KURASHI_FAKE_MPRIS:-$BIN/examples/fake_mpris}
@@ -110,36 +112,7 @@ http.server.ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_foreve
 PY
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in mods/tasks/test-tasks.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 # doc_is <doc> <python condition on d>: 0 when it holds now.
 doc_is() { ipc "$1" | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($2) else 1)" 2>/dev/null; }
 wait_doc() { local i; for i in $(seq "$3"); do doc_is "$1" "$2" && return 0; sleep 0.5; done; return 0; }

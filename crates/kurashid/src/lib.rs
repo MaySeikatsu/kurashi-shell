@@ -2,13 +2,16 @@
 //! socket; everything testable lives here.
 
 pub mod actions;
+pub mod alloc;
 pub mod bindings;
 pub mod browsers;
+pub mod cache;
 pub mod capabilities;
 pub mod clock;
 pub mod config;
 pub mod cursor;
 pub mod doctor;
+pub mod follow;
 pub mod font_mix;
 pub mod greeter_cache;
 pub mod hub;
@@ -18,6 +21,7 @@ pub mod intents;
 pub mod island;
 pub mod keys;
 pub mod launcher_mods;
+pub mod location;
 pub mod lock;
 pub mod native;
 pub mod os_scheme;
@@ -72,6 +76,11 @@ impl Daemon {
                     .unwrap_or_default();
                 reg.query(q, &strings)
             }),
+        );
+        // W94 (K154; PROTOCOL §6): the registry of extension points, for the Mod Editor's checklist.
+        queries.insert(
+            "points".into(),
+            Arc::new(|_q: &str| kurashi_mods::editor::points()),
         );
         Daemon {
             hub,

@@ -9,15 +9,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use kurashi_config::{Options, Paths};
 use kurashi_ipc::{ClientMsg, LineReader, Scope, ServerMsg, write_msg};
 use kurashi_mod_api::{HostSpec, ModCtx, ModError, NativeMod};
-use kurashid::config::ConfigStore;
 use kurashid::native::hosts::{HostEnv, set_host_env, shutdown_all};
-use kurashid::{ActionRegistry, Hub, wiring};
+use kurashid::{ActionRegistry, Hub};
 use serde_json::{Value, json};
 use tokio::net::UnixStream;
 use tokio::sync::{Mutex, oneshot};
+
+mod hostkit;
 
 /// One test at a time: the host environment and the scope table are per process.
 static GATE: Mutex<()> = Mutex::const_new(());
@@ -40,6 +40,7 @@ fn base() -> &'static PathBuf {
             data: Some(base.join("data")),
             cache: Some(base.join("cache")),
             state: Some(base.join("state")),
+            socket: None,
         });
         assert!(set, "the host environment is set once per process");
         base
@@ -131,31 +132,16 @@ async fn start(tag: &str, binary: &'static str, mode: &str) -> Daemon {
         ],
     };
 
-    let hub = Hub::new();
-    let store: Arc<ConfigStore> = ConfigStore::open(
-        hub.clone(),
-        kurashi_schema::v1::registry(),
-        Paths::rooted(&dir.join("config")),
-        Options::default(),
-    );
-    let mut actions = ActionRegistry::default();
-    wiring::ui(&hub, &mut actions);
-    wiring::mods_native(
-        &hub,
-        &mut actions,
+    let hostkit::Served {
+        hub,
+        actions,
+        _stop: stop,
+    } = hostkit::serve(
+        &dir,
+        &sock,
         vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/hosts/mods")],
-        Some(store.clone()),
         vec![Box::new(probe) as Box<dyn NativeMod>],
-        None,
     );
-    let mut daemon =
-        kurashid::Daemon::new(hub.clone(), actions.clone(), kurashid::Intents::default());
-    daemon.config = Some(store);
-    let listener = tokio::net::UnixListener::bind(&sock).unwrap();
-    let (stop, stopped) = oneshot::channel::<()>();
-    tokio::spawn(kurashid::server::serve(listener, Arc::new(daemon), async {
-        let _ = stopped.await;
-    }));
     let d = Daemon {
         dir,
         hub,

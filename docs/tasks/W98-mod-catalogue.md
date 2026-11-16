@@ -17,6 +17,11 @@ host program; keyboard, a11y; what the user reads before installing: provides, u
   Install and Remove inert with the reason).
 - **First-party mods** stay in the tree for now; whether some move out is asked again when the index exists.
 
+## Done
+- Step 1 (session 35, K161): `kurashi_mods::{nar, index}`, `kurashi mod hash`, `kurashi mod check --summary`,
+  `tools/mod-index/` (build.py, example, test.py in `just check`). The brief's definition of done: item 1 met, the
+  data half of items 4 and 5 (the `.source` file, the update's gained reach) tested; items 2, 3, 6, 7 open.
+
 ## Acceptance (after the brief)
 The brief's definition of done; an index with the scaffolded example mod; install, update, remove and a refused hash in a
 suite; the Home-Manager evaluation test with one pinned mod.

@@ -61,36 +61,7 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (plain stdlib, as in test-volume.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # The card's surface (the bar's sheet since I277: color.surface) in the output's centre column: its
@@ -107,24 +78,12 @@ if len(sys.argv) > 3:                  # W36: a card resting under its bar widge
     X0, X1 = int(sys.argv[2]), int(sys.argv[3])
 
 
-def read_ppm(data):
-    # Four whitespace-separated fields (magic, width, height, maxval), one whitespace byte, the raster.
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
-with open(sys.argv[1], "rb") as f:
-    w, h, raster = read_ppm(f.read())
+w, h, raster = read_ppm(sys.argv[1])
 # The desk's colour, near the output's bottom-right corner (no surface there; 60 px in, past the screen's rounded corner,
 # K74), and the panel blended over it.
 _b = ((h - 60) * w + (w - 60)) * 3

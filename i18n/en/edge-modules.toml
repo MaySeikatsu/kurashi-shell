@@ -12,6 +12,3 @@
 "edge-modules.clock.a11y" = "{time}, {weekday} {date}"
 "edge-modules.clock.no_time" = "The time is not known yet"
 "edge-modules.clock.week" = "Week {n}"
-"edge-modules.clock.event_next" = "Next: {title} at {time}"
-"edge-modules.clock.event_now" = "Now: {title}, since {time}"
-"edge-modules.clock.timer_ends" = "{name} ends at {time}"

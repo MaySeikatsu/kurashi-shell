@@ -20,6 +20,26 @@ pub enum Level {
     Warn,
 }
 
+/// Every rule the check holds a mod to, in the order a list shows them (`mods.check.<rule>` names each). A rule with no
+/// finding is met. The Mod Editor's list and the report's `rules` are this (rule 3); a test holds the source to it.
+pub const RULES: &[&str] = &[
+    "manifest",
+    "use_undeclared",
+    "use_unseen",
+    "use_base",
+    "variant",
+    "icon",
+    "description",
+    "actions_declared",
+    "setting_label",
+    "no_process",
+    "kit_only",
+    "colour_literal",
+    "font_literal",
+    "copy_literal",
+    "host_exec",
+];
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Finding {
     /// The rule's id; `mods.check.<rule>` is its i18n key.
@@ -151,6 +171,55 @@ fn code(line: &str) -> &str {
     } else {
         line
     }
+}
+
+/// What a bundled mod's crate follows and calls (W91, K154 step 5): the literals of `follow("…")` and `calls("…")` in
+/// `crates/kurashi-mod-<id>/src`, two folders up from the mod's own (`mods/<id>`). A mod outside the tree has no crate
+/// here, and nothing is read.
+fn crate_reach(dir: &Path, id: &str) -> Reach {
+    let mut r = Reach::default();
+    let Some(src) = dir
+        .parent()
+        .and_then(Path::parent)
+        .map(|root| {
+            root.join("crates")
+                .join(format!("kurashi-mod-{id}"))
+                .join("src")
+        })
+        .filter(|p| p.is_dir())
+    else {
+        return r;
+    };
+    let mut stack = vec![src.clone()];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else {
+            continue;
+        };
+        for p in rd.flatten().map(|e| e.path()) {
+            if p.is_dir() {
+                stack.push(p);
+                continue;
+            }
+            if p.extension().is_none_or(|x| x != "rs") {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&p) else {
+                continue;
+            };
+            let rel = p.strip_prefix(&src).unwrap_or(&p).display().to_string();
+            for (n, line) in text.lines().enumerate() {
+                let line = code(line);
+                let at = format!("{rel}:{}", n + 1);
+                for doc in literals_after(line, ".follow(") {
+                    r.docs.push((doc.to_string(), at.clone()));
+                }
+                for action in literals_after(line, ".calls(") {
+                    r.actions.push((action.to_string(), at.clone()));
+                }
+            }
+        }
+    }
+    r
 }
 
 fn reach_of(src: &[Source]) -> Reach {
@@ -293,9 +362,41 @@ pub fn check_dir(dir: &Path, daemon: &Version) -> Report {
             return Report { id, findings };
         }
     };
+    // K155 (W93): a host program is a file the mod brings (`bin/<exec>`, executable), or a program on PATH that its
+    // capabilities name.
+    for (i, h) in m.hosts.iter().enumerate() {
+        use std::os::unix::fs::PermissionsExt;
+        let own = dir.join("bin").join(&h.exec);
+        let granted = m
+            .capabilities
+            .iter()
+            .any(|c| c == &format!("exec:{}", h.exec));
+        let at = format!("mod.toml: host[{i}].exec");
+        match std::fs::metadata(&own) {
+            Ok(meta) if meta.is_file() && meta.permissions().mode() & 0o111 == 0 => {
+                findings.push(Finding {
+                    rule: "host_exec",
+                    level: Level::Error,
+                    at,
+                    detail: format!("`bin/{}` is not executable", h.exec),
+                })
+            }
+            Ok(meta) if meta.is_file() => {}
+            _ if granted => {}
+            _ => findings.push(Finding {
+                rule: "host_exec",
+                level: Level::Error,
+                at,
+                detail: format!(
+                    "`{0}` is neither a file in `bin/` nor named in capabilities (`exec:{0}`)",
+                    h.exec
+                ),
+            }),
+        }
+    }
     let src = sources(dir);
     check_manifest(&m, &mut findings);
-    check_reach(&m, &reach_of(&src), &mut findings);
+    check_reach(&m, &reach_of(&src), &crate_reach(dir, &m.id), &mut findings);
     lints(&src, &mut findings);
     Report { id, findings }
 }
@@ -351,7 +452,7 @@ fn check_manifest(m: &Manifest, out: &mut Vec<Finding>) {
     }
 }
 
-fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
+fn check_reach(m: &Manifest, r: &Reach, in_crate: &Reach, out: &mut Vec<Finding>) {
     let mut seen: Vec<String> = Vec::new();
     for (doc, at) in &r.docs {
         if !m.contract.may_read(&m.id, doc) && !seen.contains(doc) {
@@ -386,11 +487,18 @@ fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
             });
         }
     }
-    // The other way round: a use nothing in the views names is noted (a crate may be its reader).
+    // The other way round: a use neither a view nor the mod's crate names is noted (W91: the crate's `follow("…")`
+    // and `calls("…")` count).
     for u in &m.contract.uses {
         let named = match u.kind {
-            crate::contract::UseKind::Doc => r.docs.iter().any(|(d, _)| d == &u.id),
-            crate::contract::UseKind::Action => r.actions.iter().any(|(a, _)| a == &u.id),
+            crate::contract::UseKind::Doc => {
+                r.docs.iter().chain(&in_crate.docs).any(|(d, _)| d == &u.id)
+            }
+            crate::contract::UseKind::Action => r
+                .actions
+                .iter()
+                .chain(&in_crate.actions)
+                .any(|(a, _)| a == &u.id),
             crate::contract::UseKind::Intent => r.intents.iter().any(|(a, _)| a == &u.id),
         };
         let base = BASE_DOCS.contains(&u.id.as_str()) || BASE_ACTIONS.contains(&u.id.as_str());
@@ -406,7 +514,10 @@ fn check_reach(m: &Manifest, r: &Reach, out: &mut Vec<Finding>) {
                 rule: "use_unseen",
                 level: Level::Warn,
                 at: "mod.toml: uses".into(),
-                detail: format!("`{}` is declared and no view names it", u.id),
+                detail: format!(
+                    "`{}` is declared and neither a view nor the crate names it",
+                    u.id
+                ),
             });
         }
     }
@@ -420,6 +531,51 @@ pub fn reach(dir: &Path) -> Reach {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// W94: the rule list is the rules the code reports, and each has its name in both catalogues.
+    #[test]
+    fn the_rule_list_is_what_the_check_reports_and_every_rule_has_a_name() {
+        let src = include_str!("check.rs");
+        let mut found = std::collections::BTreeSet::new();
+        for marker in ["rule: \"", "add(\""] {
+            for part in src.split(marker).skip(1) {
+                let id: String = part
+                    .chars()
+                    .take_while(|c| c.is_ascii_lowercase() || *c == '_')
+                    .collect();
+                if part[id.len()..].starts_with('"') && !id.is_empty() {
+                    found.insert(id);
+                }
+            }
+        }
+        // `add(` on a line of its own, the rule on the next.
+        for part in src.split("add(\n").skip(1) {
+            let line = part.trim_start();
+            if let Some(rest) = line.strip_prefix('"') {
+                found.insert(rest.chars().take_while(|c| *c != '"').collect());
+            }
+        }
+        let listed: std::collections::BTreeSet<String> =
+            RULES.iter().map(|r| (*r).to_string()).collect();
+        assert_eq!(
+            found, listed,
+            "RULES and the rules the check reports differ"
+        );
+        for lang in ["en", "ja"] {
+            let dir =
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("../../i18n/{lang}"));
+            let catalogue = ["mod-editor.toml", "mods.toml"]
+                .iter()
+                .map(|f| std::fs::read_to_string(dir.join(f)).unwrap())
+                .collect::<String>();
+            for r in RULES {
+                assert!(
+                    catalogue.contains(&format!("\"mods.check.{r}\"")),
+                    "{lang}: mods.check.{r} has no name"
+                );
+            }
+        }
+    }
 
     fn write(dir: &Path, rel: &str, text: &str) {
         let p = dir.join(rel);

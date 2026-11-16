@@ -1,9 +1,9 @@
 import QtQuick
 import qs.core
-import qs.components
 
-// The desk's card shape, copied from mods/tasks/qml/DeskCard.qml (as Desktop.qml draws its core cards, K43): a Block
-// with the panel's padding, the surface fill and a hairline in flat chrome. Children go into the padded body.
+// The desk's card shape for a mod's `desk:<name>` (as Desktop.qml draws its core cards, K43): a Block with the panel's
+// padding, the surface fill and a hairline in flat chrome. Children go into the padded body; the card's height follows
+// them. One place (rule 10): the tasks, calendar and weather mods' cards use it.
 Block {
     id: card
     default property alias body: inner.data

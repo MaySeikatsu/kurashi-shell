@@ -117,17 +117,11 @@ panel_open() { doc_is "d.get('panel') == 'mod:webdock:webdock'" runtime.ui; }
 panel_closed() { doc_is "d.get('panel', '') == ''" runtime.ui; }
 cat > "$W/px.py" <<'PY'
 import sys
-data = open(sys.argv[1], "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-p = data[i + 1:i + 4]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+_, _, raster = read_ppm(sys.argv[1])
+p = raster[:3]
 want = tuple(int(sys.argv[2].lstrip("#")[k:k + 2], 16) for k in (0, 2, 4))
 print("match" if max(abs(p[k] - want[k]) for k in range(3)) <= 12 else "other #%02x%02x%02x" % tuple(p))
 PY

@@ -1989,8 +1989,8 @@ echo "page link L4: settings.open {page} jumped to keys and to mod:records; 'nop
 
 # S1. section cards (K48 (5), I104): each section of a page is a card with its icon and title, in the schema's order.
 Q goto power
-for _ in $(seq 20); do [ "$(Q sections)" = "power.idle,power.night_light,power.recorder" ] && break; sleep 0.2; done
-[ "$(Q sections)" = "power.idle,power.night_light,power.recorder" ] || fail "cards: the power page's sections are not cards in order ($(Q sections))"
+for _ in $(seq 20); do [ "$(Q sections)" = "power.idle,power.night_light,power.location,power.recorder" ] && break; sleep 0.2; done
+[ "$(Q sections)" = "power.idle,power.night_light,power.location,power.recorder" ] || fail "cards: the power page's sections are not cards in order ($(Q sections))"
 shot 28-cards-power
 Q advanced true
 Q goto desktop
