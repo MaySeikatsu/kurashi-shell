@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: feature:test-mods
 # Every bundled mod and the test mod `hello` through the real shell (W14, BACKLOG I21, I34), invisibly: the real kurashid
 # built with `--features test-mods` (it links `hello`), an isolated XDG and data dir holding a copy of the checkout's
 # frontend, i18n and mods, and the frontend in the headless sway sandbox. Per mod, in turn: `mod.enable`; the `qml` the

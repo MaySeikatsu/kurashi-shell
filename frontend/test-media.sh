@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# needs: example:kurashi-mock/fake_mpris_art
 # Live audio levels, cover colours and the Wallhaven tab in the REAL shell (W24-media, K48), invisibly: the real kurashid
 # and the real Quickshell frontend in the headless sway sandbox, `desktop.enabled = true`, the wallpaper mod on with a
 # fake awww; a FAKE cava first on PATH (prints a fixed frame, logs when it starts and stops), a fake MPRIS player with a
