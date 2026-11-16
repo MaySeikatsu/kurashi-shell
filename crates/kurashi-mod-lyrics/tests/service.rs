@@ -1,5 +1,5 @@
 //! The lyrics service as the daemon runs it: enabled through a `ModCtx`, its service started with a publish sink and a
-//! settings feed, the track sent by `lyrics.track`. The transport is in memory: each test says what LRCLIB answers.
+//! settings feed, the track `svc.media` shows (followed, W91). The transport is in memory: each test says what LRCLIB answers.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -13,10 +13,15 @@ use kurashi_mod_lyrics::{Http, HttpError, LyricsMod};
 use serde_json::{Value, json};
 use tokio::sync::{Notify, watch};
 
-struct NoHooks;
-impl Hooks for NoHooks {
+/// The daemon's end: `svc.media`, as the tests set it.
+struct Media(watch::Sender<Value>);
+impl Hooks for Media {
     fn face(&self, _face: &str, _update: FaceUpdate) {}
     fn choices_changed(&self, _source: &str) {}
+    fn follow(&self, doc: &str) -> watch::Receiver<Value> {
+        assert_eq!(doc, "svc.media");
+        self.0.subscribe()
+    }
 }
 
 type Answer = Result<String, HttpError>;
@@ -67,7 +72,7 @@ fn found(lrc: &str) -> Answer {
 
 struct Running {
     service: ServiceFn,
-    track: ActionFn,
+    media: watch::Sender<Value>,
     retry: ActionFn,
     docs: watch::Receiver<Vec<Value>>,
     sink: Arc<watch::Sender<Vec<Value>>>,
@@ -89,8 +94,9 @@ impl Running {
             t.abort();
         }
     }
-    async fn send(&self, args: Value) {
-        (self.track)(args).await.expect("lyrics.track");
+    /// The player shows this track now (`{}`: nothing plays).
+    async fn send(&self, track: Value) {
+        self.media.send_replace(track);
     }
     /// Waits until the last published document satisfies `ok`, and returns it.
     async fn until(&mut self, what: &str, ok: impl Fn(&Value) -> bool) -> Value {
@@ -131,7 +137,9 @@ fn enable(fake: Arc<Fake>, dir: &std::path::Path, values: &[(&str, Value)]) -> R
         .map(|(k, v)| ((*k).to_owned(), v.clone()))
         .collect::<BTreeMap<_, _>>();
     let (settings, rx) = watch::channel(values);
-    let mut ctx = ModCtx::new(&provides, Settings::new(rx), Arc::new(NoHooks));
+    let media = watch::channel(json!({"available": false})).0;
+    let mut ctx = ModCtx::new(&provides, Settings::new(rx), Arc::new(Media(media.clone())))
+        .with_uses(&["doc:svc.media".to_string()]);
     m.enable(&mut ctx).expect("the mod enables");
     let regs = ctx.finish().expect("no refused registration");
     let service = regs
@@ -155,7 +163,7 @@ fn enable(fake: Arc<Fake>, dir: &std::path::Path, values: &[(&str, Value)]) -> R
     let (sink, docs) = watch::channel(Vec::new());
     Running {
         service,
-        track: action("lyrics.track"),
+        media,
         retry: action("lyrics.retry"),
         docs,
         sink: Arc::new(sink),
@@ -333,14 +341,26 @@ async fn a_track_change_during_a_lookup_drops_the_old_answer() {
     );
 }
 
+/// W91: no view sends the track. A player that is gone, plays nothing or shows fields of another shape is no track.
 #[tokio::test]
-async fn bad_arguments_are_refused() {
+async fn the_track_is_the_players_and_a_player_without_one_is_no_track() {
     let dir = tempfile::tempdir().unwrap();
-    let r = enable(Fake::new(|_| found(LRC)), dir.path(), &[]);
-    assert!((r.track)(json!({"title": 5})).await.is_err());
-    assert!(
-        (r.track)(json!({"title": "T", "length_us": "long"}))
-            .await
-            .is_err()
-    );
+    let mut r = enable(Fake::new(|_| found(LRC)), dir.path(), &[]);
+    r.start();
+    r.send(song()).await;
+    r.until("the lyrics", |d| d["state"] == "ready").await;
+    for none in [
+        json!({"available": false}),
+        json!({"available": true, "title": "  "}),
+        json!({"available": true, "title": 5}),
+    ] {
+        r.send(none.clone()).await;
+        r.until("no track", |d| {
+            d["state"] == "none" && d.get("track").is_none()
+        })
+        .await;
+        r.send(song()).await;
+        r.until("the lyrics again", |d| d["state"] == "ready").await;
+    }
+    r.stop();
 }

@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+# A mod's own program, as MODDING.md §7a shows one (K155, W93): it says the scoped hello, publishes the mod's document,
+# takes its action and answers the daemon's calls. For the test it first asks for two things its manifest does not
+# say, and writes what the daemon answered — and when it was asked to stop — to --report.
+import json
+import os
+import signal
+import socket
+import sys
+
+report = sys.argv[sys.argv.index("--report") + 1]
+
+
+def note(text):
+    with open(report, "a") as f:
+        f.write(text + "\n")
+
+
+signal.signal(signal.SIGTERM, lambda *_: (note("term"), sys.exit(0)))
+s = socket.socket(socket.AF_UNIX)
+s.connect(os.environ["KURASHI_SOCKET"])
+f = s.makefile("rw")
+
+
+def send(m):
+    f.write(json.dumps(m) + "\n")
+    f.flush()
+
+
+send({"t": "hello", "v": 1, "client": "tea-host", "caps": [],
+      "scope": {"mod": os.environ["KURASHI_SCOPE_MOD"], "token": os.environ["KURASHI_SCOPE_TOKEN"]}})
+note("hello " + json.loads(f.readline())["t"])
+# Not the mod's: refused, and nothing is taken.
+send({"t": "pub", "id": "x1", "doc": "mod.other", "data": {"available": True}})
+send({"t": "serve", "id": "x2", "actions": ["tea.start", "cfg.set"]})
+# The mod's own.
+send({"t": "pub", "doc": "mod.tea", "data": {"available": True, "steeping": False}})
+send({"t": "serve", "id": "s1", "actions": ["tea.start"]})
+for line in f:
+    m = json.loads(line)
+    if m["t"] == "call" and m["action"] == "tea.start":
+        minutes = m["args"]["minutes"]
+        if minutes == 60:
+            send({"t": "err", "id": m["id"], "kind": "unavailable", "msg": "mod-tea.error.no_kettle"})
+            continue
+        send({"t": "pub", "doc": "mod.tea", "data": {"available": True, "steeping": True, "minutes": minutes}})
+        send({"t": "done", "id": m["id"], "data": {"minutes": minutes}})
+    elif m["t"] == "ping":
+        send({"t": "pong"})
+    elif m.get("id") in ("x1", "x2", "s1"):
+        note(m["id"] + " " + m["t"] + " " + m.get("kind", ""))

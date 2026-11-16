@@ -259,7 +259,7 @@
    "crates/kurashid/tests/config.rs": 13,
    "crates/kurashid/tests/config_doc.rs": 4,
    "crates/kurashid/tests/honesty.rs": 8,
-   "crates/kurashid/tests/hosts.rs": 6,
+   "crates/kurashid/tests/hostkit/mod.rs": 3,
    "crates/kurashid/tests/layout.rs": 4,
    "crates/kurashid/tests/media_actions.rs": 15,
    "crates/kurashid/tests/migration_v4.rs": 11,
@@ -267,7 +267,7 @@
    "crates/kurashid/tests/migration_v6.rs": 11,
    "crates/kurashid/tests/mod_settings.rs": 2,
    "crates/kurashid/tests/mods_state.rs": 9,
-   "crates/kurashid/tests/native_mods.rs": 11,
+   "crates/kurashid/tests/native_mods.rs": 9,
    "crates/kurashid/tests/notify_dnd.rs": 1,
    "crates/kurashid/tests/protocol.rs": 15,
    "crates/kurashid/tests/quick_actions.rs": 9,
@@ -275,9 +275,9 @@
    "crates/kurashid/tests/records.rs": 2,
    "crates/kurashid/tests/server_resilience.rs": 15,
    "crates/kurashid/tests/settings_daemon.rs": 3,
-   "crates/kurashid/tests/webdock.rs": 8
+   "crates/kurashid/tests/webdock.rs": 6
   },
-  "windows": 810
+  "windows": 803
  },
  "sh": {
   "files": {

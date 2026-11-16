@@ -1,7 +1,7 @@
 //! Lyrics native mod (K47; docs/ux/lyrics.md; card W23-auth-media). Linked into kurashid by `native::linked()`; its
 //! manifest and QML live in `mods/lyrics/`. It registers what that manifest's `provides` lists for the daemon: the
-//! service `mod.lyrics` and the actions `lyrics.track` and `lyrics.retry`. The media card's slot, the bar widget and the
-//! desk card are QML: they send the track `svc.media` shows, read the document and map the playing position to the
+//! service `mod.lyrics`, which follows `svc.media` for the track (W91), and the action `lyrics.retry`. The media card's slot, the bar widget and the
+//! desk card are QML: they read the document and map the playing position to the
 //! current line themselves.
 
 pub mod cache;
@@ -79,14 +79,17 @@ impl NativeMod for LyricsMod {
             Cache::new(self.cache_dir.clone()),
             self.clock.clone(),
         ));
+        // W91 (K154 step 5): the track is `svc.media`'s, read here while the service runs — a view no longer sends it.
+        let media = ctx.follow("svc.media")?;
         let s = shared.clone();
         ctx.service("lyrics", service::initial(), move |publish, settings| {
-            service::run(s.clone(), publish, settings)
-        })?;
-        let s = shared.clone();
-        ctx.action("lyrics.track", "mod-lyrics.action.track", move |args| {
-            let r = service::set_track(&s, &args);
-            async move { r }
+            let (s, media) = (s.clone(), media.clone());
+            async move {
+                tokio::join!(
+                    service::run(s.clone(), publish, settings),
+                    service::follow_media(s, media.watch()),
+                );
+            }
         })?;
         let s = shared.clone();
         ctx.action("lyrics.retry", "mod-lyrics.action.retry", move |_args| {

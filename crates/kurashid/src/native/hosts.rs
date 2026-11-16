@@ -2,7 +2,7 @@
 //! A mod's host is a program the daemon starts when the mod asks, supervises (one restart, then `Failed`), and
 //! stops on request, on disable and at daemon shutdown. It connects back with a `hello` whose `scope` carries the
 //! token the daemon handed it. That connection reaches only the mod's own documents and actions, `theme` and
-//! `i18n` (server.rs asks [`scope_allows_doc`] and [`scope_allows_action`]).
+//! `i18n` (server.rs asks the connection's [`ScopeHold`]).
 
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
@@ -45,6 +45,9 @@ pub struct HostEnv {
     pub cache: Option<PathBuf>,
     /// Replaces `$XDG_STATE_HOME/kurashi`.
     pub state: Option<PathBuf>,
+    /// The socket a host is told to connect to, instead of the daemon's default path (W93: a test daemon listens on
+    /// its own, and a host handed the default would knock on the user's running shell).
+    pub socket: Option<PathBuf>,
 }
 
 static HOST_ENV: OnceLock<HostEnv> = OnceLock::new();
@@ -100,7 +103,7 @@ fn find_binary(name: &str) -> Option<PathBuf> {
         .find(|candidate| is_executable(candidate))
 }
 
-fn is_executable(path: &Path) -> bool {
+pub(super) fn is_executable(path: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
@@ -178,6 +181,21 @@ pub struct ScopeRefused;
 pub struct ScopeHold {
     token: String,
     host: Weak<HostCore>,
+    /// The mod's contract as it was when the connection was made.
+    contract: Arc<kurashi_mods::Contract>,
+}
+
+impl ScopeHold {
+    /// Whether this connection of `mod_id` may subscribe to `doc`: the mod's own documents (`mod.<id>`,
+    /// `mod.<id>.*`), the base set every mod has, and the documents its manifest names in `uses` (W91, PROTOCOL §2).
+    pub fn allows_doc(&self, mod_id: &str, doc: &str) -> bool {
+        self.contract.may_read(mod_id, doc)
+    }
+
+    /// Whether it may invoke `action`: the mod's own (`<id>.*`), the base set, and its `uses`.
+    pub fn allows_action(&self, mod_id: &str, action: &str) -> bool {
+        self.contract.may_call(mod_id, action)
+    }
 }
 
 impl Drop for ScopeHold {
@@ -206,26 +224,15 @@ pub fn connect_scope(scope: &Scope) -> Result<ScopeHold, ScopeRefused> {
     if let Some(host) = host.upgrade() {
         host.connected(&scope.token);
     }
+    let contract = host
+        .upgrade()
+        .map(|h| h.contract.clone())
+        .unwrap_or_default();
     Ok(ScopeHold {
         token: scope.token.clone(),
         host,
+        contract,
     })
-}
-
-/// Whether a scoped connection of `mod_id` may subscribe to `doc`: its own documents (`mod.<id>` and
-/// `mod.<id>.*`), `theme` and `i18n` (PROTOCOL §2).
-pub fn scope_allows_doc(mod_id: &str, doc: &str) -> bool {
-    doc == "theme"
-        || doc == "i18n"
-        // Row 118: the time for a host's own chrome (the web dock's phone status row).
-        || doc == "svc.clock"
-        || doc == format!("mod.{mod_id}")
-        || doc.starts_with(&format!("mod.{mod_id}."))
-}
-
-/// Whether a scoped connection of `mod_id` may invoke `action`: the mod's own (`<id>.*`) (PROTOCOL §2).
-pub fn scope_allows_action(mod_id: &str, action: &str) -> bool {
-    action.starts_with(&format!("{mod_id}."))
 }
 
 /// Stops every host the daemon runs, at daemon shutdown (MODS.md): SIGTERM now, then waits up to the kill
@@ -248,6 +255,8 @@ pub async fn shutdown_all() {
 
 /// What a host needs from the mod it belongs to, and from the daemon (see `Native::activate`).
 pub(super) struct HostParams {
+    /// The mod's contract: what its host's connection may read and call (W91, PROTOCOL §2).
+    pub contract: Arc<kurashi_mods::Contract>,
     pub mod_id: String,
     pub name: String,
     pub spec: HostSpec,
@@ -261,6 +270,7 @@ pub(super) struct HostParams {
 
 /// One host of one enabled mod. The mod's handle starts and stops it; its state goes to `state`.
 pub(super) struct HostCore {
+    contract: Arc<kurashi_mods::Contract>,
     me: Weak<HostCore>,
     mod_id: String,
     name: String,
@@ -301,6 +311,7 @@ impl HostCore {
         let dirs = ModDirs::of(&p.mod_id);
         let core = Arc::new_cyclic(|me| Self {
             me: me.clone(),
+            contract: p.contract,
             mod_id: p.mod_id,
             name: p.name,
             spec: p.spec,
@@ -318,6 +329,16 @@ impl HostCore {
         core
     }
 
+    /// The program: a file in the mod's own `bin/` (K155, W93: a mod that brings its program), else the first on the
+    /// host search path and `PATH`.
+    fn locate(&self) -> Option<PathBuf> {
+        let own = self.mod_dir.join("bin").join(&self.spec.binary);
+        if is_executable(&own) {
+            return Some(own);
+        }
+        find_binary(&self.spec.binary)
+    }
+
     /// Starts the process unless one runs (idempotent, MODS.md). A host that is `Missing` or `Failed` is tried again.
     pub(super) fn start(self: &Arc<Self>) {
         let active = {
@@ -326,7 +347,7 @@ impl HostCore {
                 return;
             }
             inner.last_exit = None;
-            let state = match find_binary(&self.spec.binary) {
+            let state = match self.locate() {
                 None => HostState::Missing,
                 Some(bin) => {
                     inner.bin = Some(bin.clone());
@@ -410,9 +431,14 @@ impl HostCore {
         for (key, value) in &self.spec.env {
             cmd.env(key, expand(value, &self.mod_dir, &self.dirs));
         }
-        cmd.env("KURASHI_SOCKET", kurashi_core::default_socket_path())
-            .env("KURASHI_SCOPE_MOD", &self.mod_id)
-            .env("KURASHI_SCOPE_TOKEN", &token);
+        cmd.env(
+            "KURASHI_SOCKET",
+            host_env()
+                .socket
+                .unwrap_or_else(kurashi_core::default_socket_path),
+        )
+        .env("KURASHI_SCOPE_MOD", &self.mod_id)
+        .env("KURASHI_SCOPE_TOKEN", &token);
         let child = cmd.spawn().map_err(|e| format!("{}: {e}", bin.display()))?;
         let pid = child.id().ok_or("the host has no process id")?;
 
@@ -503,22 +529,47 @@ impl HostCore {
 mod tests {
     use super::*;
 
+    /// W91: a host's scope is the mod's contract — its own, the base set, and what the manifest names in `uses`.
     #[test]
-    fn scopes_reach_the_mods_own_documents_and_actions_only() {
-        assert!(scope_allows_doc("webdock", "mod.webdock"));
-        assert!(scope_allows_doc("webdock", "mod.webdock.pins"));
-        assert!(scope_allows_doc("webdock", "theme"));
-        assert!(scope_allows_doc("webdock", "i18n"));
-        assert!(scope_allows_doc("webdock", "svc.clock"));
-        assert!(!scope_allows_doc("webdock", "mod.webdockx"));
-        assert!(!scope_allows_doc("webdock", "mod.weather"));
-        assert!(!scope_allows_doc("webdock", "mods"));
-        assert!(!scope_allows_doc("webdock", "svc.network"));
-
-        assert!(scope_allows_action("webdock", "webdock.host.loaded"));
-        assert!(!scope_allows_action("webdock", "webdockx.open"));
-        assert!(!scope_allows_action("webdock", "mod.enable"));
-        assert!(!scope_allows_action("webdock", "cfg.set"));
+    fn scopes_reach_the_mods_own_the_base_set_and_its_uses() {
+        let c = kurashi_mods::Contract {
+            uses: vec![kurashi_mods::Use {
+                kind: kurashi_mods::UseKind::Doc,
+                id: "svc.clock".into(),
+                optional: false,
+            }],
+            ..Default::default()
+        };
+        let hold = ScopeHold {
+            token: "t".into(),
+            host: Weak::new(),
+            contract: Arc::new(c),
+        };
+        for doc in [
+            "mod.webdock",
+            "mod.webdock.pins",
+            "theme",
+            "i18n",
+            "mods",
+            "svc.clock",
+        ] {
+            assert!(hold.allows_doc("webdock", doc), "{doc}");
+        }
+        for doc in ["mod.webdockx", "mod.weather", "svc.network", "svc.media"] {
+            assert!(!hold.allows_doc("webdock", doc), "{doc}");
+        }
+        assert!(hold.allows_action("webdock", "webdock.host.loaded"));
+        assert!(hold.allows_action("webdock", "ui.close"));
+        for action in ["webdockx.open", "mod.enable", "cfg.set", "terminal.run"] {
+            assert!(!hold.allows_action("webdock", action), "{action}");
+        }
+        // Without the use the clock is not the host's to read (it was a fixed entry, row 118).
+        let bare = ScopeHold {
+            token: "t".into(),
+            host: Weak::new(),
+            contract: Arc::default(),
+        };
+        assert!(!bare.allows_doc("webdock", "svc.clock"));
     }
 
     #[test]

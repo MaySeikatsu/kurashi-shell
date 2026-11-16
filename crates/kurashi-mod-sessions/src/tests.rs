@@ -16,6 +16,9 @@ use crate::noren::Runner;
 #[derive(Default)]
 struct Rec {
     writes: Mutex<Vec<(String, Value)>>,
+    /// The other mods' actions the mod called (W91), and whether the terminal is there to take them.
+    called: Mutex<Vec<(String, Value)>>,
+    terminal_off: std::sync::atomic::AtomicBool,
 }
 
 impl Hooks for Rec {
@@ -24,6 +27,26 @@ impl Hooks for Rec {
     fn set_setting(&self, key: &str, value: Value) -> Result<(), SettingsError> {
         self.writes.lock().unwrap().push((key.into(), value));
         Ok(())
+    }
+    fn call(
+        &self,
+        action: &str,
+        args: Value,
+    ) -> kurashi_mod_api::BoxFuture<Result<Option<Value>, kurashi_mod_api::ActionError>> {
+        let off = action.starts_with("terminal.")
+            && self.terminal_off.load(std::sync::atomic::Ordering::SeqCst);
+        if !off {
+            self.called.lock().unwrap().push((action.into(), args));
+        }
+        Box::pin(async move {
+            if off {
+                Err(kurashi_mod_api::ActionError::Unavailable(
+                    kurashi_mod_api::USE_UNAVAILABLE.into(),
+                ))
+            } else {
+                Ok(None)
+            }
+        })
     }
 }
 
@@ -132,7 +155,16 @@ async fn enable(command: &str, dir: &std::path::Path) -> Enabled {
         stub.clone(),
         Some(Arc::new(OneWindow)),
     );
-    let mut ctx = ModCtx::new(&provides, Settings::new(rx), rec.clone());
+    let uses: Vec<String> = [
+        "action:terminal.run?",
+        "action:terminal.open_dir?",
+        "action:webdock.open?",
+        "action:settings.open",
+    ]
+    .iter()
+    .map(|u| (*u).to_string())
+    .collect();
+    let mut ctx = ModCtx::new(&provides, Settings::new(rx), rec.clone()).with_uses(&uses);
     use kurashi_mod_api::NativeMod;
     m.enable(&mut ctx).unwrap();
     let mut actions = vec![];
@@ -209,11 +241,14 @@ async fn list_step_handoff_remember_and_desk() {
     )
     .await
     .unwrap();
-    let d = e.until(|d| d["handoff"].is_array()).await;
-    assert_eq!(
-        d["handoff"][0]["args"]["text"],
-        format!("'{noren}' connect 'kurashi'")
-    );
+    // W91: the mod calls the terminal itself — no surface is mapped here, and nothing rides in the document.
+    let d = e.until(|d| d.get("choosing").is_none()).await;
+    assert!(d.get("handoff").is_none());
+    {
+        let called = e.rec.called.lock().unwrap();
+        assert_eq!(called[0].0, "terminal.run");
+        assert_eq!(called[0].1["text"], format!("'{noren}' connect 'kurashi'"));
+    }
     assert_eq!(
         e.rec.writes.lock().unwrap()[0],
         (
@@ -235,4 +270,28 @@ async fn list_step_handoff_remember_and_desk() {
     e.act("sessions.desk.restore", json!({})).await.unwrap();
     e.until(|d| d["notice"]["key"] == "sessions.notice.restored")
         .await;
+}
+
+/// W91: In Kurashi with the terminal mod off never does nothing — the call is not delivered, and the step comes back
+/// with the reason.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_call_the_terminal_cannot_take_brings_the_step_back() {
+    let dir = tempfile::tempdir().unwrap();
+    let noren = exe(dir.path());
+    let mut e = enable(&noren, dir.path()).await;
+    e.until(|d| d["available"] == true).await;
+    e.rec
+        .terminal_off
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    let rows = (e.launcher.query)("ku");
+    e.act("sessions.open", rows[0].args.clone()).await.unwrap();
+    e.until(|d| d["choosing"]["name"] == "kurashi").await;
+    e.act("sessions.choose", json!({"via": "kurashi"}))
+        .await
+        .unwrap();
+    let d = e
+        .until(|d| d["notice"]["key"] == "sessions.notice.mod_off")
+        .await;
+    assert_eq!(d["choosing"]["name"], "kurashi");
+    assert!(e.rec.called.lock().unwrap().is_empty());
 }

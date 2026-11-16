@@ -18,6 +18,7 @@
 # Run inside `nix develop` (sway, niri, qs, grim, imagemagick). Binaries from $KURASHI_BIN_DIR, else
 # $CARGO_TARGET_DIR/debug, else target/debug. Shots and env files go to $KURASHI_NIRI_SB_OUT (/tmp/kurashi-niri-sb-out).
 # Blur shows only over something: pass a patterned wallpaper (swaybg from nixpkgs is spawned with it).
+# KURASHI_NIRI_SB_SEED=<dir>: its content is copied into the sandbox's data home before the daemon starts (user mods).
 # Known: the idle lock and a locked previous run are cleared on
 # start (`idle.enabled = false` in the config keeps it from locking mid-test, I241).
 set -uo pipefail
@@ -70,6 +71,8 @@ cursor { xcursor-size 24; }
 KDL
   rm -rf "$R/xdg/state" "$R/locked"
   mkdir -p "$R/xdg/config/kurashi" "$R/xdg/state" "$R/xdg/data" "$R/xdg/cache"
+  # A suite's own files for the sandbox's data home (a user mod under kurashi/mods), in place before the daemon starts.
+  [ -z "${KURASHI_NIRI_SB_SEED:-}" ] || cp -r "$KURASHI_NIRI_SB_SEED/." "$R/xdg/data/"
   setsid niri -c "$R/niri.kdl" > "$R/niri.log" 2>&1 < /dev/null &
   for _ in $(seq 50); do ls "$R"/niri.*.sock >/dev/null 2>&1 && break; sleep 0.2; done
   NS=$(ls "$R"/niri.*.sock 2>/dev/null | head -1)

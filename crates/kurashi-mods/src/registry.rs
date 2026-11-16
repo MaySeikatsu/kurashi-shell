@@ -389,7 +389,7 @@ fn load(id: &str, dir: &Path, daemon: &Version) -> ModEntry {
 }
 
 /// `{mods: [{id, name, description?, version, tier, state, running, running_reasons, capabilities,
-/// cost, provides, errors: [{key, path, detail}], shadows_bundled}]}`; `state` is
+/// cost, provides, errors: [{key, path, detail}], shadows_bundled, hosts?: [{name, exec, start}]}]}`; `state` is
 /// available|enabled|disabled|invalid (`disabled` = loaded, off); `running` is true while
 /// `running_reasons` (i18n keys) is not empty. Documents carry no nulls (PROTOCOL): an invalid entry
 /// has no version/tier/cost and name = id, and `description` (i18n key or text) is present only when
@@ -423,6 +423,14 @@ pub fn mods_doc(r: &Registry) -> Value {
             };
             if let Some(d) = e.manifest.as_ref().and_then(|m| m.description.as_ref()) {
                 entry["description"] = json!(d);
+            }
+            // K155 (W93): a mod that runs a program of its own says which, wherever it is listed (Shōjiki).
+            if let Some(m) = e.manifest.as_ref().filter(|m| !m.hosts.is_empty()) {
+                entry["hosts"] = m
+                    .hosts
+                    .iter()
+                    .map(|h| json!({"name": h.name, "exec": h.exec, "start": h.start}))
+                    .collect();
             }
             // K154: the mod's icon and its menu rows, each with the label and icon it shows (the row's own, else its
             // action's), so a menu draws them without knowing the mod.
