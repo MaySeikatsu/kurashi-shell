@@ -245,6 +245,10 @@ st_has created "/kurashi/mods/mug" || fail "E11: not created ($(Q modNew))"
 [ -n "$(st forcedOn)" ] || fail "E11: no forced reason ($(st forcedOn))"
 shot forced
 ok "E11: Nix forces the lists: Turn it on inert ($(st forcedOn)); the folder is written"
+# The new mod is in the Mods list at once, `available`, without being turned on (its row's Check is a Tab stop).
+Q goto @mods
+Q focusList
+tab_to mod-check:mug || fail "E11: the Mods page does not list the new mod"
 
 grep -E 'ModEditorPage.qml.*(Error|TypeError|ReferenceError|Unable)' "$R/settings.log" | head -5 | while read -r l; do fail "log: $l"; done
 if grep -qE 'ModEditorPage.qml.*(TypeError|ReferenceError)' "$R/settings.log"; then FAILS=$((FAILS + 1)); fi

@@ -67,9 +67,10 @@ Flickable {
             p.failures = g
         })
     }
+    // (read from the Store, not `entries`: a handler of Store.modsChanged may run before that binding is renewed, W94)
     function stateOf(id) {
-        for (var i = 0; i < entries.length; i++) if (entries[i].id === id) return entries[i].state
-        return ""
+        var m = Store.modEntry(id)
+        return m ? m.state : ""
     }
     // Drops every refusal whose row is no longer in the state it was refused in.
     function pruneFailures() {
@@ -81,7 +82,7 @@ Flickable {
         if (dropped) failures = f
     }
     function refreshIds() {
-        var list = entries.map(function (m) { return m.id })
+        var list = ((Store.mods && Store.mods.mods) || []).map(function (m) { return m.id })
         var sig = list.join("\n")
         if (sig !== idsSig) {
             idsSig = sig
