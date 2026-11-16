@@ -83,7 +83,10 @@ back from both processes (the dips below) — so the figures after minute 35 are
   animation and not tile sheets. With the engine collecting aggressively (`QV4_MM_AGGRESSIVE_GC=1`) the frontend stands
   90 MiB lower and still grows two thirds as fast: part of what stands is garbage awaiting a collection, the rest is
   kept. A collection asked for three seconds after the last surface closed did not change the growth. heaptrack on
-  Quickshell recorded nothing (its wrapper and its own allocator). The row: B156.
+  Quickshell recorded nothing (its wrapper and its own allocator). The windows that grow are the ones that unmap when
+  they close (the Stage, the notification centre); the launcher, whose window stays, is flat. With Qt's software
+  renderer (`QT_QUICK_BACKEND=software`) the same loop grows about half as fast and noisily, so the GPU path is part
+  of it and not all. The row: B156.
 - On disk after the hour: 173 MiB in 111 files (eight 4K wallpapers' bakes and tiles); it was unbounded before.
 
 ## Results
