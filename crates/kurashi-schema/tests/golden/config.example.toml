@@ -1621,8 +1621,8 @@
 #   range: 1500..=6500, step 100 (K) · only while night_light.enabled == true
 # temperature = 4000
 #
-# Schedule — When the night colours are on. Sunset to sunrise needs the weather mod's
-# place.
+# Schedule — When the night colours are on. Sunset to sunrise needs a place: the one set
+# under Location, or one a mod knows (Weather).
 #   choices: "always" | "manual" | "sun" · only while night_light.enabled == true
 # schedule = "manual"
 #
@@ -1633,6 +1633,20 @@
 # Until — End of the night colours, as HH:MM.
 #   only while night_light.schedule == "manual"
 # end = "07:00"
+
+# [location]
+#
+# Set the place by hand — Where this computer is, for sunset and sunrise (the night light,
+# the light's daytime). Off: the place a mod knows is used, for example the Weather mod's.
+# manual = false
+#
+# Latitude — Degrees north of the equator; south is negative.
+#   range: -90.0..=90.0, step 0.01 (°) · only while location.manual == true
+# latitude = 0.0
+#
+# Longitude — Degrees east of Greenwich; west is negative.
+#   range: -180.0..=180.0, step 0.01 (°) · only while location.manual == true
+# longitude = 0.0
 
 # [recorder]
 #

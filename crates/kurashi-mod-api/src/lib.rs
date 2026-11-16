@@ -306,6 +306,8 @@ pub trait Hooks: Send + Sync {
     }
     /// The mod's contribution to slot `slot` needs setup (`reason`, an i18n key) or not (`None`) (K28, row 72).
     fn slot_reason(&self, _slot: &str, _reason: Option<&str>) {}
+    /// W92: the place a mod's `location:<name>` reads changed; the daemon asks its function again.
+    fn location_changed(&self, _name: &str) {}
     /// A read-only feed of document `doc` (K154 step 5, W91): its data now, then every change. The daemon counts the
     /// receiver as a subscriber of the document until it and its clones are dropped (the document's service runs for
     /// it, Ma). A document that is not there answers [`unavailable`]. A `Hooks` without a hub answers that always.
@@ -414,6 +416,31 @@ impl SlotHandle {
     }
 }
 
+/// A place on earth a mod knows (W92): what the shell's `svc.location` carries when no place is set by hand.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Location {
+    pub lat: f64,
+    pub lon: f64,
+    /// As the mod would show it ("Kyoto"); may be empty.
+    pub name: String,
+}
+
+/// What the daemon calls for a mod's place: now, after each change of the mod's settings, and when the handle says so.
+pub type LocationFn = Arc<dyn Fn() -> Option<Location> + Send + Sync>;
+
+/// Tells the daemon that the place a mod's `location:<name>` reads changed. Cheap to clone.
+#[derive(Clone)]
+pub struct LocationHandle {
+    hooks: Arc<dyn Hooks>,
+    name: String,
+}
+
+impl LocationHandle {
+    pub fn changed(&self) {
+        self.hooks.location_changed(&self.name);
+    }
+}
+
 /// Raises and clears one island face of a mod (K24). Cheap to clone, so an action or a service can
 /// own a copy. A raise while the mod is off does nothing.
 #[derive(Clone)]
@@ -511,6 +538,8 @@ pub enum Registration {
     Choices { source: String, options: ChoicesFn },
     /// Launcher provider `name` (K150).
     Launcher { name: String, spec: LauncherSpec },
+    /// W92: a place for the shell's `svc.location` (`location:<name>`).
+    Location { name: String, read: LocationFn },
 }
 
 /// A host process a mod declared (K38): taken with [`ModCtx::take_hosts`], like a background job. The daemon runs
@@ -863,6 +892,24 @@ impl ModCtx {
         Ok(ChoicesHandle {
             hooks: self.hooks.clone(),
             source: source.into(),
+        })
+    }
+
+    /// A place the mod knows (declared as `location:<name>`, W92): the shell's `svc.location` carries what `read`
+    /// returns while the mod is enabled and no place is set by hand (`location.manual`). `read` is called at enable,
+    /// after each change of the mod's settings and after [`LocationHandle::changed`]; it must not block.
+    pub fn location<F>(&mut self, name: &str, read: F) -> Result<LocationHandle, ModError>
+    where
+        F: Fn() -> Option<Location> + Send + Sync + 'static,
+    {
+        self.claim("location", name)?;
+        self.regs.push(Registration::Location {
+            name: name.into(),
+            read: Arc::new(read),
+        });
+        Ok(LocationHandle {
+            hooks: self.hooks.clone(),
+            name: name.into(),
         })
     }
 

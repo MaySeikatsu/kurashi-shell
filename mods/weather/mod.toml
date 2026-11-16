@@ -18,6 +18,7 @@ provides = [
     "panel:weather",
     "slot:clock.expanded.aside",
     "slot:clock.expanded.daymark",
+    "location:weather",
 ]
 capabilities = ["network", "fs:scoped"]
 cost = "low"

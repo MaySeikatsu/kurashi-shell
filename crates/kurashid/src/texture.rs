@@ -211,12 +211,9 @@ pub struct Light {
     pub pin: Option<[f32; 2]>,
 }
 
-/// The weather mod's place, as the night light reads it.
+/// The place in effect (`svc.location`, W92), as the night light reads it.
 pub(crate) fn place(store: &ConfigStore) -> Option<(f64, f64)> {
-    let places =
-        kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
-    let configured = s(store, "mods.weather.place");
-    kurashi_mod_weather::places::effective(&places, &configured, None).map(|p| (p.lat, p.lon))
+    store.location().map(|p| (p.lat, p.lon))
 }
 
 /// Local `(minute of the day, day of the year, UTC offset in minutes)` of `now`.
@@ -229,7 +226,7 @@ fn local(now: chrono::DateTime<chrono::Local>) -> (f64, u32, i32) {
     )
 }
 
-/// I156: whether it is day now — between sunrise and sunset at the weather mod's place (`sun`), else 06:00–18:00
+/// I156: whether it is day now — between sunrise and sunset at the place in effect (`svc.location`: `sun`), else 06:00–18:00
 /// (`day`) — and which of the two decided.
 pub fn is_day(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> (bool, &'static str) {
     day_at(place(store), now)

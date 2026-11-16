@@ -2621,7 +2621,7 @@ Colour temperature at night; lower is warmer.
 
 #### `night_light.schedule` — Schedule
 
-When the night colours are on. Sunset to sunrise needs the weather mod's place.
+When the night colours are on. Sunset to sunrise needs a place: the one set under Location, or one a mod knows (Weather).
 
 - type: `choice` · default: `"manual"`
 - choices: `"always"` | `"manual"` | `"sun"`
@@ -2640,6 +2640,30 @@ End of the night colours, as HH:MM.
 
 - type: `string` · default: `"07:00"`
 - only while `night_light.schedule == "manual"`
+
+### Location
+
+#### `location.manual` — Set the place by hand
+
+Where this computer is, for sunset and sunrise (the night light, the light's daytime). Off: the place a mod knows is used, for example the Weather mod's.
+
+- type: `bool` · default: `false`
+
+#### `location.latitude` — Latitude
+
+Degrees north of the equator; south is negative.
+
+- type: `float` · default: `0.0`
+- range: `-90.0..=90.0`, step `0.01` (°)
+- only while `location.manual == true`
+
+#### `location.longitude` — Longitude
+
+Degrees east of Greenwich; west is negative.
+
+- type: `float` · default: `0.0`
+- range: `-180.0..=180.0`, step `0.01` (°)
+- only while `location.manual == true`
 
 ### Recorder
 

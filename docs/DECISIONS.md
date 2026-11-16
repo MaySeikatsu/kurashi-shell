@@ -1766,3 +1766,20 @@ when it is registered (`Hub::registrations`, a channel of its own: the document 
 still holds a subscription to a removed document). A mod that already runs is not made inert again when a required use
 goes away later; its feed says unavailable. The timer keeps its own notification call: no core action makes a
 notification (CONTRACT-CHANGE row for `notify.send`).
+
+## K159 — The core's place is `svc.location`: set by hand, or offered by whichever mod knows one (session 35, W92 row 1, K28)
+**Was.** The night light's sun schedule and the light's daytime read the weather mod's saved places from its state file
+and its setting (`kurashi_mod_weather::places`, `mods.weather.place`), and the night light followed `mod.weather` for
+changes: the core named a mod three times, and read its file even while the mod was off.
+**Now.** A core document `svc.location` `{available, lat, lon, name, source}` (PROTOCOL; fixture `server/snap_location.json`).
+The place in effect is, in this order: the one set by hand (`location.manual` with `location.latitude` and
+`location.longitude`, on Settings › Power beside the night light), else the first one an enabled mod offers. A mod offers
+one with `provides = ["location:<name>"]` and `ModCtx::location(name, read)`: the daemon calls `read` at enable, after
+each change of the mod's settings, and when the mod's `LocationHandle::changed()` says so; the offer leaves with the mod.
+The readers take the place from the config store (`ConfigStore::location`, a watch for followers) — it already holds what
+mods offer to settings (choice sources), and every reader has it. The weather mod offers the place its setting names,
+else its first saved one. `location` is a point of kind `feed` in `kurashi_mods::points::POINTS`.
+**Changed for users.** With the weather mod off, its saved place no longer reaches the night light: the sun schedule
+then says it needs a place (`power.nightlight.reason.no_place`) until one is set by hand or the mod is on — a mod that is
+off does nothing (Shōjiki). **Not built:** a name for a place set by hand, geolocation (GeoClue) as a third source.
+

@@ -128,6 +128,7 @@ test holds the shell's `SlotHost { slot: … }` names to it.
 | `command` · | reach | `[[action]] command = "<word>"` | A `>` command in the launcher, listed by `kurashi act --list`, offered to key binds |
 | `menu` · | reach | `[[menu]] at = "module"` | Rows in the module's own menu (right-click on its glance, its desk card, its panel's header) |
 | `launcher` | reach | `launcher:<name>` | A launcher provider with an optional prefix (K150): rows that run the mod's own actions |
+| `location` | feed | `location:<name>` | A place the mod knows (`ModCtx::location`): the shell's `svc.location` carries it while no place is set by hand — the night light's sun schedule and the light's daytime read it |
 | `surface` | variant | `surface:<name>` | A layer-shell surface of the mod's own, one per output (`qml/surfaces/<name>.qml`) |
 | `clock.expanded.aside` | slot | `slot:clock.expanded.aside` | Beside the clock view's month, 140 px wide |
 | `clock.expanded.day` | slot | `slot:clock.expanded.day` | Under the month: the chosen day (`extra.date`) |
@@ -325,7 +326,8 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
-  `choices:<source>` → `ModCtx::choices(source, fn)`; `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
+  `choices:<source>` → `ModCtx::choices(source, fn)`; `location:<name>` → `ModCtx::location(name, fn)` (W92, K159: the
+  mod's place for the shell's `svc.location`; `LocationHandle::changed()` when it moved); `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
   marks the contribution as needing setup (row 72; `runtime.slots` `reason`). See `docs/ux/COMPOSITION.md` for the slot list.
 - **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
 - A bar widget may take part in the bar's fit (K112, `docs/ux/bar-fit.md`; CONTRACT-CHANGE row 695 (a)): optional inputs

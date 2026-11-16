@@ -27,6 +27,8 @@ pub const TOKYO_1400: i64 = 1_791_522_000;
 pub struct Recorder {
     pub faces: Mutex<Vec<String>>,
     pub slots: Mutex<Vec<String>>,
+    /// W92: how often the mod said its place changed.
+    pub places: Mutex<usize>,
 }
 
 impl Recorder {
@@ -56,6 +58,10 @@ impl Hooks for Recorder {
             .expect("slots")
             .push(format!("{slot} {reason:?}"));
     }
+
+    fn location_changed(&self, _name: &str) {
+        *self.places.lock().expect("places") += 1;
+    }
 }
 
 /// One enable of the mod. `tx` is the settings feed: dropping it ends the mod's settings feed
@@ -81,6 +87,7 @@ pub fn enable(m: &WeatherMod, values: Values) -> Enabled {
         "choices:weather.places",
         "job:rain",
         "slot:clock.expanded.aside",
+        "location:weather",
     ]
     .iter()
     .map(|s| (*s).to_owned())
@@ -119,6 +126,17 @@ impl Enabled {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("action {id} is registered"))
+    }
+
+    /// W92: the function the daemon asks for the mod's place.
+    pub fn location(&self) -> kurashi_mod_api::LocationFn {
+        self.regs
+            .iter()
+            .find_map(|r| match r {
+                Registration::Location { read, .. } => Some(read.clone()),
+                _ => None,
+            })
+            .expect("a place is offered")
     }
 
     pub fn choices(&self) -> ChoicesFn {

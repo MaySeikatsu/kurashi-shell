@@ -88,6 +88,20 @@ impl NativeMod for WeatherMod {
         // The clock aside's slot: its reason names the call to action while no place is saved (row 72).
         shared.set_slot(ctx.slot("clock.expanded.aside")?);
 
+        // W92: the shell's place (`svc.location`: the night light's sun schedule, the light's daytime) is this mod's
+        // while it is on and none is set by hand.
+        let (s, settings) = (shared.clone(), ctx.settings().clone());
+        let location = ctx.location("weather", move || {
+            let configured = settings.get("place");
+            s.location(
+                configured
+                    .as_ref()
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_default(),
+            )
+        })?;
+        shared.set_location(location);
+
         let s = shared.clone();
         ctx.service(
             "weather",

@@ -47,6 +47,8 @@ pub struct Config {
     #[kurashi(nested)]
     pub night_light: NightLight,
     #[kurashi(nested)]
+    pub location: Location,
+    #[kurashi(nested)]
     pub recorder: Recorder,
     #[kurashi(nested)]
     pub dock: Dock,
@@ -2635,7 +2637,7 @@ pub struct NightLight {
     #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true", module = "nightlight")]
     pub temperature: u32,
     /// Schedule
-    /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
+    /// When the night colours are on. Sunset to sunrise needs a place: the one set under Location, or one a mod knows (Weather).
     #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true", module = "nightlight")]
     pub schedule: NightSchedule,
     /// From
@@ -2646,6 +2648,25 @@ pub struct NightLight {
     /// End of the night colours, as HH:MM.
     #[kurashi(default = "07:00".to_owned(), requires = "night_light.schedule == manual")]
     pub end: String,
+}
+
+// --- location (W92, K159) ----------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "power", section = "location")]
+pub struct Location {
+    /// Set the place by hand
+    /// Where this computer is, for sunset and sunrise (the night light, the light's daytime). Off: the place a mod knows is used, for example the Weather mod's.
+    #[kurashi(default = false)]
+    pub manual: bool,
+    /// Latitude
+    /// Degrees north of the equator; south is negative.
+    #[kurashi(default = 0.0, range = -90.0..=90.0, step = 0.01, unit = "°", requires = "location.manual == true")]
+    pub latitude: f64,
+    /// Longitude
+    /// Degrees east of Greenwich; west is negative.
+    #[kurashi(default = 0.0, range = -180.0..=180.0, step = 0.01, unit = "°", requires = "location.manual == true")]
+    pub longitude: f64,
 }
 
 // --- screen recorder (K47) -------------------------------------------------------------------
