@@ -1860,3 +1860,20 @@ panel that asks.
 would name a mod); a placement the manifest declares (a second place for what the panel's own property says).
 **Contract.** MODS.md "Panels": `cardLarge`. No IPC shape changes.
 
+## K165 — Sidebars on the top and bottom edges are the terminal's sheet made general (session 36, I607)
+**Problem.** The user wants sidebars on the top and bottom edges, in sizes: the full width, or a part of it such as
+the terminal's sheet. The side sidebars' surface (`Sidebar.qml`) is a column: its shape, its slide and its geometry
+(`runtime.layout.sidebars`) are for a left or right edge.
+**Decision.** `sidebar.top` and `sidebar.bottom` are a surface of their own, `SidebarSheet.qml`, built from what the
+terminal's drop-down already was: its geometry and its frame move into two shared components (`SheetGeom`: where a
+sheet stands on an output; `SheetFrame`: the joined card or the look's card, and the slide), which the terminal's
+surface now uses too. The sheet holds the sidebars' sections as pages with tabs (`LeftColumn`) and follows the same
+open-on-output rule (`OpenOn`, taken out of `Sidebar.qml`). Size: `span` (a centred part, or the whole edge), `length`
+(the part's share, 66 %) and `height` (45 %, the terminal's); the two numbers are Advanced. A sidebar exists only while
+its `sections` list is not empty. Opened by `sidebar.toggle {side: top | bottom}` and the `>` commands; no default key.
+**Rejected.** Teaching `Sidebar.qml` four sides (1100 lines of column geometry would fork per side); a mod (it hosts
+the core's sections and the other mods' panels: it is a host, which the core is); pinning with reserved space in v1
+(half the screen reserved; needs a strip size first).
+**Contract.** `sidebar.toggle` / `sidebar.open` take `side: "top" | "bottom"`; `runtime.ui.sidebar` may be `top` or
+`bottom`; actions `sidebar.top.toggle`, `sidebar.bottom.toggle` (PROTOCOL §6). Brief: `docs/ux/edge-sidebars.md`.
+

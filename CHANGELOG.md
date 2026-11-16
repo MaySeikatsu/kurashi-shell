@@ -13,6 +13,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 - `launcher.open {query}`: an action that opens the launcher in a mode, for a key of your own (for example `;` for the
   clipboard history, `:` for emoji).
 
+- **Sidebars on the top and bottom edges.** Settings › Sidebar › Top sidebar / Bottom sidebar: give one its sections
+  (the same ones the side sidebars offer, and the mods' panels) and it opens as a sheet out of that edge, joined to the
+  bar there — a centred part of the edge (66 %) or the whole edge, 45 % of the screen tall (both under Advanced). Open it
+  with `> Top sidebar` / `> Bottom sidebar` or a key of your own (`sidebar.toggle {side: "top"}`).
 - **Large cards.** The wallpaper picker opens as a large card at the bar's centre (60 % × 45 % of the screen, the size
   of the terminal's sheet), and the launcher's appearance menu takes the same size. Any module's card can open large:
   Settings › Layout, Advanced, "Modules that open large"; the size is set beside it.
