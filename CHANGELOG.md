@@ -17,6 +17,8 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   (the same ones the side sidebars offer, and the mods' panels) and it opens as a sheet out of that edge, joined to the
   bar there — a centred part of the edge (66 %) or the whole edge, 45 % of the screen tall (both under Advanced). Open it
   with `> Top sidebar` / `> Bottom sidebar` or a key of your own (`sidebar.toggle {side: "top"}`).
+- **Covers from the web** can be switched off (Settings › Island › Media, Advanced): a player's cover at a web
+  address is then not fetched.
 - **Large cards.** The wallpaper picker opens as a large card at the bar's centre (60 % × 45 % of the screen, the size
   of the terminal's sheet), and the launcher's appearance menu takes the same size. Any module's card can open large:
   Settings › Layout, Advanced, "Modules that open large"; the size is set beside it.

@@ -49,6 +49,8 @@ pub struct Config {
     #[kurashi(nested)]
     pub location: Location,
     #[kurashi(nested)]
+    pub media: Media,
+    #[kurashi(nested)]
     pub recorder: Recorder,
     #[kurashi(nested)]
     pub dock: Dock,
@@ -2696,6 +2698,18 @@ pub struct Location {
     /// What to call it, for example your town. Shown where the shell names the place in effect.
     #[kurashi(default = String::new(), requires = "location.manual == true")]
     pub name: String,
+}
+
+// --- media (I133) -----------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "island", section = "media")]
+pub struct Media {
+    /// Covers from the web
+    /// A player may name its cover by a web address (a streaming service does). On: the shell fetches the picture
+    /// for the Now Playing card and its colours. Off: nothing is fetched; such a track shows without a cover.
+    #[kurashi(default = true, advanced)]
+    pub fetch_covers: bool,
 }
 
 // --- screen recorder (K47) -------------------------------------------------------------------

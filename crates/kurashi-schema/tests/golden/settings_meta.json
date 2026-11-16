@@ -7450,6 +7450,25 @@
               "type": "bool"
             }
           ]
+        },
+        {
+          "id": "media",
+          "label": "settings.section.media",
+          "rows": [
+            {
+              "advanced": true,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.media.fetch_covers.help",
+              "key": "media.fetch_covers",
+              "label": "config.media.fetch_covers.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
         }
       ]
     },
