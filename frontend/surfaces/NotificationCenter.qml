@@ -33,10 +33,15 @@ PanelWindow {
     readonly property bool shown: morph.shown
     visible: shown     // unmapped at idle: mapped-surface budget (docs/BENCH.md)
 
-    Watch { doc: "svc.notifications" }
+    // Ma (W90, B148): closed, the centre follows nothing and holds no card. It used to keep a card for every notification
+    // in the history (200 at most, about 1.3 MiB each: the frontend grew by that with every notification, 270 MiB in
+    // all) and made them all again whenever one arrived. `live` covers the closing motion.
+    readonly property bool live: open || shown
+    Watch { doc: "svc.notifications"; active: win.live }
 
     // Newest first, grouped by app in order of each app's newest notification.
     readonly property var groups: {
+        if (!live) return []
         var order = [], by = {}
         var l = items.slice().sort(function (a, b) { return b.time - a.time })
         for (var i = 0; i < l.length; i++) {
@@ -45,6 +50,18 @@ PanelWindow {
             by[k].items.push(l[i])
         }
         return order
+    }
+    // The list's rows: every notification, flagged where its app's group starts. A list made anew resets the view, so
+    // the place is kept across a change (a dismissed card does not throw the list back to its top).
+    property var rows: []
+    onGroupsChanged: {
+        var out = []
+        for (var g = 0; g < groups.length; g++)
+            for (var i = 0; i < groups[g].items.length; i++)
+                out.push({ app: groups[g].app, first: i === 0, item: groups[g].items[i] })
+        var y = list.contentY
+        rows = out
+        if (y > 0) Qt.callLater(function () { list.contentY = Math.max(0, Math.min(y, list.contentHeight - list.height)) })
     }
 
     // Clears this output's bar, as Toasts does (the slide); the morph hangs from it.
@@ -249,7 +266,9 @@ PanelWindow {
             }
             // I494: content cut by the view's edge blends out (components/ScrollEdge.qml).
             ScrollEdge { view: list }
-            Flickable {
+            // W90 (B148): a list view, so only the cards in sight exist — the history holds up to 200, and a card is about
+            // 1.3 MiB. One row is a notification, the first of an app with the app's name over it.
+            ListView {
                 id: list
                 KineticWheel { view: list }
                 visible: win.items.length > 0
@@ -257,43 +276,39 @@ PanelWindow {
                 y: head.y + head.height + Theme.pad
                 width: parent.width - 2 * Theme.pad
                 height: parent.height - y - Theme.pad
-                contentWidth: width
-                contentHeight: body.height
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                Column {
-                    id: body
+                spacing: Theme.gap
+                cacheBuffer: 240
+                // Cards keep their focus across list updates; Tab walks the cards' own controls (as the sidebar's list).
+                keyNavigationEnabled: false
+                model: win.rows
+                delegate: Column {
+                    id: row
+                    required property var modelData
+                    required property int index
                     width: list.width
-                    spacing: Theme.pad
-                    Repeater {
-                        model: win.groups
-                        delegate: Column {
-                            required property var modelData
-                            width: body.width
-                            spacing: Theme.gap
-                            Text {
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
-                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                                color: Theme.dim
-                                font.pixelSize: Theme.fs - 2
-                                font.family: Theme.fam(text, Theme.families)
-                                text: modelData.app
-                            }
-                            Repeater {
-                                model: modelData.items
-                                delegate: NotificationCard {
-                                    required property var modelData
-                                    item: modelData
-                                    width: body.width - 2
-                                    // Concentric with the centre's card across its padding (I269).
-                                    radius: Theme.nested(card.radius, Theme.pad + 1)
-                                    swipeable: false
-                                    onDismissed: Store.act("notify.dismiss", { id: item.id })
-                                    onInvoked: key => Store.act("notify.invoke", { id: item.id, key: key })
-                                }
-                            }
-                        }
+                    spacing: Theme.gap
+                    // Groups stand a pad apart, a group's cards a gap.
+                    topPadding: modelData.first && index > 0 ? Theme.pad - Theme.gap : 0
+                    Text {
+                        visible: row.modelData.first
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        color: Theme.dim
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        text: row.modelData.app
+                    }
+                    NotificationCard {
+                        item: row.modelData.item
+                        width: row.width - 2
+                        // Concentric with the centre's card across its padding (I269).
+                        radius: Theme.nested(card.radius, Theme.pad + 1)
+                        swipeable: false
+                        onDismissed: Store.act("notify.dismiss", { id: item.id })
+                        onInvoked: key => Store.act("notify.invoke", { id: item.id, key: key })
                     }
                 }
             }

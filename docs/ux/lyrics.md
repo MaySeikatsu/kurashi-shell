@@ -29,8 +29,8 @@ karaoke timing (LRCLIB's enhanced LRC is rare), translations, embedded tags (nee
 a lyrics wallpaper (later: a `media.expanded.backdrop` or desk variant).
 
 ## Fit (what runs where)
-- **Daemon** (`crates/kurashi-mod-lyrics`, service `mod.lyrics`): it learns the track from the views' intent
-  `lyrics.track {title, artist, album?, length_us?}` (a mod cannot read `svc.media` yet: contract row), looks in its
+- **Daemon** (`crates/kurashi-mod-lyrics`, service `mod.lyrics`): it follows `svc.media` for the track while its service runs
+  (W91, `ModCtx::follow`; until 0.3.0 the views sent `lyrics.track`), looks in its
   cache (`$XDG_CACHE_HOME/kurashi/lyrics/`, keyed by artist, title and duration in seconds), else asks LRCLIB once, parses
   the LRC and publishes **one document per track**: `{available, state, track?, synced, instrumental, lines:[{t_ms,
   text}], plain?, reason?}` with `state` = `none` (no track, or no lyrics found) · `searching` · `ready` · `offline`
@@ -87,6 +87,5 @@ no document traffic.
 - [x] crate: LRC parser (offset tag, several stamps, malformed lines), cache, LRCLIB get → search, states
 - [x] slot, bar widget, desk card; shots under sekai and none
 - [x] i18n en + ja (`i18n/*/mod-lyrics.toml`)
-- [ ] the track from `svc.media` in the daemon (contract row: a mod's read of a core document) instead of the views'
-  `lyrics.track` intent
+- [x] the track from `svc.media` in the daemon (W91) instead of the views' `lyrics.track`
 - [ ] scroll away to read ahead with a "back to the line" button (plain lyrics scroll already)

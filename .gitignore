@@ -15,3 +15,4 @@ shots-sandbox/
 # is not under a shots dir and stays tracked; the frozen bakeoff archive keeps its own.
 **/shots/
 !archive/bakeoff-probes/*/shots/
+__pycache__/

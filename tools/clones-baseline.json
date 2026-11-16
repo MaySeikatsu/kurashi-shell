@@ -259,7 +259,7 @@
    "crates/kurashid/tests/config.rs": 13,
    "crates/kurashid/tests/config_doc.rs": 4,
    "crates/kurashid/tests/honesty.rs": 8,
-   "crates/kurashid/tests/hosts.rs": 6,
+   "crates/kurashid/tests/hostkit/mod.rs": 3,
    "crates/kurashid/tests/layout.rs": 4,
    "crates/kurashid/tests/media_actions.rs": 15,
    "crates/kurashid/tests/migration_v4.rs": 11,
@@ -267,7 +267,7 @@
    "crates/kurashid/tests/migration_v6.rs": 11,
    "crates/kurashid/tests/mod_settings.rs": 2,
    "crates/kurashid/tests/mods_state.rs": 9,
-   "crates/kurashid/tests/native_mods.rs": 11,
+   "crates/kurashid/tests/native_mods.rs": 9,
    "crates/kurashid/tests/notify_dnd.rs": 1,
    "crates/kurashid/tests/protocol.rs": 15,
    "crates/kurashid/tests/quick_actions.rs": 9,
@@ -275,9 +275,9 @@
    "crates/kurashid/tests/records.rs": 2,
    "crates/kurashid/tests/server_resilience.rs": 15,
    "crates/kurashid/tests/settings_daemon.rs": 3,
-   "crates/kurashid/tests/webdock.rs": 8
+   "crates/kurashid/tests/webdock.rs": 6
   },
-  "windows": 810
+  "windows": 803
  },
  "sh": {
   "files": {
@@ -304,7 +304,7 @@
    "frontend/test-launcher.sh": 33,
    "frontend/test-light-outputs.sh": 20,
    "frontend/test-look.sh": 22,
-   "frontend/test-media.sh": 16,
+   "frontend/test-media.sh": 14,
    "frontend/test-modqml.sh": 5,
    "frontend/test-mods-live.sh": 5,
    "frontend/test-module-menu.sh": 18,
@@ -347,7 +347,7 @@
    "mods/terminal/test/test-terminal-outputs.sh": 15,
    "mods/terminal/test/test-terminal.sh": 13,
    "mods/timer/test-timer.sh": 23,
-   "mods/wallpaper/test/real-shell.sh": 4,
+   "mods/wallpaper/test/real-shell.sh": 1,
    "mods/weather/test-states.sh": 15,
    "mods/webdock/test/shots-card.sh": 2,
    "mods/webdock/test/shots-local.sh": 16,
@@ -373,6 +373,6 @@
    "tools/bench/rerun-probes.sh": 1,
    "tools/bench/tile.sh": 16
   },
-  "windows": 1573
+  "windows": 1568
  }
 }

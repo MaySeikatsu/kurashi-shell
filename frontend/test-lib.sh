@@ -124,3 +124,11 @@ wait_log_quiet() {
 # PYTHONPATH, so exporting that would not reach the suites' scripts).
 export KIT=$ROOT/tools/testkit
 tk_ipc() { timeout 10 python3 -I "$KIT/ipc.py" "$@"; }
+
+# Nested-niri suites (tools/bench/niri-sandbox.sh as $SB; rule 10, W93): the CLI against the sandbox's daemon, one raw
+# message's first answer, a document's first snapshot, a substring test. A suite that defines its own after sourcing
+# this file keeps its own.
+K() { "$SB" act "$@"; }
+raw() { K raw "$1" 2>&1 | head -1; }
+doc() { raw "{\"t\":\"sub\",\"id\":\"s\",\"doc\":\"$1\"}"; }
+has() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac; }

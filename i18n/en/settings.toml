@@ -106,6 +106,7 @@
 "settings.ui.mod_state.invalid" = "invalid"
 "settings.ui.mod_shadows" = "shadows a bundled mod"
 "settings.ui.mod_caps" = "Capabilities"
+"settings.ui.mod_runs_program" = "This mod runs a program of its own: {program}. It runs as you, and reaches what the lines above say."
 "settings.ui.mod_cost" = "cost"
 "settings.ui.mod_adds" = "Adds"
 "settings.ui.mod_none" = "none"

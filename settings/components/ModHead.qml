@@ -130,6 +130,21 @@ Column {
             + "    " + I18n.tr("settings.ui.mod_cost") + ": " + Store.word("settings.ui.cost.", h.entry.cost || "") : ""
     }
 
+    // K155 (W93): a mod whose code is a program of its own says so where it is switched on, with the program's name
+    // (Shōjiki; MODS.md "Host programs": it is the user's code, running as the user).
+    Label {
+        readonly property var hosts: (h.entry && h.entry.hosts) || []
+        visible: hosts.length > 0
+        width: parent.width
+        wrapMode: Text.WordWrap
+        color: Theme.warning
+        font.pixelSize: Theme.fs - 1
+        text: hosts.length > 0
+            ? I18n.tr("settings.ui.mod_runs_program").replace("{program}", hosts.map(function (x) { return x.exec }).join(", "))
+            : ""
+        Accessible.name: text
+    }
+
     // --- Adds: what it contributes, each with a link where it shows (UX brief, settings 5) -----------------
     Flow {
         id: adds

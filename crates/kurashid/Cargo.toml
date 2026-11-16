@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+# W90 (B147, K157): jemalloc gives freed memory back; its configuration is in .cargo/config.toml (crate::alloc).
+tikv-jemallocator = "0.6"
+tikv-jemalloc-ctl = "0.6"
 kurashi-core.workspace = true
 kurashi-ipc.workspace = true
 kurashi-compositor = { path = "../kurashi-compositor" }

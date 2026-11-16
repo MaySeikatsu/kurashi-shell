@@ -106,7 +106,6 @@
 "action.sessions.cancel" = "Close Open in…"
 "action.sessions.refresh" = "Read the sessions again"
 "action.sessions.forget" = "Ask again where a project opens"
-"action.sessions.handed" = "Sessions: handed over"
 "action.sessions.help" = "Sessions settings"
 "action.sessions.pin" = "Pin or unpin a session"
 "action.sessions.kill" = "Kill a session"
@@ -116,4 +115,3 @@
 "action.sessions.desk.restore" = "Restore the project's desk"
 "action.sessions.desk.forget" = "Forget the project's desk"
 "sessions.notice.mod_off" = "Not sent: the mod for {detail} is off."
-"action.sessions.undelivered" = "Sessions: not sent"

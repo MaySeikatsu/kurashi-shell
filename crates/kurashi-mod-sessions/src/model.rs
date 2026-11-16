@@ -82,8 +82,8 @@ pub struct Choosing {
     pub output: Option<String>,
 }
 
-/// An action of another mod the shell sends for this one (a stand-in: a native mod cannot invoke another's action,
-/// CONTRACT-CHANGE 810). The mod's own surface sends it and answers `sessions.handed {seq}`.
+/// An action of another mod (or the shell) this one calls: queued here, without I/O, and sent by the crate after the
+/// action that queued it (W91: `ModCtx::calls`; it used to ride in the document for a QML surface to relay).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Handoff {
     pub seq: u64,
@@ -401,27 +401,23 @@ impl Model {
         self.handoffs.drain(..over);
     }
 
-    /// `sessions.handed {seq}`: the shell sent every handoff up to `seq`.
-    pub fn handed(&mut self, seq: u64) {
-        self.handoffs.retain(|h| h.seq > seq);
+    /// The calls queued since the last take, oldest first: the crate sends them.
+    pub fn take_handoffs(&mut self) -> Vec<Handoff> {
+        std::mem::take(&mut self.handoffs)
     }
 
-    /// `sessions.undelivered {seq, action, key?, output?}`: the shell could not send handoff `seq` (its mod is off). One
-    /// that opened an entry shows the step again for it (where In Kurashi is grey with its reason) instead of nothing
-    /// happening. The request carries what it needs: another screen's instance may have answered `handed` first.
-    pub fn undelivered(&mut self, args: &Value) -> Result<(), Error> {
-        let seq = args["seq"].as_u64().ok_or(Error::Argument)?;
-        let action = args["action"].as_str().ok_or(Error::Argument)?.to_string();
-        self.handoffs.retain(|x| x.seq != seq);
-        if let Some(entry) = args["key"]
-            .as_str()
+    /// A call that could not be made (its mod is off). One that opened an entry shows the step again for it (where In
+    /// Kurashi is grey with its reason) instead of nothing happening.
+    pub fn undelivered(&mut self, h: &Handoff) {
+        if let Some(entry) = h
+            .key
+            .as_deref()
             .and_then(|k| self.entries.iter().find(|e| e.key == k).cloned())
         {
-            let output = args["output"].as_str().map(String::from);
+            let output = h.args["output"].as_str().map(String::from);
             self.choosing = Some(Choosing { entry, output });
         }
-        self.notice = Some(("sessions.notice.mod_off".into(), Some(action)));
-        Ok(())
+        self.notice = Some(("sessions.notice.mod_off".into(), Some(h.action.clone())));
     }
 
     /// The project of the current session, for "Save desk" without an argument.
@@ -650,9 +646,6 @@ impl Model {
             }
             d["choosing"] = v;
         }
-        if !self.handoffs.is_empty() {
-            d["handoff"] = json!(self.handoffs);
-        }
         if let Some((seq, p)) = &self.collect {
             d["collect"] = json!({"seq": seq, "project": p});
         }
@@ -733,14 +726,16 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
         assert!(!fx.iter().any(|f| matches!(f, Effect::Remember(_))));
         let d = m.doc();
         assert!(d.get("choosing").is_none());
-        let h = &d["handoff"][0];
-        assert_eq!(h["action"], "terminal.run");
-        assert_eq!(h["args"]["text"], "'/bin/noren' connect 'kurashi'");
-        assert_eq!(h["args"]["in"], "new");
-        assert_eq!(h["args"]["output"], "O");
+        // The call is the crate's to send (W91): it is not in the document.
+        assert!(d.get("handoff").is_none());
+        let calls = m.take_handoffs();
+        let h = &calls[0];
+        assert_eq!(h.action, "terminal.run");
+        assert_eq!(h.args["text"], "'/bin/noren' connect 'kurashi'");
+        assert_eq!(h.args["in"], "new");
+        assert_eq!(h.args["output"], "O");
         assert_eq!(d["current"]["name"], "kurashi");
-        m.handed(h["seq"].as_u64().unwrap());
-        assert!(m.doc().get("handoff").is_none());
+        assert!(m.take_handoffs().is_empty());
     }
 
     #[test]
@@ -899,13 +894,8 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
             project: "/home/u/kurashi-shell".into()
         }));
         m.restore_extras("/home/u/kurashi-shell");
-        let h = m.doc()["handoff"].clone();
-        let actions: Vec<&str> = h
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|x| x["action"].as_str().unwrap())
-            .collect();
+        let h = m.take_handoffs();
+        let actions: Vec<&str> = h.iter().map(|x| x.action.as_str()).collect();
         assert_eq!(
             actions,
             ["terminal.run", "terminal.open_dir", "webdock.open"]
@@ -917,13 +907,10 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
         let mut m = model();
         m.open(&json!({"name": "kurashi", "via": "kurashi"}), 1)
             .unwrap();
-        let h = m.doc()["handoff"][0].clone();
-        assert_eq!(h["key"], "s:kurashi");
-        m.handed(h["seq"].as_u64().unwrap());
-        m.undelivered(&json!({"seq": h["seq"], "action": h["action"], "key": h["key"]}))
-            .unwrap();
+        let h = m.take_handoffs().remove(0);
+        assert_eq!(h.key.as_deref(), Some("s:kurashi"));
+        m.undelivered(&h);
         let d = m.doc();
-        assert!(d.get("handoff").is_none());
         assert_eq!(d["choosing"]["name"], "kurashi");
         assert_eq!(d["notice"]["key"], "sessions.notice.mod_off");
     }
@@ -934,9 +921,9 @@ zellij\tkurashi\t/home/u/kurashi-shell\tlive\t▣ kurashi\n";
         for i in 0..20 {
             m.handoff("x.y", json!({"i": i}));
         }
-        let h = m.doc()["handoff"].as_array().unwrap().clone();
+        let h = m.take_handoffs();
         assert_eq!(h.len(), HANDOFFS);
-        assert_eq!(h[0]["args"]["i"], 12);
+        assert_eq!(h[0].args["i"], 12);
     }
 
     #[test]

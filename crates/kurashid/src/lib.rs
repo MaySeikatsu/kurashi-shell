@@ -2,13 +2,16 @@
 //! socket; everything testable lives here.
 
 pub mod actions;
+pub mod alloc;
 pub mod bindings;
 pub mod browsers;
+pub mod cache;
 pub mod capabilities;
 pub mod clock;
 pub mod config;
 pub mod cursor;
 pub mod doctor;
+pub mod follow;
 pub mod font_mix;
 pub mod greeter_cache;
 pub mod hub;

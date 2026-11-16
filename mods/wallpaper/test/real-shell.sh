@@ -49,30 +49,8 @@ K() { "$W/kurashi" "$@"; }
 # ---- the library: real pictures, one monochrome, a light/dark pair, a subfolder, one broken file ----
 python3 "$ROOT/mods/wallpaper/test/make-pictures.py" "$R/pics"
 
-# ---- the fake backend: awww and awww-daemon, logging their argv -------------------------------------
-cat > "$R/fakebin/awww" <<'EOF'
-#!/bin/sh
-echo "awww $*" >> "$WP_LOG"
-case "$1" in
-  --version) echo "awww 0.12.1" ;;
-  query)
-    if [ -f "$WP_STATE/daemon" ]; then
-      printf '%s\n' '{"": [{"name": "HEADLESS-1", "width": 2560, "height": 1440, "scale": 1, "displaying": {"color": "000000"}}, {"name": "HEADLESS-2", "width": 2560, "height": 1440, "scale": 1, "displaying": {"color": "000000"}}]}'
-    else
-      echo "Failed to connect to the awww-daemon socket" >&2
-      exit 1
-    fi ;;
-  img) exit 0 ;;
-  kill) rm -f "$WP_STATE/daemon" ;;
-esac
-exit 0
-EOF
-cat > "$R/fakebin/awww-daemon" <<'EOF'
-#!/bin/sh
-echo "awww-daemon $*" >> "$WP_LOG"
-[ -n "${WP_NODAEMON:-}" ] || touch "$WP_STATE/daemon"
-EOF
-chmod +x "$R/fakebin/awww" "$R/fakebin/awww-daemon"
+# ---- the fake backend: awww and awww-daemon, logging their argv (the kit's: tools/testkit/fakebin) ----
+cp "$ROOT/tools/testkit/fakebin/awww" "$ROOT/tools/testkit/fakebin/awww-daemon" "$R/fakebin/"
 
 # ---- helpers ------------------------------------------------------------------------------------------
 write_config() {  # folders backend

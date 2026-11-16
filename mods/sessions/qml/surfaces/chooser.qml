@@ -10,16 +10,15 @@ import qs.components.decor
 // "Remember for this project" and, when the project has a desk, "Restore the desk too". Drawn as a card apart with the
 // launcher's rows; on the output the request named, else the focused one. Unmapped while no step is shown here: 0 frames.
 //
-// The first screen's instance also sends the daemon's handoffs: actions of other mods (terminal.run, terminal.open_dir,
-// webdock.open, settings.open) that a native mod cannot invoke itself yet (CONTRACT-CHANGE 810), and answers `collect`
-// with the other mods' parts of a desk just saved.
+// The first screen's instance also answers `collect` with the other mods' parts of a desk just saved. (The actions of
+// other mods — terminal.run, terminal.open_dir, webdock.open, settings.open — are the daemon's to call since W91.)
 PanelWindow {
     id: ch
     required property var screen
 
     Watch { doc: "mod.sessions" }
     Watch { doc: "svc.workspaces"; active: ch.asking }
-    Watch { doc: "mods"; active: ch.asking || ch.firstHere }
+    Watch { doc: "mods"; active: ch.asking || ch.collecting }
     Watch { doc: "mod.terminal"; active: ch.collecting && ch.modOn("terminal") }
     Watch { doc: "mod.webdock"; active: ch.collecting && ch.modOn("webdock") }
 
@@ -44,33 +43,7 @@ PanelWindow {
     }
     readonly property bool want: asking && (c.output !== undefined ? c.output === outName : focusedHere())
 
-    // ---- handoffs (first screen only) ----
-    readonly property var handoffs: firstHere ? (d.handoff || []) : []
-    readonly property bool pending: handoffs.length > 0
-    property real sentUpTo: 0
-    onHandoffsChanged: Qt.callLater(sendHandoffs)
-    readonly property var modsDoc: Store.docs["mods"]
-    onModsDocChanged: Qt.callLater(sendHandoffs)
-    function sendHandoffs() {
-        // (which mods are on decides what is sent: wait for the list)
-        if (!modsDoc) return
-        var h = handoffs, top = 0
-        for (var i = 0; i < h.length; i++) {
-            if (h[i].seq <= sentUpTo) continue
-            top = Math.max(top, h[i].seq)
-            var mod = String(h[i].action).split(".")[0]
-            // (another mod's action only while that mod is on: never an intent that does nothing)
-            if (mod === "settings" || modOn(mod)) Store.act(h[i].action, h[i].args || {})
-            // (its mod is off: the daemon says so, and brings the step back for an entry it was opening)
-            else {
-                var u = { seq: h[i].seq, action: h[i].action }
-                if (h[i].key) u.key = h[i].key
-                if (h[i].args && h[i].args.output) u.output = h[i].args.output
-                Store.act("sessions.undelivered", u)
-            }
-        }
-        if (top > 0) { sentUpTo = top; Store.act("sessions.handed", { seq: top }) }
-    }
+    // ---- the other mods' parts of a desk just saved (first screen only) ----
     readonly property var collect: firstHere ? (d.collect || null) : null
     readonly property bool collecting: collect !== null
     onCollectChanged: Qt.callLater(sendExtras)

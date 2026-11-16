@@ -10,7 +10,8 @@ pub mod scaffold;
 
 pub use contract::{ActionDecl, ArgDecl, ArgType, Contract, MenuRow, Use, UseKind};
 pub use manifest::{
-    Cost, Manifest, Provide, Setting, SettingType, SettingValue, Tier, ValidationError, parse,
+    Cost, HostProgram, HostStart, Manifest, Provide, Setting, SettingType, SettingValue, Tier,
+    ValidationError, parse,
 };
 pub use registry::{
     Change, Contribution, ModEntry, ModState, ModsError, Policy, Registry, Shadow, mod_dirs,
