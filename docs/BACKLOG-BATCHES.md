@@ -1,12 +1,6 @@
 # Backlog, sorted into batches
 
-<<<<<<< HEAD
-Every open row of `docs/BACKLOG.md` (467 on 2026-11-16), each in exactly one batch: rows that share files, a
-||||||| 05c9da09
-Every open row of `docs/BACKLOG.md` (469 on 2026-11-16), each in exactly one batch: rows that share files, a
-=======
-Every open row of `docs/BACKLOG.md` (464 on 2026-11-16), each in exactly one batch: rows that share files, a
->>>>>>> feat/s36-polish
+Every open row of `docs/BACKLOG.md` (462 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -18,16 +12,8 @@ batch or in two: give a new row its batch there, then run it again.
 | Section | Batch | Done | Size |
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
-<<<<<<< HEAD
 | 1 | Web dock in the bar | 1 of 9 | S–M |
-| 1 | Settings, fixes | 0 of 9 | S–M |
-||||||| 05c9da09
-| 1 | Web dock in the bar | 0 of 9 | S–M |
-| 1 | Settings, fixes | 0 of 9 | S–M |
-=======
-| 1 | Web dock in the bar | 0 of 9 | S–M |
 | 1 | Settings, fixes | 5 of 9 | S–M |
->>>>>>> feat/s36-polish
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
 | 1 | Quick settings, small | 7 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
