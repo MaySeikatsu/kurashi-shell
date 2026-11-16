@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (463 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (460 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -13,8 +13,8 @@ batch or in two: give a new row its batch there, then run it again.
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
 | 1 | Web dock in the bar | 1 of 9 | S–M |
-| 1 | Settings, fixes | 5 of 9 | S–M |
-| 1 | Mods page and Mod Editor | 0 of 7 | S–M |
+| 1 | Settings, fixes | 6 of 9 | S–M |
+| 1 | Mods page and Mod Editor | 2 of 7 | S–M |
 | 1 | Quick settings, small | 7 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
 | 1 | Icons and glyph sizes | 2 of 5 | M |
@@ -110,7 +110,7 @@ Shares: the Settings app's own code (search, reconnect, the sheet host, `Label`)
 | I601 |  | **done** — Settings › Power › Location, the rest: the section shows the switch and two sliders, not the place in effect — add a … |
 | I589 |  | 65 `Text` blocks in `settings/components` are not on `Label`: 27 lack the hinting line (`ColorPicker`, … |
 | I81 |  | Records editor follow-ups: Alt+Up/Down, Delete, Up/Down between rows and Enter-to-edit are wired but unverified (an … |
-| B59 |  | Settings run from the worktree (`kurashi-settings-s26`) averaged 5.4 % CPU over almost 3 hours while it should idle. … |
+| B59 |  | **done** — Settings run from the worktree (`kurashi-settings-s26`) averaged 5.4 % CPU over almost 3 hours while it should idle. … |
 
 ### Mods page and Mod Editor
 
@@ -122,9 +122,9 @@ Shares: the Mods page and the `mods` document (one contract change for I605 and 
 | I605 |  | The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
 | I593 |  | Host programs: what the design names and W93 did not build. (1) The Mods page asks once before the first enable of a … |
 | I592 |  | A mod that waits for a required use (`mods.uses.missing`, K158) has not been seen on niri: no bundled mod requires … |
-| I575 |  | An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
+| I575 |  | **done** — An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
 | I215 |  | Island faces follow-ups 2: mod face labels in Settings' faces offers are the manifest name in English under ja … |
-| I195 |  | Mods outside the repo cannot ship their own strings (desk titles `mod-<id>.desk.<name>`, any `mod-<id>` key): decide … |
+| I195 |  | **done** — Mods outside the repo cannot ship their own strings (desk titles `mod-<id>.desk.<name>`, any `mod-<id>` key): decide … |
 
 ### Quick settings, small
 
