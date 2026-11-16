@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, ModuleGroups, MotionCurve, Registry, strings};
 
-pub const VERSION: u32 = 7;
+pub const VERSION: u32 = 8;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -2366,14 +2366,10 @@ pub struct Desktop {
     /// large screens about a core's quarter each while music plays — so by default they stand as a still "playing" mark.
     #[kurashi(default = false, requires = "desktop.media == true", since = 7)]
     pub media_bars: bool,
-    /// Weather
-    /// Today's weather, while the weather mod is on and has a place.
-    #[kurashi(default = true, requires = "desktop.enabled == true")]
-    pub weather: bool,
     /// Cards on the right
-    /// The cards in the right column, top to bottom: the clock, the month, what plays, the weather and the mods' cards.
+    /// The cards in the right column, top to bottom: the clock, the month, what plays and the mods' cards.
     /// A card the left column names stands there instead. The desk's edit mode writes it too (K48, K71).
-    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), choices_from = "desktop.cards",
+    #[kurashi(default = strings(&["clock", "calendar", "media"]), choices_from = "desktop.cards",
               requires = "desktop.enabled == true", since = 3)]
     pub right: Vec<String>,
     /// Cards on the left

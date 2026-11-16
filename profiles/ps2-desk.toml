@@ -2,7 +2,7 @@
 # along the top with the memory-card island at its start and the clock at its end (the dashboard's clock top right), the
 # browser's icon row as the dock along the bottom, toasts a glowing line low on the screen (the look's
 # `toast.place = bottom`). Offered with the style ("Also use its layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "ps2"

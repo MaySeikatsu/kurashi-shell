@@ -2,7 +2,7 @@
 # frame round the screen as a scroll's mounting, a slim top bar with the island in its middle, airy spacing, and the
 # clock and the month standing on the desk at the right like a calendar on paper. Offered with the style ("Also use its
 # layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "washi"
@@ -22,4 +22,4 @@ height = 32
 enabled = true
 side = "right"
 media = false
-weather = false
+hidden = ["mod:weather:weather"]

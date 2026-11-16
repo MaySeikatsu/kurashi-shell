@@ -1783,3 +1783,17 @@ else its first saved one. `location` is a point of kind `feed` in `kurashi_mods:
 then says it needs a place (`power.nightlight.reason.no_place`) until one is set by hand or the mod is on — a mod that is
 off does nothing (Shōjiki). **Not built:** a name for a place set by hand, geolocation (GeoClue) as a third source.
 
+## K160 — The desk's weather card is the weather mod's `desk:weather`; schema v8 (session 35, W92 row 2, K28, K46)
+**Was.** `frontend/surfaces/Desktop.qml` drew a core weather card over `mod.weather`, with a core switch
+(`desktop.weather`) and the id `weather` in `desktop.left` / `desktop.right`: the frontend and the schema named a mod.
+**Now.** The card is `mods/weather/qml/desk/weather.qml`, declared as `desk:weather` like every other mod's card (K46):
+it stands after the core cards in mod order, is hidden through `desktop.hidden`, and opens the mod's panel on a click.
+Its name and its "when it shows" note in the desk's edit mode come from the mod's own strings
+(`mod-<id>.desk.<name>`, `mod-<id>.desk.<name>.note` — any mod card may bring the note). The desk card's shape,
+copied in two mods and inlined in two, is one component: `frontend/components/DeskCard.qml`.
+**Schema v8, `v7_to_v8`.** `desktop.weather` is gone; the default of `desktop.right` is `clock, calendar, media`. A file
+keeps what it showed: `"weather"` in the three lists becomes `mod:weather:weather`; `desktop.weather = false` becomes an
+entry in `desktop.hidden` (root and `[outputs.*]`). The bundled profiles that had the card off hide it the same way.
+**Changed for users.** With several mods' cards on the desk the weather stands among them in mod order (after the
+timer), not above them; `desktop.left` / `desktop.right` place it as before.
+

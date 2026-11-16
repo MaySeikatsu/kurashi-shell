@@ -10,7 +10,7 @@
 # ==== Core ======================================================================================
 #
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
-# schema_version = 7
+# schema_version = 8
 
 # [layout]
 #
@@ -1569,16 +1569,12 @@
 #   only while desktop.media == true · since schema v7
 # media_bars = false
 #
-# Weather — Today's weather, while the weather mod is on and has a place.
-#   only while desktop.enabled == true
-# weather = true
-#
 # Cards on the right — The cards in the right column, top to bottom: the clock, the month,
-# what plays, the weather and the mods' cards. A card the left column names stands there
-# instead. The desk's edit mode writes it too (K48, K71).
+# what plays and the mods' cards. A card the left column names stands there instead. The
+# desk's edit mode writes it too (K48, K71).
 #   choices: from `desktop.cards` (resolved at runtime) · only while desktop.enabled == true
 #   · since schema v3
-# right = ["clock", "calendar", "media", "weather"]
+# right = ["clock", "calendar", "media"]
 #
 # Cards on the left — The cards in the left column, top to bottom; a card named here
 # leaves the right column.

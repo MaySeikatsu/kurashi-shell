@@ -25,6 +25,8 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 - `just soak`: an hour of ordinary use in the sandbox, each process's memory once a minute, with growth budgets.
 
 ### Changed
+- The desk's weather card is the Weather mod's own card now: it stands with the other mods' cards (after the core
+  ones, in mod order) and a click opens the weather panel. Your columns and a card you had switched off are kept.
 - With the Weather mod switched off, its saved place is no longer used for the night light's sunset schedule: set a
   place under Location, or switch the mod on. The schedule says so when it has no place.
 
@@ -40,6 +42,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   soak): known, not fixed in this release (docs/BACKLOG.md B156).
 
 ### Breaking
+- **Config schema 8:** `desktop.weather` is gone (hide the card with `desktop.hidden = ["mod:weather:weather"]`), and
+  the card's id in `desktop.left` / `desktop.right` is `mod:weather:weather`. Files are migrated on first start (a backup
+  `.bak-v7` is kept); Nix-managed configs that set `desktop.weather` need the new form.
 - **IPC / mods:** the actions `lyrics.track`, `sessions.handed` and `sessions.undelivered` are gone, and `mod.sessions`
   no longer carries `handoff`: the mods do this themselves. A bind or script that called them drops the call.
 - **Host processes:** a mod's host connection reads `svc.clock` only when the manifest names `doc:svc.clock` in `uses`

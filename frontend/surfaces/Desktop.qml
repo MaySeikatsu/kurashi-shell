@@ -8,7 +8,7 @@ import "../components/menus"
 
 // Desktop widgets (K43; SekaiPop's desk): cards on the bottom layer, under the windows, on one side of each output —
 // the time as four keys with the date and the day's progress, this month with today marked, what is playing (hidden
-// while nothing plays) and today's weather (while the weather mod serves a place). Opt-in per output
+// while nothing plays), then the mods' cards (`desk:<name>`: the weather, the agenda, the timer …). Opt-in per output
 // (`desktop.enabled`; the sekai decor recommends it). A pure view: every value comes from a document, every press is
 // an action.
 // Ma: no surface while off; the documents are watched only while the surface is shown; nothing animates on its own —
@@ -127,18 +127,10 @@ PanelWindow {
 
     Watch { doc: "svc.clock"; active: desk.visible }
     Watch { doc: "svc.media"; active: desk.visible && (desk.showsNow("media") || desk.editing) }
-    Watch { doc: "mod.weather"; active: desk.visible && (desk.showsNow("weather") || desk.editing) && desk.weatherMod }
     Watch { doc: "mods"; active: desk.visible }
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var media: Store.docs["svc.media"] || ({})
-    readonly property var weather: Store.docs["mod.weather"] || ({})
     readonly property string locale: (Store.docs["i18n"] || {}).locale || "en"
-    // On: an enabled native mod carries its `qml` map (PROTOCOL §5).
-    readonly property bool weatherMod: {
-        var m = (Store.docs["mods"] || {}).mods || []
-        for (var i = 0; i < m.length; i++) if (m[i].id === "weather" && m[i].qml !== undefined) return true
-        return false
-    }
     function modName(id) {
         var m = (Store.docs["mods"] || {}).mods || []
         for (var i = 0; i < m.length; i++) if (m[i].id === id) return I18n.tr(m[i].name || id)
@@ -171,7 +163,7 @@ PanelWindow {
     onDeskKeyChanged: modCards = JSON.parse(deskKey)
 
     // ---- order -------------------------------------------------------------------------------------------------------
-    readonly property var coreIds: ["clock", "calendar", "media", "weather"]
+    readonly property var coreIds: ["clock", "calendar", "media"]
     // A list nobody set (its default: every core card on the right) only restates "the cards stand on their side": it
     // follows `desktop.side` (I332: glass-desk's `side = left` kept the month on the right). A set list is placed as set.
     function listOf(side) {
@@ -594,48 +586,6 @@ PanelWindow {
         }
     }
 
-    // ---- weather: while the weather mod is on and serves today's values ----
-    component WeatherCard: Card {
-        id: wcard
-        readonly property var now: desk.weather.now || ({})
-        hasContent: desk.weatherMod && desk.weather.available === true && desk.weather.now !== undefined
-        Row {
-            width: parent.width
-            spacing: Theme.pad
-            Icon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: desk.conditionIcon(wcard.now.code, wcard.now.is_day)
-                glyph: "☁"
-                filled: true
-                size: 52
-                color: Theme.secondary
-            }
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                Caption { text: desk.weather.place ? desk.weather.place.name : "" }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                    color: Theme.fg
-                    font.pixelSize: 34
-                    font.weight: Font.Black
-                    font.family: Theme.fam(text, Theme.families)
-                    text: wcard.now.temp !== undefined ? Math.round(wcard.now.temp) + "°" : "—"
-                }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                    color: Theme.dim
-                    font.pixelSize: Theme.fs - 1
-                    font.family: Theme.fam(text, Theme.families)
-                    text: I18n.tr("mod-weather.condition." + (wcard.now.code || "unknown"))
-                }
-            }
-        }
-    }
-
     // ---- a mod's card (K46): its file, at the column's width; height 0 = nothing to say ----
     component ModCard: ModLoader {
         property string cardUrl: ""
@@ -678,10 +628,13 @@ PanelWindow {
         if (t !== key) return t
         return parts[2] === parts[1] ? modName(parts[1]) : modName(parts[1]) + " · " + parts[2]
     }
+    // When a card with nothing to show shows: a mod card's own note (`mod-<id>.desk.<name>.note`) when its catalog has one.
     function placeholderNote(id) {
         if (id === "media") return I18n.tr("frontend.desktop.edit.note_media")
-        if (id === "weather") return I18n.tr(weatherMod ? "frontend.desktop.edit.note_weather_place" : "frontend.desktop.edit.note_weather_mod")
-        return I18n.tr("frontend.desktop.edit.note_mod")
+        var parts = id.split(":")
+        var key = "mod-" + parts[1] + ".desk." + parts[2] + ".note"
+        var t = I18n.tr(key)
+        return t !== key ? t : I18n.tr("frontend.desktop.edit.note_mod")
     }
 
     Item {
@@ -952,8 +905,7 @@ PanelWindow {
                         sourceComponent: slot.isMod ? cMod
                             : slot.cid === "clock" ? cClock
                             : slot.cid === "calendar" ? cCalendar
-                            : slot.cid === "media" ? cMedia
-                            : slot.cid === "weather" ? cWeather : null
+                            : slot.cid === "media" ? cMedia : null
                         onLoaded: if (slot.isMod) item.cardUrl = Qt.binding(function () { return slot.url })
                     }
                     // I471c: the pin or the tape, over the card.
@@ -1097,20 +1049,5 @@ PanelWindow {
     Component { id: cClock; ClockCard {} }
     Component { id: cCalendar; CalendarCard {} }
     Component { id: cMedia; MediaCard {} }
-    Component { id: cWeather; WeatherCard {} }
     Component { id: cMod; ModCard {} }
-
-    // The weather mod's condition codes as Material Symbols names.
-    function conditionIcon(code, isDay) {
-        switch (code) {
-        case "clear": case "mainly_clear": return isDay === false ? "clear_night" : "sunny"
-        case "partly_cloudy": return isDay === false ? "partly_cloudy_night" : "partly_cloudy_day"
-        case "overcast": return "cloud"
-        case "fog": return "foggy"
-        case "drizzle": case "freezing_drizzle": case "rain": case "freezing_rain": case "showers": return "rainy"
-        case "snow": case "snow_grains": case "snow_showers": return "weather_snowy"
-        case "thunder": case "thunder_hail": return "thunderstorm"
-        default: return "cloud"
-        }
-    }
 }
