@@ -68,7 +68,9 @@ PanelWindow {
     BarConfig { id: bars; screen: win.screen }
     readonly property bool morphing: bars.atTop || bars.atBottom
     // The morph: one vertical edge (the compositor centres the window on the bar), margin 0. The slide: the top right.
-    anchors { top: !bars.atBottom; bottom: bars.atBottom; right: !morphing }
+    // (session 36: beside a left bar it stands at that bar, not across the screen from it)
+    readonly property bool besideLeft: !morphing && bars.vertical && !bars.atRight
+    anchors { top: !bars.atBottom; bottom: bars.atBottom; right: !morphing && !besideLeft; left: besideLeft }
     // Room for the soft chrome's shadow round the card (K45; 0 under every other chrome), taken out of the margins so the
     // card stays where it was. Floating chromes (bar groups) keep a gap from the bar.
     // (I435: and the card's elevation, or the window cuts its shadow off in a straight line)
@@ -94,6 +96,7 @@ PanelWindow {
         top: morphing ? 0 : bars.topInset - padT
         bottom: morphing ? 0 : bars.bottomInset - padB
         right: morphing ? 0 : bars.rightInset - padR
+        left: besideLeft ? Math.max(0, bars.insetOf("left") + Theme.barH + 4 - padL) : 0
     }
     // Room for the card's hard shadow (keycap chrome) and a gap from the screen edge.
     implicitWidth: morphing ? morph.width : padL + card.width + Theme.shadowDy + padR
