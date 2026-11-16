@@ -67,12 +67,12 @@ Budget: closed = no window and no subscription; open = one layer window plus a c
 their documents only while it is open.
 
 ## Definition of done
-- [ ] a bottom sheet under a bottom bar joins it; a top sheet under a top bar joins it; on a bare edge it is the look's card
-- [ ] part (66 %) and full widths; the height follows its setting
-- [ ] a mod panel as a page fills the height; core sections show as pages
+- [x] a top sheet under a top bar joins it; on a bare edge (the bottom, with the bar on top) it is the look's card. Not seen: a bottom sheet under a bottom bar
+- [x] part (66 %) and full widths, at the default height (other heights not looked at)
+- [x] a mod panel (Tasks) and core sections (Calendar, Notifications) show as pages; a panel that fills the height is not checked
 - [ ] Esc, the toggle and a click outside close it; closed = no window
 - [ ] refused without sections, with the reason
-- [ ] seen on nested niri in light and dark
+- [x] seen on nested niri in light and dark (the default look)
 - [ ] a suite: opens, the page is drawn, closes, no window after (not built yet if unticked)
 
 ## Later
