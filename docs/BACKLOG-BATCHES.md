@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (461 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (460 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -12,7 +12,7 @@ batch or in two: give a new row its batch there, then run it again.
 | Section | Batch | Done | Size |
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
-| 1 | Web dock in the bar | 1 of 9 | S–M |
+| 1 | Web dock in the bar | 2 of 9 | S–M |
 | 1 | Settings, fixes | 5 of 9 | S–M |
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
 | 1 | Quick settings, small | 8 of 9 | S–M |
@@ -87,7 +87,7 @@ Shares: the dock's bar widget and the mod's `[[menu]]` rows; the five suite rows
 | Row | | What |
 |---|---|---|
 | I599 | U | **done** — Web dock: a site's icon has no right-click menu: refresh, unload, pin the page it shows now, and so on (the shell's one … |
-| I600 | U | Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
+| I600 | U | **done** — Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
 | I69 | U | Web dock: a browse/search section to find sites, and "pin this page" while on a site (not required for v1). |
 | I73 |  | Web dock composition: pins as a launcher provider; unread count from a page title as a badge and an Island signal; a … |
 | B131 |  | `mods/webdock/test/test-dock.sh` "bar widget: a click asks for the dock's card (mod.panel.open)" fails on the session … |

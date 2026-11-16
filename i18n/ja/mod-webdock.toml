@@ -140,6 +140,12 @@
 "action.webdock.sidebar_select" = "ピンをサイドバーに表示する"
 
 # W73 (docs/ux/webdock.md「Background pages」「The card's size」「Which place shows the page」)。
+"mods.webdock.pins.bar" = "バーに表示"
+"mods.webdock.bar_sites_max" = "バーに並べるサイトの上限"
+"mods.webdock.bar_sites_max.help" = "「バーに表示」にしたサイトのうち、Web ドックのモジュールが個別のアイコンとして並べる数。残りはドックのアイコンから開きます。"
+"action.webdock.bar" = "サイトをバーに置く／外す"
+"webdock.menu.bar_on" = "バーに表示"
+"webdock.menu.bar_off" = "バーから外す"
 "mods.webdock.pins.background" = "バックグラウンドで動かし続ける"
 "mods.webdock.pins.help" = "バックグラウンドで動かし続けるピンは、一度開くとドックが凍結も解放もしません。隠れていても再生や処理を続け、オフにするまでウェブエンジンがメモリと CPU を使い続けます。音を出したサイトは、最後の音から 10 分間はいずれにしても動き続けます。"
 "mods.webdock.card_size" = "バーのカードの大きさ"

@@ -17,6 +17,12 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   (the same ones the side sidebars offer, and the mods' panels) and it opens as a sheet out of that edge, joined to the
   bar there — a centred part of the edge (66 %) or the whole edge, 45 % of the screen tall (both under Advanced). Open it
   with `> Top sidebar` / `> Bottom sidebar` or a key of your own (`sidebar.toggle {side: "top"}`).
+- **Web dock: sites on the bar.** A site's menu has "Show on the bar": the site then stands on the bar as an icon of
+  its own, next to the web dock's, and a click opens the dock's card on it. How many stand there at most is under
+  Advanced (4).
+- **Web dock: a site's right-click menu in the bar card and the sidebar** (it opened Settings there): move, remove,
+  reload, **unload** (new: let the page go now), update the pin to the page it shows, unpin but keep open.
+- **For mod authors:** `advanced = true` on a `[[setting]]` puts it behind Settings' Advanced switch.
 - **Large cards.** The wallpaper picker opens as a large card at the bar's centre (60 % × 45 % of the screen, the size
   of the terminal's sheet), and the launcher's appearance menu takes the same size. Any module's card can open large:
   Settings › Layout, Advanced, "Modules that open large"; the size is set beside it.

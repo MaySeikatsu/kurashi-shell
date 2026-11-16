@@ -1339,6 +1339,8 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
     meta.help = s.help.clone();
     meta.page = format!("mods.{}", m.id);
     meta.section = "general".into();
+    // K166: a mod's tuning knobs sit behind Advanced, as the core's do.
+    meta.flags.advanced = s.advanced;
     meta.constraints.unit = s.unit.clone();
     if let Some((lo, hi)) = s.range {
         meta.constraints.min = Some(bound(s.ty, lo));

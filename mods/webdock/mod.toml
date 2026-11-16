@@ -74,6 +74,12 @@ help = "mods.webdock.pins.help"
   type = "bool"
   default = false
   label = "mods.webdock.pins.background"
+  # I600: the site stands on the bar as an icon of its own (the pin's menu sets it too).
+  [[setting.field]]
+  key = "bar"
+  type = "bool"
+  default = false
+  label = "mods.webdock.pins.bar"
 
 [[setting]]
 key = "default_view"
@@ -221,6 +227,16 @@ type = "bool"
 default = false
 label = "mods.webdock.bar_site"
 help = "mods.webdock.bar_site.help"
+
+# I600: how many of the sites marked "on the bar" the bar module shows; the others open from the dock's own icon.
+[[setting]]
+key = "bar_sites_max"
+type = "int"
+default = 4
+range = [1, 12]
+label = "mods.webdock.bar_sites_max"
+help = "mods.webdock.bar_sites_max.help"
+advanced = true
 
 [[setting]]
 key = "bar_playing"
@@ -383,6 +399,10 @@ label = "action.webdock.reload"
 [[action]]
 id = "webdock.unload"
 label = "action.webdock.unload"
+
+[[action]]
+id = "webdock.bar"
+label = "action.webdock.bar"
 
 [[action]]
 id = "webdock.remove"

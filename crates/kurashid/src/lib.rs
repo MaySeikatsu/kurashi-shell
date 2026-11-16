@@ -21,7 +21,6 @@ pub mod intents;
 pub mod island;
 pub mod keys;
 pub mod launcher_mods;
-pub mod user;
 pub mod location;
 pub mod lock;
 pub mod native;
@@ -36,6 +35,7 @@ pub mod texture;
 pub mod theme;
 pub mod theme_export;
 pub mod title;
+pub mod user;
 pub mod wiring;
 pub mod workspaces;
 

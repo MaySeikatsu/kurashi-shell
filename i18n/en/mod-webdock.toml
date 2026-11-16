@@ -140,6 +140,12 @@
 "action.webdock.sidebar_select" = "Show a pin in the sidebar"
 
 # W73 (docs/ux/webdock.md "Background pages", "The card's size", "Which place shows the page").
+"mods.webdock.pins.bar" = "On the bar"
+"mods.webdock.bar_sites_max" = "Sites on the bar at most"
+"mods.webdock.bar_sites_max.help" = "How many of the sites marked \"On the bar\" the web dock's module shows as icons of their own; the others open from the dock's icon."
+"action.webdock.bar" = "Put a site on the bar, or take it off"
+"webdock.menu.bar_on" = "Show on the bar"
+"webdock.menu.bar_off" = "Take off the bar"
 "mods.webdock.pins.background" = "Keep running in the background"
 "mods.webdock.pins.help" = "A pin set to keep running in the background is never frozen or unloaded by the dock once you opened it: it keeps playing and working while hidden, and holds the web engine in memory and on the CPU until you turn it off. A site that plays sound keeps running for 10 minutes after its last sound anyway."
 "mods.webdock.card_size" = "Card size in the bar"

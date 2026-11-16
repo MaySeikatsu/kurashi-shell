@@ -14,7 +14,11 @@ pub fn document() -> Value {
         .unwrap_or_default();
     let passwd = std::fs::read_to_string("/etc/passwd").unwrap_or_default();
     let home = std::env::var_os("HOME").map(PathBuf::from);
-    let icon = icon_of(&login, home.as_deref(), Path::new("/var/lib/AccountsService/icons"));
+    let icon = icon_of(
+        &login,
+        home.as_deref(),
+        Path::new("/var/lib/AccountsService/icons"),
+    );
     json!({
         "name": login,
         "full_name": full_name(&passwd, &login),
@@ -75,9 +79,19 @@ mod tests {
         std::fs::create_dir_all(&home).unwrap();
         assert_eq!(icon_of("aki", Some(&home), &accounts), None);
         std::fs::write(home.join(".face"), b"png").unwrap();
-        assert_eq!(icon_of("aki", Some(&home), &accounts), Some(home.join(".face")));
+        assert_eq!(
+            icon_of("aki", Some(&home), &accounts),
+            Some(home.join(".face"))
+        );
         std::fs::write(accounts.join("aki"), b"png").unwrap();
-        assert_eq!(icon_of("aki", Some(&home), &accounts), Some(accounts.join("aki")));
-        assert_eq!(icon_of("../etc", None, &accounts), None, "a name with a slash names no file");
+        assert_eq!(
+            icon_of("aki", Some(&home), &accounts),
+            Some(accounts.join("aki"))
+        );
+        assert_eq!(
+            icon_of("../etc", None, &accounts),
+            None,
+            "a name with a slash names no file"
+        );
     }
 }
