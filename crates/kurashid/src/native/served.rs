@@ -131,10 +131,10 @@ impl Served {
     /// Connection `conn` closed: its calls fail, and nothing is served until the host connects again.
     pub fn closed(&self, conn: u64) {
         let mut s = self.state.lock().expect("served lock");
-        if s.conn.as_ref().is_some_and(|c| c.id == conn) {
-            if let Some(old) = s.conn.take() {
-                fail(old.pending);
-            }
+        if s.conn.as_ref().is_some_and(|c| c.id == conn)
+            && let Some(old) = s.conn.take()
+        {
+            fail(old.pending);
         }
     }
 
