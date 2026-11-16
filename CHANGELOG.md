@@ -8,6 +8,8 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-16
+
 ### Added
 - **Mods read services and call each other from their own code** (for mod authors): `ModCtx::follow` gives a crate a
   document its manifest names in `uses`, `ModCtx::calls` an action. A mod whose required use is not there stays switched
