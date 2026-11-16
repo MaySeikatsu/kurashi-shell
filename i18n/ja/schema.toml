@@ -547,6 +547,8 @@
 "config.location.latitude.help" = "赤道から北への度数。南はマイナス。"
 "config.location.longitude.label" = "経度"
 "config.location.longitude.help" = "グリニッジから東への度数。西はマイナス。"
+"config.location.name.label" = "場所の名前"
+"config.location.name.help" = "呼び名（たとえば町の名前）。シェルが現在の場所を示すところに表示されます。"
 "config.recorder.directory.label" = "保存先"
 "config.recorder.directory.help" = "録画を保存するフォルダ。空欄 = ビデオフォルダ。"
 "config.recorder.audio.label" = "音声も録音"

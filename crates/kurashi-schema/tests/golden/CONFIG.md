@@ -2658,6 +2658,13 @@ Degrees east of Greenwich; west is negative.
 - range: `-180.0..=180.0`, step `0.01` (°)
 - only while `location.manual == true`
 
+#### `location.name` — Name of the place
+
+What to call it, for example your town. Shown where the shell names the place in effect.
+
+- type: `string` · default: `""`
+- only while `location.manual == true`
+
 ### Recorder
 
 #### `recorder.directory` — Folder

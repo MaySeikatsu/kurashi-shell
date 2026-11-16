@@ -891,6 +891,8 @@
 "config.location.latitude.help" = "Degrees north of the equator; south is negative."
 "config.location.longitude.label" = "Longitude"
 "config.location.longitude.help" = "Degrees east of Greenwich; west is negative."
+"config.location.name.label" = "Name of the place"
+"config.location.name.help" = "What to call it, for example your town. Shown where the shell names the place in effect."
 "config.recorder.directory.label" = "Folder"
 "config.recorder.directory.help" = "Where recordings are saved; empty = your Videos folder."
 "config.recorder.audio.label" = "Record sound"

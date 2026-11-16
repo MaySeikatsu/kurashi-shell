@@ -108,7 +108,7 @@ Flickable {
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
     readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus,
-                                       "theme.colors.season": cSeasonStatus,
+                                       "theme.colors.season": cSeasonStatus, "location.manual": cLocationStatus,
                                        "sidebar.from_bar": cSidebarOpen, "theme.texture.kind": cTextureCards,
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
                                        "theme.light.color": cLightSwatches, "theme.material.shadow": cShadowPreview,
@@ -156,6 +156,7 @@ Flickable {
     Component { id: cThemeExport; ThemeExportStatus {} }
     Component { id: cSchemeStatus; SchemeStatus {} }
     Component { id: cSeasonStatus; SeasonStatus {} }
+    Component { id: cLocationStatus; LocationStatus {} }
     Component { id: cSidebarOpen; SidebarOpen {} }
     Component { id: cTextureCards; TextureCards {} }
     Component { id: cLightDial; LightDial {} }
