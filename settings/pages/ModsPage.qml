@@ -13,7 +13,7 @@ Flickable {
     // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
     KineticWheel { view: p }
     // W94: a row's Check or switch reached by Tab comes into view.
-    FocusFollow { view: p }
+    FocusFollow { id: follow; view: p }
     QQC.ScrollBar.vertical: PageScrollBar {}
     // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with its code) and
     // the state the row had then. The line goes once the row changes state, and on any change that goes through (B8).
@@ -39,7 +39,8 @@ Flickable {
     // ids being checked. A check changes nothing, so it goes as a plain request (not counted as an applied change).
     property var checks: ({})
     property var checking: ({})
-    function check(id) {
+    // `row` (optional): the mod's row, brought into view with its result once the answer is in.
+    function check(id, row) {
         var c = Object.assign({}, checking)
         c[id] = true
         checking = c
@@ -50,6 +51,7 @@ Flickable {
             var d = Object.assign({}, p.checking)
             delete d[id]
             p.checking = d
+            if (row) Qt.callLater(function () { follow.reveal(row) })
         })
     }
     // Public so the test hooks can drive the page like a click would.
@@ -204,7 +206,7 @@ Flickable {
                             label: I18n.tr("mods.new.check")
                             accessibleName: I18n.tr("mods.new.check") + ": " + I18n.tr(entry.mod.name)
                             enabled: Store.live && !p.checking[entry.modelData]
-                            onClicked: p.check(entry.modelData)
+                            onClicked: p.check(entry.modelData, entry)
                         }
                         Button {
                             visible: entry.available
