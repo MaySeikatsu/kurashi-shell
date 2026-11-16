@@ -304,7 +304,7 @@
    "frontend/test-launcher.sh": 33,
    "frontend/test-light-outputs.sh": 20,
    "frontend/test-look.sh": 22,
-   "frontend/test-media.sh": 16,
+   "frontend/test-media.sh": 14,
    "frontend/test-modqml.sh": 5,
    "frontend/test-mods-live.sh": 5,
    "frontend/test-module-menu.sh": 18,
@@ -347,7 +347,7 @@
    "mods/terminal/test/test-terminal-outputs.sh": 15,
    "mods/terminal/test/test-terminal.sh": 13,
    "mods/timer/test-timer.sh": 23,
-   "mods/wallpaper/test/real-shell.sh": 4,
+   "mods/wallpaper/test/real-shell.sh": 1,
    "mods/weather/test-states.sh": 15,
    "mods/webdock/test/shots-card.sh": 2,
    "mods/webdock/test/shots-local.sh": 16,
@@ -373,6 +373,6 @@
    "tools/bench/rerun-probes.sh": 1,
    "tools/bench/tile.sh": 16
   },
-  "windows": 1573
+  "windows": 1568
  }
 }
