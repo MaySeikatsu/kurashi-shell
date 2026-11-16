@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (463 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (461 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -15,9 +15,9 @@ batch or in two: give a new row its batch there, then run it again.
 | 1 | Web dock in the bar | 1 of 9 | S–M |
 | 1 | Settings, fixes | 5 of 9 | S–M |
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
-| 1 | Quick settings, small | 7 of 9 | S–M |
+| 1 | Quick settings, small | 8 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
-| 1 | Icons and glyph sizes | 2 of 5 | M |
+| 1 | Icons and glyph sizes | 3 of 5 | M |
 | 1 | Media, small | 1 of 3 | S–M |
 | 2 | Settings, structure | 0 of 10 | M–L |
 | 2 | Settings, theming pages | 0 of 7 | M |
@@ -133,7 +133,7 @@ Shares: the quick card and the control modules. Size: S–M. Needs you: —.
 | Row | | What |
 |---|---|---|
 | I586 |  | **done** — `frontend/components/quick/QuickTile.qml`'s compact label is a `Text` without the look's render block, so in pixel … |
-| I204 |  | Quick settings follow-ups: the accent badge on its on-state container is 2.39:1 in dark wa-iro (3.16 light), below 3:1 … |
+| I204 |  | **done** — Quick settings follow-ups: the accent badge on its on-state container is 2.39:1 in dark wa-iro (3.16 light), below 3:1 … |
 | I108 |  | **done** — Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService … |
 | B71 |  | **done** — `modules/Volume.qml`'s WheelHandler has no `acceptedDevices` (the control modules needed `Mouse \/ TouchPad` to hear … |
 | B72 |  | **done** — `Stage.qml` `ownKey`: the quick card comes out under any module pressed in the last 1.5 s, not only a control module; … |
@@ -160,7 +160,7 @@ Shares: `Icon.qml` and the bar's glyph metrics. Size: M. Needs you: —.
 
 | Row | | What |
 |---|---|---|
-| B61 | U | Bar glyphs are not one size: on the user's bar they run from 12 to 20 px tall (tray icons most), two sit 1.5 to 2 px … |
+| B61 | U | **done** — Bar glyphs are not one size: on the user's bar they run from 12 to 20 px tall (tray icons most), two sit 1.5 to 2 px … |
 | B52 |  | **done** — Island faces other than media keep their own sizes (notifications at fs+4, the media pause icon at fs+3) and are not … |
 | B62 |  | Icon tint (K110, session 27 rework), not seen: a notification's app icon (a test notification gave no popup in the … |
 | B70 |  | **done** — `QML Icon at components/modules/ControlModule.qml: Binding loop detected for property "drawFamily"` when the look … |
