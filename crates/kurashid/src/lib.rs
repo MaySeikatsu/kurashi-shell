@@ -76,6 +76,22 @@ impl Daemon {
                 reg.query(q, &strings)
             }),
         );
+        // W94 (K154; PROTOCOL §6): the registry of extension points, for the Mod Editor's checklist.
+        queries.insert(
+            "points".into(),
+            Arc::new(|_q: &str| {
+                kurashi_mods::points::POINTS
+                    .iter()
+                    .map(|p| {
+                        let mut v = serde_json::to_value(p).unwrap_or_default();
+                        if let Some(part) = kurashi_mods::scaffold::part_of(p.id) {
+                            v["part"] = part.into();
+                        }
+                        v
+                    })
+                    .collect()
+            }),
+        );
         Daemon {
             hub,
             actions,

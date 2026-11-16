@@ -24,6 +24,21 @@ pub const PARTS: &[(&str, &str)] = &[
     ("settings", "a setting, shown on the mod's Settings page"),
 ];
 
+/// The part of [`PARTS`] that makes the extension point `point` (`points::POINTS`), where the scaffold has one: the
+/// Mod Editor's checklist ticks parts (W94).
+pub fn part_of(point: &str) -> Option<&'static str> {
+    Some(match point {
+        "glance" => "widget",
+        "peek" => "peek",
+        "panel" => "panel",
+        "desk" => "desk",
+        "quick.tiles" | "quick-tile" => "tile",
+        "module" | "menu" => "menu",
+        "settings" => "settings",
+        _ => return None,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Spec {
     pub id: String,

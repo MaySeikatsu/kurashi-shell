@@ -1735,35 +1735,7 @@ pub fn mods_native(
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     let reg = Registry::discover(&roots, &version);
-    // K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
-    if let Ok((_, doc)) = hub.snapshot("i18n") {
-        let locale = doc["locale"]
-            .as_str()
-            .unwrap_or(crate::i18n::FALLBACK)
-            .to_owned();
-        let mut own = serde_json::Map::new();
-        for e in reg.iter() {
-            let ships = e
-                .manifest
-                .as_ref()
-                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
-            if ships {
-                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
-                    own.insert(k, Value::String(v));
-                }
-            }
-        }
-        if !own.is_empty() {
-            let _ = hub.update("i18n", None, |d| {
-                if let Some(s) = d["strings"].as_object_mut() {
-                    for (k, v) in own {
-                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
-                        s.entry(k).or_insert(v);
-                    }
-                }
-            });
-        }
-    }
+    adopt_mod_strings(hub, &reg);
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }
@@ -1829,6 +1801,235 @@ pub fn mods_native(
             },
         );
     }
+    // W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the generator and the ruleset the CLI uses, as actions.
+    {
+        let state = state.clone();
+        actions.register("mod.check", "action.mod.check", move |v: Value| {
+            let state = state.clone();
+            async move { mod_check(&v, &state) }
+        });
+    }
+    {
+        let (hub, state, config, roots) =
+            (hub.clone(), state.clone(), config.clone(), roots.clone());
+        actions.register("mod.new", "action.mod.new", move |v: Value| {
+            let (hub, state, config, roots) =
+                (hub.clone(), state.clone(), config.clone(), roots.clone());
+            async move { mod_new(&v, &hub, &state, config.as_deref(), &roots) }
+        });
+    }
+    {
+        let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
+        actions.register("mod.rescan", "action.mod.rescan", move |_v: Value| {
+            let (hub, state, config, roots) =
+                (hub.clone(), state.clone(), config.clone(), roots.clone());
+            async move {
+                mod_rescan(&hub, &state, config.as_deref(), &roots);
+                Ok(None)
+            }
+        });
+    }
+}
+
+/// K154: each discovered mod's own strings (`provides = ["i18n"]`) join the `i18n` document, under its own keys.
+fn adopt_mod_strings(hub: &Hub, reg: &kurashi_mods::Registry) {
+    if let Ok((_, doc)) = hub.snapshot("i18n") {
+        let locale = doc["locale"]
+            .as_str()
+            .unwrap_or(crate::i18n::FALLBACK)
+            .to_owned();
+        let mut own = serde_json::Map::new();
+        for e in reg.iter() {
+            let ships = e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| m.provides.contains(&kurashi_mods::Provide::I18n));
+            if ships {
+                for (k, v) in crate::i18n::mod_strings(&e.dir, &e.id, &locale) {
+                    own.insert(k, Value::String(v));
+                }
+            }
+        }
+        if !own.is_empty() {
+            let _ = hub.update("i18n", None, |d| {
+                if let Some(s) = d["strings"].as_object_mut() {
+                    for (k, v) in own {
+                        // The shell's own copy of a bundled mod (`i18n/<locale>/mod-<id>.toml`) stays.
+                        s.entry(k).or_insert(v);
+                    }
+                }
+            });
+        }
+    }
+}
+
+/// W94 (K154; PROTOCOL §6 "The Mod Editor's four"): the check's report as the page and the CLI read it.
+fn report_json(r: &kurashi_mods::check::Report) -> Value {
+    use kurashi_mods::check::Level;
+    json!({
+        "id": r.id,
+        "passed": r.passed(),
+        "errors": r.count(Level::Error),
+        "notes": r.count(Level::Warn),
+        "findings": r.findings.iter().map(|f| json!({
+            "rule": f.rule, "level": f.level, "at": f.at, "detail": f.detail,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+/// The scaffold's spec from an action's `spec` argument.
+fn spec_of(v: &Value) -> Result<kurashi_mods::scaffold::Spec, ActionError> {
+    let text = |k: &str| v[k].as_str().unwrap_or_default().to_owned();
+    let list = |k: &str| -> Vec<String> {
+        v[k].as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|x| x.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    if !v.is_object() {
+        return Err(ActionError::Invalid(ARGS_INVALID.into()));
+    }
+    Ok(kurashi_mods::scaffold::Spec {
+        id: text("id"),
+        name: text("name"),
+        icon: text("icon"),
+        description: text("description"),
+        with: list("with"),
+        uses: list("uses"),
+        host: v["host"].as_str().map(str::to_owned),
+    })
+}
+
+/// The scaffold's refusal as an action's: its key (`mods.new.error.*`); a folder that cannot be written is
+/// `unavailable`, everything else `invalid`.
+fn scaffold_error(e: kurashi_mods::scaffold::ScaffoldError) -> ActionError {
+    let key = e
+        .to_string()
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .to_owned();
+    match e {
+        kurashi_mods::scaffold::ScaffoldError::Write(_) => ActionError::Unavailable(key),
+        _ => ActionError::Invalid(key),
+    }
+}
+
+fn crate_version() -> semver::Version {
+    semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version")
+}
+
+/// `mod.check {id}`: an installed mod's folder. `mod.check {spec}`: a draft, written into a temporary folder, checked
+/// and removed — nothing of it stays. The draft's answer carries its files, for the page's preview.
+fn mod_check(v: &Value, state: &Mutex<ModsState>) -> ActionResult {
+    if let Some(id) = v["id"].as_str() {
+        let dir = state
+            .lock()
+            .expect("mods lock")
+            .reg
+            .get(id)
+            .map(|e| e.dir.clone())
+            .ok_or_else(|| ActionError::Invalid("mods.error.unknown".into()))?;
+        return Ok(Some(report_json(&kurashi_mods::check::check_dir(
+            &dir,
+            &crate_version(),
+        ))));
+    }
+    let spec = spec_of(&v["spec"])?;
+    if state.lock().expect("mods lock").reg.get(&spec.id).is_some() {
+        return Err(ActionError::Invalid("mods.new.error.id_taken".into()));
+    }
+    let files = spec.files().map_err(scaffold_error)?;
+    static DRAFTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let tmp = std::env::temp_dir().join(format!(
+        "kurashi-mod-draft-{}-{}",
+        std::process::id(),
+        DRAFTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let report = spec
+        .write(&tmp)
+        .map(|dir| kurashi_mods::check::check_dir(&dir, &crate_version()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let mut data = report_json(&report.map_err(scaffold_error)?);
+    data["files"] = files
+        .iter()
+        .map(|(path, text)| json!({"path": path.to_string_lossy(), "text": text}))
+        .collect();
+    Ok(Some(data))
+}
+
+/// `mod.rescan {}`: the mod roots are read again without a restart. A new folder appears as `available`, a removed one
+/// goes (switched off first), a changed manifest is read again; a mod's own strings join `i18n`.
+fn mod_rescan(
+    hub: &Hub,
+    state: &Mutex<ModsState>,
+    config: Option<&crate::config::ConfigStore>,
+    roots: &[std::path::PathBuf],
+) {
+    let mut fresh = kurashi_mods::Registry::discover(roots, &crate_version());
+    adopt_mod_strings(hub, &fresh);
+    // The registry is swapped under the mods lock; the config store is told after it is released — `sync_mods` runs
+    // the change listeners, and the mods' own listener takes this lock (holding it here deadlocked).
+    let table = {
+        let mut st = state.lock().expect("mods lock");
+        {
+            let native = &st.native;
+            fresh.retain(|e| native.can_run(e));
+        }
+        st.native.drop_missing(&fresh);
+        let (loaded, enabled): (BTreeSet<String>, BTreeSet<String>) = match config {
+            Some(c) => lists_of(c),
+            // No config: what was loaded and on stays so.
+            None => st.reg.iter().fold(Default::default(), |(mut l, mut e), m| {
+                match m.state.name() {
+                    "enabled" => {
+                        l.insert(m.id.clone());
+                        e.insert(m.id.clone());
+                    }
+                    "disabled" => {
+                        l.insert(m.id.clone());
+                    }
+                    _ => {}
+                }
+                (l, e)
+            }),
+        };
+        log_refused(fresh.reconcile(&loaded, &enabled));
+        st.reg = fresh;
+        st.reg.clone()
+    };
+    if let Some(c) = config {
+        c.sync_mods(&table);
+    }
+    let mut st = state.lock().expect("mods lock");
+    refresh(hub, &mut st, config);
+}
+
+/// `mod.new {spec}`: writes the mod into the user's mods folder (the last root), reads the roots again, and answers
+/// where it is and what the check says of it. Nothing is enabled.
+fn mod_new(
+    v: &Value,
+    hub: &Hub,
+    state: &Mutex<ModsState>,
+    config: Option<&crate::config::ConfigStore>,
+    roots: &[std::path::PathBuf],
+) -> ActionResult {
+    let spec = spec_of(&v["spec"])?;
+    if state.lock().expect("mods lock").reg.get(&spec.id).is_some() {
+        return Err(ActionError::Invalid("mods.new.error.id_taken".into()));
+    }
+    let root = roots
+        .last()
+        .ok_or_else(|| ActionError::Unavailable("mods.new.error.write".into()))?;
+    let dir = spec.write(root).map_err(scaffold_error)?;
+    mod_rescan(hub, state, config, roots);
+    let report = kurashi_mods::check::check_dir(&dir, &crate_version());
+    Ok(Some(
+        json!({ "path": dir.to_string_lossy(), "check": report_json(&report) }),
+    ))
 }
 
 #[derive(Clone, Copy)]
