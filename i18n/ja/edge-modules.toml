@@ -12,6 +12,3 @@
 "edge-modules.clock.a11y" = "{time}、{date}（{weekday}）"
 "edge-modules.clock.no_time" = "時刻はまだ分かりません"
 "edge-modules.clock.week" = "第{n}週"
-"edge-modules.clock.event_next" = "次：{time} {title}"
-"edge-modules.clock.event_now" = "進行中：{time}から {title}"
-"edge-modules.clock.timer_ends" = "{name}は {time} に終わります"
