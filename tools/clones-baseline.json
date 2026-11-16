@@ -4,6 +4,7 @@
    "frontend/components/Block.qml": 4,
    "frontend/components/BluetoothPanel.qml": 10,
    "frontend/components/Button.qml": 10,
+   "frontend/components/DeskCard.qml": 1,
    "frontend/components/IconButton.qml": 15,
    "frontend/components/MenuCard.qml": 1,
    "frontend/components/NotificationCard.qml": 2,
@@ -87,7 +88,6 @@
    "frontend/surfaces/Sidebar.qml": 7,
    "frontend/surfaces/Stage.qml": 14,
    "mods/ai/qml/Panel.qml": 6,
-   "mods/calendar/qml/DeskCard.qml": 9,
    "mods/calendar/qml/Face.qml": 4,
    "mods/calendar/qml/FaceExpanded.qml": 4,
    "mods/calendar/qml/Widget.qml": 2,
@@ -102,7 +102,6 @@
    "mods/sessions/qml/surfaces/chooser.qml": 2,
    "mods/sysmon/qml/Peek.qml": 9,
    "mods/sysmon/qml/Widget.qml": 9,
-   "mods/tasks/qml/DeskCard.qml": 9,
    "mods/tasks/qml/Panel.qml": 10,
    "mods/tasks/qml/Widget.qml": 3,
    "mods/tasks/qml/desk/notes.qml": 3,
@@ -158,7 +157,7 @@
    "settings/pages/SettingsPages.qml": 3,
    "settings/shell.qml": 2
   },
-  "windows": 1218
+  "windows": 1201
  },
  "rs": {
   "files": {
@@ -242,7 +241,7 @@
    "crates/kurashi/tests/doctor.rs": 3,
    "crates/kurashid/src/bindings.rs": 4,
    "crates/kurashid/src/config.rs": 5,
-   "crates/kurashid/src/cursor.rs": 7,
+   "crates/kurashid/src/cursor.rs": 6,
    "crates/kurashid/src/greeter_cache.rs": 3,
    "crates/kurashid/src/i18n.rs": 3,
    "crates/kurashid/src/island.rs": 5,
@@ -253,7 +252,7 @@
    "crates/kurashid/src/sound.rs": 2,
    "crates/kurashid/src/theme.rs": 1,
    "crates/kurashid/src/theme_export.rs": 5,
-   "crates/kurashid/src/wiring.rs": 9,
+   "crates/kurashid/src/wiring.rs": 8,
    "crates/kurashid/tests/capabilities.rs": 2,
    "crates/kurashid/tests/config.rs": 13,
    "crates/kurashid/tests/config_doc.rs": 4,
@@ -276,7 +275,7 @@
    "crates/kurashid/tests/settings_daemon.rs": 3,
    "crates/kurashid/tests/webdock.rs": 6
   },
-  "windows": 803
+  "windows": 801
  },
  "sh": {
   "files": {

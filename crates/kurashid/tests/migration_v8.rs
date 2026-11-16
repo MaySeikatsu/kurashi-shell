@@ -1,31 +1,11 @@
 //! Schema v8 (session 35, W92 row 2): the desk's weather card is the weather mod's own; `v7_to_v8` keeps what a file
 //! showed — the card's place in the columns, and that it was switched off.
 
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-use kurashi_config::{Options, Paths};
-use kurashid::Hub;
-use kurashid::config::ConfigStore;
+mod migkit;
 
 /// The file after the store opened (and migrated) it.
 fn migrated(src: &str) -> toml::Table {
-    static N: AtomicUsize = AtomicUsize::new(0);
-    let n = N.fetch_add(1, Ordering::SeqCst);
-    let root: PathBuf =
-        std::env::temp_dir().join(format!("kurashid-mig8-{}-{n}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(root.join("config")).unwrap();
-    let paths = Paths::rooted(&root);
-    std::fs::write(paths.user_file(), src).unwrap();
-    let _store = ConfigStore::open(
-        Hub::new(),
-        kurashi_schema::v1::registry(),
-        Paths::rooted(&root),
-        Options::default(),
-    );
-    let out = std::fs::read_to_string(paths.user_file()).unwrap();
-    let _ = std::fs::remove_dir_all(&root);
+    let (out, _) = migkit::migrated(src, &[]);
     out.parse().unwrap_or_else(|e| panic!("{e}: {out}"))
 }
 
