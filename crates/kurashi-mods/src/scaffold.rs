@@ -34,7 +34,50 @@ pub struct Spec {
     pub with: Vec<String>,
     /// `uses` entries, as a manifest writes them.
     pub uses: Vec<String>,
+    /// K155 (W93): a program of the mod's own, from the template of that language (`python`); `None`: views only.
+    pub host: Option<String>,
 }
+
+/// The languages a host program's template exists in.
+pub const HOSTS: &[&str] = &["python"];
+
+/// The host program's template (docs/MODDING.md 7a): the scoped hello, one document, one action. `__ID__` is the mod's id.
+const HOST_PYTHON: &str = r#"#!/usr/bin/env python3
+# __ID__'s own program (docs/MODDING.md "A program of its own"). The shell starts it while a view of the mod is up,
+# stops it when the last one is gone, and lets it reach what mod.toml says: it publishes `mod.__ID__` and answers
+# the action `__ID__.poke`. Keep what must survive a stop in a file of your own; this one keeps nothing.
+import json
+import os
+import socket
+
+sock = socket.socket(socket.AF_UNIX)
+sock.connect(os.environ["KURASHI_SOCKET"])
+lines = sock.makefile("rw")
+
+
+def send(message):
+    lines.write(json.dumps(message) + "\n")
+    lines.flush()
+
+
+def publish(pokes):
+    send({"t": "pub", "doc": "mod.__ID__", "data": {"available": True, "pokes": pokes}})
+
+
+send({"t": "hello", "v": 1, "client": "__ID__-host", "caps": [],
+      "scope": {"mod": os.environ["KURASHI_SCOPE_MOD"], "token": os.environ["KURASHI_SCOPE_TOKEN"]}})
+pokes = 0
+publish(pokes)
+send({"t": "serve", "id": "serve", "actions": ["__ID__.poke"]})
+for line in lines:
+    message = json.loads(line)
+    if message["t"] == "call" and message["action"] == "__ID__.poke":
+        pokes += 1
+        publish(pokes)
+        send({"t": "done", "id": message["id"], "data": {"pokes": pokes}})
+    elif message["t"] == "ping":
+        send({"t": "pong"})
+"#;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ScaffoldError {
@@ -85,9 +128,16 @@ impl Spec {
                 return Err(ScaffoldError::PartUnknown(p.clone()));
             }
         }
-        if !["widget", "panel", "desk", "tile"]
-            .iter()
-            .any(|p| self.has(p))
+        if let Some(h) = &self.host
+            && !HOSTS.contains(&h.as_str())
+        {
+            return Err(ScaffoldError::PartUnknown(format!("host:{h}")));
+        }
+        // A mod with a program of its own may draw nothing (a command).
+        if self.host.is_none()
+            && !["widget", "panel", "desk", "tile"]
+                .iter()
+                .any(|p| self.has(p))
         {
             return Err(ScaffoldError::NothingChosen);
         }
@@ -135,6 +185,15 @@ impl Spec {
         }
         if self.has("tile") {
             provides.push("slot:quick.tiles".to_owned());
+        }
+        if self.host.is_some() {
+            provides.push(format!("service:{id}"));
+            provides.push(format!("action:{id}.poke"));
+            say(
+                "action.poke",
+                &format!("Poke {}", self.name),
+                &format!("{}をつつく", self.name),
+            );
         }
         let mut m = format!(
             "id = {}\nname = {}\ndescription = {}\nversion = \"0.1.0\"\ntier = \"native\"\nkurashi = \">={}\"\n",
@@ -204,10 +263,12 @@ impl Spec {
             if !self.has("tile") {
                 skips.push(("quick-tile", "nothing to switch"));
             }
-            skips.push((
-                "command",
-                "no action of its own without code; its panel has its own `>` row",
-            ));
+            if self.host.is_none() {
+                skips.push((
+                    "command",
+                    "no action of its own without code; its panel has its own `>` row",
+                ));
+            }
             if !menu {
                 skips.push(("menu", "nothing to offer without a panel to open"));
             }
@@ -216,7 +277,25 @@ impl Spec {
                 m.push_str(&format!("{key} = {}\n", toml_str(why)));
             }
         }
+        if self.host.is_some() {
+            // K155 (W93): the program the shell starts for the mod, and the action it answers (a `>` command too).
+            m.push_str(&format!(
+                "\n# Its own program (docs/MODDING.md \"A program of its own\"): `bin/{id}-host`. The shell starts it while a\n# view of the mod is up and limits what it reaches to this file's `provides` and `uses`.\n[[host]]\nname = \"main\"\nexec = {}\n\n[[action]]\nid = {}\nlabel = {}\nicon = {}\ncommand = {}\nno_args = true\n",
+                toml_str(&format!("{id}-host")),
+                toml_str(&format!("{id}.poke")),
+                toml_str(&format!("{k}.action.poke")),
+                toml_str(&self.icon),
+                // (a command is words: an id's hyphens become spaces)
+                toml_str(&id.replace('-', " ")),
+            ));
+        }
         out.push(("mod.toml".into(), m));
+        if self.host.is_some() {
+            out.push((
+                format!("bin/{id}-host").into(),
+                HOST_PYTHON.replace("__ID__", id),
+            ));
+        }
 
         // ---- views
         let open = if self.has("panel") {
@@ -423,7 +502,12 @@ QuickTile {{
                 if let Some(parent) = p.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                std::fs::write(p, text)?;
+                std::fs::write(&p, text)?;
+                // A program the mod brings runs (`bin/`).
+                if rel.starts_with("bin") {
+                    use std::os::unix::fs::PermissionsExt;
+                    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755))?;
+                }
             }
             std::fs::rename(&tmp, &dir)
         })();
@@ -448,7 +532,38 @@ mod tests {
             description: "A cup, on time.".into(),
             with: with.iter().map(|s| (*s).to_owned()).collect(),
             uses: vec!["doc:svc.clock".into()],
+            host: None,
         }
+    }
+
+    /// K155 (W93): the host template passes the check as written too, with every part and with none drawn.
+    #[test]
+    fn a_mod_with_a_program_of_its_own_passes_the_check_as_written() {
+        let v = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+        for with in [vec!["widget", "peek", "panel", "menu"], vec![]] {
+            let mut s = spec(&with);
+            s.uses.clear();
+            s.host = Some("python".into());
+            let tmp = tempfile::tempdir().unwrap();
+            let dir = s.write(tmp.path()).unwrap();
+            assert!(dir.join("bin/tea-timer-host").is_file());
+            let r = check::check_dir(&dir, &v);
+            assert!(r.findings.is_empty(), "{with:?}: {:?}", r.findings);
+            let m = crate::manifest::parse(
+                "tea-timer",
+                &std::fs::read_to_string(dir.join("mod.toml")).unwrap(),
+                &v,
+            )
+            .unwrap();
+            assert_eq!(m.hosts[0].exec, "tea-timer-host");
+            assert!(m.contract.action("tea-timer.poke").is_some());
+        }
+        let mut bad = spec(&["widget"]);
+        bad.host = Some("cobol".into());
+        assert_eq!(
+            bad.validate(),
+            Err(ScaffoldError::PartUnknown("host:cobol".into()))
+        );
     }
 
     /// The templates are the ruleset's example: whatever is ticked, what is written passes the check with no note.

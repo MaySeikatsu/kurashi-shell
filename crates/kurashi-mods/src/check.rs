@@ -347,15 +347,20 @@ pub fn check_dir(dir: &Path, daemon: &Version) -> Report {
     for (i, h) in m.hosts.iter().enumerate() {
         use std::os::unix::fs::PermissionsExt;
         let own = dir.join("bin").join(&h.exec);
-        let granted = m.capabilities.iter().any(|c| c == &format!("exec:{}", h.exec));
+        let granted = m
+            .capabilities
+            .iter()
+            .any(|c| c == &format!("exec:{}", h.exec));
         let at = format!("mod.toml: host[{i}].exec");
         match std::fs::metadata(&own) {
-            Ok(meta) if meta.is_file() && meta.permissions().mode() & 0o111 == 0 => findings.push(Finding {
-                rule: "host_exec",
-                level: Level::Error,
-                at,
-                detail: format!("`bin/{}` is not executable", h.exec),
-            }),
+            Ok(meta) if meta.is_file() && meta.permissions().mode() & 0o111 == 0 => {
+                findings.push(Finding {
+                    rule: "host_exec",
+                    level: Level::Error,
+                    at,
+                    detail: format!("`bin/{}` is not executable", h.exec),
+                })
+            }
             Ok(meta) if meta.is_file() => {}
             _ if granted => {}
             _ => findings.push(Finding {

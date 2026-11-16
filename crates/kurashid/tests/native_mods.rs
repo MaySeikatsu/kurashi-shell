@@ -357,6 +357,7 @@ async fn a_scaffolded_mod_is_found_enabled_and_lists_its_views() {
         .map(String::from)
         .to_vec(),
         uses: Vec::new(),
+        host: None,
     };
     let dir = spec.write(&extra).unwrap();
     let d = start(
