@@ -11,6 +11,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 ## [0.4.0] — 2026-11-16
 
 ### Added
+- **Location** (Settings › Power): set this computer's place by hand (latitude, longitude) for the night light's sunset
+  schedule and the light's daytime. Left off, the place a mod knows is used — the Weather mod's, as before.
+- **For mod authors:** a mod can offer the shell its place with `provides = ["location:<name>"]` and `ModCtx::location`;
+  the document `svc.location` says which place is in effect and where it comes from.
 - **Mods read services and call each other from their own code** (for mod authors): `ModCtx::follow` gives a crate a
   document its manifest names in `uses`, `ModCtx::calls` an action. A mod whose required use is not there stays switched
   on and says what it waits for, and comes alive when it appears.
@@ -19,6 +23,10 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   its actions — and nothing its manifest does not say. `kurashi mod new --host python` writes a working one, and a
   mod's Settings page says so when it runs a program (docs/MODDING.md "A program of its own").
 - `just soak`: an hour of ordinary use in the sandbox, each process's memory once a minute, with growth budgets.
+
+### Changed
+- With the Weather mod switched off, its saved place is no longer used for the night light's sunset schedule: set a
+  place under Location, or switch the mod on. The schedule says so when it has no place.
 
 ### Fixed
 - **Memory.** The daemon no longer keeps the peak of every large job (641 MiB after 42 hours on one machine; it stays

@@ -88,3 +88,38 @@ async fn a_place_saved_before_enable_needs_no_reason() {
         "a saved place: nothing to say at enable"
     );
 }
+
+/// W92: the shell's place (`svc.location`) is the one `place` names, else the first saved one; the mod says when its
+/// places change.
+#[tokio::test]
+async fn the_place_offered_to_the_shell_follows_the_saved_places_and_the_setting() {
+    let on = enable(&mod_over(state_dir("slot-location", &[])), settings(&[]));
+    let place = on.location();
+    assert_eq!(place(), None, "no place saved");
+
+    call(&on.action("weather.place.add"), json!({"place": tokyo()}))
+        .await
+        .expect("saved");
+    call(&on.action("weather.place.add"), json!({"place": chicago()}))
+        .await
+        .expect("saved");
+    assert_eq!(
+        *on.recorder.places.lock().unwrap(),
+        2,
+        "each change is said"
+    );
+    assert_eq!(
+        place().map(|p| p.name),
+        Some(tokyo().name),
+        "the first saved"
+    );
+
+    on.tx
+        .send(settings(&[("place", json!(chicago().id))]))
+        .unwrap();
+    let p = place().expect("the place the setting names");
+    assert_eq!(
+        (p.name, p.lat, p.lon),
+        (chicago().name, chicago().lat, chicago().lon)
+    );
+}

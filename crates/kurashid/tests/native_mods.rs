@@ -1572,3 +1572,111 @@ async fn a_use_the_manifest_does_not_name_refuses_the_enable() {
     assert_eq!(errors[0]["key"], "mods.error.not_used");
     assert_eq!(errors[0]["detail"], "doc:mod.giver is not declared in uses");
 }
+
+/// W92: a mod that knows places, one per value of its setting `city`.
+struct Atlas(
+    Arc<Mutex<Option<kurashi_mod_api::LocationHandle>>>,
+    Arc<Mutex<f64>>,
+);
+
+impl NativeMod for Atlas {
+    fn id(&self) -> &'static str {
+        "atlas"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let (settings, kyoto_lat) = (ctx.settings().clone(), self.1.clone());
+        let handle = ctx.location("home", move || {
+            match settings.get("city").as_ref().and_then(|v| v.as_str()) {
+                Some("kyoto") => Some(kurashi_mod_api::Location {
+                    lat: *kyoto_lat.lock().unwrap(),
+                    lon: 135.77,
+                    name: "Kyoto".into(),
+                }),
+                Some("berlin") => Some(kurashi_mod_api::Location {
+                    lat: 52.52,
+                    lon: 13.4,
+                    name: "Berlin".into(),
+                }),
+                _ => None,
+            }
+        })?;
+        *self.0.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// W92 (K159): `svc.location` carries the place an enabled mod offers, follows the mod's setting and its handle, yields
+/// to a place set by hand, and says why there is none once the mod is off.
+#[tokio::test]
+async fn the_place_in_effect_is_a_mods_until_one_is_set_by_hand() {
+    let extra = scratch("atlas-mods");
+    write(
+        &extra.join("atlas/mod.toml"),
+        "id = \"atlas\"\nname = \"Atlas\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"location:home\"]\n\n[[setting]]\n\
+         key = \"city\"\ntype = \"string\"\ndefault = \"kyoto\"\n",
+    );
+    let (handle, lat) = (Arc::new(Mutex::new(None)), Arc::new(Mutex::new(35.01)));
+    let linked = vec![Box::new(Atlas(handle.clone(), lat.clone())) as Box<dyn NativeMod>];
+    let d = start(&scratch("atlas"), std::slice::from_ref(&extra), linked);
+    kurashid::location::wire(&d.hub, Some(&d.store));
+    let doc = |d: &Daemon| d.hub.snapshot("svc.location").unwrap().1;
+    assert_eq!(
+        doc(&d),
+        json!({"available": false, "reason": "power.location.none"})
+    );
+    let mut feed = d.store.location_feed();
+
+    d.act("mod.enable", "atlas").await.unwrap();
+    eventually(|| doc(&d)["name"] == "Kyoto").await;
+    assert_eq!(
+        doc(&d),
+        json!({"available": true, "lat": 35.01, "lon": 135.77, "name": "Kyoto", "source": "mod:atlas"})
+    );
+    assert!(
+        feed.has_changed().unwrap(),
+        "a follower hears the mod's offer"
+    );
+    feed.borrow_and_update();
+
+    // The mod's setting names another place: no handle needed.
+    let set = |key: &str, value: Value| {
+        d.store
+            .apply(&[ApplyOp::Set {
+                set: key.into(),
+                value,
+                output: None,
+            }])
+            .unwrap();
+    };
+    set("mods.atlas.city", json!("berlin"));
+    eventually(|| doc(&d)["name"] == "Berlin").await;
+    // The place itself moved (a place edited in the mod): the handle says so.
+    set("mods.atlas.city", json!("kyoto"));
+    *lat.lock().unwrap() = 34.99;
+    handle.lock().unwrap().as_ref().unwrap().changed();
+    eventually(|| doc(&d)["lat"] == 34.99).await;
+
+    // A place set by hand wins, and names its source.
+    set("location.latitude", json!(48.14));
+    set("location.longitude", json!(11.58));
+    assert_eq!(
+        doc(&d)["source"],
+        "mod:atlas",
+        "the numbers alone change nothing"
+    );
+    set("location.manual", json!(true));
+    eventually(|| doc(&d)["source"] == "config").await;
+    assert_eq!(
+        d.store.location().map(|p| (p.lat, p.lon)),
+        Some((48.14, 11.58))
+    );
+    set("location.manual", json!(false));
+    eventually(|| doc(&d)["source"] == "mod:atlas").await;
+
+    // The mod goes: so does its place.
+    d.act("mod.disable", "atlas").await.unwrap();
+    eventually(|| doc(&d)["available"] == false).await;
+    assert_eq!(d.store.location(), None);
+}

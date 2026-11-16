@@ -136,6 +136,8 @@ pub struct Shared {
     choices: OnceLock<ChoicesHandle>,
     /// The clock aside's slot (row 72): its reason names the call to action while no place is saved.
     slot: OnceLock<SlotHandle>,
+    /// W92: the shell's `svc.location` reads the place in effect from this mod; told when the places change.
+    location: OnceLock<kurashi_mod_api::LocationHandle>,
 }
 
 #[derive(Default)]
@@ -185,6 +187,7 @@ impl Shared {
             face: OnceLock::new(),
             choices: OnceLock::new(),
             slot: OnceLock::new(),
+            location: OnceLock::new(),
         }
     }
 
@@ -199,6 +202,22 @@ impl Shared {
 
     pub fn set_choices(&self, choices: ChoicesHandle) {
         let _ = self.choices.set(choices);
+    }
+
+    pub fn set_location(&self, location: kurashi_mod_api::LocationHandle) {
+        let _ = self.location.set(location);
+    }
+
+    /// W92: the place the shell reads (`svc.location`): the one `place` names, else the first saved one — not the one
+    /// scrolled to, which is a look at another place, not a move.
+    pub fn location(&self, configured: &str) -> Option<kurashi_mod_api::Location> {
+        self.with(|st| {
+            places::effective(&st.places, configured, None).map(|p| kurashi_mod_api::Location {
+                lat: p.lat,
+                lon: p.lon,
+                name: p.name.clone(),
+            })
+        })
     }
 
     /// The slot's handle. The reason is sent at once when no place is saved yet.
@@ -240,6 +259,9 @@ impl Shared {
             c.choices_changed();
         }
         self.sync_slot();
+        if let Some(l) = self.location.get() {
+            l.changed();
+        }
         self.poke();
     }
 

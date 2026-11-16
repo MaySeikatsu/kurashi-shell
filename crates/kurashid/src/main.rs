@@ -249,6 +249,7 @@ async fn run() -> anyhow::Result<()> {
             system: kurashid::services::Bus::System.connect(),
         },
     );
+    kurashid::location::wire(&hub, config.as_ref());
     kurashid::wiring::nightlight(&hub, &mut actions, config.clone());
     kurashid::wiring::recorder(
         &hub,

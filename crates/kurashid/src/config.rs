@@ -1373,6 +1373,10 @@ pub struct ConfigStore {
     /// Options of the mods' choice sources (K28 (3)), by source name. A source a manifest declares
     /// is known here even while its mod is off (no options): its values are then inert, not unjudged.
     mod_sources: Mutex<BTreeMap<String, Vec<Offer>>>,
+    /// W92: the places the enabled mods offer (`location:<name>`), keyed `<mod>:<name>`.
+    place_feeds: Mutex<BTreeMap<String, kurashi_mod_api::Location>>,
+    /// The place in effect (`svc.location`): its followers hear a change of the setting or of a mod's offer.
+    place: tokio::sync::watch::Sender<Option<crate::location::Place>>,
     /// The (style, look) whose recipes are the `theme:` layer now (K42, K53).
     appearance: Mutex<(String, String)>,
 }
@@ -1608,6 +1612,8 @@ impl ConfigStore {
             started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
             mod_sources: Mutex::new(BTreeMap::new()),
+            place_feeds: Mutex::new(BTreeMap::new()),
+            place: tokio::sync::watch::channel(None).0,
             appearance: Mutex::new((String::new(), String::new())),
         });
         store.apply_couplings();
@@ -2064,6 +2070,7 @@ impl ConfigStore {
         self.apply_appearance();
         self.publish_settings();
         let _ = self.hub.set(DOC, self.document(), None);
+        self.sync_place();
         for l in self.listeners.lock().expect("listeners").iter() {
             l(self);
         }
@@ -2088,6 +2095,58 @@ impl ConfigStore {
     pub fn set_mod_sources(&self, sources: BTreeMap<String, Vec<Offer>>) {
         *self.mod_sources.lock().expect("mod sources") = sources;
         self.refresh_choices();
+    }
+
+    /// W92: the place in effect — set by hand, else the first an enabled mod offers ([`crate::location::resolve`]).
+    pub fn location(&self) -> Option<crate::location::Place> {
+        let on = self
+            .get("location.manual", None)
+            .is_some_and(|p| p.value == true);
+        let num = |key: &str| self.get(key, None).and_then(|p| p.value.as_f64());
+        let manual = match (on, num("location.latitude"), num("location.longitude")) {
+            (true, Some(lat), Some(lon)) => Some((lat, lon)),
+            _ => None,
+        };
+        crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"))
+    }
+
+    /// The place in effect, for a follower: a new value on every change of it.
+    pub fn location_feed(&self) -> tokio::sync::watch::Receiver<Option<crate::location::Place>> {
+        self.sync_place();
+        self.place.subscribe()
+    }
+
+    /// A mod's offer for `svc.location` (`<mod>:<name>`); `None` takes it back.
+    pub fn set_place_feed(&self, key: &str, place: Option<kurashi_mod_api::Location>) {
+        {
+            let mut feeds = self.place_feeds.lock().expect("place feeds");
+            match place {
+                Some(p) => feeds.insert(key.to_string(), p),
+                None => feeds.remove(key),
+            };
+        }
+        self.sync_place();
+    }
+
+    /// Every offer of mod `id` goes (it was switched off).
+    pub fn drop_place_feeds(&self, id: &str) {
+        let prefix = format!("{id}:");
+        self.place_feeds
+            .lock()
+            .expect("place feeds")
+            .retain(|k, _| !k.starts_with(&prefix));
+        self.sync_place();
+    }
+
+    fn sync_place(&self) {
+        let now = self.location();
+        self.place.send_if_modified(|p| {
+            let changed = *p != now;
+            if changed {
+                *p = now;
+            }
+            changed
+        });
     }
 
     /// One mod choice source's options changed (`ChoicesHandle::changed`, K28 (3)).
