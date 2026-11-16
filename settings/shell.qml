@@ -230,6 +230,11 @@ ShellRoot {
         // "@modnew" = the Mod Editor (W94), reached from the Mods page and listed under it.
         property string page: ""
         property string query: ""
+        // I597: what the search field holds. The query follows it once the typing pauses, so a key press never waits for
+        // the results to be made; anything else that sets the query (a jump, a link, the test) sets both at once.
+        property string typed: ""
+        function applyTyped(): void { typeTimer.stop(); if (win.query !== win.typed) win.query = win.typed }
+        Timer { id: typeTimer; interval: 90; onTriggered: win.applyTyped() }
         property bool advanced: false
         property string output: ""
         readonly property var pages: Store.schema.pages || []
@@ -272,6 +277,7 @@ ShellRoot {
             settingsPages.reveal(row.key, byKeyboard)
         }
         function jumpFirst(): void {
+            win.applyTyped()
             if (!win.searching) return
             const h = settingsPages.firstHit()
             if (h) win.jump(h.pageId, h.row, true)
@@ -306,6 +312,7 @@ ShellRoot {
         property bool navOpen: false
         onPageChanged: { Changes.putBack(); navOpen = false }
         onQueryChanged: {
+            if (!typeTimer.running && typed !== query) typed = query
             if (query !== "") Changes.putBack()
             else search.clear()
         }
@@ -344,6 +351,8 @@ ShellRoot {
             target: "settings"
             function goto(id: string): void { win.page = id; win.query = "" }
             function find(q: string): void { win.query = q }
+            // I597: how many hits a search shows and how many it found ("30/214").
+            function searchCount(): string { return Object.keys(settingsPages.shownHits).length + "/" + settingsPages.hitCount }
             function set(key: string, json: string): void {
                 Store.setValue(key, JSON.parse(json), win.output)
             }
@@ -629,12 +638,13 @@ ShellRoot {
                         anchors.verticalCenter: parent.verticalCenter
                         width: win.compact ? Math.max(120, headRow.width - pagesButton.width - Theme.gap) : 260
                         label: I18n.tr("settings.ui.search")
-                        value: win.query
+                        value: win.typed
                         placeholder: I18n.tr("settings.ui.search")
-                        onTyping: t => win.query = t
+                        // An emptied field ends the search at once; text waits for the pause (I597).
+                        onTyping: t => { win.typed = t; if (t.trim() === "") win.applyTyped(); else typeTimer.restart() }
                         onSubmitted: win.jumpFirst()
-                        escapeTaken: win.query !== ""
-                        onEscaped: { win.query = ""; keys.forceActiveFocus() }
+                        escapeTaken: win.query !== "" || win.typed !== ""
+                        onEscaped: { win.typed = ""; win.applyTyped(); search.clear(); keys.forceActiveFocus() }
                     }
                 }
                     // Undo, Redo, Advanced and the notice: after the search, or on a second row under it when narrow.

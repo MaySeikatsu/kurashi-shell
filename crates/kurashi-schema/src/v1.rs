@@ -2692,6 +2692,10 @@ pub struct Location {
     /// Degrees east of Greenwich; west is negative.
     #[kurashi(default = 0.0, range = -180.0..=180.0, step = 0.01, unit = "°", requires = "location.manual == true")]
     pub longitude: f64,
+    /// Name of the place
+    /// What to call it, for example your town. Shown where the shell names the place in effect.
+    #[kurashi(default = String::new(), requires = "location.manual == true")]
+    pub name: String,
 }
 
 // --- screen recorder (K47) -------------------------------------------------------------------

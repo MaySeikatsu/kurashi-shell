@@ -1,6 +1,12 @@
 # Backlog, sorted into batches
 
+<<<<<<< HEAD
 Every open row of `docs/BACKLOG.md` (467 on 2026-11-16), each in exactly one batch: rows that share files, a
+||||||| 05c9da09
+Every open row of `docs/BACKLOG.md` (469 on 2026-11-16), each in exactly one batch: rows that share files, a
+=======
+Every open row of `docs/BACKLOG.md` (464 on 2026-11-16), each in exactly one batch: rows that share files, a
+>>>>>>> feat/s36-polish
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -12,8 +18,16 @@ batch or in two: give a new row its batch there, then run it again.
 | Section | Batch | Done | Size |
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
+<<<<<<< HEAD
 | 1 | Web dock in the bar | 1 of 9 | S–M |
 | 1 | Settings, fixes | 0 of 9 | S–M |
+||||||| 05c9da09
+| 1 | Web dock in the bar | 0 of 9 | S–M |
+| 1 | Settings, fixes | 0 of 9 | S–M |
+=======
+| 1 | Web dock in the bar | 0 of 9 | S–M |
+| 1 | Settings, fixes | 5 of 9 | S–M |
+>>>>>>> feat/s36-polish
 | 1 | Mods page and Mod Editor | 0 of 7 | S–M |
 | 1 | Quick settings, small | 7 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
@@ -102,12 +116,12 @@ Shares: the Settings app's own code (search, reconnect, the sheet host, `Label`)
 
 | Row | | What |
 |---|---|---|
-| I597 | U | Settings' search is slow and stutters, the typing above all; and it jumps to one matching entry instead of showing and … |
-| I334 | U | The Settings window does not reconnect when kurashid restarts: it keeps "Daemon not reachable: showing the last known … |
-| I361 |  | `SettingsPages.qml:300` TypeError "Property 'flash' of FormPicker is not a function" when a search/keyboard jump lands … |
+| I597 | U | **done** — Settings' search is slow and stutters, the typing above all; and it jumps to one matching entry instead of showing and … |
+| I334 | U | **done** — The Settings window does not reconnect when kurashid restarts: it keeps "Daemon not reachable: showing the last known … |
+| I361 |  | **done** — `SettingsPages.qml:300` TypeError "Property 'flash' of FormPicker is not a function" when a search/keyboard jump lands … |
 | I352 |  | Settings' sheet host: the sidebar's Mods and Profiles entries spill below the sheet (the shared host, not the Motion … |
-| I351 |  | Under reduce motion (or a profile that does not move) every motion row is inert, so a motion setting the user changed … |
-| I601 |  | Settings › Power › Location, the rest: the section shows the switch and two sliders, not the place in effect — add a … |
+| I351 |  | **done** — Under reduce motion (or a profile that does not move) every motion row is inert, so a motion setting the user changed … |
+| I601 |  | **done** — Settings › Power › Location, the rest: the section shows the switch and two sliders, not the place in effect — add a … |
 | I589 |  | 65 `Text` blocks in `settings/components` are not on `Label`: 27 lack the hinting line (`ColorPicker`, … |
 | I81 |  | Records editor follow-ups: Alt+Up/Down, Delete, Up/Down between rows and Enter-to-edit are wired but unverified (an … |
 | B59 |  | Settings run from the worktree (`kurashi-settings-s26`) averaged 5.4 % CPU over almost 3 hours while it should idle. … |

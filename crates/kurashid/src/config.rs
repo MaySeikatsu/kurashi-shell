@@ -2179,7 +2179,16 @@ impl ConfigStore {
             (true, Some(lat), Some(lon)) => Some((lat, lon)),
             _ => None,
         };
-        crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"))
+        let mut place =
+            crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"));
+        // I601: a place set by hand carries the name the user gave it.
+        if let Some(p) = place.as_mut().filter(|p| p.source == "config") {
+            p.name = self
+                .get("location.name", None)
+                .and_then(|v| v.value.as_str().map(|s| s.trim().to_owned()))
+                .unwrap_or_default();
+        }
+        place
     }
 
     /// The place in effect, for a follower: a new value on every change of it.

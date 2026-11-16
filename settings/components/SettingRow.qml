@@ -95,7 +95,9 @@ Item {
     readonly property bool dropdown: !cards && row.control === "select" && !!(row.choices_from || (row.choices ?? []).length > 4)
     readonly property bool switchChoice: row.control === "select" && !dropdown && (row.choices ?? []).length === 2
     readonly property string error: Store.rowErrors[row.key] || ""
-    readonly property bool userSet: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
+    // I351: a value the user set can be reset while its row is inert too (reduce motion makes every motion row inert;
+    // the override is the user's whether it is in effect or not). A forced row's source is not the user's: no Reset there.
+    readonly property bool userSet: prov !== undefined && prov.source && prov.source.kind === "user"
     // I505 (session 30, the user: no Reset where the option already is what it would reset to). What a reset gives is
     // the layer under the user's (profile, style or default: cfg.why's layers, lowest first), not the schema's default.
     // Asked only for rows the user set (the cache is cleared on every config change); until the answer is there, Reset
