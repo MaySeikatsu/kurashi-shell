@@ -32,7 +32,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### Launcher
 
-- [idea] a `>` command that needs words shows nothing until they are typed: a hint row that keeps the launcher open → I572
+- [x] [idea] a `>` command that needs words shows nothing until they are typed: a hint row that keeps the launcher open — done S36 (I572, K162)
 - [x] [bug] `test-launcher` expects a Settings page `bar`; the schema's is `layout` — fixed S35 (W96: the suite asks for `layout`; in the merge set)
 
 ### Quick settings
@@ -99,7 +99,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### tasks
 
-- [idea] `> note <text>` appends to the notes (today only `> task <text>`; `tasks.notes.set` replaces the whole note)
+- [x] [idea] `> note <text>` appends to the notes — done S36 (`tasks.notes.add`, K162)
 
 ### terminal
 

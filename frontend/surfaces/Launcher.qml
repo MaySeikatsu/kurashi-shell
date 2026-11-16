@@ -1299,7 +1299,8 @@ PanelWindow {
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
                             text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
-                                : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open")))
+                                : (row.kind === "fill" ? "launcher.continue"
+                                : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open"))))
                         }
                     }
                     Loader {

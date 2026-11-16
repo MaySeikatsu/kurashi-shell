@@ -1278,6 +1278,41 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 Ok(None)
             }
         });
+    // K162: `launcher.open {query}` opens the launcher with `query` in its field (a mode's prefix such as `;` for the
+    // clipboard, or any text), so a key can open a mode; called again with the same query while it shows, it closes
+    // (as `launcher.keys` does for `?`). Without a query it opens the plain launcher.
+    let h = daemon.hub.clone();
+    daemon.actions.register(
+        "launcher.open",
+        "action.launcher.open",
+        move |args: Value| {
+            let hub = h.clone();
+            async move {
+                let query = match args.get("query") {
+                    None | Some(Value::Null) => String::new(),
+                    Some(Value::String(q)) => q.clone(),
+                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                };
+                hub.update("runtime.ui", None, |d| {
+                    let showing = d["launcher"].as_bool() == Some(true)
+                        && d["launcher_query"].as_str().unwrap_or("") == query;
+                    d["launcher"] = json!(!showing);
+                    if let Some(o) = d.as_object_mut() {
+                        o.remove("launcher_query");
+                    }
+                    if !showing {
+                        if !query.is_empty() {
+                            d["launcher_query"] = json!(query);
+                        }
+                        clear_sidebar(d);
+                        close_panel(d);
+                    }
+                })
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        },
+    );
     let run_actions = daemon.actions.clone();
     daemon.actions.register(
         "launcher.launch",
@@ -1687,10 +1722,14 @@ fn off_prefixes(
             let configured = store
                 .and_then(|s| s.get(&format!("mods.{}.{key}", e.id), None))
                 .and_then(|p| p.value.as_str().map(str::to_owned));
-            let default = m.settings.iter().find(|s| &s.key == key).and_then(|s| match &s.default {
-                SettingValue::Str(t) => Some(t.clone()),
-                _ => None,
-            });
+            let default =
+                m.settings
+                    .iter()
+                    .find(|s| &s.key == key)
+                    .and_then(|s| match &s.default {
+                        SettingValue::Str(t) => Some(t.clone()),
+                        _ => None,
+                    });
             if let Some(prefix) = configured.or(default).filter(|p| !p.trim().is_empty()) {
                 out.push(crate::launcher_mods::OffPrefix {
                     mod_id: e.id.clone(),

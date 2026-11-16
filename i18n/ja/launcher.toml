@@ -8,6 +8,7 @@
 "launcher.clip.unavailable" = "クリップボード履歴には cliphist が必要です（wl-paste --watch cliphist store）"
 "launcher.clip.empty" = "クリップボード履歴は空です"
 "launcher.run" = "実行"
+"launcher.continue" = "続ける"
 "launcher.search" = "検索"
 "launcher.web" = "「{q}」をウェブで検索"
 
@@ -132,6 +133,7 @@
 "action.launcher.toggle" = "ランチャー"
 "action.launcher.launch" = "ランチャーの結果を開く"
 "action.launcher.keys" = "キーボードショートカット"
+"action.launcher.open" = "文字を入れてランチャーを開く"
 "action.launcher.clip.thumb" = "クリップボードのプレビュー"
 "action.launcher.clip.delete" = "クリップボードの項目を削除"
 "action.launcher.clip.pin" = "クリップボードの項目をピン留め／解除"
