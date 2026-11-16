@@ -91,9 +91,7 @@ Singleton {
     }
 
     function send(m) {
-        if (!sock.connected) return false
-        sock.write(JSON.stringify(m) + "\n")
-        sock.flush()
+        if (!link.write(JSON.stringify(m))) return false
         return true
     }
     // Request with a reply callback (applied / rejected / done / err / preview / cfg.why).
@@ -667,7 +665,7 @@ Singleton {
             cb(m)
         }
         if (m.t === "welcome") {
-            retry.interval = 250
+            link.settled()
             connected = true
             for (var i = 0; i < subs.length; i++) send({ t: "sub", id: "s" + i, doc: subs[i] })
             for (var w in wanted) send({ t: "sub", id: "w:" + w, doc: w })
@@ -690,38 +688,20 @@ Singleton {
         }
     }
 
-    Socket {
-        id: sock
+    // I334: the socket and its retry are the shell's (`Link`): Settings stayed "not reachable" after a daemon restart
+    // until it was reopened, because it toggled one Socket.
+    Link {
+        id: link
         path: root.socketPath
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: data => root.handle(data)
-        }
-        onConnectedChanged: {
-            if (connected) {
-                root.send({ t: "hello", v: 1, client: "settings", caps: ["resync"] })
-            } else {
-                // Keep last state, marked stale; revisions restart with the next session.
-                root.connected = false
-                root.live = false
-                root.revs = ({})
-                root.pending = ({})
-                retry.start()
-            }
-        }
-        onError: retry.start()
-    }
-
-    // Runs only while disconnected (Ma): 250 ms doubling to 4 s.
-    Timer {
-        id: retry
-        interval: 250
-        repeat: false
-        onTriggered: {
-            interval = Math.min(interval * 2, 4000)
-            sock.connected = true
+        welcomed: root.connected
+        onLine: data => root.handle(data)
+        onUp: root.send({ t: "hello", v: 1, client: "settings", caps: ["resync"] })
+        onDown: {
+            // Keep last state, marked stale; revisions restart with the next session.
+            root.connected = false
+            root.live = false
+            root.revs = ({})
+            root.pending = ({})
         }
     }
-
-    Component.onCompleted: sock.connected = true
 }

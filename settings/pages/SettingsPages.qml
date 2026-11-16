@@ -203,10 +203,46 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
-    function matches(row, q) {
-        if (q === "") return true
-        var hay = (row.key + " " + I18n.tr(row.label) + " " + (row.help ? I18n.tr(row.help) : "")).toLowerCase()
-        return hay.indexOf(q) >= 0
+    // I597: what a search looks through, made once per schema and language (not per key press): each row's name (its
+    // label and key) and its help, lower-cased.
+    readonly property var index: {
+        var tr = I18n.strings   // re-evaluate when strings arrive
+        var out = []
+        p.structure.forEach(function (pg) { pg.sections.forEach(function (sc) { sc.rows.forEach(function (r) {
+            out.push({ key: r.key, name: (I18n.tr(r.label) + " " + r.key).toLowerCase(),
+                       help: r.help ? I18n.tr(r.help).toLowerCase() : "" })
+        }) }) })
+        return out
+    }
+    // The hits of the query in the schema's order, and which of them a search shows: every row as a full control would
+    // be made again at each key press (a short query matches hundreds), so the list holds the best `searchCap` — the rows
+    // whose name has the query before those whose help only mentions it — and says how many there are.
+    readonly property int searchCap: 30
+    readonly property var hits: {
+        var q = p.query.trim().toLowerCase()
+        if (q === "") return []
+        return p.index.filter(function (e) { return e.name.indexOf(q) >= 0 || e.help.indexOf(q) >= 0 })
+            .map(function (e) { return { key: e.key, named: e.name.indexOf(q) >= 0 } })
+    }
+    readonly property int hitCount: hits.length
+    readonly property var shownHits: {
+        var h = p.hits, out = ({})
+        var best = h.length <= p.searchCap ? h
+            : h.filter(function (x) { return x.named }).concat(h.filter(function (x) { return !x.named })).slice(0, p.searchCap)
+        best.forEach(function (x) { out[x.key] = true })
+        return out
+    }
+    // A hit's crumb with the query marked (styled text; the crumb is escaped first).
+    function marked(text) {
+        var esc = function (t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") }
+        var q = p.query.trim().toLowerCase()
+        if (q === "") return esc(text)
+        var low = text.toLowerCase(), out = "", at = 0
+        for (var i = low.indexOf(q); i >= 0; i = low.indexOf(q, at)) {
+            out += esc(text.slice(at, i)) + "<b>" + esc(text.slice(i, i + q.length)) + "</b>"
+            at = i + q.length
+        }
+        return out + esc(text.slice(at))
     }
     // pages -> sections -> rows after page / search / advanced filtering; empty groups dropped.
     // Rows are {row, pageId, crumb}: the crumb is what a search hit shows above its row. On a page (not a search), the
@@ -230,8 +266,9 @@ Flickable {
                 : q === "" && pages[i].id === "motion" ? p.motionSections(pages[i].sections) : pages[i].sections
             for (var j = 0; j < sections.length; j++) {
                 var s = sections[j]
+                var shown = p.shownHits
                 var rows = s.rows.filter(function (r) {
-                    return (p.showAdvanced || !r.advanced || q !== "") && matches(r, q)
+                    return q === "" ? (p.showAdvanced || !r.advanced) : shown[r.key] === true
                 })
                 if (q === "") {
                     rows.filter(function (r) { return Store.isPackRow(r) }).forEach(function (r) {
@@ -324,8 +361,10 @@ Flickable {
         Qt.callLater(function () {
             var hit = p.placeRow(key)
             if (!hit) return
-            hit.flash()
-            if (focusIt) hit.focusControl()
+            // I361: a row that is drawn by a table of its own (the forms table's pickers) carries the key and is not a
+            // SettingRow: it is brought into view and takes the focus, without the flash.
+            if (hit.flash) hit.flash()
+            if (focusIt) { if (hit.focusControl) hit.focusControl(); else hit.forceActiveFocus() }
             p.pinKey = key
         })
     }
@@ -724,6 +763,15 @@ Flickable {
                 : p.searching ? I18n.fmt("settings.ui.no_match_scope", { query: p.query.trim(), count: p.scopeCount })
                 : I18n.tr(p.modId !== "" ? "settings.mods.no_settings" : "settings.ui.no_results")
         }
+        // I597: a search that found more than it shows says so, before the hits.
+        Label {
+            objectName: "search-more"
+            visible: p.searching && p.hitCount > p.searchCap
+            width: col.width
+            wrapMode: Text.WordWrap
+            dim: true
+            text: I18n.fmt("settings.ui.search_more", { shown: p.searchCap, count: p.hitCount })
+        }
         Repeater {
             model: p.view
             delegate: Column {
@@ -837,7 +885,8 @@ Flickable {
                                         elide: Text.ElideRight
                                         font.pixelSize: Theme.fs - 2
                                         font.underline: hover.hovered || crumb.activeFocus
-                                        text: modelData.crumb
+                                        textFormat: Text.StyledText
+                                        text: p.marked(modelData.crumb)
                                     }
                                     HoverHandler { id: hover }
                                     MouseArea {
