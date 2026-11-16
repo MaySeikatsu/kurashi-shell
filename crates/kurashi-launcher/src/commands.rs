@@ -98,9 +98,11 @@ pub fn declared_row(
                 return None;
             }
             let Some(args) = args_for("") else {
-                return Some(json!({"id": format!("fill:{}", c.id), "fill": format!("> {} ", c.command),
+                return Some(
+                    json!({"id": format!("fill:{}", c.id), "fill": format!("> {} ", c.command),
                         "name": c.name, "generic": c.hint, "icon": c.icon.unwrap_or("bolt"),
-                        "kind": "fill", "score": 1.0}));
+                        "kind": "fill", "score": 1.0}),
+                );
             };
             (args, c.name.clone())
         }
@@ -237,7 +239,11 @@ mod tests {
         let text = |w: &str| (!w.is_empty()).then(|| json!({"text": w}));
         for q in ["task", "add ta", ""] {
             let row = declared_row(q, &task, &text).unwrap();
-            assert_eq!((row["kind"].as_str(), row["fill"].as_str()), (Some("fill"), Some("> task ")), "{q}");
+            assert_eq!(
+                (row["kind"].as_str(), row["fill"].as_str()),
+                (Some("fill"), Some("> task ")),
+                "{q}"
+            );
             assert_eq!(row["generic"], "Type what it needs, then Enter");
         }
         assert_eq!(

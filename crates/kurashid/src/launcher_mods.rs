@@ -277,12 +277,17 @@ mod tests {
             k => k.to_string(),
         };
         let mut extra = Vec::new();
-        let rows = l.query("! htop", &tr, &mut extra).expect("the off prefix answers");
+        let rows = l
+            .query("! htop", &tr, &mut extra)
+            .expect("the off prefix answers");
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["id"], OFF_ROW);
         assert_eq!(rows[0]["name"], "Terminal is switched off");
         assert_eq!(rows[0]["icon"], "terminal");
-        assert!(l.query("htop", &tr, &mut extra).is_none(), "other queries are the apps'");
+        assert!(
+            l.query("htop", &tr, &mut extra).is_none(),
+            "other queries are the apps'"
+        );
         // The mod switched on: its provider answers.
         l.insert("terminal", "run", spec(Some("!"), "terminal"));
         let rows = l.query("! htop", &tr, &mut extra).unwrap();

@@ -1263,11 +1263,16 @@ mod tests {
     #[test]
     fn a_string_setting_may_hold_a_launcher_providers_prefix() {
         let setting = |ty: &str, default: &str, name: &str| {
-            format!("[[setting]]\nkey = \"run_prefix\"\ntype = \"{ty}\"\ndefault = {default}\nlauncher = \"{name}\"\n")
+            format!(
+                "[[setting]]\nkey = \"run_prefix\"\ntype = \"{ty}\"\ndefault = {default}\nlauncher = \"{name}\"\n"
+            )
         };
         let t = text(r#""launcher:run""#, &setting("string", "\"!\"", "run"));
         let m = parse("demo", &t, &Version::new(0, 1, 0)).unwrap();
-        assert_eq!(m.launcher_prefixes.get("run").map(String::as_str), Some("run_prefix"));
+        assert_eq!(
+            m.launcher_prefixes.get("run").map(String::as_str),
+            Some("run_prefix")
+        );
         // Only a string, only a provider the mod has, only once.
         assert_eq!(
             codes(&text(r#""launcher:run""#, &setting("bool", "true", "run"))),
@@ -1282,7 +1287,10 @@ mod tests {
             setting("string", "\"!\"", "run"),
             setting("string", "\"!\"", "run").replace("run_prefix", "other")
         );
-        assert_eq!(codes(&text(r#""launcher:run""#, &twice)), ["setting_launcher_duplicate"]);
+        assert_eq!(
+            codes(&text(r#""launcher:run""#, &twice)),
+            ["setting_launcher_duplicate"]
+        );
     }
 
     #[test]

@@ -1830,5 +1830,7 @@ draw the icon they carry (the sessions' state icons were sent and never drawn).
 **Rejected.** A list of prefixes in the core (names mods); asking every off mod's crate for its prefix (an off mod
 runs no code); launching the hint row as the command with an empty argument (an error instead of a hint).
 **Contract.** Manifest: `launcher` on a setting. IPC: row kind `fill` with `fill`; `settings.open` takes `mods`
-(PROTOCOL §5, §6). New action `tasks.notes.add {text}` (`> note <text>`): one line at the note's end.
+(PROTOCOL §5, §6). New actions: `tasks.notes.add {text}` (`> note <text>`): one line at the note's end;
+`launcher.open {query?}`: the launcher with `query` in its field (a key can open a mode: `;` the clipboard, `:` emoji,
+`>` commands), closing it when called again with the same query, as `launcher.keys` does for `?`.
 
