@@ -39,8 +39,10 @@ quick, expanded, Settings' components and pages).
   `theme.rs`, `Wash.qml`, `AppearanceMenu.qml`), row 6 (the sidebar's hold over the web dock's page).
 - **W94** the Mod Editor: the four messages (PROTOCOL §6, `spec.skips`, `rules`), the daemon's and the mock's side over
   `kurashi_mods::editor`, the page (Settings › Mods › New mod…, `> new mod`), `settings/test-mod-editor.sh` in the merge
-  set. Not done: the shell's icon picker in the page, "Open the folder" (no daemon action), a made mod placed in the bar
-  and its panel opened in a suite, the states other than fresh / id taken / passed / created on niri.
+  set; Mods › Check per mod with the same report (`settings/components/CheckReport.qml`). Not done: the shell's icon
+  picker in the page, "Open the folder" (the `mods` document carries no path, I605), the skip error names no variant
+  (I604), a made mod placed in the bar and its panel opened in a suite, the states other than fresh / id taken / skip
+  edited / passed / created on niri.
 - **W96**: `launcher`, `media`, the lyrics suite in the merge set; `test-modqml` green once; `test-mods-live` to its
   second phase (I603); the timer's, sysmon's, the calendar's, the terminal's, the web dock's suites and B154, B155, I584
   untouched (I594).
@@ -70,7 +72,10 @@ is red on rows that were red at 0.2.0 (B153).
 3. **W95.2, .4, .5** and the per-mod cards; then the check's notes become errors.
 4. **W96**: I603 (`test-mods-live` phase 2), I594's list.
 5. Only on the user's word: W94's leftovers, W98 steps 2–7 (after the user read the brief), I593.
-**Left on this machine.** See the PR's body: work trees and build dirs are removed where their branch is merged.
+**Left on this machine.** Nothing was removed (the removal was refused by a safety check; the user's to do): the work
+trees `.claude/worktrees/{s35-soak,s35-v020,s35-w93,s35-w97,s35-w98,s35-w92,s35-lead,s35-w94,agent-a9d677188cf796ebc}`,
+their merged branches, the build dirs `~/.cache/kurashi-agents-target/{s35-lead,s35-w92,s35-w93,s35-w94,s35-w98,W94page}`
+and stale `/tmp/kurashi-sb-bench-*`. The PR's body repeats this.
 
 ---
 
