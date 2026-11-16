@@ -2836,6 +2836,44 @@ sidebar_side!(
     SidebarMode::Pages
 );
 
+/// How much of its edge a top or bottom sidebar takes (K165).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum SheetSpan {
+    /// A part of the edge, centred
+    Part,
+    /// The whole edge
+    Full,
+}
+
+// K165 (docs/ux/edge-sidebars.md): a sidebar on the top or the bottom edge. Off until it has sections.
+macro_rules! sidebar_edge {
+    ($name:ident, $section:literal) => {
+        #[derive(Debug, Clone, PartialEq, KurashiSchema)]
+        #[kurashi(section = $section)]
+        pub struct $name {
+            /// Sections
+            /// What this sidebar holds, one page each with tabs above: the same sections the side ones offer, and the
+            /// mods' panels. Empty: there is no sidebar on this edge.
+            #[kurashi(default = strings(&[]), choices_from = "sidebar.sections")]
+            pub sections: Vec<String>,
+            /// Width
+            /// The whole edge, or a centred part of it (how much: "Share of the edge", under Advanced).
+            #[kurashi(default = SheetSpan::Part)]
+            pub span: SheetSpan,
+            /// Share of the edge
+            /// How wide a sidebar that takes a part of its edge is, as a share of the screen's width.
+            #[kurashi(default = 66, range = 30..=100, step = 1, unit = "%", advanced)]
+            pub length: u32,
+            /// Height
+            /// How far it reaches into the screen, as a share of the screen's height.
+            #[kurashi(default = 45, range = 20..=95, step = 5, unit = "%", advanced)]
+            pub height: u32,
+        }
+    };
+}
+sidebar_edge!(SidebarTop, "top_sidebar");
+sidebar_edge!(SidebarBottom, "bottom_sidebar");
+
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "sidebar", section = "sidebar")]
 pub struct Sidebar {
@@ -2843,6 +2881,10 @@ pub struct Sidebar {
     pub right: SidebarRight,
     #[kurashi(nested)]
     pub left: SidebarLeft,
+    #[kurashi(nested)]
+    pub top: SidebarTop,
+    #[kurashi(nested)]
+    pub bottom: SidebarBottom,
     /// Quick settings opens the right sidebar
     /// The bar's quick settings button opens the right sidebar instead of the quick settings card. The sidebars' own
     /// buttons stay; put them in the bar or take them out below.

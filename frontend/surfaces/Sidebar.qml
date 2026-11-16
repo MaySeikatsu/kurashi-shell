@@ -38,27 +38,13 @@ Scope {
     // One refcounted subscription while the shell runs (the bars and the frame hold it too): visibility decides whether a
     // column exists at all.
     Watch { doc: "runtime.layout" }
-    readonly property var ui: Store.docs["runtime.ui"] || ({})
-    readonly property bool toggled: ui.sidebar === side
-    readonly property string wantOutput: toggled && typeof ui.sidebar_output === "string" ? ui.sidebar_output : ""
-    // The output a toggle opened it on, latched while open (the daemon may name another while it is open: then that one).
-    property string toggledOn: ""
-    function screenNamed(n) {
-        var s = Quickshell.screens
-        for (var i = 0; i < s.length; i++) if (s[i].name === n) return s[i]
-        return null
-    }
-    function pickName() {
-        var s = wantOutput !== "" ? screenNamed(wantOutput) : null
-        if (s === null) s = focusedScreen || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
-        return s ? s.name : ""
-    }
-    onToggledChanged: {
-        if (traceLog) console.log("sb-trace " + Date.now() + " " + side + " toggled=" + toggled)
-        toggledOn = toggled ? pickName() : ""
-    }
-    onWantOutputChanged: if (toggled) toggledOn = pickName()
-    Component.onCompleted: if (toggled) toggledOn = pickName()
+    // Which output it is open on (OpenOn: shared with the top and bottom sidebars).
+    OpenOn { id: openOn; side: sb.side; focusedScreen: sb.focusedScreen }
+    readonly property var ui: openOn.ui
+    readonly property bool toggled: openOn.toggled
+    readonly property string toggledOn: openOn.toggledOn
+    function screenNamed(n) { return openOn.screenNamed(n) }
+    onToggledChanged: if (traceLog) console.log("sb-trace " + Date.now() + " " + side + " toggled=" + toggled)
 
     // The sidebar keys are global (`sidebar.<side>.*`).
     BarConfig { id: cfg; screen: null }

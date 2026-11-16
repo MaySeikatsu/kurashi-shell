@@ -4,6 +4,8 @@
 "action.sidebar.close" = "サイドバーを閉じる"
 "action.sidebar.right.toggle" = "右サイドバー"
 "action.sidebar.left.toggle" = "左サイドバー"
+"action.sidebar.top.toggle" = "上のサイドバー"
+"action.sidebar.bottom.toggle" = "下のサイドバー"
 "sidebar.bar.right" = "右サイドバーを開く"
 "sidebar.bar.left" = "左サイドバーを開く"
 "sidebar.open_now" = "今すぐ開く"
