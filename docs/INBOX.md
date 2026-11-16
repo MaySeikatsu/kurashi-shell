@@ -56,7 +56,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 - [ask] should a mod's row in the sidebar show its icon beside its state mark? → I573
 - [bug] settings section of sidebar is a mess and should be cleaned up/reiterated, since some options don't make sense as they are rn, mainly the quick settings opens the right sidebar and the other woggles of that section (keep a closed sidebar ready is fine imo) → I595
 - [idea] resort the menu properly to create a better overview in the menu. Make use of advanced settings to put advanced options in and hide it to not overwhelm users too much → I596
-- [bug] search settings is currently very slow and stuttery, the searching should be way more fluent, especially the writing (it also just jumps to one random matching queue instead of showing and highlighting all matching pairs) → I597
+- [x] [bug] search settings is slow and stuttery; it jumps to one match instead of showing all — done S36 (I597: 2.1 s → 0.2 s per key, the 30 best hits listed with the match marked)
 - [bug] Layout menu is a mess, options are partially doublicated and not visually clear. Needs a major overhaul with clear decisions and design questions being asked to the project owner → I598
 
 ### Theming: looks, styles, palettes, texture, motion, fonts
