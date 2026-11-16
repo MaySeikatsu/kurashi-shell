@@ -1,0 +1,7 @@
+# W90 (B147, K157): kurashid's allocator is jemalloc, configured when its C library is built (the workspace forbids
+# `unsafe`, so no `malloc_conf` symbol; an environment variable at run time would reach every app the launcher starts).
+# Two arenas, freed pages back to the system after a second, purged by jemalloc's own thread while the daemon sleeps:
+# glibc's per-thread arenas each kept the peak of a picture decode (11 arenas of 50–60 MiB after 42 h, 641 MiB).
+# `kurashid::alloc` checks at start that the build carried this; docs/BENCH.md "Soak" has the numbers.
+[env]
+JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:0,background_thread:true"

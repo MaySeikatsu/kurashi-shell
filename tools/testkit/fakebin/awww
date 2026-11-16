@@ -1,0 +1,17 @@
+#!/bin/sh
+# A stand-in for the wallpaper backend (awww) in sandboxes: logs its argv to $WP_LOG, answers `query` with two headless
+# outputs while $WP_STATE/daemon exists, never draws. Used by mods/wallpaper/test/real-shell.sh and tools/bench/soak.py.
+echo "awww $*" >> "$WP_LOG"
+case "$1" in
+  --version) echo "awww 0.12.1" ;;
+  query)
+    if [ -f "$WP_STATE/daemon" ]; then
+      printf '%s\n' '{"": [{"name": "HEADLESS-1", "width": 2560, "height": 1440, "scale": 1, "displaying": {"color": "000000"}}, {"name": "HEADLESS-2", "width": 2560, "height": 1440, "scale": 1, "displaying": {"color": "000000"}}]}'
+    else
+      echo "Failed to connect to the awww-daemon socket" >&2
+      exit 1
+    fi ;;
+  img) exit 0 ;;
+  kill) rm -f "$WP_STATE/daemon" ;;
+esac
+exit 0

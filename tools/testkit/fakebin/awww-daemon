@@ -1,0 +1,4 @@
+#!/bin/sh
+# The stand-in backend's daemon (see ./awww): marks itself running unless $WP_NODAEMON is set.
+echo "awww-daemon $*" >> "$WP_LOG"
+[ -n "${WP_NODAEMON:-}" ] || touch "$WP_STATE/daemon"

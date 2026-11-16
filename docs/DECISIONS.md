@@ -1713,3 +1713,32 @@ general". Measured in session 34: with `cargo` a bump recompiles the workspace's
 (BENCH "Build loop"); under `nix build` every PR's bump (K151) rebuilt all dependencies in release, because the version is
 an input of the dependency derivation and stands in both files it reads. The user chose normalising over moving the
 version out of `Cargo.toml` and over leaving it.
+
+## K157 — The daemon's allocator is jemalloc, configured at build time; caches have a bound (session 35, W90, B147)
+**What.** `kurashid` runs on jemalloc (`tikv-jemallocator`) with two arenas, freed pages back to the system after one
+second and jemalloc's own purging thread (`.cargo/config.toml`: `JEMALLOC_SYS_WITH_MALLOC_CONF =
+"narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:0,background_thread:true"`). `kurashid::alloc::check` warns at start when a
+build did not carry it, and a test holds `just check` to it. Every cache the daemon keeps has a size and an eviction
+(`kurashid::cache::keep_newest`; the tiles held in memory: four).
+**Why.** The user's 0.2.0 session after 42 h (read through `/proc`, session 35): `kurashid` 648 MiB PSS, of it 571 MiB in
+eleven glibc arena heaps of 50–60 MiB each, 57 MiB in the main heap; its documents were small (the largest 288 KB). glibc
+gives a thread an arena of its own, the blocking pool's threads come and go, and each arena kept the peak of the largest
+job that ever ran on it — a 4K wallpaper's decode is 33 MiB. `tools/bench/soak.py` reproduces it in two minutes (66 →
+260 MiB). Measured on the same three-minute soak, the daemon's PSS:
+
+| allocator | start → end |
+|---|---|
+| glibc (0.3.0) | 66 → 260, climbing |
+| glibc, `MALLOC_ARENA_MAX=2` | 56 → 92–134 |
+| glibc, `MALLOC_ARENA_MAX=2` and `MALLOC_MMAP_THRESHOLD_=1048576` | 50 → 55–60 |
+| mimalloc 0.1.52 | 101 → 120–135 |
+| jemalloc, its defaults (four arenas per CPU, ten seconds) | 159 → 140–180 |
+| jemalloc, two arenas, one second, background purging | 60 → 59–66 |
+
+**Not chosen.** glibc's tunables did as well, but they are environment variables: the daemon would have to start itself
+again with them, and the 51 places that start a child process (the launcher's apps among them) would hand them on —
+`std::env::remove_var` is `unsafe` in this edition and the workspace forbids `unsafe` (the same reason there is no
+`malloc_conf` symbol). mimalloc doubles the daemon at rest. A wrapper script or the unit's `Environment=` would leave
+`just dev`, the suites and any binary started by hand without it.
+**Cost.** One C library in the dependency build (cached by Nix with the other dependencies); about 8 MiB more at rest
+than tuned glibc. Quickshell already links jemalloc and `frontend/launch.sh` holds it to two arenas the same way (W42).

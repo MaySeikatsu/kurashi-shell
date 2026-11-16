@@ -44,6 +44,8 @@ let
     fileset = fs.unions [
       ../Cargo.toml
       ../Cargo.lock
+      # W90 (K157): jemalloc's configuration is read when its C library is built.
+      ../.cargo/config.toml
       ../crates
       ../fixtures
       ../looks
@@ -61,6 +63,7 @@ let
     fileset = fs.difference (fs.unions [
       ../Cargo.toml
       ../Cargo.lock
+      ../.cargo/config.toml
       ../crates
       ../fixtures
       ../i18n

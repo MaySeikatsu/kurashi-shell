@@ -27,6 +27,8 @@ baseline.
 | Popup input → first frame | ≤ 1 frame after map |
 | PSS growth over 20 panel open/close cycles (island, notification center, launcher; after 20 warm-up rounds) | ≤ 2 MiB |
 | Mapped surfaces per output at idle | ≤ 4 |
+| Soak growth per hour, daemon (`just soak`, after 10 min of warm-up; W90) | ≤ 1 MiB |
+| Soak growth per hour, frontend (`just soak`, after 10 min of warm-up; W90) | ≤ 2 MiB |
 
 ## Baseline — shellseikatsu (2026-10-08, Quickshell 0.3.1, Qt 6.11.2, niri, 1 output)
 | Metric | Value |
@@ -36,6 +38,56 @@ baseline.
 | Anonymous | 173 MB (QML JS heap 34 MB) |
 | Avg CPU (1 h) | 3.5 % |
 | Idle frames (after 2026-10-08 fixes, headless) | ~0.8 fps |
+
+## Soak (W90, session 35; `just soak [minutes]`, `tools/bench/soak.py`; machine A, headless sway, gles2, one output)
+The budgets above are read seconds after a start; this is what an hour of use holds. One round, five seconds at least: the
+launcher, quick settings, the notification centre, the island's card and a mod's panel opened and closed, the next island
+face, a workspace switch, a notification; every third round the player's next cover, every fifth the wallpaper's next (a
+4K picture), every seventh another material, every tenth Settings' swatches watched. PSS of each process every minute;
+growth = least squares over the samples after ten minutes. `--only` / `--skip` leave steps out.
+
+**What the user's 0.2.0 session held after 42 h** (two outputs, read through `/proc`, 2026-11-15): `kurashid` 648 MiB
+(571 in eleven glibc arenas of 50–60 MiB, 57 in the main heap, the binary 19; its documents: `i18n` 288 KB, every other
+under 72 KB), the frontend 602 MiB (anonymous 372, the GPU driver's mappings 168, the JS heap 31; its peak 1 134 MiB
+resident), Settings (open for 44 minutes) 532, the web dock's host 437, the terminal's 72; on disk `~/.cache/kurashi/
+texture/swatch` 352 534 files, 8.6 GB.
+
+**Causes, each found by a short soak and held by a test or the soak's budget rows.**
+
+| process | cause | before | after |
+|---|---|---|---|
+| daemon | glibc's per-thread arenas kept the peak of every picture decode (K157) | 66 → 260 MiB in two minutes, climbing | 59–72, flat over twelve minutes (jemalloc: two arenas, one second) |
+| daemon | the map of texture tiles had no bound (5 MiB a tile) | every material tried stayed | four held (`texture::tests::the_tiles_held_in_memory_and_on_disk_have_a_bound`) |
+| disk | the swatches' names carry the light and the colours; nothing removed them | 352 534 files, 8.6 GB | two sets (34 files); 48 tiles; 24 bakes (`cache::keep_newest`) |
+| frontend | the closed notification centre kept a card for every notification in the history and made all again at each arrival | 268 → 406 MiB over 105 notifications (1.3 MiB each, 270 MiB with the history full) | 225–230, flat |
+
+Allocators tried on the daemon, the same three-minute soak: DECISIONS K157. 0.2.0 on the same soak: frontend 206 → 349
+MiB and daemon 67 → 236 in five minutes, so both predate 0.3.0.
+
+**`just soak 60`, 2026-11-16, W90's head (`2aa00e79`), release binaries, 646 rounds.** The machine was quiet for the
+first 35 minutes (load 0.6–0.9); after that the lead's builds and short soaks ran beside it, and the kernel took pages
+back from both processes (the dips below) — so the figures after minute 35 are labelled, not a baseline.
+
+| minute | 0 | 6 | 12 | 18 | 24 | 30 | 36 | 42 | 48 | 54 | 60 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| daemon, MiB | 57 | 67 | 105 (a job in flight) | 69 | 70 | 63 | 53 | 45 | 45 | 46 | 58 |
+| frontend, MiB | 211 | 293 | 343 | 364 | 392 | 427 | 445 | 435 | 453 | 484 | 514 |
+
+- **Daemon: within its budget.** 63–70 MiB from minute 6 to minute 30, no trend (the least-squares figure over the whole
+  hour is negative because of the dips); on 0.3.0 it passed 260 in two minutes.
+- **Frontend: not within its budget** — about 200 MiB an hour (5 MiB a minute), linear. What it is not: the stack at
+  rest is flat, and so are workspace switches, wallpaper and cover changes, material changes and (since the centre's
+  fix) notifications alone. What it is: opening and closing the island's card and quick settings and turning the
+  island's face, about 8–10 MiB a minute for the three together at any cadence (one round a second or one in five),
+  the same with motion off (`--set theme.motion.profile=none`) and with the material off — so not frames of an
+  animation and not tile sheets. With the engine collecting aggressively (`QV4_MM_AGGRESSIVE_GC=1`) the frontend stands
+  90 MiB lower and still grows two thirds as fast: part of what stands is garbage awaiting a collection, the rest is
+  kept. A collection asked for three seconds after the last surface closed did not change the growth. heaptrack on
+  Quickshell recorded nothing (its wrapper and its own allocator). The windows that grow are the ones that unmap when
+  they close (the Stage, the notification centre); the launcher, whose window stays, is flat. With Qt's software
+  renderer (`QT_QUICK_BACKEND=software`) the same loop grows about half as fast and noisily, so the GPU path is part
+  of it and not all. The row: B156.
+- On disk after the hour: 173 MiB in 111 files (eight 4K wallpapers' bakes and tiles); it was unbounded before.
 
 ## Results
 

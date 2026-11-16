@@ -2,8 +2,10 @@
 //! socket; everything testable lives here.
 
 pub mod actions;
+pub mod alloc;
 pub mod bindings;
 pub mod browsers;
+pub mod cache;
 pub mod capabilities;
 pub mod clock;
 pub mod config;
