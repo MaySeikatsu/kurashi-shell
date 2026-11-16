@@ -17,7 +17,9 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
     match m.ty {
         Ty::Bool => "toggle",
         // I601: a range of more steps than a slider can be set to by hand (a latitude in hundredths: 18 000) is typed.
-        Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() && steps(c) <= SLIDER_STEPS => "slider",
+        Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() && steps(c) <= SLIDER_STEPS => {
+            "slider"
+        }
         Ty::Int | Ty::Float => "number",
         Ty::Choice => "select",
         // K64: every `keys.*` string is a shortcut, recorded by keys (`keys.write` is a bool). A stand-in until the derive

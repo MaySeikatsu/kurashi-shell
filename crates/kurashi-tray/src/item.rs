@@ -234,8 +234,14 @@ mod tests {
         let icon = best_icon(&[(8, 8, argb)]).expect("an icon");
         assert_eq!((icon.w, icon.h), (4, 2));
         // A picture that fills its box, and an empty one, keep their size.
-        assert_eq!(best_icon(&[(2, 2, vec![255; 16])]).map(|i| (i.w, i.h)), Some((2, 2)));
-        assert_eq!(best_icon(&[(2, 2, vec![0; 16])]).map(|i| (i.w, i.h)), Some((2, 2)));
+        assert_eq!(
+            best_icon(&[(2, 2, vec![255; 16])]).map(|i| (i.w, i.h)),
+            Some((2, 2))
+        );
+        assert_eq!(
+            best_icon(&[(2, 2, vec![0; 16])]).map(|i| (i.w, i.h)),
+            Some((2, 2))
+        );
     }
 
     #[test]

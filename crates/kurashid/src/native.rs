@@ -744,9 +744,17 @@ impl Native {
                     None => continue,
                 },
                 None => {
+                    // I592: a mod of views alone is held to its required uses too — it stays switched on and says
+                    // what it waits for (K158), where it used to say nothing; the next sync looks again.
+                    let missing = manifest.and_then(|m| self.missing_use(&m.contract));
                     if manifest.is_some_and(needs_daemon_code) {
                         self.refused.insert(id.clone(), ModError::NotBuilt);
                         let _ = reg.disable(&id);
+                    } else if let Some(missing) = missing {
+                        self.refused
+                            .insert(id.clone(), ModError::MissingUse(missing));
+                    } else {
+                        self.refused.remove(&id);
                     }
                     continue;
                 }
