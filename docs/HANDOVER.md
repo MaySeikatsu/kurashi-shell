@@ -17,82 +17,60 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-11-16 — session 35 (machine A): the integration branch — memory, mods that read and call, host programs; 0.4.0, PR open
-**State.** `main` = 0.3.0, tagged `v0.3.0` and pushed (the user: tag now, fix in 0.4.0). Everything else is on
-**`feat/s35-integration`** = 0.4.0, **one PR to `main`, not merged** (the user's rule for this session: the lead merges
-nothing into `main` and no PR; the user merges; then `git tag v0.4.0` on `main`, push the tag, K151). Gate: see "Verified".
-Each card was built on its own branch and merged `--no-ff` into the integration branch with its acceptance in the merge
-message. Work trees and build dirs left: see the end of this entry.
-**Merged into the integration branch.**
-1. **W89** the suites' kit (`tools/testkit/{ipc.py,px.py}`); sh clones 1999 → 1573.
-2. **W90** what grows in a day (K157, B147, B150–B152): `just soak` (`tools/bench/soak.py`, budgets "Soak growth per hour"
-   in BENCH), the daemon on jemalloc with two arenas and a one-second decay (`.cargo/config.toml`, `kurashid::alloc`),
-   bounded texture caches (`kurashid::cache::keep_newest`: four tiles in memory, 48 on disk, two sets of swatches), the
-   closed notification centre holds no card and its list is a list view, `just bench-gate` builds what it measures,
-   `just sweep` takes stale sandboxes. **Acceptance: the daemon met its budget (63–70 MiB flat; 0.3.0: 66 → 260 in two
-   minutes); the frontend did not** — the per-notification growth is gone, but opening and closing the island's card and
-   quick settings still adds about 200 MiB an hour (**B156**, narrowed, cause not found); the re-read of the user's
-   session a day after a rebuild is not done.
-3. **W91** mods read services and call each other from Rust (K158): `ModCtx::follow` / `calls`, a mod that waits for a
-   missing required use, lyrics follows `svc.media`, sessions calls the terminal itself, a host's scope from the
-   contract, `mod check` reads the crates' literals. Acceptance met (crates' tests; `mod-contract`, lyrics, sessions on
-   niri). Breaking: `lyrics.track`, `sessions.handed`, `sessions.undelivered`, `mod.sessions.handoff` are gone.
-4. **W93** a mod's own program (K155): `[[host]]`, the protocol's `pub` / `serve` / `call` with fixtures, the daemon's
-   `ProgramMod` and `native/served.rs`, `kurashi mod new --host python`, MODDING.md 7a, the sentence at the mod's switch,
-   `frontend/test-mod-host.sh` (nested niri, in the merge set). Acceptance met; from the design not built: I593.
-5. **W97** the Nix dependency derivation carries no version (K156): 657 s from nothing, 280 s after a bump, no dependency
-   compiled; the flake's `tests` check passes on it. Acceptance met.
-6. **W96, part**: `launcher`, `media` and the lyrics suite green three times and in the merge set; the runner's
-   `# needs:` lines. **Acceptance not met as a whole** (I594: `modqml` and `mods-live` still fail at the mod's panel
-   card; the timer's, sysmon's, the calendar's, the terminal's, the web dock's suites and B154, B155, I584 not looked at).
-7. **W95.1, .3, .6, .7** `Label` in `components/quick`, `components/expanded`, `settings/components`, `settings/pages` and
-   `settings/shell.qml` (one Haiku agent at a time, each reviewed: every converted block set its own size, colour and
-   family; suites and niri shots equal before and after). Open: W95.2, .4, .5 (they share files with W92) and the
-   per-mod cards; I589.
-**The session ended at its usage limit: no `just gate` ran on this head and no PR is open.** Next session: run
-`just gate` (and `just bench-gate`) here, then open the one PR to `main`.
-**Also merged, late:** W92 row 1 — `svc.location` (K159): a place set by hand (Settings › Power › Location) or offered by
-a mod (`location:<name>`); the weather mod offers its own. Tests green, seen on niri light and dark; I601 for the rest.
-**Not merged.**
-- **W92 row 2** `feat/s35-w92-core-names-no-mod` (pushed, last commit is marked wip): the desk's weather card as the
-  weather mod's `desk:weather` — schema v8, migration v7→v8, the card, the shared `DeskCard`. Not done: the test run
-  after the last golden fix, the mock, `frontend/test-desk.sh`, niri, docs, the changelog's Breaking line. Rows 3–7 open.
-- **W94, the page** `feat/s35-w94-page` (pushed; the agent was stopped at the limit before its report): commits on top
-  of `feat/s35-w94-mod-editor`; unreviewed, its suite and niri shots not confirmed by the lead.
-- **W94** `feat/s35-w94-mod-editor` (pushed): the four messages with fixtures and PROTOCOL §6, the daemon's side
-  (`query points`, `mod.check`, `mod.new`, `mod.rescan`) and the mock's, both over `kurashi_mods::editor`, tested; the
-  copy in en and ja. **The page itself is not built** (the prototype on the mock, the niri shots, the Mods page's rows,
-  `> new mod`, the suite).
-- **W98**: its UX brief only (`docs/ux/mod-catalogue.md`, on the integration branch).
-**The user this session.** One subagent at a time. May read the live session and restart it if needed (it was read,
-not restarted). CLAUDE.md: the maintainer owns the design; finish without stopping. Asked whether sidebars and cards
-merge their corners the same way: two builders over one smoothing routine (I588). New inbox lines → I595–I600.
-**What the lead chose without asking** (each can be changed): jemalloc over glibc's tunables (they are environment
-variables that every started app would inherit; `unsafe` is forbidden) and over mimalloc (K157's table); `follow`
-returns a handle whose `watch()` subscribes, and `calls` is per action and checked at enable (K158); a waiting mod stays
-switched on; a host program's `start` defaults to `subscribed` with ten seconds of linger; a file in the mod's `bin/`
-needs no `exec:` capability; `kurashi-mod-handwriting` follows the workspace's version; W90 was merged with the
-frontend over budget and the cause filed, rather than held back; the bench gate's red rows that predate 0.2.0 were not
-taken up (B153); every work tree has its own cargo build dir (a shared one handed W93 a stale `kurashi-ipc`).
+## 2026-11-16 — session 35 (machine A): the integration branch — 0.4.0, one PR open
+**State.** `main` = 0.3.0, tagged `v0.3.0` and pushed. Everything else is on **`feat/s35-integration`** = 0.4.0, **one
+PR to `main`, not merged** (the user's rule: the lead merges nothing into `main`; the user merges; then `git tag v0.4.0`
+on `main`, push the tag, K151). The gate's line is in the PR's body. Each card was built on its own branch and merged
+`--no-ff` with its acceptance in the merge message.
+**The user at the end of the session:** "the task was mainly about project optimisation/structure, not reinventing the
+wheel" — the session spent too long on the feature cards (W91, W93, W94, W98) and W90's hunt, and stopped twice without
+working (the usage limit, an expired login). **Next session: structure first** (W92's rows, W95, W96, B156), features
+only when the user asks for them.
+**Merged, acceptance met.** W89 (the suites' kit) · W91 (mods read and call from Rust, K158) · W93 (host programs,
+K155) · W97 (the Nix dependency derivation without the version, K156: 657 s → 280 s) · W95.1, .3, .6, .7 (`Label` in
+quick, expanded, Settings' components and pages).
+**Merged, acceptance not met (each merge message says what is missing).**
+- **W90** (K157): the daemon within budget (63–70 MiB flat; 0.3.0: 66 → 260 in two minutes), bounded caches, the
+  notification centre, `just soak`. The frontend still grows about 200 MiB an hour under continuous card use (**B156**,
+  cause not found); the re-read of the user's session a day after a rebuild is not done.
+- **W92** rows 1–3: `svc.location` (K159: a place set by hand under Settings › Power, or offered by a mod with
+  `location:<name>`), the desk's weather card as the weather mod's `desk:weather` (K160, **config schema 8**,
+  `v7_to_v8`), the clock's peek names no mod (I602). Open: row 4 (binds, I571), row 5 (the wallpaper's three:
+  `theme.rs`, `Wash.qml`, `AppearanceMenu.qml`), row 6 (the sidebar's hold over the web dock's page).
+- **W94** the Mod Editor: the four messages (PROTOCOL §6, `spec.skips`, `rules`), the daemon's and the mock's side over
+  `kurashi_mods::editor`, the page (Settings › Mods › New mod…, `> new mod`), `settings/test-mod-editor.sh` in the merge
+  set. Not done: the shell's icon picker in the page, "Open the folder" (no daemon action), a made mod placed in the bar
+  and its panel opened in a suite, the states other than fresh / id taken / passed / created on niri.
+- **W96**: `launcher`, `media`, the lyrics suite in the merge set; `test-modqml` green once; `test-mods-live` to its
+  second phase (I603); the timer's, sysmon's, the calendar's, the terminal's, the web dock's suites and B154, B155, I584
+  untouched (I594).
+- **W98** step 1 (K161): the Nix-compatible tree hash, index entries, the reach summary, `.source`, `kurashi mod hash`,
+  `mod check --summary`, `tools/mod-index/`. Not built: fetching, `mod.add` / `update` / `remove`, Browse, the
+  Home-Manager option. **The brief `docs/ux/mod-catalogue.md` has not been read by the user.**
+**Not started.** W95.2, .4, .5 and the per-mod `Label` cards (I589).
+**What the lead chose without asking** (each can be changed): jemalloc with two arenas over glibc's tunables and
+mimalloc (K157); `follow` / `calls` handles and a waiting mod that stays switched on (K158); a host program starts
+`subscribed` with ten seconds of linger; the place in effect lives in the config store and a place set by hand wins
+(K159); the weather card stands among the mods' cards in mod order, and `desktop.weather` became an entry in
+`desktop.hidden` (K160); the catalogue's hash is Nix's NAR hash, its summary is written by CI (K161); W90 was merged
+with the frontend over budget; the bench gate's rows that were red at 0.2.0 were not taken up (B153); `v0.3.0` was
+tagged with the gate red (the user chose that).
 **One thing to know.** A first run of W93's new test let its test program say a scoped hello to the *running* shell's
-socket (the daemon handed hosts the default socket path); it was answered with `goodbye` and nothing else happened.
-`HostEnv.socket` gives a test daemon its own path now.
-**Verified.** See the PR's body for the gate's line on the head it ran on. The bench gate is red on rows that were red
-at 0.2.0 (B153). Seen on nested niri, light and dark: the notification centre's list, quick settings and the expanded
-views after `Label`, Settings' pages after `Label`, the host program's sentence at its mod's switch.
+socket; it was answered with `goodbye` and nothing else happened. `HostEnv.socket` gives a test daemon its own path now.
+**Verified.** The PR's body carries `just gate`'s line. Seen on nested niri, light and dark: the notification centre's
+list, quick settings and the expanded views after `Label`, Settings' pages after `Label`, a host program's sentence at
+its mod's switch, Settings › Power › Location, the weather mod's desk card, the Mod Editor in two looks. The bench gate
+is red on rows that were red at 0.2.0 (B153).
 **Next steps (in order).**
-0. The user merges the PR; `git tag v0.4.0` on `main`, push. A day after the rebuild: read the running session again
-   (`/proc`, as BENCH "Soak" did) and note it there — W90's last acceptance line.
-1. **B156**, the frontend's remaining growth: a Quickshell with debug symbols under heaptrack, or bisecting the Stage's
-   view Loader on `just soak --only island`. Then `just soak 60` on a quiet machine until both budgets hold.
-2. **W94**, the page: the QML prototype on `just mock` (the mock answers the four with the real generator), niri shots
-   in two looks for the user, then wired; `settings/test-mod-editor.sh`.
-3. **W92** the core names no mod, row by row (`svc.location` first), then W95.2, .4, .5.
-4. **W98** from its brief: the index, `kurashi mod add`, Browse, the Home-Manager option.
-5. **W96**, the rest (I594), and I593 (the ask-once before a host program's first enable).
-6. B153: the bench gate's three red rows — a performance pass, or new budgets with the user.
-**Left on this machine.** Work trees under `.claude/worktrees/` and build dirs under `~/.cache/kurashi-agents-target/`:
-named at the end of the session in the PR's body and removed where their branch is merged.
+0. The user merges the PR; `git tag v0.4.0` on `main`, push. A day later: read the running session again (`/proc`, as
+   BENCH "Soak" did) — W90's last acceptance line.
+1. **B156**, the frontend's remaining growth (a Quickshell with debug symbols under heaptrack, or bisecting the Stage's
+   view Loader on `just soak --only island`; the kept view of I493 is one thing to switch off first).
+2. **W92** rows 4–6, then the card's grep as a test (exclude `kurashi_mod_api`).
+3. **W95.2, .4, .5** and the per-mod cards; then the check's notes become errors.
+4. **W96**: I603 (`test-mods-live` phase 2), I594's list.
+5. Only on the user's word: W94's leftovers, W98 steps 2–7 (after the user read the brief), I593.
+**Left on this machine.** See the PR's body: work trees and build dirs are removed where their branch is merged.
 
 ---
 
