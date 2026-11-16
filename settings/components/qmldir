@@ -66,3 +66,4 @@ DockHost 1.0 DockHost.qml
 ElsewhereNote 1.0 ElsewhereNote.qml
 ScrollEdge 1.0 ScrollEdge.qml
 BarPreview 1.0 BarPreview.qml
+CheckReport 1.0 CheckReport.qml

@@ -35,10 +35,9 @@
 "mods.new.part.desk" = "Desk card"
 "mods.new.part.tile" = "Quick tile"
 "mods.new.part.menu" = "Rows in its menu"
-"mods.new.part.settings" = "A setting"
+"mods.new.part.settings" = "A page of its own in Settings"
 "mods.new.skip.reason" = "Why it has none"
 "mods.new.skip.suggest" = "Nothing to show there"
-"mods.new.skip.template" = "The template writes its own line for now; change it in mod.toml once it is written"
 
 "mods.new.group.uses" = "What it uses"
 "mods.new.uses.help" = "Documents it reads and actions it calls beyond its own. Everything here is shown to whoever installs it."

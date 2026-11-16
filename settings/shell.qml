@@ -393,6 +393,8 @@ ShellRoot {
             function modUnload(id: string): void { modsPage.unload(id) }
             // Mod Editor test (W94): the page's state as JSON, "none" while it is not shown.
             function modNew(): string { return modNewPage.item ? modNewPage.item.state() : "none" }
+            // The Mods page's check of a mod (W94): its report as JSON, {"error": text}, or "none" before a Check.
+            function modCheck(id: string): string { const c = modsPage.checks[id]; return c ? JSON.stringify(c.report || { error: c.error }) : "none" }
             // Mod pages test (K25): the sidebar's entries in order, as ids; the core pages keep theirs.
             function navOrder(): string { return win.navItems.map(function (x) { return x.id }).join(",") }
             // Dropdown test (I9): opens the dropdown of a row on this page, as Enter does on its focus.

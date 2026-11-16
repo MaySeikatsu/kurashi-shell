@@ -33,6 +33,23 @@ Flickable {
     // "New mod…" opens the Mod Editor (W94); back from it, the focus returns to that row.
     signal newRequested()
     function focusNew() { Qt.callLater(function () { newBtn.forceActiveFocus() }) }
+    // W94: a mod's own check (`mod.check {id}`, the ruleset the Mod Editor shows): mod id -> {report} or {error}, and the
+    // ids being checked. A check changes nothing, so it goes as a plain request (not counted as an applied change).
+    property var checks: ({})
+    property var checking: ({})
+    function check(id) {
+        var c = Object.assign({}, checking)
+        c[id] = true
+        checking = c
+        Store.request({ t: "act", action: "mod.check", args: { id: id } }, function (m) {
+            var r = Object.assign({}, p.checks)
+            r[id] = m.t === "done" ? { report: m.data || null } : { error: Store.actError(m, "settings.err.unknown_action") }
+            p.checks = r
+            var d = Object.assign({}, p.checking)
+            delete d[id]
+            p.checking = d
+        })
+    }
     // Public so the test hooks can drive the page like a click would.
     function setEnabled(id, on) { request(on ? "mod.enable" : "mod.disable", id) }
     function load(id) { request("mod.load", id) }
@@ -180,6 +197,13 @@ Flickable {
                         anchors.top: parent.top
                         spacing: Theme.gap
                         Button {
+                            objectName: "mod-check:" + entry.modelData
+                            label: I18n.tr("mods.new.check")
+                            accessibleName: I18n.tr("mods.new.check") + ": " + I18n.tr(entry.mod.name)
+                            enabled: Store.live && !p.checking[entry.modelData]
+                            onClicked: p.check(entry.modelData)
+                        }
+                        Button {
                             visible: entry.available
                             primary: true
                             label: I18n.tr("settings.mods.load")
@@ -281,6 +305,24 @@ Flickable {
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
                     text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
+                }
+                // Its check, once asked: "Every rule is met", or the findings with where and what (the editor's wording).
+                CheckReport {
+                    readonly property var result: p.checks[entry.modelData] || null
+                    visible: !!result && !!result.report
+                    width: parent.width
+                    compact: true
+                    report: result ? result.report : null
+                    summaryName: "mod-check-result:" + entry.modelData
+                }
+                Label {
+                    readonly property var result: p.checks[entry.modelData] || null
+                    visible: !!result && !!result.error
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.error
+                    font.pixelSize: Theme.fs - 2
+                    text: result && result.error ? "✕ " + result.error : ""
                 }
                 Rectangle {
                     width: parent.width

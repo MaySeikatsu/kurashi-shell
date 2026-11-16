@@ -34,10 +34,9 @@
 "mods.new.part.desk" = "デスクカード"
 "mods.new.part.tile" = "クイックタイル"
 "mods.new.part.menu" = "メニューの項目"
-"mods.new.part.settings" = "設定項目"
+"mods.new.part.settings" = "設定の専用ページ"
 "mods.new.skip.reason" = "ない理由"
 "mods.new.skip.suggest" = "そこに表示するものがありません"
-"mods.new.skip.template" = "今はテンプレートが自分の一行を書きます。書き出したあと mod.toml で変えてください"
 
 "mods.new.group.uses" = "使うもの"
 "mods.new.uses.help" = "自分のもの以外に読むドキュメントと呼ぶアクションです。ここに書いたものはインストールする人に表示されます。"

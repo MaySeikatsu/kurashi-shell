@@ -6,9 +6,11 @@
 #   E1 Mods › "New mod…" by keyboard opens the page with the focus on Name; fresh: Create inert, "Give it a name"
 #   E2 an id typed with no name: the name's reason; E3 "Tea": the id made from it is taken, the id field says so
 #   E4 "Tea timer": the live check passes and lists the files, the manifest opens as a preview
-#   E5 a card chosen with the arrows presets the ticks; E6 a variant's reason emptied: the check says so, Create inert
+#   E5 a card chosen with the arrows presets the ticks; E6 a variant's reason emptied: refused at its field, Create
+#      inert; an edited reason is the manifest's [skips] line
 #   E7 Create (Return): the created state, the mod `available` in the daemon's list; Turn it on: enabled; Open its page
 #   E8 Esc on a form with input asks first; E9 the folder not writable: Create's error with the path
+#   E5b the Settings page row; E12 Mods › Check on the new mod: every rule is met
 #   E10 the daemon away: Create inert with that reason, the uses list empty; E11 Nix forces the mod lists: Turn it on inert
 # Shots: $MOD_EDITOR_OUT/shots (default /tmp/kurashi-mod-editor/shots). Any FAIL exits 1.
 set -uo pipefail
@@ -136,14 +138,32 @@ kp left
 st_is parts '["widget","peek","panel"]' || fail "E5: Bar module ticked $(st parts)"
 ok "E5: the cards preset the ticks (Panel, then Bar module again)"
 
-# E6. A variant's reason emptied (the desk card's): its line asks, the check's variant line is not met, Create inert.
+# E5b. The Settings page is a row of the registry: the arrows reach it, Space ticks `settings` and the draft passes.
+tab_to mod-new-part:widget
+for _ in $(seq 8); do [ "$(Q focused)" = mod-new-part:settings ] && break; kp down; done
+[ "$(Q focused)" = mod-new-part:settings ] || fail "E5b: the arrows did not reach the Settings row ($(Q focused))"
+kp space
+st_is parts '["widget","peek","panel","settings"]' || fail "E5b: the Settings row ticked $(st parts)"
+st_is passed true || fail "E5b: the draft with a settings page does not pass ($(Q modNew))"
+kp space
+st_is parts '["widget","peek","panel"]' || fail "E5b: untick left $(st parts)"
+ok "E5b: the Settings page row ticks settings; the draft passes"
+
+# E6. A variant's reason emptied (the desk card's): the daemon refuses it, at that field; Create inert. An edited reason
+# is the manifest's line in the preview (spec.skips).
 tab_to "Why it has none: Desk card" && kp ctrl+a backspace
-st_is unanswered '["desk"]' || fail "E6: unanswered is $(st unanswered)"
-st_is createReason "1 rule is not met" || fail "E6: Create's reason is '$(st createReason)'"
-shot variant-unanswered
+st_is refusal mods.new.error.skip_empty || fail "E6: the refusal is '$(st refusal)'"
+st_has refusedSkips '"desk"' || fail "E6: the desk field is not marked ($(st refusedSkips))"
+st_has createReason "why it leaves this one out" || fail "E6: Create's reason is '$(st createReason)'"
+shot skip-empty
 type_text "nothing at rest"
-st_is unanswered '[]' || fail "E6: the reason typed did not answer it ($(st unanswered))"
-ok "E6: an emptied reason: the check's variant line not met, Create inert; typed again, answered"
+st_is refusal "" || fail "E6: the reason typed is still refused ($(st refusal))"
+st_is skips '{"desk":"nothing at rest"}' || fail "E6: the spec's skips are $(st skips)"
+st_has manifest 'desk = "nothing at rest"' || fail "E6: the preview's [skips] lacks the edited line"
+tab_to mod-new-file:mod.toml
+[ "$(st openFile)" = mod.toml ] || kp space
+shot skip-edited
+ok "E6: an emptied reason is refused at its field, Create inert; the edited one is in the manifest"
 
 # E7. Create with Return; the created state; the daemon lists the mod as available. Turn it on (the focus is on it), then
 # Open its page.
@@ -162,6 +182,16 @@ tab_to mod-new-open-page && kp return
 for _ in $(seq 50); do [ "$(Q current)" = mods.tea-timer ] && break; sleep 0.1; done
 [ "$(Q current)" = mods.tea-timer ] || fail "E7: Open its page opened $(Q current)"
 ok "E7: created in $where; turned on; its page opened"
+
+# E12. The Mods page's Check on the new mod (mod.check {id}), by keyboard: every rule is met, said in its row.
+Q goto @mods
+Q focusList
+tab_to mod-check:tea-timer && kp return
+for _ in $(seq 50); do [ "$(Q modCheck tea-timer)" != none ] && break; sleep 0.1; done
+c=$(Q modCheck tea-timer)
+[[ "$c" == *'"errors":0'* && "$c" == *'"rules":['* ]] || fail "E12: the check reads $c"
+shot mods-check
+ok "E12: Mods › Check on tea-timer: every rule is met"
 
 # E8. Esc on a form with input asks first: Esc again keeps editing, Discard leaves for the Mods page.
 Q goto @modnew

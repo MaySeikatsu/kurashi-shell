@@ -72,6 +72,13 @@ Flickable {
                   with: partRows.map(function (r) { return r.part }).filter(function (x) { return parts.indexOf(x) >= 0 }),
                   uses: uses.map(function (u) { return u.kind + ":" + u.id + (u.optional ? "?" : "") }) }
         if (runsOn === "host") s.host = "python"
+        // The author's own lines for the variants left out (`[skips]`): the ones they edited, in place of the template's.
+        var own = {}, any = false
+        for (var i = 0; i < partRows.length; i++) {
+            var r = partRows[i]
+            if (needsReason(r) && reasons[r.point] !== undefined) { own[r.point] = reasons[r.point]; any = true }
+        }
+        if (any) s.skips = own
         return s
     }
     readonly property string specSig: JSON.stringify(spec)
@@ -106,41 +113,15 @@ Flickable {
     function reasonOf(point) {
         return reasons[point] !== undefined ? reasons[point] : (templateSkips[point] || "")
     }
-    // Stand-in (CONTRACT-CHANGE: `spec.skips`): the scaffold writes its own line for each unticked variant and the spec
-    // cannot carry one yet, so a line emptied here is judged here, as the `variant` rule would judge the manifest.
-    readonly property var unanswered: {
-        var out = []
-        for (var i = 0; i < partRows.length; i++) {
-            var r = partRows[i]
-            if (needsReason(r) && reasons[r.point] !== undefined && reasons[r.point].trim() === "") out.push(r.point)
-        }
-        return out
+    // A refused spec names what it is about after its key (`mods.new.error.skip_empty: desk`): the key, and the rest.
+    property string refusalAt: ""
+    // The reason fields the daemon refused: the one it names, else each one sent empty.
+    function skipRefused(point) {
+        if (refusal !== "mods.new.error.skip_empty") return false
+        if (refusalAt !== "") return refusalAt === point
+        return reasons[point] !== undefined && reasons[point].trim() === ""
     }
-
-    // The check's lines: one per rule of the catalogue (`mods.check.<rule>`), the ones not met first.
-    function ruleLines(rep) {
-        if (!rep) return []
-        var findings = (rep.findings || []).slice()
-        if (rep === report)
-            unanswered.forEach(function (pt) {
-                findings.push({ rule: "variant", level: "error", at: "skips." + pt, detail: I18n.tr("mods.new.skip.reason") })
-            })
-        var rules = Object.keys(I18n.strings).filter(function (k) { return /^mods\.check\.[a-z_]+$/.test(k) })
-            .map(function (k) { return k.slice(11) })
-        var lines = rules.map(function (rule) {
-            var own = findings.filter(function (f) { return f.rule === rule })
-            var errors = own.filter(function (f) { return f.level === "error" })
-            return { rule: rule, met: errors.length === 0, findings: own }
-        })
-        // A rule the catalogue does not name yet still shows, by its id.
-        findings.forEach(function (f) {
-            if (rules.indexOf(f.rule) < 0) { rules.push(f.rule); lines.push({ rule: f.rule, met: f.level !== "error", findings: [f] }) }
-        })
-        return lines.filter(function (l) { return !l.met }).concat(lines.filter(function (l) { return l.met }))
-    }
-    function errorCount(rep) {
-        return rep ? (rep.errors || 0) + (rep === report ? unanswered.length : 0) : 0
-    }
+    function errorCount(rep) { return rep ? (rep.errors || 0) : 0 }
 
     // A slug of the name: lowercase letters, digits and hyphens, starting with a letter, at most 32 (the scaffold's id).
     function slug(t) {
@@ -233,10 +214,13 @@ Flickable {
             if (m.t === "done") {
                 p.report = m.data || null
                 p.refusal = ""
+                p.refusalAt = ""
                 if (p.files.every(function (f) { return f.path !== p.openFile })) p.openFile = ""
             } else {
                 p.report = null
-                p.refusal = m.msg && I18n.has(m.msg) ? m.msg : Store.actError(m, "settings.err.unknown_action")
+                var key = String(m.msg || "").split(":")[0].trim()
+                p.refusal = I18n.has(key) ? key : Store.actError(m, "settings.err.unknown_action")
+                p.refusalAt = I18n.has(key) ? String(m.msg).slice(key.length + 1).trim() : ""
             }
         })
     }
@@ -337,7 +321,10 @@ Flickable {
                                 openFile: openFile, createReason: createReason, createError: createError,
                                 created: created ? created.path : "", modState: createdEntry ? createdEntry.state : "",
                                 hasPage: hasPage, forcedOn: forcedOn, asking: asking, points: points.length,
-                                actions: actions.length, unanswered: unanswered })
+                                actions: actions.length, skips: spec.skips || {}, refusalAt: refusalAt,
+                                refusedSkips: partRows.filter(function (r) { return skipRefused(r.point) }).map(function (r) { return r.point }),
+                                manifest: files.length ? files[0].text : "",
+                                rules: report && report.rules ? report.rules.length : 0 })
     }
 
     Component.onCompleted: { refreshLists(); Qt.callLater(function () { nameField.focusInput() }) }
@@ -631,7 +618,7 @@ Flickable {
                                 required property int index
                                 readonly property bool ticked: p.parts.indexOf(modelData.part) >= 0
                                 readonly property bool asks: p.needsReason(modelData)
-                                readonly property bool empty: p.unanswered.indexOf(modelData.point) >= 0
+                                readonly property bool empty: p.skipRefused(modelData.point)
                                 width: whereCol.width
                                 spacing: 2
                                 Pickable {
@@ -697,12 +684,7 @@ Flickable {
                                     }
                                     Problem {
                                         visible: wr.empty
-                                        text: "✕ " + I18n.tr("mods.check.variant")
-                                    }
-                                    Hint {
-                                        visible: !wr.empty && p.reasons[wr.modelData.point] !== undefined
-                                                 && p.reasons[wr.modelData.point] !== (p.templateSkips[wr.modelData.point] || "")
-                                        text: I18n.tr("mods.new.skip.template")
+                                        text: "✕ " + I18n.tr("mods.new.error.skip_empty")
                                     }
                                 }
                             }
@@ -1059,76 +1041,11 @@ Flickable {
                     title: I18n.tr("mods.new.check")
                     icon: "checklist"
                     readonly property var rep: p.locked ? (p.created.check || null) : p.report
-                    readonly property var lines: p.ruleLines(rep)
                     visible: rep !== null
-                    Column {
+                    CheckReport {
                         width: parent.width
-                        spacing: Theme.gap / 2
-                        Label {
-                            objectName: "mod-new-check-summary"
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            font.weight: Theme.wMedium
-                            readonly property int n: p.errorCount(checkCard.rep)
-                            text: !checkCard.rep ? ""
-                                : (n === 0 ? I18n.tr("mods.new.check.passed")
-                                   : n === 1 ? I18n.tr("mods.new.check.failed_one") : I18n.fmt("mods.new.check.failed", { n: n }))
-                                  + ((checkCard.rep.notes || 0) === 1 ? " · " + I18n.tr("mods.new.check.notes_one")
-                                     : (checkCard.rep.notes || 0) > 1 ? " · " + I18n.fmt("mods.new.check.notes", { n: checkCard.rep.notes }) : "")
-                            Accessible.role: Accessible.StaticText
-                            Accessible.name: text
-                        }
-                        // One line per rule: met or not, with what to change (a list with role and state, not colour alone).
-                        Column {
-                            width: parent.width
-                            spacing: 2
-                            Accessible.role: Accessible.List
-                            Accessible.name: I18n.tr("mods.new.check")
-                            Repeater {
-                                model: checkCard.lines
-                                delegate: Item {
-                                    id: line
-                                    required property var modelData
-                                    width: parent.width
-                                    height: lineCol.implicitHeight + 4
-                                    Accessible.role: Accessible.ListItem
-                                    Accessible.name: lineLabel.text + ", " + I18n.tr(modelData.met ? "mods.new.check.met" : "mods.new.check.not_met")
-                                    Icon {
-                                        id: mark
-                                        y: 1
-                                        name: line.modelData.met ? "check_circle" : "error"
-                                        filled: !line.modelData.met
-                                        size: Theme.fs + 1
-                                        color: line.modelData.met ? Theme.dim : Theme.error
-                                    }
-                                    Column {
-                                        id: lineCol
-                                        anchors.left: mark.right
-                                        anchors.leftMargin: Theme.gap
-                                        anchors.right: parent.right
-                                        Label {
-                                            id: lineLabel
-                                            width: parent.width
-                                            wrapMode: Text.WordWrap
-                                            color: line.modelData.met ? Theme.dim : Theme.fg
-                                            font.pixelSize: Theme.fs - 1
-                                            // (a met line says so by its mark and its name; a line not met in words too)
-                                            text: (I18n.has("mods.check." + line.modelData.rule) ? I18n.tr("mods.check." + line.modelData.rule)
-                                                   : line.modelData.rule)
-                                                  + (line.modelData.met ? "" : " · " + I18n.tr("mods.new.check.not_met"))
-                                        }
-                                        Repeater {
-                                            model: line.modelData.findings
-                                            Hint {
-                                                required property var modelData
-                                                color: modelData.level === "error" ? Theme.error : Theme.dim
-                                                text: (modelData.level === "error" ? "✕ " : "· ") + modelData.at + " — " + modelData.detail
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        report: checkCard.rep
+                        summaryName: "mod-new-check-summary"
                     }
                 }
 
