@@ -1766,3 +1766,34 @@ when it is registered (`Hub::registrations`, a channel of its own: the document 
 still holds a subscription to a removed document). A mod that already runs is not made inert again when a required use
 goes away later; its feed says unavailable. The timer keeps its own notification call: no core action makes a
 notification (CONTRACT-CHANGE row for `notify.send`).
+
+## K159 — The core's place is `svc.location`: set by hand, or offered by whichever mod knows one (session 35, W92 row 1, K28)
+**Was.** The night light's sun schedule and the light's daytime read the weather mod's saved places from its state file
+and its setting (`kurashi_mod_weather::places`, `mods.weather.place`), and the night light followed `mod.weather` for
+changes: the core named a mod three times, and read its file even while the mod was off.
+**Now.** A core document `svc.location` `{available, lat, lon, name, source}` (PROTOCOL; fixture `server/snap_location.json`).
+The place in effect is, in this order: the one set by hand (`location.manual` with `location.latitude` and
+`location.longitude`, on Settings › Power beside the night light), else the first one an enabled mod offers. A mod offers
+one with `provides = ["location:<name>"]` and `ModCtx::location(name, read)`: the daemon calls `read` at enable, after
+each change of the mod's settings, and when the mod's `LocationHandle::changed()` says so; the offer leaves with the mod.
+The readers take the place from the config store (`ConfigStore::location`, a watch for followers) — it already holds what
+mods offer to settings (choice sources), and every reader has it. The weather mod offers the place its setting names,
+else its first saved one. `location` is a point of kind `feed` in `kurashi_mods::points::POINTS`.
+**Changed for users.** With the weather mod off, its saved place no longer reaches the night light: the sun schedule
+then says it needs a place (`power.nightlight.reason.no_place`) until one is set by hand or the mod is on — a mod that is
+off does nothing (Shōjiki). **Not built:** a name for a place set by hand, geolocation (GeoClue) as a third source.
+
+## K160 — The desk's weather card is the weather mod's `desk:weather`; schema v8 (session 35, W92 row 2, K28, K46)
+**Was.** `frontend/surfaces/Desktop.qml` drew a core weather card over `mod.weather`, with a core switch
+(`desktop.weather`) and the id `weather` in `desktop.left` / `desktop.right`: the frontend and the schema named a mod.
+**Now.** The card is `mods/weather/qml/desk/weather.qml`, declared as `desk:weather` like every other mod's card (K46):
+it stands after the core cards in mod order, is hidden through `desktop.hidden`, and opens the mod's panel on a click.
+Its name and its "when it shows" note in the desk's edit mode come from the mod's own strings
+(`mod-<id>.desk.<name>`, `mod-<id>.desk.<name>.note` — any mod card may bring the note). The desk card's shape,
+copied in two mods and inlined in two, is one component: `frontend/components/DeskCard.qml`.
+**Schema v8, `v7_to_v8`.** `desktop.weather` is gone; the default of `desktop.right` is `clock, calendar, media`. A file
+keeps what it showed: `"weather"` in the three lists becomes `mod:weather:weather`; `desktop.weather = false` becomes an
+entry in `desktop.hidden` (root and `[outputs.*]`). The bundled profiles that had the card off hide it the same way.
+**Changed for users.** With several mods' cards on the desk the weather stands among them in mod order (after the
+timer), not above them; `desktop.left` / `desktop.right` place it as before.
+

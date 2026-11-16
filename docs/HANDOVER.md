@@ -49,12 +49,21 @@ message. Work trees and build dirs left: see the end of this entry.
    `settings/shell.qml` (one Haiku agent at a time, each reviewed: every converted block set its own size, colour and
    family; suites and niri shots equal before and after). Open: W95.2, .4, .5 (they share files with W92) and the
    per-mod cards; I589.
+**The session ended at its usage limit: no `just gate` ran on this head and no PR is open.** Next session: run
+`just gate` (and `just bench-gate`) here, then open the one PR to `main`.
+**Also merged, late:** W92 row 1 — `svc.location` (K159): a place set by hand (Settings › Power › Location) or offered by
+a mod (`location:<name>`); the weather mod offers its own. Tests green, seen on niri light and dark; I601 for the rest.
 **Not merged.**
+- **W92 row 2** `feat/s35-w92-core-names-no-mod` (pushed, last commit is marked wip): the desk's weather card as the
+  weather mod's `desk:weather` — schema v8, migration v7→v8, the card, the shared `DeskCard`. Not done: the test run
+  after the last golden fix, the mock, `frontend/test-desk.sh`, niri, docs, the changelog's Breaking line. Rows 3–7 open.
+- **W94, the page** `feat/s35-w94-page` (pushed; the agent was stopped at the limit before its report): commits on top
+  of `feat/s35-w94-mod-editor`; unreviewed, its suite and niri shots not confirmed by the lead.
 - **W94** `feat/s35-w94-mod-editor` (pushed): the four messages with fixtures and PROTOCOL §6, the daemon's side
   (`query points`, `mod.check`, `mod.new`, `mod.rescan`) and the mock's, both over `kurashi_mods::editor`, tested; the
   copy in en and ja. **The page itself is not built** (the prototype on the mock, the niri shots, the Mods page's rows,
   `> new mod`, the suite).
-- **W98**: its UX brief only (`docs/ux/mod-catalogue.md`, on the integration branch). **W92**: not started.
+- **W98**: its UX brief only (`docs/ux/mod-catalogue.md`, on the integration branch).
 **The user this session.** One subagent at a time. May read the live session and restart it if needed (it was read,
 not restarted). CLAUDE.md: the maintainer owns the design; finish without stopping. Asked whether sidebars and cards
 merge their corners the same way: two builders over one smoothing routine (I588). New inbox lines → I595–I600.

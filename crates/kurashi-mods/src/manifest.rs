@@ -114,6 +114,8 @@ pub enum Provide {
     /// A card on the desktop widget column (K43, K46, row 120): `qml/desk/<name>.qml`, drawn by the desk
     /// with the core cards while `desktop.enabled`; it fills the width it is given.
     Desk(String),
+    /// A place the mod knows, for the shell's `svc.location` (W92, `ModCtx::location`).
+    Location(String),
     I18n,
 }
 
@@ -158,6 +160,7 @@ impl Provide {
             "host" => Self::Host(id),
             "surface" => Self::Surface(id),
             "desk" => Self::Desk(id),
+            "location" => Self::Location(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -181,6 +184,7 @@ impl Provide {
             (Self::Slot(_), Self::Slot(_))
             | (Self::Job(_), Self::Job(_))
             | (Self::Host(_), Self::Host(_))
+            | (Self::Location(_), Self::Location(_))
             | (Self::I18n, Self::I18n)
             | (Self::Launcher(_), Self::Launcher(_)) => false,
             _ => self == other,
@@ -206,6 +210,7 @@ impl fmt::Display for Provide {
             Self::Host(i) => write!(f, "host:{i}"),
             Self::Surface(i) => write!(f, "surface:{i}"),
             Self::Desk(i) => write!(f, "desk:{i}"),
+            Self::Location(i) => write!(f, "location:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }

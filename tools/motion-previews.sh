@@ -45,7 +45,7 @@ esac
 
 config() {  # config <form> → the sandbox's config.toml
   cat > "$OUT/config.toml" <<EOF
-schema_version = 7
+schema_version = 8
 [theme]
 style = "$STYLE"
 [theme.motion]

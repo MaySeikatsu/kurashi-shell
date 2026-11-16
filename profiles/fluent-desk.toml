@@ -2,7 +2,7 @@
 # list centred together, the island at the start where 11 keeps its widgets button, and at the end the tray's chevron,
 # the input language, the grouped quick-settings button, the clock (its calendar) and the notification centre (the right
 # sidebar). Offered with the style ("Also use its layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "fluent"

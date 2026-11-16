@@ -12,6 +12,12 @@ K28: "the core never names a mod". What still does, and where each goes:
 | `frontend/components/appearance/AppearanceMenu.qml:32`, `frontend/components/Wash.qml:75` (`mod.wallpaper`) | the appearance menu's wallpaper pane; the wash from the wallpaper | the pane is the mod's `panel:wallpaper` in a slot `appearance.pane`; the wash reads the theme's image token (with `theme-image:` above) |
 | `frontend/surfaces/Sidebar.qml:225` (`mod.webdock` hover) | a sidebar opened by hover holds while the pointer is on the dock's page | a generic `runtime.ui` hold a mod's host reports (`ui.keep`), not the dock's document |
 
+## Done
+- Row 1, `svc.location` (session 35, K159): the daemon reads the place in effect from the config store; the weather mod
+  offers it (`location:weather`); `kurashid` keeps the crate only in `native.rs`'s linked list.
+- Row 2, the desk's weather card (session 35, K160): `mods/weather/qml/desk/weather.qml` (`desk:weather`), schema v8
+  with `v7_to_v8`, `frontend/components/DeskCard.qml` shared by the tasks, calendar and weather cards.
+
 ## Steps
 Each row is its own commit and can be its own card; order: `svc.location` (removes a crate dependency) → the desk's
 weather card → `clock.peek.lines` → binds (I571) → the wallpaper's three → the sidebar's hold. New points go into

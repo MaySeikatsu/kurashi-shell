@@ -2,7 +2,7 @@
 # page's header line along the top, flush with the edge (connected, straight corners, as a printed header rule), and the
 # desk on the left like a planner's margin column: the time, then the month. Offered with the style ("Also use its
 # layout"), never applied by itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "kami"
@@ -17,4 +17,4 @@ height = 34
 enabled = true
 side = "left"
 media = false
-weather = false
+hidden = ["mod:weather:weather"]

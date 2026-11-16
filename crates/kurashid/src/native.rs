@@ -441,6 +441,8 @@ struct LinkState {
     offers: BTreeMap<String, Vec<Offer>>,
     /// The host processes of this enable (K38), by name.
     hosts: BTreeMap<String, Arc<HostCore>>,
+    /// W92: the functions that read the mod's places (`location:<name>`), by name.
+    locations: BTreeMap<String, kurashi_mod_api::LocationFn>,
 }
 
 impl Hooks for Link {
@@ -486,6 +488,10 @@ impl Hooks for Link {
         if let Some(store) = self.config.as_ref().and_then(Weak::upgrade) {
             store.set_mod_source(source, offers);
         }
+    }
+
+    fn location_changed(&self, name: &str) {
+        self.sync_location(name);
     }
 
     fn slot_reason(&self, slot: &str, reason: Option<&str>) {
@@ -580,6 +586,36 @@ impl Hooks for Link {
 }
 
 impl Link {
+    /// W92: asks the mod for its place `name` and hands it to `svc.location` (the store's feed). The mod's function
+    /// runs without the link's lock.
+    fn sync_location(&self, name: &str) {
+        let read = {
+            let state = self.state.lock().expect("link lock");
+            match state.locations.get(name) {
+                Some(f) if state.live => f.clone(),
+                _ => return,
+            }
+        };
+        let place = read();
+        if !self.state.lock().expect("link lock").live {
+            return;
+        }
+        if let Some(store) = self.config.as_ref().and_then(Weak::upgrade) {
+            store.set_place_feed(&format!("{}:{name}", self.mod_id), place);
+        }
+    }
+
+    /// Every place of the mod, again: its settings changed.
+    fn sync_locations(&self) {
+        let names: Vec<String> = {
+            let state = self.state.lock().expect("link lock");
+            state.locations.keys().cloned().collect()
+        };
+        for name in names {
+            self.sync_location(&name);
+        }
+    }
+
     /// The host `name` of this enable, while the enable is live: a handle the mod kept after a disable does nothing.
     fn host(&self, name: &str) -> Option<Arc<HostCore>> {
         let state = self.state.lock().expect("link lock");
@@ -886,6 +922,8 @@ impl Native {
                 ),
                 // K150: a provider's name is the mod's own (`<mod>:<name>`); its prefix is judged at query time.
                 Registration::Launcher { name, .. } => (false, format!("launcher:{name}")),
+                // W92: several mods may know a place; the first in order is the one in effect.
+                Registration::Location { name, .. } => (false, format!("location:{name}")),
             };
             if taken {
                 return Err(ModError::Duplicate(id));
@@ -996,6 +1034,14 @@ impl Native {
                     self.hub.launcher_mods.insert(module.id(), &name, spec);
                     publish_launcher(&self.hub);
                 }
+                Registration::Location { name, read } => {
+                    link.state
+                        .lock()
+                        .expect("link lock")
+                        .locations
+                        .insert(name.clone(), read);
+                    link.sync_location(&name);
+                }
             }
         }
         // K38: the mod's host processes, made once its registrations are in effect. A host belongs to its mod
@@ -1043,6 +1089,10 @@ impl Native {
         served::of(id).provides(Default::default(), Default::default());
         // The mod's handles stop reaching the island and the config before anything is taken back.
         ledger.link.state.lock().expect("link lock").live = false;
+        // W92: its places leave `svc.location` with it.
+        if let Some(store) = ledger.link.config.as_ref().and_then(Weak::upgrade) {
+            store.drop_place_feeds(id);
+        }
         for job in &ledger.jobs {
             job.stop();
         }
@@ -1099,6 +1149,8 @@ impl Native {
                     true
                 }
             });
+            // W92: a place may be one of the mod's settings (the weather's `place`).
+            ledger.link.sync_locations();
             // After the send: a job started now reads the settings in effect.
             for job in &ledger.jobs {
                 let wanted = job.wants(&ledger.settings.values.borrow());

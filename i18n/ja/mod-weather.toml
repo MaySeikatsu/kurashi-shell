@@ -135,3 +135,6 @@
 "mod-weather.preview.loading" = "予報を取得しています…"
 "mod-weather.hours.rain" = "降水"
 "mod-weather.days.span" = "範囲 {min}〜{max}"
+# The desk card (`desk:weather`): its name in the desk's edit mode and when it shows.
+"mod-weather.desk.weather" = "天気"
+"mod-weather.desk.weather.note" = "場所が保存され、天気が取得されると表示されます。"

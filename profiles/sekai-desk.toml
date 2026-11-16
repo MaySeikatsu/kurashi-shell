@@ -2,7 +2,7 @@
 # corner rounded, the keycaps' hard shadows on the wallpaper), a taller bar for the keys, and the desk widgets on the
 # right: the time on keys, the month, what plays. Offered with the style ("Also use its layout"), never applied by itself
 # (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "sekai"

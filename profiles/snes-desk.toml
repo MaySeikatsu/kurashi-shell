@@ -3,7 +3,7 @@
 # start, the island's text box in the middle, the volume, tray, quick settings and clock at its end), toasts as the text
 # box just above it (the look's `toast.place = bottom`). Offered with the style ("Also use its layout"), never applied by
 # itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "snes"

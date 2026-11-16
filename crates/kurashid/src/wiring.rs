@@ -5646,11 +5646,8 @@ fn cfg_str(c: Option<&ConfigStore>, key: &str, dflt: &str) -> String {
 }
 
 fn night_config(c: Option<&ConfigStore>) -> NightConfig {
-    let places =
-        kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
-    let configured = cfg_str(c, "mods.weather.place", "");
-    let place =
-        kurashi_mod_weather::places::effective(&places, &configured, None).map(|p| (p.lat, p.lon));
+    // W92: the place in effect (`svc.location`): set by hand, else the one an enabled mod offers.
+    let place = c.and_then(ConfigStore::location).map(|p| (p.lat, p.lon));
     NightConfig {
         enabled: cfg_bool(c, "night_light.enabled", false),
         temperature: c.map_or(4000, |c| cfg_u32(c, "night_light.temperature", 4000)),
@@ -5724,22 +5721,12 @@ pub fn nightlight(hub: &Arc<Hub>, actions: &mut ActionRegistry, cfg: Option<Arc<
         store.on_change(move |c| {
             let _ = on_config.send(night_config(Some(c)));
         });
-        // I187: a place added, moved or chosen in the weather mod changes the sun schedule without a config change:
-        // follow the mod's document (its places live in it), event-driven like the greeter cache.
+        // I187, W92: a place that changes without a config change (a mod's offer: a place added, moved or chosen
+        // there) changes the sun schedule: follow the place in effect, event-driven.
         if let Ok(rt) = tokio::runtime::Handle::try_current() {
-            let (mut events, store) = (hub.events(), Arc::downgrade(store));
+            let (mut place, store) = (store.location_feed(), Arc::downgrade(store));
             rt.spawn(async move {
-                loop {
-                    match events.recv().await {
-                        Ok(msg) => match msg.as_ref() {
-                            kurashi_ipc::ServerMsg::Snap { doc, .. }
-                            | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                                if doc == "mod.weather" => {}
-                            _ => continue,
-                        },
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                    }
+                while place.changed().await.is_ok() {
                     let Some(store) = store.upgrade() else { break };
                     if tx.send(night_config(Some(&store))).is_err() {
                         break;

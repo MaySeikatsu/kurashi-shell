@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, ModuleGroups, MotionCurve, Registry, strings};
 
-pub const VERSION: u32 = 7;
+pub const VERSION: u32 = 8;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -46,6 +46,8 @@ pub struct Config {
     pub idle: Idle,
     #[kurashi(nested)]
     pub night_light: NightLight,
+    #[kurashi(nested)]
+    pub location: Location,
     #[kurashi(nested)]
     pub recorder: Recorder,
     #[kurashi(nested)]
@@ -2364,14 +2366,10 @@ pub struct Desktop {
     /// large screens about a core's quarter each while music plays — so by default they stand as a still "playing" mark.
     #[kurashi(default = false, requires = "desktop.media == true", since = 7)]
     pub media_bars: bool,
-    /// Weather
-    /// Today's weather, while the weather mod is on and has a place.
-    #[kurashi(default = true, requires = "desktop.enabled == true")]
-    pub weather: bool,
     /// Cards on the right
-    /// The cards in the right column, top to bottom: the clock, the month, what plays, the weather and the mods' cards.
+    /// The cards in the right column, top to bottom: the clock, the month, what plays and the mods' cards.
     /// A card the left column names stands there instead. The desk's edit mode writes it too (K48, K71).
-    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), choices_from = "desktop.cards",
+    #[kurashi(default = strings(&["clock", "calendar", "media"]), choices_from = "desktop.cards",
               requires = "desktop.enabled == true", since = 3)]
     pub right: Vec<String>,
     /// Cards on the left
@@ -2635,7 +2633,7 @@ pub struct NightLight {
     #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true", module = "nightlight")]
     pub temperature: u32,
     /// Schedule
-    /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
+    /// When the night colours are on. Sunset to sunrise needs a place: the one set under Location, or one a mod knows (Weather).
     #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true", module = "nightlight")]
     pub schedule: NightSchedule,
     /// From
@@ -2646,6 +2644,25 @@ pub struct NightLight {
     /// End of the night colours, as HH:MM.
     #[kurashi(default = "07:00".to_owned(), requires = "night_light.schedule == manual")]
     pub end: String,
+}
+
+// --- location (W92, K159) ----------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "power", section = "location")]
+pub struct Location {
+    /// Set the place by hand
+    /// Where this computer is, for sunset and sunrise (the night light, the light's daytime). Off: the place a mod knows is used, for example the Weather mod's.
+    #[kurashi(default = false)]
+    pub manual: bool,
+    /// Latitude
+    /// Degrees north of the equator; south is negative.
+    #[kurashi(default = 0.0, range = -90.0..=90.0, step = 0.01, unit = "°", requires = "location.manual == true")]
+    pub latitude: f64,
+    /// Longitude
+    /// Degrees east of Greenwich; west is negative.
+    #[kurashi(default = 0.0, range = -180.0..=180.0, step = 0.01, unit = "°", requires = "location.manual == true")]
+    pub longitude: f64,
 }
 
 // --- screen recorder (K47) -------------------------------------------------------------------

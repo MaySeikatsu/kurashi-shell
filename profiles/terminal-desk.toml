@@ -3,7 +3,7 @@
 # bar: the workspaces as its window list at the start, the island's line in the middle, the levels, tray and the clock at
 # the end), compact spacing, nothing on the desk. Offered with the style ("Also use its layout"), never applied by itself
 # (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "terminal"

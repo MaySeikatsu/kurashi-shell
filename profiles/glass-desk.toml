@@ -2,7 +2,7 @@
 # float a gap away from every edge with their soft shadow, a slightly taller bar for the squircle keys, the clock and the
 # month on the desk at the left and nothing else on it. Offered with the style ("Also use its layout"), never applied by
 # itself (K45).
-schema_version = 7
+schema_version = 8
 
 [theme]
 style = "glass"
@@ -17,4 +17,4 @@ height = 38
 enabled = true
 side = "left"
 media = false
-weather = false
+hidden = ["mod:weather:weather"]
