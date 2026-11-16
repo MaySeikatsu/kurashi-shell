@@ -8,6 +8,14 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+### Added
+- `> note <text>` in the launcher adds a line to your note (the Tasks mod), as `> task <text>` adds a task.
+
+### Fixed
+- **Launcher:** `!` (or any mod's prefix) typed while its mod is switched off now says so and opens Mods, instead of
+  searching the apps. A `>` command that needs words (`> task`, `> note`) is listed before you type them and fills the
+  field when chosen. Sessions, folders and other mod rows show their icon.
+
 ## [0.4.0] — 2026-11-16
 
 ### Added

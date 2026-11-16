@@ -62,12 +62,17 @@ pub struct Declared<'a> {
     pub icon: Option<&'a str>,
     /// The word(s) the command answers to.
     pub command: &'a str,
+    /// The second line of the row that stands for a command still waiting for its words (I572), in the session
+    /// language.
+    pub hint: &'a str,
 }
 
 /// The row of a declared command for the query after `>`, or none. Two ways in: the query starts with the command's
 /// word(s) — what follows is its argument (`timer 5`), and `args_for` says whether those words fit — or every word
 /// of the query is in its label, its word(s) or its id, and it runs without an argument. The row's id carries the
-/// arguments: `cmd:<id>\t<json>`.
+/// arguments: `cmd:<id>\t<json>`. A command that needs words and has none yet (`task` alone) gets a row all the same
+/// (I572): kind `fill`, whose `fill` is the query with the command and a space; the launcher puts that into its field
+/// and stays open, so the command is found by its name and the user sees what it waits for.
 pub fn declared_row(
     q: &str,
     c: &Declared,
@@ -92,7 +97,12 @@ pub fn declared_row(
             if !ql.split_whitespace().all(|w| hay.contains(w)) {
                 return None;
             }
-            (args_for("")?, c.name.clone())
+            let Some(args) = args_for("") else {
+                return Some(json!({"id": format!("fill:{}", c.id), "fill": format!("> {} ", c.command),
+                        "name": c.name, "generic": c.hint, "icon": c.icon.unwrap_or("bolt"),
+                        "kind": "fill", "score": 1.0}));
+            };
+            (args, c.name.clone())
         }
     };
     let id = if args.as_object().is_some_and(|o| !o.is_empty()) {
@@ -192,6 +202,7 @@ mod tests {
             name: "Start a timer".into(),
             icon: Some("timer"),
             command: "timer",
+            hint: "Type what it needs, then Enter",
         };
         let minutes = |w: &str| -> Option<Value> {
             if w.is_empty() {
@@ -215,6 +226,24 @@ mod tests {
             "cmd:timer.start"
         );
         assert!(declared_row("timer soon", &timer, &minutes).is_none());
+        // I572: a command that needs words and has none yet is found all the same; its row fills the field.
+        let task = Declared {
+            id: "tasks.add",
+            name: "Add task".into(),
+            icon: None,
+            command: "task",
+            hint: "Type what it needs, then Enter",
+        };
+        let text = |w: &str| (!w.is_empty()).then(|| json!({"text": w}));
+        for q in ["task", "add ta", ""] {
+            let row = declared_row(q, &task, &text).unwrap();
+            assert_eq!((row["kind"].as_str(), row["fill"].as_str()), (Some("fill"), Some("> task ")), "{q}");
+            assert_eq!(row["generic"], "Type what it needs, then Enter");
+        }
+        assert_eq!(
+            declared_row("task buy milk", &task, &text).unwrap()["id"],
+            "cmd:tasks.add\t{\"text\":\"buy milk\"}"
+        );
         assert!(declared_row("wallpaper", &timer, &minutes).is_none());
         assert_eq!(
             parse_command("cmd:session.lock"),

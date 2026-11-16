@@ -267,6 +267,10 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   with a prefix in effect is the provider's alone (`query(rest)`), a provider without one adds rows after the apps.
   A row (`LauncherRow {key, name, sub, icon, action, args}`) runs one of the mod's own actions with `args` when
   launched (a row naming another mod's action is dropped); `sub` may be an i18n key. The launcher's own prefixes
+  K162: the setting that holds a provider's prefix says so in the manifest (`[[setting]] launcher = "<name>"`, a
+  string setting, a provider the mod has, once per provider), so that while the mod is switched off the launcher
+  answers that prefix with a row "<mod> is switched off" that opens Mods, instead of searching the apps.
+  The launcher's own prefixes
   (`kurashi_launcher::BUILTIN_PREFIXES`: `:` `;` `?` `>`), an empty prefix and one an earlier provider holds are
   refused: `runtime.launcher {builtin, providers: [{id, prefix} | {id, refused: {reason, prefix?, by?}}]}` says which
   and why. The web dock's is `/` (`mods.webdock.launcher_prefix`): its pins, the address the text names, or a search,

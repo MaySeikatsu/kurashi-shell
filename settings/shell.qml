@@ -285,6 +285,7 @@ ShellRoot {
         // opens at its top, out of a search; unknown pages open nothing (the daemon refuses them first).
         function pageIdOf(link: string): string {
             if (link === "mods.new") return "@modnew"
+            if (link === "mods") return "@mods"
             const id = link.indexOf("mod:") === 0 ? "mods." + link.slice(4) : link
             return win.pages.some(function (x) { return x.id === id }) ? id : ""
         }

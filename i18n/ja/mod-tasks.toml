@@ -18,6 +18,7 @@
 "mod-tasks.action.edit" = "タスクを編集"
 "mod-tasks.action.remove" = "タスクを削除"
 "mod-tasks.action.clear_done" = "済んだタスクを消す"
+"mod-tasks.action.notes_add" = "メモに追記"
 "mod-tasks.action.notes_set" = "メモを保存"
 
 # デーモン：ドキュメントの理由。

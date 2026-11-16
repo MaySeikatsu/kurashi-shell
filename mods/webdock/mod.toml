@@ -160,6 +160,7 @@ help = "mods.webdock.search.help"
 key = "launcher_prefix"
 type = "string"
 default = "/"
+launcher = "web"
 label = "mods.webdock.launcher_prefix"
 help = "mods.webdock.launcher_prefix.help"
 

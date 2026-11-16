@@ -1102,6 +1102,9 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         .map_or_else(|| m.label.clone(), str::to_owned),
                     icon: m.icon.as_deref(),
                     command,
+                    hint: strings["launcher.command.needs_words"]
+                        .as_str()
+                        .unwrap_or("launcher.command.needs_words"),
                 };
                 let args_for = |words: &str| decl.command_args(words);
                 rows.extend(kurashi_launcher::commands::declared_row(
@@ -1667,6 +1670,40 @@ struct ModsState {
     native: Native,
 }
 
+/// K162 (I539): the launcher prefixes of the mods that are installed and not enabled — the setting each manifest marks
+/// (`launcher = "<provider>"`), as configured when the mod's keys are known, else its default.
+fn off_prefixes(
+    reg: &kurashi_mods::Registry,
+    store: Option<&ConfigStore>,
+) -> Vec<crate::launcher_mods::OffPrefix> {
+    use kurashi_mods::manifest::SettingValue;
+    let mut out = Vec::new();
+    for e in reg.iter() {
+        let Some(m) = &e.manifest else { continue };
+        if matches!(e.state, kurashi_mods::registry::ModState::Enabled) {
+            continue;
+        }
+        for key in m.launcher_prefixes.values() {
+            let configured = store
+                .and_then(|s| s.get(&format!("mods.{}.{key}", e.id), None))
+                .and_then(|p| p.value.as_str().map(str::to_owned));
+            let default = m.settings.iter().find(|s| &s.key == key).and_then(|s| match &s.default {
+                SettingValue::Str(t) => Some(t.clone()),
+                _ => None,
+            });
+            if let Some(prefix) = configured.or(default).filter(|p| !p.trim().is_empty()) {
+                out.push(crate::launcher_mods::OffPrefix {
+                    mod_id: e.id.clone(),
+                    name: m.name.clone(),
+                    icon: m.icon.clone(),
+                    prefix,
+                });
+            }
+        }
+    }
+    out
+}
+
 /// Brings the native mods and the `mods` document in line with the registry: the mod table goes to
 /// the config, enabled native mods are activated and the others deactivated, the settings in effect
 /// are pushed, and the document is published.
@@ -1685,6 +1722,7 @@ fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
     }
     let _ = hub.update("mods", None, |d| *d = st.native.document(&mut st.reg));
     let _ = hub.update(SLOTS_DOC, None, |d| *d = st.native.slots(&st.reg));
+    hub.launcher_mods.set_off(off_prefixes(&st.reg, store));
     // A mod panel cannot stay open once its mod is off: the frontend already dropped the component,
     // so `runtime.ui` would name a panel nothing draws (rule 2; found by the live all-mods test).
     let _ = hub.update("runtime.ui", None, |d| {

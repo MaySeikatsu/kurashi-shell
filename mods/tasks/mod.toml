@@ -73,6 +73,17 @@ no_args = true
 id = "tasks.edit"
 label = "mod-tasks.action.edit"
 
+# `> note <text>`: one more line at the note's end.
+[[action]]
+id = "tasks.notes.add"
+label = "mod-tasks.action.notes_add"
+icon = "note_add"
+command = "note"
+  [[action.arg]]
+  name = "text"
+  type = "string"
+  rest = true
+
 [[action]]
 id = "tasks.notes.set"
 label = "mod-tasks.action.notes_set"

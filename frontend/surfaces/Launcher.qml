@@ -512,6 +512,8 @@ PanelWindow {
             })
             return
         }
+        // I572: a `>` command that waits for its words: the command goes into the field and the launcher stays open.
+        if (r.kind === "fill" && r.fill) { field.text = r.fill; field.cursorPosition = field.text.length; return }
         if (!r.id) return
         var id = r.id
         if (id.indexOf("appearance:") === 0) { openMenu(id.substring("appearance:".length)); return }
@@ -1205,10 +1207,13 @@ PanelWindow {
                                 border.color: Theme.outlineColor
                                 Icon {
                                     anchors.centerIn: parent
-                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb || row.kind === "appearance"
+                                    // A mod's row (K150: sessions, folders, pins) and a command waiting for its words (I572) draw
+                                    // the icon they carry; without one, a mod's row keeps the plain tile.
+                                    readonly property bool carried: (row.kind === "mod" || row.kind === "fill") && !!row.entry.icon
+                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb || row.kind === "appearance" || carried
                                     name: row.isCalc ? "calculate"
-                                        : ((row.isCommand || row.isWeb || row.kind === "appearance") ? (row.entry.icon || "bolt") : "info")
-                                    glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i"))
+                                        : ((row.isCommand || row.isWeb || row.kind === "appearance" || carried) ? (row.entry.icon || "bolt") : "info")
+                                    glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : ((row.isCommand || carried) ? "›" : "i"))
                                     filled: true
                                     color: row.isCalc ? Theme.fgOnAccent : Theme.dim
                                 }

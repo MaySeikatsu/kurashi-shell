@@ -27,7 +27,23 @@ struct Provider {
 #[derive(Clone, Default)]
 pub struct LauncherMods {
     inner: Arc<Mutex<BTreeMap<String, Provider>>>,
+    off: Arc<Mutex<Vec<OffPrefix>>>,
 }
+
+/// K162 (I539): a prefix a provider of a mod that is installed and switched off would hold (its manifest's
+/// `[[setting]] launcher = "<name>"`). A query that starts with it gets one row that says so and opens Mods, instead
+/// of falling through to the apps as if the prefix meant nothing (Shōjiki).
+#[derive(Clone, Debug, PartialEq)]
+pub struct OffPrefix {
+    pub mod_id: String,
+    /// The mod's name as its manifest gives it (an i18n key or plain text).
+    pub name: String,
+    pub icon: Option<String>,
+    pub prefix: String,
+}
+
+/// The id of the row an off mod's prefix answers with: it opens Settings' Mods view.
+pub const OFF_ROW: &str = "settings:mods";
 
 /// Why a provider's prefix is not in effect.
 #[derive(Debug, Clone, PartialEq)]
@@ -46,6 +62,34 @@ impl LauncherMods {
                 spec,
             },
         );
+    }
+
+    /// The prefixes of the mods that are switched off, as the registry and their settings stand now.
+    pub fn set_off(&self, off: Vec<OffPrefix>) {
+        *self.off.lock().expect("launcher off") = off;
+    }
+
+    /// The row for a query an off mod's prefix starts (no provider in effect holds it, and it is not the launcher's).
+    fn off_row(&self, q: &str, tr: &dyn Fn(&str) -> String) -> Option<Value> {
+        let off = self.off.lock().expect("launcher off");
+        let hit = off.iter().find(|o| {
+            let pre = o.prefix.trim();
+            !pre.is_empty()
+                && q.starts_with(pre)
+                && !kurashi_launcher::BUILTIN_PREFIXES
+                    .iter()
+                    .any(|b| pre.starts_with(*b) || b.starts_with(pre))
+        })?;
+        Some(json!({
+            "id": OFF_ROW,
+            "key": format!("modoff:{}", hit.mod_id),
+            "name": tr("launcher.mod_off.title").replace("{name}", &tr(&hit.name)),
+            "generic": tr("launcher.mod_off.sub"),
+            "icon": hit.icon.clone().unwrap_or_else(|| "extension".into()),
+            "kind": "command",
+            "mod": hit.mod_id,
+            "score": 1.0,
+        }))
     }
 
     pub fn remove_mod(&self, mod_id: &str) {
@@ -120,6 +164,10 @@ impl LauncherMods {
                 }
                 Some(Err(_)) => {}
             }
+        }
+        if let Some(row) = self.off_row(q, tr) {
+            extra.clear();
+            return Some(vec![row]);
         }
         None
     }
@@ -210,6 +258,40 @@ mod tests {
             ("webdock.go", Some("github.com"))
         );
         assert!(l.query("firefox", &|k| k.to_string(), &mut extra).is_none() && extra.is_empty());
+    }
+
+    /// K162 (I539): a prefix whose mod is switched off answers with one row that says so and opens Mods; an enabled
+    /// provider with the same prefix, and the launcher's own prefixes, come first.
+    #[test]
+    fn a_prefix_whose_mod_is_off_says_so_instead_of_searching_the_apps() {
+        let l = LauncherMods::default();
+        let off = |prefix: &str| OffPrefix {
+            mod_id: "terminal".into(),
+            name: "Terminal".into(),
+            icon: Some("terminal".into()),
+            prefix: prefix.into(),
+        };
+        l.set_off(vec![off("!")]);
+        let tr = |k: &str| match k {
+            "launcher.mod_off.title" => "{name} is switched off".to_string(),
+            k => k.to_string(),
+        };
+        let mut extra = Vec::new();
+        let rows = l.query("! htop", &tr, &mut extra).expect("the off prefix answers");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["id"], OFF_ROW);
+        assert_eq!(rows[0]["name"], "Terminal is switched off");
+        assert_eq!(rows[0]["icon"], "terminal");
+        assert!(l.query("htop", &tr, &mut extra).is_none(), "other queries are the apps'");
+        // The mod switched on: its provider answers.
+        l.insert("terminal", "run", spec(Some("!"), "terminal"));
+        let rows = l.query("! htop", &tr, &mut extra).unwrap();
+        assert_eq!(rows[0]["name"], "terminal htop");
+        // A prefix the launcher holds itself is never an off mod's.
+        let l = LauncherMods::default();
+        l.set_off(vec![off(">"), off(" ")]);
+        assert!(l.query("> task", &tr, &mut extra).is_none());
+        assert!(l.query("anything", &tr, &mut extra).is_none());
     }
 
     #[test]
