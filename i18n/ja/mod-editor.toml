@@ -64,6 +64,7 @@
 "mods.new.check.failed" = "{n} 件のルールに適合していません"
 "mods.new.check.failed_one" = "1 件のルールに適合していません"
 "mods.new.check.notes" = "{n} 件の注記"
+"mods.new.check.notes_one" = "1 件の注記"
 "mods.new.create" = "作成"
 "mods.new.create.needs_name" = "名前を入力してください"
 "mods.new.create.daemon_away" = "シェルが動いていません"

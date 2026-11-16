@@ -65,6 +65,7 @@
 "mods.new.check.failed" = "{n} rules are not met"
 "mods.new.check.failed_one" = "1 rule is not met"
 "mods.new.check.notes" = "{n} notes"
+"mods.new.check.notes_one" = "1 note"
 "mods.new.create" = "Create"
 "mods.new.create.needs_name" = "Give it a name"
 "mods.new.create.daemon_away" = "The shell is not running"

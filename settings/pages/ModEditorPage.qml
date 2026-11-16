@@ -75,7 +75,7 @@ Flickable {
         return s
     }
     readonly property string specSig: JSON.stringify(spec)
-    onSpecSigChanged: if (!locked) debounce.restart()
+    onSpecSigChanged: if (!locked) { createError = ""; debounce.restart() }
 
     // The draft's files, the manifest first; [] while there is no draft.
     readonly property var files: {
@@ -83,8 +83,10 @@ Flickable {
         f.sort(function (a, b) { return (a.path === "mod.toml" ? 0 : 1) - (b.path === "mod.toml" ? 0 : 1) })
         return f
     }
-    // The template's [skips] lines (point id -> reason), read from the draft's manifest: what is written when left alone.
-    readonly property var templateSkips: {
+    // The template's [skips] lines (point id -> reason), read from the last draft's manifest: what is written when left
+    // alone. Kept while a draft is refused (an id being typed), so the lines do not come and go.
+    property var templateSkips: ({})
+    function readSkips() {
         var out = {}
         var m = files.length && files[0].path === "mod.toml" ? files[0].text : ""
         var at = m.indexOf("\n[skips]\n")
@@ -96,6 +98,7 @@ Flickable {
         }
         return out
     }
+    onFilesChanged: if (files.length) templateSkips = readSkips()
     // A placeable module answers for every variant (K72): the expected parts left unticked ask for a line.
     function needsReason(r) {
         return parts.indexOf("widget") >= 0 && r.expected && r.part !== "widget" && parts.indexOf(r.part) < 0
@@ -404,8 +407,8 @@ Flickable {
         id: col
         x: Theme.pad
         y: Theme.pad
-        width: p.width - 2 * Theme.pad
         spacing: Theme.pad
+        width: p.width - 2 * Theme.pad
 
         Row {
             spacing: Theme.gap / 2
@@ -571,12 +574,13 @@ Flickable {
                                     p.pickStart(startFlow.choices[to].v)
                                     p.step(startRep, card.index, by)
                                 }
+                                // (the picked card: the accent's edge and the label's weight, not colour alone)
                                 Rectangle {
                                     anchors.fill: parent
-                                    radius: Theme.rSm
-                                    color: Theme.surface
                                     border.width: card.on ? 2 : 1
                                     border.color: card.on ? Theme.accent : Theme.outline
+                                    radius: Theme.rSm
+                                    color: Theme.surface
                                 }
                                 Column {
                                     id: cardCol
@@ -988,7 +992,11 @@ Flickable {
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.path
                                 Accessible.checked: on
-                                onActed: { filesCol.at = index; p.openFile = on ? "" : modelData.path }
+                                onActed: {
+                                    filesCol.at = index
+                                    p.openFile = on ? "" : modelData.path
+                                    if (p.openFile !== "") Qt.callLater(function () { p.reveal(preview) })
+                                }
                                 onMoved: by => filesCol.at = p.step(filesRep, fr.index, by)
                                 Rectangle {
                                     anchors.fill: parent
@@ -1017,6 +1025,7 @@ Flickable {
                         }
                         // The open file, read-only.
                         Rectangle {
+                            id: preview
                             objectName: "mod-new-preview"
                             readonly property var file: p.files.find(function (f) { return f.path === p.openFile }) || null
                             visible: file !== null
@@ -1033,7 +1042,7 @@ Flickable {
                                 x: Theme.gap
                                 y: Theme.gap
                                 width: parent.width - 2 * Theme.gap
-                                wrapMode: Text.WrapAnywhere
+                                wrapMode: Text.Wrap
                                 textFormat: Text.PlainText
                                 font.family: "monospace"
                                 font.pixelSize: Theme.fs - 3
@@ -1063,7 +1072,8 @@ Flickable {
                             text: !checkCard.rep ? ""
                                 : (n === 0 ? I18n.tr("mods.new.check.passed")
                                    : n === 1 ? I18n.tr("mods.new.check.failed_one") : I18n.fmt("mods.new.check.failed", { n: n }))
-                                  + ((checkCard.rep.notes || 0) > 0 ? " · " + I18n.fmt("mods.new.check.notes", { n: checkCard.rep.notes }) : "")
+                                  + ((checkCard.rep.notes || 0) === 1 ? " · " + I18n.tr("mods.new.check.notes_one")
+                                     : (checkCard.rep.notes || 0) > 1 ? " · " + I18n.fmt("mods.new.check.notes", { n: checkCard.rep.notes }) : "")
                             Accessible.role: Accessible.StaticText
                             Accessible.name: text
                         }
@@ -1101,9 +1111,10 @@ Flickable {
                                             wrapMode: Text.WordWrap
                                             color: line.modelData.met ? Theme.dim : Theme.fg
                                             font.pixelSize: Theme.fs - 1
+                                            // (a met line says so by its mark and its name; a line not met in words too)
                                             text: (I18n.has("mods.check." + line.modelData.rule) ? I18n.tr("mods.check." + line.modelData.rule)
                                                    : line.modelData.rule)
-                                                  + " · " + I18n.tr(line.modelData.met ? "mods.new.check.met" : "mods.new.check.not_met")
+                                                  + (line.modelData.met ? "" : " · " + I18n.tr("mods.new.check.not_met"))
                                         }
                                         Repeater {
                                             model: line.modelData.findings
