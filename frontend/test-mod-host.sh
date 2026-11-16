@@ -29,10 +29,6 @@ CFG=$OUT/config.toml
 printf '[idle]\nenabled = false\n\n[mods]\nloaded = ["tea"]\nenabled = ["tea"]\n' > "$CFG"
 export KURASHI_NIRI_SB_SEED=$OUT/seed
 "$SB" start "$CFG" > /dev/null || fail "the sandbox did not start"
-K() { "$SB" act "$@"; }
-raw() { K raw "$1" 2>&1 | head -1; }
-doc() { raw "{\"t\":\"sub\",\"id\":\"s\",\"doc\":\"$1\"}"; }
-has() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac; }
 R=$( . "$OUT/niri-env.sh"; echo "$XDG_RUNTIME_DIR" )
 # The program's processes: those of this sandbox whose command line names the mod's file.
 host_pids() {

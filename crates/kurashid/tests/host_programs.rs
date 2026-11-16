@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use kurashi_config::{Options, Paths};
 use kurashi_mod_api::NativeMod;
-use kurashid::config::ConfigStore;
 use kurashid::native::hosts::{HostEnv, set_host_env};
-use kurashid::{ActionError, ActionRegistry, Hub, wiring};
+use kurashid::{ActionError, ActionRegistry, Hub};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, oneshot};
+
+mod hostkit;
 
 /// One test at a time: the host environment and the scope table are per process.
 static GATE: Mutex<()> = Mutex::const_new(());
@@ -72,36 +72,21 @@ async fn start(tag: &str) -> Daemon {
     let _ = fs::remove_file(report());
     let sock = base().join("kurashid.sock");
     let _ = fs::remove_file(&sock);
-    let hub = Hub::new();
-    let store: Arc<ConfigStore> = ConfigStore::open(
-        hub.clone(),
-        kurashi_schema::v1::registry(),
-        Paths::rooted(&dir.join("config")),
-        Options::default(),
-    );
-    let mut actions = ActionRegistry::default();
-    wiring::ui(&hub, &mut actions);
     // No crate is linked: the mod's code is its program.
-    wiring::mods_native(
-        &hub,
-        &mut actions,
+    let hostkit::Served {
+        hub,
+        actions,
+        _stop,
+    } = hostkit::serve(
+        &dir,
+        &sock,
         vec![base().join("mods")],
-        Some(store.clone()),
         Vec::<Box<dyn NativeMod>>::new(),
-        None,
     );
-    let mut daemon =
-        kurashid::Daemon::new(hub.clone(), actions.clone(), kurashid::Intents::default());
-    daemon.config = Some(store);
-    let listener = tokio::net::UnixListener::bind(&sock).unwrap();
-    let (stop, stopped) = oneshot::channel::<()>();
-    tokio::spawn(kurashid::server::serve(listener, Arc::new(daemon), async {
-        let _ = stopped.await;
-    }));
     Daemon {
         hub,
         actions,
-        _stop: stop,
+        _stop,
     }
 }
 
