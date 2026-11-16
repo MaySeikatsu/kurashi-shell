@@ -43,14 +43,7 @@ Singleton {
     property var pending: ({})      // request id -> callback (act) | {kind, cb} (query)
     property var latestQuery: ({})  // kind -> id of the newest query (older results are dropped)
     property int seq: 0
-    property var cur: null          // the live Socket instance
-
-    function send(m) {
-        var sock = root.cur
-        if (!sock || !sock.connected) return
-        sock.write(JSON.stringify(m) + "\n")
-        sock.flush()
-    }
+    function send(m) { link.write(JSON.stringify(m)) }
 
     // First watcher subscribes, last unwatch unsubscribes (the daemon then stops the backing
     // service). Safe to call while disconnected: the welcome subscribes everything wanted.
@@ -145,8 +138,7 @@ Singleton {
         var m
         try { m = JSON.parse(line) } catch (e) { return }
         if (m.t === "welcome") {
-            retry.stop()
-            retry.interval = 250
+            link.settled()
             // Revisions restart per daemon instance; after any reconnect every doc is re-subscribed
             // anyway, so a changed instance only matters for dropping what the new one may not serve.
             if (instance !== "" && m.instance !== instance) docs = ({})
@@ -193,59 +185,31 @@ Singleton {
         } else if (m.t === "ping") {
             send({ t: "pong" })
         } else if (m.t === "goodbye" && m.reason === "scope") {
-            retry.stop()
+            link.giveUp()
             refused = "scope"
             console.warn("Store: the daemon refused this scope (goodbye scope); not retrying")
         }
     }
 
-    // A Socket whose first attempt failed does not reliably retry when toggled (measured: silent
-    // after the first ServerNotFound), so every attempt gets a fresh Socket instance.
-    Component {
-        id: sockComp
-        Socket {
-            id: s
-            path: root.socketPath
-            Component.onCompleted: { root.cur = s; connected = true }
-            Component.onDestruction: if (root.cur === s) root.cur = null
-            parser: SplitParser {
-                splitMarker: "\n"
-                onRead: data => root.handle(data)
-            }
-            onConnectedChanged: {
-                if (root.cur !== s) return   // a replaced instance dying must not touch state
-                if (connected) {
-                    var hello = { t: "hello", v: 1, client: root.clientName, caps: ["intents", "resync"] }
-                    if (root.scopeMod !== "" && root.scopeToken !== "")
-                        hello.scope = { mod: root.scopeMod, token: root.scopeToken }
-                    root.send(hello)
-                } else {
-                    // Keep the last state (the veil marks it stale).
-                    root.connected = false
-                    root.live = false
-                    root.revs = ({})
-                    root.failAll({ kind: "unavailable", msg: "disconnected" })
-                    if (!retry.running && root.refused === "") retry.start()
-                }
-            }
+    // The socket and its retry (`Link`: a fresh Socket per attempt, until the welcome).
+    Link {
+        id: link
+        path: root.socketPath
+        welcomed: root.connected
+        refused: root.refused !== ""
+        onLine: data => root.handle(data)
+        onUp: {
+            var hello = { t: "hello", v: 1, client: root.clientName, caps: ["intents", "resync"] }
+            if (root.scopeMod !== "" && root.scopeToken !== "")
+                hello.scope = { mod: root.scopeMod, token: root.scopeToken }
+            root.send(hello)
+        }
+        onDown: {
+            // Keep the last state (the veil marks it stale).
+            root.connected = false
+            root.live = false
+            root.revs = ({})
+            root.failAll({ kind: "unavailable", msg: "disconnected" })
         }
     }
-    Loader { id: ld; sourceComponent: sockComp }
-
-    // Runs only while not welcomed (Ma): 250 ms doubling to 4 s. Does not rely on error signals
-    // (an attempt can fail silently): keeps ticking until the welcome arrives.
-    Timer {
-        id: retry
-        interval: 250
-        repeat: false
-        onTriggered: {
-            interval = Math.min(interval * 2, 4000)
-            if (root.connected || root.refused !== "") return
-            ld.active = false
-            ld.active = true
-            start()
-        }
-    }
-
-    Component.onCompleted: retry.start()
 }
