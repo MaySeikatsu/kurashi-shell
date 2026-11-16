@@ -82,6 +82,31 @@ pub enum ClientMsg {
         kind: String,
         q: String,
     },
+    /// A host program publishes a document of its mod (K155, W93; PROTOCOL §2 "Host programs"). Scoped connections
+    /// only. Without `id` nothing is answered.
+    Pub {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<String>,
+        doc: String,
+        data: Value,
+    },
+    /// A host program takes its mod's declared actions: the daemon sends it a `call` for each invocation.
+    Serve {
+        id: String,
+        actions: Vec<String>,
+    },
+    /// A host program's answer to a `call`: done, with the action's result if it has one.
+    Done {
+        id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        data: Option<Value>,
+    },
+    /// A host program's answer to a `call`: the action failed (`kind`: `invalid`, `unavailable` or `internal`).
+    Err {
+        id: String,
+        kind: String,
+        msg: String,
+    },
     Ping,
     /// Test/bench control messages understood only by `kurashi-mock`.
     #[serde(rename = "mock.tick")]
@@ -180,6 +205,13 @@ pub enum ServerMsg {
     Results {
         id: String,
         items: Vec<Value>,
+    },
+    /// An invocation of an action a host program serves (K155, W93): `args` are checked against the action's
+    /// declaration; the host answers `done` or `err` with this `id`.
+    Call {
+        id: String,
+        action: String,
+        args: Value,
     },
     Err {
         #[serde(default, skip_serializing_if = "Option::is_none")]

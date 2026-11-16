@@ -219,6 +219,23 @@ async fn serve(stream: UnixStream, state: Arc<Mutex<State>>) -> anyhow::Result<(
             ClientMsg::MockFace { face } => state.lock().await.mock_face(&face),
             ClientMsg::MockWorkspace { idx } => state.lock().await.mock_workspace(idx),
             ClientMsg::Ping => reply(ServerMsg::Pong),
+            // K155 (W93): the mock runs no host programs; their messages are refused as the daemon refuses them from
+            // a connection that is not a host's.
+            ClientMsg::Pub { id, .. } => {
+                if id.is_some() {
+                    reply(ServerMsg::Err {
+                        id,
+                        kind: "forbidden".into(),
+                        msg: "only a mod's host program publishes".into(),
+                    });
+                }
+            }
+            ClientMsg::Serve { id, .. } => reply(ServerMsg::Err {
+                id: Some(id),
+                kind: "forbidden".into(),
+                msg: "only a mod's host program serves actions".into(),
+            }),
+            ClientMsg::Done { .. } | ClientMsg::Err { .. } => {}
             ClientMsg::Query { id, kind, q } => {
                 let res = state.lock().await.query(&kind, &q);
                 reply(match res {
@@ -289,6 +306,11 @@ fn scoped_refusal(mod_id: &str, msg: &ClientMsg) -> Option<Option<String>> {
     let act_ok = |action: &str| action.starts_with(&format!("{mod_id}."));
     match msg {
         ClientMsg::Hello { .. } | ClientMsg::Unsub { .. } | ClientMsg::Ping => None,
+        // (a host's own messages are answered where they are handled)
+        ClientMsg::Pub { .. }
+        | ClientMsg::Serve { .. }
+        | ClientMsg::Done { .. }
+        | ClientMsg::Err { .. } => None,
         ClientMsg::Sub { id, doc, .. } => (!doc_ok(doc.as_str())).then(|| Some(id.clone())),
         ClientMsg::Resync { doc } => (!doc_ok(doc.as_str())).then(|| Some(format!("resync:{doc}"))),
         ClientMsg::Act { id, action, .. } => (!act_ok(action.as_str())).then(|| Some(id.clone())),

@@ -40,6 +40,7 @@ fn base() -> &'static PathBuf {
             data: Some(base.join("data")),
             cache: Some(base.join("cache")),
             state: Some(base.join("state")),
+            socket: None,
         });
         assert!(set, "the host environment is set once per process");
         base
