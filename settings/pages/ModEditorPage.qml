@@ -689,7 +689,8 @@ Flickable {
                                         objectName: "mod-new-skip:" + wr.modelData.point
                                         width: parent.width
                                         label: I18n.tr("mods.new.skip.reason") + ": " + I18n.tr("mods.new.part." + wr.modelData.part)
-                                        placeholder: I18n.tr("mods.new.skip.reason")
+                                        // (before the first draft: the suggestion to accept)
+                                        placeholder: I18n.tr("mods.new.skip.suggest")
                                         value: p.reasonOf(wr.modelData.point)
                                         invalid: wr.empty
                                         onTyping: t => p.setReason(wr.modelData.point, t)
@@ -1139,7 +1140,8 @@ Flickable {
                     Column {
                         width: parent.width
                         spacing: Theme.gap / 2
-                        Hint { text: p.modId !== "" ? p.folderOf(p.modId) : I18n.tr("mods.new.files.none"); wrapMode: Text.WrapAnywhere }
+                        // Where it goes (nothing while there is no id: the reason under the button says what is missing).
+                        Hint { visible: p.modId !== ""; text: p.folderOf(p.modId); wrapMode: Text.WrapAnywhere }
                         Button {
                             objectName: "mod-new-create"
                             primary: true
