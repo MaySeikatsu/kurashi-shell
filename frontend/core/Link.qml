@@ -18,7 +18,8 @@ Item {
     signal line(string data)
 
     function write(text: string): bool {
-        if (!link.open) return false
+        // (read from the Socket itself: `open` is a binding, and it may not have followed yet inside `up()`)
+        if (cur === null || !cur.connected) return false
         cur.write(text + "\n")
         cur.flush()
         return true
