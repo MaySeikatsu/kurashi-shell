@@ -601,6 +601,12 @@ echo "ok: states: a battery, an unavailable tile, a forced tile; brightness.set 
 K act mock.doc '{"doc":"svc.session","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the session service's absence"
 settle 1
 card_shot footer-no-session 0.8
+# I204: and the power menu itself says so: its keys stay, dimmed, with the reason (session-no-service).
+K act session.menu '{}' >/dev/null || fail "session.menu refused"
+settle 1
+card_shot session-no-service 0.8
+K act ui.close '{}' >/dev/null
+settle 1
 K act mock.doc '{"doc":"svc.session","patch":{"available":true}}' >/dev/null
 settle 1
 echo "ok: footer without a session service (footer-no-session.png)"

@@ -9,6 +9,7 @@
 "frontend.session.confirm.reboot" = "Press again to restart"
 "frontend.session.confirm.poweroff" = "Press again to shut down"
 "frontend.session.failed" = "The action failed"
+"frontend.session.unavailable" = "The session service does not answer (logind), so these cannot run now."
 "frontend.session.hint" = "↑ ↓ choose · Enter run · Esc close"
 "frontend.tray.menu" = "Menu"
 "frontend.module.settings" = "All settings…"
