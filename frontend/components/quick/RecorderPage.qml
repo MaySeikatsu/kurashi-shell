@@ -97,30 +97,22 @@ Column {
         Column {
             anchors.verticalCenter: key.verticalCenter
             width: rp.width - key.width - Theme.pad
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
                 color: rp.recording ? Theme.error : Theme.fg
                 font.pixelSize: rp.recording ? Theme.fsTitle + 2 : Theme.fs
                 font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
                 text: rp.recording && rp.ctl ? rp.ctl.elapsed
                     : rp.ctl && rp.ctl.busy ? rp.ctl.pendingText
                     : I18n.tr("quick.recorder.idle")
                 TextFx {}
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: rp.ctl && rp.ctl.inert ? rp.ctl.stateText
                     : rp.recording ? I18n.tr("quick.recorder.recording_hint")
                     : I18n.tr("quick.recorder.idle_hint")
@@ -133,14 +125,10 @@ Column {
         pendingText: rp.ctl ? rp.ctl.pendingText : ""
     }
     // What is recorded: the screen (one choice per output when there are several).
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: rp.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("quick.recorder.what")
     }
     Repeater {
@@ -163,15 +151,11 @@ Column {
         inert: true
         title: I18n.tr("quick.recorder.this_screen")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: rp.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("quick.recorder.not_yet")
     }
     // The desktop's sound and the module's click: the schema's rows for the module.
@@ -180,27 +164,18 @@ Column {
         mids: rp.optionIds
     }
     // Where it goes, and the last recording.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: rp.width
         wrapMode: Text.WrapAnywhere
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("quick.recorder.folder").replace("{dir}", rp.folder)
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: rp.lastFile !== "" && !rp.recording
         width: rp.width
         wrapMode: Text.WrapAnywhere
-        color: Theme.fg
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("quick.recorder.last").replace("{file}", rp.lastFile.split("/").pop())
     }
     Button {

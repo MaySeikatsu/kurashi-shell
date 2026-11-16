@@ -24,14 +24,10 @@ Column {
         backName: I18n.tr("island.quick.back")
         onBack: dp.backRequested()
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: dp.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.brightness.heading")
     }
     LevelRow {
@@ -43,39 +39,25 @@ Column {
         a11y: I18n.tr("island.brightness.heading")
         onMoved: v => Store.intent("brightness.set", v, "qs:quick")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !dp.present
         width: dp.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("error.brightness.no_device")
     }
     Column {
         width: dp.width
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.display.night_light")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("power.display.night_light_tile")
         }
     }

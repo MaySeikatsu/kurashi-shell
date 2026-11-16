@@ -413,3 +413,19 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S34.4 | Step 6: `qs.kit`, `Label`, `kurashi mod new`, a mod's own strings, a mod's icon on its Settings page | ✅ functional (every template combination passes the check; the kit loads in Quickshell) · 🟡 UX (a scaffolded mod not yet seen in the shell on niri) | same |
 | S34.5 | W88 one D-Bus test bus (`kurashi-testkit`) · W89 the suites' kit | ✅ W88 merged (rs clones 1077 → 810) · 🟡 W89 done on its branch, not merged: `tools/testkit/{ipc.py,px.py}`, 23 suites on it (sh clones 1999 → 1573); `test-peek` kept its own client (I580); the lead has not re-run the merge set on it | `worktree-agent-add20fbd7bf4e0b6d` (0ab8a3ab) |
 | S34.6 | Staged for the next sessions, in the user's order (cards in `docs/tasks/`): W90 memory after a day (B147) → W91 mods read and call from Rust → W92 the core names no mod → W93 host programs (K155) → W94 the Mod Editor (full brief) → W98 the catalogue; beside them W95 `Label` and the kit by folder, W96 the six red suites, W97 the Nix dependency cache (K156) | ⬜ | HANDOVER "Next steps" |
+
+
+## Session 35 — the integration branch: memory, mods' reads, host programs (K157, K158; cards W89–W98)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| S35.0 | The bench gate on a quiet machine, 0.2.0 and 0.3.0 back to back; `v0.3.0` tagged | ✅ tagged (the user: tag now, fix in 0.4.0) · 🔴 the gate is red on `main` and was at 0.2.0 (B153); `strip_nulls` measures clean | `main` |
+| S35.1 | W89 the suites' kit (`tools/testkit`) | ✅ merged into `feat/s35-integration` (16 of 23 touched suites green, the 7 red ones as on `main`; sh clones 1999 → 1573) | `feat/s35-integration` |
+| S35.2 | W95.1 / .3 / .6: `Label` in `components/quick`, `components/expanded`, `settings/components` | ✅ merged (221 blocks; suites equal before and after; niri light and dark equal to the base; qml clones 1512 → 1264) · open: W95.2, .4, .5, .7 and the per-mod cards; 65 Texts in Settings left (I589) | `feat/s35-integration` |
+| S35.3 | W90 what grows in a day: `just soak`, the daemon on jemalloc (K157), bounded texture caches, the closed notification centre holds nothing | 🟡 on its branch: short soaks flat (daemon 59–72 MiB, frontend 228–234); the 60-minute soak and the merge are left; the re-read of the user's session a day after a rebuild cannot be done in this session | `feat/s35-w90-soak` |
+| S35.4 | W91 mods read services and call each other from Rust (`ModCtx::follow` / `calls`, K158); lyrics and sessions lose their QML relays; a host's scope from the contract | 🟡 on its branch: crates' tests green (kurashid 346, sessions 27, lyrics 25); its niri suites and the merge are left | `feat/s35-w91-mod-consume` |
+| S35.5 | W93 host programs (K155): the protocol's `pub`, `serve`, `call` with fixtures, `[[host]]` in the manifest, MODDING.md | 🟡 design, fixtures, IPC types and the manifest built; the daemon's side written, not built | `feat/s35-w93-mod-hosts` |
+| S35.6 | W94 the Mod Editor: its four messages with fixtures, its copy (en, ja) | 🟡 contract and copy only | `feat/s35-w94-mod-editor` |
+| S35.7 | W96 the red suites: the launcher's page name, `# needs:` lines in the runner | 🟡 two fixes written, not run; the rest open (B145, B154, B155, I584) | `feat/s35-w96-red-suites` |
+| S35.8 | W97 the Nix dependency derivation without the version (K156) | 🟡 written, not evaluated | `feat/s35-w97-nix-deps` |
+| S35.9 | W98 the catalogue | 🟡 its UX brief (`docs/ux/mod-catalogue.md`) | `feat/s35-integration` |
+| S35.10 | W92 the core names no mod | ⬜ not started | — |

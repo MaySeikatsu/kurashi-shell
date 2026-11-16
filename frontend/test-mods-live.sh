@@ -21,6 +21,7 @@
 #     timeout 1500 nix develop -c frontend/test-mods-live.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-modslive-$$}   # unique per run: other agents' runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 HELLO_SRC=$ROOT/crates/kurashid/tests/data/mods/hello
@@ -149,26 +150,16 @@ def expect(moddir, manifest, manifest_rs):
     return 0
 
 
-def read_ppm(data):
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
 
 
 def card(ppm, surface, alpha="1"):
     """Pixels of the surface colour in the band under the bar (where cards are drawn): count and bounding box. The
     island's shape is drawn at the panel's opacity (W22, I114), so the colour blended over the desk counts too."""
     t = [int(surface.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
-    w, h, raster = read_ppm(pathlib.Path(ppm).read_bytes())
+    w, h, raster = read_ppm(ppm)
     a = float(alpha)
     b = ((h - 60) * w + (w - 60)) * 3   # the desk's own colour, near the bottom-right corner (past the screen corner, K74)
     blend = [round(t[k] * a + raster[b + k] * (1 - a)) for k in range(3)]

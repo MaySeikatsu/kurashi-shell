@@ -15,6 +15,7 @@
 #     timeout 1500 nix develop -c mods/weather/test-states.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-w19-weather-states}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/weather/shots
@@ -70,39 +71,10 @@ trap cleanup EXIT
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache
 export KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 K() { timeout 10 "$W/kurashi" "$@"; }
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 click() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" left >> "$R/keys.log" 2>&1 || true; sleep 0.5; }
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in test-peek.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
 
 # The clock shim (test only): CLOCK_REALTIME plus the offset, in seconds, that $KURASHI_TEST_TIME_FILE holds (read on each
 # call; 0 without the file). The data ages past its tiers without a wait of hours.

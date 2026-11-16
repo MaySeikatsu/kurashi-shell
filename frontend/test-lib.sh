@@ -117,3 +117,10 @@ wait_log_quiet() {
     sleep 0.1
   done
 }
+
+# The suites' IPC client and pixel reader (W89) live in tools/testkit. tk_ipc runs the client: `tk_ipc <doc>`,
+# `tk_ipc sub <doc>` (a daemon error prints null), `tk_ipc <doc> count <s>`, `tk_ipc act <action> [json]`,
+# `tk_ipc tokens <key>...`. KIT is the kit's directory: an analysis script puts it on sys.path (python3 -I ignores
+# PYTHONPATH, so exporting that would not reach the suites' scripts).
+export KIT=$ROOT/tools/testkit
+tk_ipc() { timeout 10 python3 -I "$KIT/ipc.py" "$@"; }

@@ -25,18 +25,12 @@ Flow {
     spacing: Theme.gap
     objectName: "differs"
 
-    Text {
+    Label {
         id: line
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: Math.min(implicitWidth, sd.width)
         height: Math.max(implicitHeight, Theme.controlH)
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: sd.keys.length === 1
             ? I18n.fmt("settings.appearance.differs_one", { style: sd.styleName, keys: sd.names })
             : I18n.fmt("settings.appearance.differs_many", { n: sd.keys.length, style: sd.styleName, keys: sd.names })

@@ -71,18 +71,14 @@ Item {
                 color: "transparent"
                 border.width: 1
                 border.color: Theme.outline
-                Text {
+                Label {
                     id: pillText
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     x: Theme.gap
                     width: pill.width - 2 * Theme.gap
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
                     text: wt.audio ? wt.audio.sinkName : ""
                 }
             }

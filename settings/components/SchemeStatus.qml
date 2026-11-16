@@ -20,19 +20,15 @@ Flow {
     spacing: Theme.gap
     objectName: "scheme-status"
 
-    Text {
+    Label {
         id: line
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: ss.detail !== ""
         width: Math.min(implicitWidth, ss.width)
         height: Math.max(implicitHeight, Theme.controlH)
         verticalAlignment: Text.AlignVCenter
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: ss.detail === "" ? ""
             : I18n.fmt("theme.scheme.detail." + ss.detail, { scheme: I18n.tr("theme.scheme." + (ss.effective || "dark")) })
     }

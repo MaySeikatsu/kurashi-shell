@@ -62,27 +62,18 @@ Column {
             size: Theme.fs + 4
             color: row.current ? view.onSel : Theme.dim
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             anchors { left: check.right; right: tag.left; leftMargin: Theme.gap; rightMargin: Theme.gap; verticalCenter: parent.verticalCenter }
             elide: Text.ElideRight
             color: row.current ? view.onSel : Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: row.label
         }
-        Text {
+        Label {
             id: tag
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             visible: row.current
             color: view.onSel
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.audio.default")
         }
         HoverHandler { id: hover }
@@ -99,14 +90,9 @@ Column {
         font.family: Theme.fam(text, Theme.families)
     }
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: view.width
-        color: Theme.fg
         font.pixelSize: Theme.fsTitle
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.volume.heading")
     }
     StaleNote { face: "volume" }
@@ -132,31 +118,22 @@ Column {
             a11y: I18n.tr("island.volume.heading")
             onMoved: v => Store.intent("audio.volume", v, view.origin)
         }
-        Text {
+        Label {
             id: readout
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: mute.height
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
             color: view.muted ? Theme.dim : Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: !view.avail ? "" : (view.muted ? I18n.tr("frontend.volume.muted") : Math.round(view.level * 100) + "%")
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !view.avail
         width: view.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("frontend.volume.unavailable")
     }
 
@@ -171,27 +148,17 @@ Column {
             onChosen: view.act("audio.sink.default", {id: modelData.id}, "island.quick.audio.failed")
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.avail && view.sinks.length === 1
         width: view.width
         elide: Text.ElideRight
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: view.sinks.length === 1 ? view.nameOf(view.sinks[0]) : ""
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.avail && view.sinks.length === 0
         width: view.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.audio.none")
     }
 
@@ -209,31 +176,20 @@ Column {
             a11y: I18n.tr(view.source && view.source.muted === true ? "island.volume.input.unmute" : "island.volume.input.mute")
             onClicked: view.act("audio.mic.mute.toggle", {}, "island.volume.input.failed")
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: view.width - micMute.width - micState.width - 2 * Theme.gap
             height: micMute.height
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: view.source === null ? "" : (view.sources.length > 1 ? "" : view.nameOf(view.source))
         }
-        Text {
+        Label {
             id: micState
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: micMute.height
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
             color: view.source && view.source.muted === true ? Theme.dim : Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: view.source && view.source.muted === true ? I18n.tr("island.volume.muted") : I18n.tr("island.volume.input.live")
         }
     }
@@ -246,15 +202,11 @@ Column {
             onChosen: view.act("audio.source.default", {id: modelData.id}, "island.volume.input.failed")
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.avail && view.source === null
         width: view.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.volume.input.none")
     }
 
@@ -269,17 +221,11 @@ Column {
             readonly property real vol: modelData.volume ?? 0
             width: view.width
             spacing: Theme.gap
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: 96
                 height: Theme.controlH
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: stream.modelData.app ?? ""
             }
             KeyButton {
@@ -302,43 +248,29 @@ Column {
                 // A drag moves the knob; its end (release) or a key press is the one action.
                 onMoved: v => { if (!streamSlider.dragging) view.act("audio.stream.volume", {id: stream.modelData.id, value: v * 1.5}, "island.volume.app.failed") }
             }
-            Text {
+            Label {
                 id: streamReadout
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: 44
                 height: Theme.controlH
                 horizontalAlignment: Text.AlignRight
                 verticalAlignment: Text.AlignVCenter
                 color: stream.silent ? Theme.dim : Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: stream.silent ? I18n.tr("island.volume.muted") : Math.round(stream.vol * 100) + "%"
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.avail && view.streams.length === 0
         width: view.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.volume.apps.none")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.errText !== ""
         width: view.width
         wrapMode: Text.WordWrap
         color: Theme.error
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: view.errText
     }
 }

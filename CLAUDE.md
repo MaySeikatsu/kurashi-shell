@@ -1,10 +1,13 @@
 # Kurashi-shell (暮らし) — instructions for Claude Code
 
+You are the owner and long-term maintainer of this codebase, and its design is up to you.
+
 Wayland desktop shell for **niri** (first), designed for Hyprland / MangoWM / Sway adapters.
 Rust daemon `kurashid` owns all state; the frontend is a thin view. Nix-first.
 Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 
 ## Hard rules
+
 1. **Daemon owns state.** Config, profiles, theming, services, actions, mods, relevance
    (Island) live in Rust. Frontends subscribe, render, send intents. No business logic,
    polling or Processes in the frontend.
@@ -39,12 +42,13 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
     mod, and a mod reaches nothing it did not declare. `kurashi mod check` holds a mod to it.
 
 ## Workflow
+
 - `main` is always green. Work on `feat/<milestone>-<topic>` (e.g. `feat/m1-protocol`).
 - Merge with `git merge --no-ff` only after `just gate` passed on the branch's head (check, the suites' merge set,
   hm-eval, `nix build`; the bench gate too where budgets are touched). The line it prints goes into the PR or the merge
   message. Update `docs/PROGRESS.md` in the same branch.
 - **The loop (K153; measured in docs/BENCH.md "Build loop").** QML needs no build. Rust while writing: `cargo check -p
-  <crate>` (0.5–2.5 s) and `cargo nextest run -p <crate>`; build only the binary the step needs. UI ready to look at:
+<crate>` (0.5–2.5 s) and `cargo nextest run -p <crate>`; build only the binary the step needs. UI ready to look at:
   `just suites --changed`, then niri. Checks and full builds run once, when the work is finished (`just gate`), not
   between steps. Never edit a tree whose suites are running (QML hot-reloads): use another worktree.
 - **QML first.** A feature or a bug hunt starts in QML against `just mock`: UX brief → prototype on a fixture (a new
@@ -60,14 +64,14 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
   a UX brief `docs/ux/<feature>.md` (how other shells do it — GNOME, KDE, COSMIC, macOS, Windows, Quickshell
   shells like Caelestia/end-4/DankMaterialShell/Noctalia, HyprPanel —, states incl. empty/loading/error/offline,
   keyboard + a11y, motion, multi-output, fit with Island/Stage/quick settings/Settings, budget, definition of
-  done). Cards cite it; the lead reviews screenshots against it; PROGRESS tracks *functional* and *UX* separately.
+  done). Cards cite it; the lead reviews screenshots against it; PROGRESS tracks _functional_ and _UX_ separately.
 - Bugs, ideas and improvements that are not scheduled now → a row in `docs/BACKLOG.md` (date, source,
   status) — never only in a chat, an agent report or a handover. Agents report them; the lead adds the rows.
 - **Inbox (user rule, session 34).** `docs/INBOX.md` is where the user writes bugs and ideas, by area. Before work on an
   area starts — a card is written, an agent is briefed, the lead picks up a step — read that area's section. What fits
   the work at hand (the same files, small) is done with it and ticked with where it landed; what does not fit stays, and
   the report says why. A card names the inbox lines it takes. A line that needs design or a card of its own gets a
-  BACKLOG row and keeps its pointer in the inbox. At session start: file *Unsorted* under its areas, remove done lines.
+  BACKLOG row and keeps its pointer in the inbox. At session start: file _Unsorted_ under its areas, remove done lines.
 - **Session start:** `git fetch` (parallel sessions merge through PRs: take new K-, B-, I- and W-ids from `origin/main`),
   `just sweep`, read `docs/HANDOVER.md` (latest entry) and `docs/INBOX.md`, and continue the handover's "Next steps".
 - **Session end (K14):** add a new top entry to `docs/HANDOVER.md` — state, what was merged,
@@ -75,6 +79,7 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
   and commit it. The pickup prompt at the top of that file must keep working.
 
 ## Commands (inside `nix develop`)
+
 ```sh
 just              # list recipes
 just check        # fmt-check + clippy -D warnings + nextest + doctests + launch-script tests + icon subset + clone ratchet
@@ -89,23 +94,25 @@ nix build .#kurashi    # packaged daemon + frontend + icon font
 ```
 
 ## Docs map
-| Doc | Covers |
-|---|---|
-| `docs/VISION.md` | philosophy (Ma, Kanso, Shōjiki, Kaizen, Omotenashi, Shun), goals, non-goals |
-| `docs/ARCHITECTURE.md` | process model, crates, state ownership, surfaces, data flow |
-| `docs/PROTOCOL.md` | IPC v1: framing, handshake, revisions, transactions, intents |
-| `docs/DESIGN-SYSTEM.md` | tokens, theming pipeline, decor packs, motion, components, Island |
-| `docs/MODS.md` | mod manifest, the integration contract (K154), tiers, lifecycle, settings integration |
-| `docs/MODDING.md` | the community's guide to making a mod: routes, the template, the rules that make it native |
-| `docs/DECISIONS.md` | K-decisions log |
-| `docs/ROADMAP.md` / `PROGRESS.md` | milestones / step tracker (`M{n}.{step}`) |
-| `docs/BENCH.md` / `BAKEOFF.md` | measured numbers / frontend framework comparison |
-| `docs/CONTRACT-CHANGE.md` | requested contract changes from subagents |
-| `docs/HANDOVER.md` | session handovers + pickup prompt (read first, write last) |
-| `docs/BACKLOG.md` | unscheduled bugs, improvements, ideas (append; never lose one) |
-| `docs/INBOX.md` | the user's bugs and ideas by area: read an area's section before working on it |
+
+| Doc                               | Covers                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `docs/VISION.md`                  | philosophy (Ma, Kanso, Shōjiki, Kaizen, Omotenashi, Shun), goals, non-goals                |
+| `docs/ARCHITECTURE.md`            | process model, crates, state ownership, surfaces, data flow                                |
+| `docs/PROTOCOL.md`                | IPC v1: framing, handshake, revisions, transactions, intents                               |
+| `docs/DESIGN-SYSTEM.md`           | tokens, theming pipeline, decor packs, motion, components, Island                          |
+| `docs/MODS.md`                    | mod manifest, the integration contract (K154), tiers, lifecycle, settings integration      |
+| `docs/MODDING.md`                 | the community's guide to making a mod: routes, the template, the rules that make it native |
+| `docs/DECISIONS.md`               | K-decisions log                                                                            |
+| `docs/ROADMAP.md` / `PROGRESS.md` | milestones / step tracker (`M{n}.{step}`)                                                  |
+| `docs/BENCH.md` / `BAKEOFF.md`    | measured numbers / frontend framework comparison                                           |
+| `docs/CONTRACT-CHANGE.md`         | requested contract changes from subagents                                                  |
+| `docs/HANDOVER.md`                | session handovers + pickup prompt (read first, write last)                                 |
+| `docs/BACKLOG.md`                 | unscheduled bugs, improvements, ideas (append; never lose one)                             |
+| `docs/INBOX.md`                   | the user's bugs and ideas by area: read an area's section before working on it             |
 
 ## Subagent task cards
+
 Every delegated task gets a card: goal · the area's inbox lines it takes (`docs/INBOX.md`) · owned paths (edit only
 these) · frozen contracts to code against · one executable acceptance test · token thrift (read only listed files, terse report) ·
 out-of-scope needs → `docs/CONTRACT-CHANGE.md`. Work happens in an isolated git worktree.
@@ -125,6 +132,7 @@ Build each card in its own target dir (`CARGO_TARGET_DIR=$HOME/.cache/kurashi-ag
 delete it after the merge; `docs/tasks/README.md` has the card rules.
 
 ## Testing without disturbing the user's session
+
 Never start the shell on the user's display unless asked. Use `just sandbox` (headless sway,
 own `XDG_RUNTIME_DIR` under `/tmp/kurashi-sb-*`, own `HOME`), screenshots via `grim`, and kill
 only PIDs whose environ carries that runtime dir (never `pkill`). For screencopy tests use the gles2 renderer.
@@ -140,3 +148,13 @@ suites 4 at a time (each owns its sandbox) and re-runs a failure alone — only 
 `just suites --changed` runs only the suites a change touches; before a merge, `just suites` (the merge set) and
 `just check`. Never run suites one by one in a loop. Suites wait for conditions, not fixed sleeps, and keep motion off
 unless motion is under test (card W55).
+
+# Finishing work
+
+Please avoid stopping while you still owe work the user asked for. Be persistent and do not stop unless needed.
+
+While status notes are welcome, as is clarifying with the user on open decisions, carry on with work that does not depend on the user's answer without unnecessary stops.
+
+If you notice yourself inviting the user to redirect you or offering to wait, instead proceed on the next part of the task. You may meet ordinary obstacles like errors, timeouts, locked files, empty results or failing tools. Diagnose them first, and when they are not real blockers, work through them with the access you have (wait and retry, fix the request, use another tool or source) rather than stopping unnecessarily.
+
+If someone clearly decided something is a hard blocker, such as a file marked not to be touched, access that was intentionally withheld, or a safety guardrail, leave it alone, say plainly what you found, and look for another safe way to finish the task. Stopping before the task is complete is very rarely merited, as in when the task can't move forward without user input, or where the blocker is deliberate and should not be worked past. This does not override the need for confirmation on risky or destructive actions.

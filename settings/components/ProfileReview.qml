@@ -25,16 +25,11 @@ Column {
         return (d.key ? d.key + ": " : "") + text
     }
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: v.valueLines.length === 0
         width: v.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
+        dim: true
         text: I18n.tr("settings.ui.no_changes")
     }
     Repeater {
@@ -45,17 +40,13 @@ Column {
             entry: modelData
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: v.sameLines.length > 0
         width: v.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
         font.bold: true
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.ui.profile_same_head")
     }
     Repeater {
@@ -66,15 +57,11 @@ Column {
             entry: modelData
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: v.held.length > 0
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
         font.bold: true
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.ui.not_applied_head")
     }
     Repeater {
@@ -91,26 +78,18 @@ Column {
                 + " — " + Store.forcedText({ reason: modelData.reason, forced_by: modelData.forced_by })
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: v.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.fmt("settings.ui.profile_kept", { n: v.kept })
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: v.diagnostics.length > 0
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
         font.bold: true
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.ui.import_skipped")
     }
     Repeater {

@@ -75,20 +75,10 @@ FILLS = [tuple(int(c.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)) for c in colo
 MIN_SPAN = PH - 6                              # a column of the square spans nearly all of its rows
 MIN_COLS = PH - 10                             # the rounded corners drop a column or two at each side
 
-with open(ppm, "rb") as f:
-    data = f.read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-if fields[0] != b"P6" or fields[3] != b"255":
-    sys.exit(f"not an 8-bit P6 image: {fields}")
-w, h, raster = int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+w, h, raster = read_ppm(ppm)
 
 
 def filled(x, y):

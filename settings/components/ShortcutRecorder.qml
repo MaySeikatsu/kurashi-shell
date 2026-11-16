@@ -242,29 +242,19 @@ Column {
                     color: Theme.container
                     border.width: 1
                     border.color: Theme.outline
-                    Text {
+                    Label {
                         id: capText
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
-                        color: Theme.fg
                         font.pixelSize: Theme.fs - 1
                         font.weight: Theme.wMedium
-                        font.family: Theme.fam(text, Theme.families)
                         text: rec.capOf(modelData)
                     }
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 visible: rec.recording || caps.parts.length === 0
                 anchors.verticalCenter: parent.verticalCenter
                 color: rec.recording ? Theme.fg : Theme.dim
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: rec.recording ? (rec.heldMods.length ? "+ …" : I18n.tr("keys.recorder.prompt")) : I18n.tr("keys.recorder.none")
             }
         }
@@ -283,16 +273,12 @@ Column {
     }
 
     // While recording: how to leave, or why the key was not taken.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: rec.recording
         width: rec.width
         wrapMode: Text.WordWrap
         color: rec.notice !== "" ? Theme.error : Theme.dim
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: rec.notice !== "" ? "⊘ " + rec.notice : I18n.tr("keys.recorder.hint")
     }
 
@@ -301,15 +287,10 @@ Column {
         visible: rec.pending !== null
         width: rec.width
         spacing: Theme.gap / 2
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.fg
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: rec.pending ? I18n.fmt("keys.recorder.taken", { combo: rec.spoken(rec.pending.combo), action: rec.pending.label }) : ""
         }
         Row {
@@ -360,15 +341,11 @@ Column {
             required property var modelData
             objectName: "keyline:" + rec.rowKey
             spacing: Theme.gap
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: Math.min(implicitWidth, rec.width - (link.visible ? link.width + Theme.gap : 0))
                 wrapMode: Text.WordWrap
                 color: modelData.error ? Theme.error : Theme.dim
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: (modelData.error ? "⊘ " : "") + modelData.text
             }
             LinkText {

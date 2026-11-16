@@ -54,27 +54,17 @@ Item {
         x: row.radio ? mark.width + Theme.gap : 0
         width: row.width - x - (strength.visible ? strength.width + Theme.gap : 0)
         anchors.verticalCenter: parent.verticalCenter
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: row.title
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             visible: text !== ""
             elide: Text.ElideRight
             color: row.pending ? Theme.fg : Theme.dim
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: row.pending ? row.pendingText : row.sub
         }
     }

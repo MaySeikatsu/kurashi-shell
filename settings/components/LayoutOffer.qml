@@ -60,18 +60,12 @@ Column {
     Flow {
         width: lo.width
         spacing: Theme.gap
-        Text {
+        Label {
             id: line
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: Math.min(implicitWidth, lo.width)
             height: Math.max(implicitHeight, Theme.controlH)
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.WordWrap
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.fmt("styles.layout.offer", { style: lo.styleName })
         }
         Button {
@@ -99,16 +93,12 @@ Column {
             onClicked: lo.load()
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: lo.message !== ""
         width: lo.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: lo.message
     }
 }
