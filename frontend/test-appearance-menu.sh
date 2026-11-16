@@ -144,8 +144,9 @@ wait_thumbs 8 || echo "note: the thumbnails took long"
 shot wallpaper-kami-dark
 
 # ---- 2. wallpaper: a picture, then the folders ----------------------------------------------------------------------
-# From the rail: Right enters the pane (Local), Tab: the folder, + Add folder, search, the grid.
-keys right tab tab tab tab
+# From the rail: Right enters the pane (Local), Tab: the folder, + Add folder, search, the sort (Name, Newest, Random,
+# ★ Looks), the grid (W99).
+keys right tab tab tab tab tab tab tab tab
 sleep 0.3
 keys right
 sleep 0.5

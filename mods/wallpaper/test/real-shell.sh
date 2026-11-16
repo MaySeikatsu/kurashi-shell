@@ -192,30 +192,40 @@ close_picker
 stop_shell
 stop_daemon
 
-# The keyboard run, in the order the picker's focus moves. Coordinates are physical px on the 2560 x 1440 output:
-# the HEADLESS-1 chip (1082, 131), All outputs (975, 131), the row-2 tile of the first column (1021, 396), Apply look
-# (1466, 634), the header's overflow (1609, 65).
+# The keyboard run, in the order the picker's focus moves. Every control is reached by keys (W99: the card is large and
+# its columns follow its width, so a picture is found by searching for it, not by its place in the grid); the one click
+# is the header's overflow at the card's top-right corner (physical px on the 2560 x 1440 output: the large card is 60 %
+# of its width, centred).
 scenario grid "$R/pics" awww
 start_keys
-press down right                        # 06-wall-light
+find_picture() {  # name: `/` from the grid (the field's text is selected: typing replaces it), the name, Down to the grid
+  local c
+  press slash
+  for c in $(echo "$1" | grep -o .); do press "$c"; done
+  sleep 1
+  press down
+}
+find_picture light                      # 06-wall-light
 shot preview
 press t
 shot theme-off
 press t
 press f                                 # keep it as a look
 WAIT=2 shot kept-look
-# Apply look (the preview's row, its last button): the look's picture with its theme. Clicked: the grid keeps the focus.
-click_at 1466 634
+# Apply look (the actions' last button): Tab from the grid reaches the actions (the theme switch first, I32), then Dark,
+# Light, Apply, Wallpaper only, ★, Apply look; Space presses it.
+press tab tab tab tab tab tab tab space
 sleep 2
 expect "Apply look puts its picture in effect" backend_last_is 06-wall-light.png
 expect "Apply look makes the theme follow its picture" state_theme_is 06-wall-light.png
-click_at 1021 396                       # 05-wall-dark: the grid takes the focus and the selection
+press shift+tab shift+tab shift+tab shift+tab shift+tab shift+tab shift+tab   # back to the grid
+find_picture dark                       # 05-wall-dark
 # Tab from the grid goes to the preview's actions (the theme switch first), not out of the picker (I32).
 press tab                               # the theme switch takes the focus
 press space                             # Space presses it: the switch reads Theme: off in the shot
 WAIT=1 shot tab-from-grid
 press space                             # on again
-click_at 1021 396                       # the grid again; 05 stays selected
+press shift+tab                         # the grid again; 05 stays selected
 # Ctrl+Return: the picture alone; the theme keeps the picture it had.
 press ctrl+return
 sleep 2
@@ -225,40 +235,37 @@ expect "Ctrl+Return keeps the theme's picture" state_theme_is 06-wall-light.png
 press return
 sleep 2
 expect "Return sets the picture and its theme" state_theme_is 05-wall-dark.png
-# One output chosen: Return sets that output; Shift+Return sets every output (the call names no output).
-click_at 1082 131                        # HEADLESS-1
-click_at 1021 396                       # 05-wall-dark: the grid takes the focus and the selection
+# One output chosen: Up from the grid's first row reaches the folder row, Shift+Tab the targets (their last output), Left
+# the first output; Return chooses it, Down goes back to the grid. Return sets that output; Shift+Return every output.
+press up shift+tab left return down
+WAIT=1 shot target-one
 press return
 sleep 2
 expect "Return with one output chosen sets that output" backend_last_has HEADLESS-1
 press shift+return
 sleep 2
 expect "Shift+Return sets every output" backend_last_no_output
-click_at 975 131                         # All outputs again
-click_at 1021 396                       # the grid again
+press up shift+tab left left return down   # All outputs again
 press r                                 # shuffle
 WAIT=2 shot shuffled
 press down
 WAIT=2 shot grid-moved
-press up                                # back to the first row (the folder row is reached from it)
+press up                                # back to the first row
 # `/` from the grid focuses the search field; typing filters the library (07-sunset, in the sub folder); Escape clears it.
-# It runs before the folder row, while the library is unfiltered.
 press slash s u n
 WAIT=2 shot search
 press escape
 sleep 1
-# The folder row, from the keyboard: from the first grid row Up goes to the chips; Right moves to the library's folder and
-# Return opens it. The subfolder's chip is opened by a click (its place in the row is the chips' order, not a key walk).
-press left left left left left left left left left left up
-press right
-press return
+# The folders, from the keyboard: from the first grid row Up goes to the folder's chip, Return browses it; Down to the
+# grid, Up again reaches the breadcrumb row (the folder under it: sub), Return opens it.
+press up return
 WAIT=2 shot folder-root
-click_at 1056 161                       # sub 1
+press down up return
 WAIT=2 shot folder-sub
 press backspace                         # Backspace goes back up to the library's folder
 WAIT=2 shot after-backspace
-# The overflow in the header: the thumbnail cache and what a clear frees. Escape closes it.
-click_at 1609 65
+# The overflow in the header: the thumbnail cache, what a clear frees, the Settings page. Escape closes it.
+click_at 2017 66
 WAIT=2 shot cache-menu
 press escape
 WAIT=1 shot menu-closed
