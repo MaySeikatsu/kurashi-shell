@@ -13,6 +13,7 @@ check:
     sh frontend/test-launch.sh
     sh tools/check-icon-names.sh
     python3 tools/clones.py --check
+    cargo build -q -p kurashi && KURASHI="${CARGO_TARGET_DIR:-target}/debug/kurashi" python3 -I tools/mod-index/test.py
 
 # The merge gate (K153, rule 11): everything a merge to `main` needs, once, at the end of the work — `just check`, the
 # suites' merge set, the Home-Manager evaluation and the package. It writes the commit it passed on to

@@ -11,6 +11,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 ## [0.4.0] — 2026-11-16
 
 ### Added
+- **For mod authors and the coming catalogue:** `kurashi mod hash <folder>` prints a mod's tree hash (the value
+  `nix hash path` prints), `kurashi mod check --summary` what the mod adds, reads, may reach and runs; `tools/mod-index/`
+  is the index repository's layout and CI script with an example entry. Installing from an index is not built yet.
 - **Location** (Settings › Power): set this computer's place by hand (latitude, longitude) for the night light's sunset
   schedule and the light's daytime. Left off, the place a mod knows is used — the Weather mod's, as before.
 - **For mod authors:** a mod can offer the shell its place with `provides = ["location:<name>"]` and `ModCtx::location`;
