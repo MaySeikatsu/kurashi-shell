@@ -4,7 +4,7 @@ import "../../core"
 
 // Module `clock`: the time (svc.clock) as hours and minutes, on one line in a row, on two in a column (the text is never
 // turned). The daemon ticks once a minute; nothing here runs a timer (Ma). K72 retrofit (I223, MODS.md "Modules"): its
-// peek is ClockPeek (the day, the week, the next agenda item and timer), asked on hover or focus as the core source
+// peek is ClockPeek (the day and the week; what is next comes from the mods, BACKLOG I602), asked on hover or focus as the core source
 // `clock:main`; its expanded view is the island's clock card (`island.expand {face: "clock"}`, Enter on the host's tab
 // stop), as the calendar widget opens it.
 ModuleBase {

@@ -17,6 +17,8 @@ K28: "the core never names a mod". What still does, and where each goes:
   offers it (`location:weather`); `kurashid` keeps the crate only in `native.rs`'s linked list.
 - Row 2, the desk's weather card (session 35, K160): `mods/weather/qml/desk/weather.qml` (`desk:weather`), schema v8
   with `v7_to_v8`, `frontend/components/DeskCard.qml` shared by the tasks, calendar and weather cards.
+- Row 3, the clock's peek (session 35): the view was never shown and names no mod now; the slot `clock.peek.lines`
+  comes with the served peek (BACKLOG I602).
 
 ## Steps
 Each row is its own commit and can be its own card; order: `svc.location` (removes a crate dependency) → the desk's
