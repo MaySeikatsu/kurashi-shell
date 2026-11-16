@@ -1797,3 +1797,20 @@ entry in `desktop.hidden` (root and `[outputs.*]`). The bundled profiles that ha
 **Changed for users.** With several mods' cards on the desk the weather stands among them in mod order (after the
 timer), not above them; `desktop.left` / `desktop.right` place it as before.
 
+## K161 — The catalogue's index: one hash for the app and for Nix, a summary nobody types (session 35, W98 step 1, K155)
+**Decided (from the brief `docs/ux/mod-catalogue.md`; the user has not read the brief yet — each point can change).**
+- **The hash of a version is the SRI hash of its unpacked tree as Nix computes it** (SHA-256 over the NAR):
+  `kurashi_mods::nar::hash`, `kurashi mod hash <folder>`; a test holds it to `nix hash path`'s value. One value serves
+  the in-app install's check and `programs.kurashi.mods.<id>.hash`; an archive's own checksum would have needed a second
+  one, and would change with the compression.
+- **An entry** (`mods/<id>.toml`, the same shape in `index.json`; `kurashi_mods::index`): id, names by language, and
+  versions with the shell range, the source (git over https with a full revision, or an archive) and the hash. The Rust
+  validator and the index's CI script (`tools/mod-index/build.py`) hold the same rules; a broken entry in a fetched
+  index is left out and named, the rest stay usable.
+- **`[version.summary]` is written by CI** from the mod's own manifest (`kurashi mod check --summary`): what it adds,
+  reads, may reach and runs. `Summary::gained` is what an update's sheet lists; nothing gained, no sheet.
+- **`.source`** in an installed mod's folder says where it came from; a folder without it is never updated or removed
+  by the catalogue.
+**Not built yet:** fetching the index, `mod.add` / `update` / `remove` in the daemon, Browse, the Home-Manager option
+(W98 steps 2–7).
+

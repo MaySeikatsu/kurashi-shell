@@ -3,7 +3,9 @@
 
 pub mod check;
 pub mod contract;
+pub mod index;
 pub mod manifest;
+pub mod nar;
 pub mod points;
 pub mod registry;
 pub mod scaffold;
