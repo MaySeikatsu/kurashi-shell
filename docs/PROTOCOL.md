@@ -36,6 +36,36 @@ actions (`<id>.*`), the base set's (`mod.panel.open`, `settings.open`, `ui.close
 `{"t":"err","id"?, "kind":"forbidden","msg":"…"}` and the connection stays open. The daemon counts the host as
 running from this hello until the connection closes. Pinned by `fixtures/ipc/client/hello_scope.json`.
 
+**Host programs (K155, W93; MODS.md "Host programs").** A mod's own program — in any language — serves the mod's
+documents and actions over its scoped connection. Three messages are added to v1, on a scoped connection only (any other
+connection gets `forbidden`):
+```json
+→ {"t":"pub","doc":"mod.tea","data":{"available":true,"steeping":false}}
+→ {"t":"serve","id":"1","actions":["tea.start","tea.stop"]}
+← {"t":"done","id":"1"}
+← {"t":"call","id":"c7","action":"tea.start","args":{"minutes":3}}
+→ {"t":"done","id":"c7","data":{"ends_at":1794800000}}
+```
+- **`pub {doc, data, id?}`** replaces a document of the mod (`mod.<id>` or `mod.<id>.*`) that its manifest provides as
+  `service:<name>`. The hub treats it as any writer's: `null` is stripped (§3), the change is diffed and sent to the
+  subscribers as a patch. `data` is an object of at most 256 KiB as JSON. Without `id` nothing is answered (a host may
+  publish often); with one, `done` or `err`. Refused: a document that is not the mod's or not provided → `forbidden`;
+  too large → `invalid` `mods.host.too_large`; not an object → `invalid`.
+- **`serve {id, actions}`** takes the mod's actions: every id must be one the manifest provides (`action:<id>`) and
+  declares (`[[action]]`). All or nothing: one that is not → `err` `forbidden` naming it, and none is taken. From then on
+  the daemon sends the host a **`call {id, action, args}`** for each invocation — `args` already checked against the
+  declaration and its defaults filled in (§6), `id` the daemon's own (`c<n>`, unique on the connection) — and waits for
+  the host's **`done {id, data?}`** or **`err {id, kind, msg}`** (`kind`: `invalid`, `unavailable` or `internal`; `msg`
+  an i18n key). No answer within 10 s → the caller gets `unavailable` `mods.host.timeout` and a late answer is dropped.
+  A second `serve` replaces the first.
+- **While the host is not connected** its documents read `{"available":false,"reason":"mods.host.starting"}` (or
+  `mods.host.missing` / `mods.host.failed`, as the host's state says), and an action answers `unavailable`
+  `mods.host.not_running` — unless the manifest's host has `start = "action"`: then the invocation starts the program
+  and waits up to 5 s for its `serve`. A connection that closes fails its pending calls with `mods.host.not_running`
+  and the documents go back to unavailable; what the host published is not kept.
+- **Reads and calls outward** are the manifest's `uses` (above): `sub` a named document, `act` a named action.
+Pinned by `fixtures/ipc/client/{pub,serve,call_done,call_err}.json` and `fixtures/ipc/server/call.json`.
+
 ## 3. State documents (subscribe / snapshot / patch)
 State is exposed as named **documents** (`config`, `theme`, `runtime.island.main`,
 `svc.audio`, `svc.workspaces`, …).

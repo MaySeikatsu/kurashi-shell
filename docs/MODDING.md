@@ -13,7 +13,7 @@ menus, key binds, both languages. A mod that follows this guide feels like it wa
 |---|---|---|---|
 | Show something the shell already knows (the clock, the playing song, the battery, another mod's data), or open and arrange things | **Views only** | yes | a manifest and QML |
 | Keep state, talk to a service or the network, run on a schedule, raise an Island face, offer launcher results | **In the shell's tree** (a Rust crate linked into the daemon) | yes — by a pull request to this repository | a crate, a manifest and QML |
-| The same, shipped by yourself, in any language | **A program of its own** (a host process the shell starts and scopes) | not yet: the shell can start and scope such a program, but only for a mod that also has a crate (BACKLOG I576) | — |
+| The same, shipped by yourself, in any language | **A program of its own** (a host program the manifest declares; the shell starts it and scopes what it reaches) | yes (0.4.0, section 7a) | a manifest, QML, and a program in any language that can write JSON lines to a Unix socket |
 | Logic without a build, sandboxed | **Luau** (portable mods) | not yet (planned, `docs/MODS.md` "Tiers") | — |
 
 How to choose:
@@ -126,6 +126,61 @@ Island face, background jobs with a reason the user can read, a launcher provide
 code touches (`network`, `exec:<binary>`, `fs:scoped`, …). Tests sit beside the crate; the suite for its views in
 `mods/<id>/test/`. Before any of it: a UX brief `docs/ux/<id>.md` (how others do it, every state, keyboard, motion,
 outputs, budget, definition of done). A pull request passes `just gate`.
+
+## 7a. A program of its own (any language)
+
+When the mod owns something — state, a poll, a device, a network call — and is not going into the shell's tree, its
+code is a **host program**: a file in the mod's `bin/` that the manifest names. The shell starts it, restarts it once if
+it dies, stops it with the mod, and lets it reach exactly what the manifest says (`docs/MODS.md` "Host programs").
+`kurashi mod new --host python` writes a working one. The manifest:
+```toml
+provides = ["i18n", "service:tea", "action:tea.start", "widget:tea"]
+uses = ["doc:svc.clock"]
+
+[[host]]
+name = "main"
+exec = "tea-host"          # mods/tea/bin/tea-host, executable
+start = "subscribed"       # runs while a view of the mod is up (the default); "enabled" or "action" otherwise
+
+[[action]]
+id = "tea.start"
+label = "mod-tea.action.start"
+args = [{ name = "minutes", type = "int", default = 3 }]
+```
+The program gets three environment variables — `KURASHI_SOCKET`, `KURASHI_SCOPE_MOD`, `KURASHI_SCOPE_TOKEN` — and
+speaks newline-delimited JSON on that socket. The whole exchange:
+```python
+#!/usr/bin/env python3
+import json, os, socket
+
+s = socket.socket(socket.AF_UNIX); s.connect(os.environ["KURASHI_SOCKET"]); f = s.makefile("rw")
+def send(m): f.write(json.dumps(m) + "\n"); f.flush()
+
+send({"t": "hello", "v": 1, "client": "tea-host", "caps": [],
+      "scope": {"mod": os.environ["KURASHI_SCOPE_MOD"], "token": os.environ["KURASHI_SCOPE_TOKEN"]}})
+send({"t": "pub", "doc": "mod.tea", "data": {"available": True, "steeping": False}})   # the mod's document
+send({"t": "serve", "id": "1", "actions": ["tea.start"]})                               # the mod's actions
+
+for line in f:                                   # the shell calls; the program answers with the call's id
+    m = json.loads(line)
+    if m["t"] == "call" and m["action"] == "tea.start":
+        send({"t": "pub", "doc": "mod.tea", "data": {"available": True, "steeping": True, "minutes": m["args"]["minutes"]}})
+        send({"t": "done", "id": m["id"]})
+    elif m["t"] == "ping":
+        send({"t": "pong"})
+```
+What to know:
+- **The views read `mod.tea` as any document**, and `kurashi act tea.start`, `> tea` and a key bind all reach the
+  program. Arguments arrive checked against the `[[action]]` declaration, defaults filled in.
+- **Nothing undeclared is taken.** A `pub` of a document the manifest does not provide, or a `serve` of an action it
+  does not declare, is refused and logged. To read or call beyond the mod's own, name it in `uses` and `sub` / `act`.
+- **Idle is silent.** With `start = "subscribed"` the program does not run while no view is up; write it so that it
+  can stop at any time (keep state in `{state_dir}`, passed as an argument). A program that must watch with no view up
+  says `start = "enabled"`, and the Mods page shows it as running.
+- **While the program is away** the document reads `{"available": false, "reason": "mods.host.starting"}`: draw that
+  state in the views (a `LoadingText`), not an empty card.
+- **It is your code, running as the user.** The Mods page says so before the first enable, with the program's name.
+  Do not ask for more than you need: every capability and `uses` entry is shown to the person who installs it.
 
 ## 8. Before you share it
 

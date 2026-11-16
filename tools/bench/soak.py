@@ -183,6 +183,8 @@ def main():
     ap.add_argument("--mods", default="timer,wallpaper,media,sysmon,calendar")
     ap.add_argument("--skip", default="", help=f"steps left out of the round, comma separated: {', '.join(STEPS)}")
     ap.add_argument("--only", default="", help="the steps of the round, the rest left out (`--only none`: at rest)")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="a config key set once the stack is up (repeatable), e.g. theme.motion.profile=none")
     ap.add_argument("--daemon-wrap", help="a command kurashid is started under, e.g. 'heaptrack -o /tmp/kd'")
     ap.add_argument("--max-load", type=float)
     ap.add_argument("--load-wait", type=float, default=600)
@@ -243,6 +245,12 @@ def main():
         if skip - set(STEPS):
             sys.exit(f"soak: unknown step(s) {sorted(skip - set(STEPS))}; the steps are {', '.join(STEPS)}")
         result["steps"] = [x for x in STEPS if x not in skip]
+        for kv in a.set:
+            key, _, value = kv.partition("=")
+            r = m.kurashi(env, "set", key, value)
+            if r.returncode != 0:
+                sys.exit(f"soak: --set {kv} was refused: {r.stderr.strip()}")
+        result["set"] = a.set
         use = Use(env, a.round_pause, covers, player, skip, a.round_min)
         t0 = time.monotonic()
 

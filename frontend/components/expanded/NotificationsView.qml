@@ -55,16 +55,11 @@ Column {
     Row {
         width: view.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: view.width - clearAll.width - Theme.gap
             height: clearAll.height
             verticalAlignment: Text.AlignVCenter
-            color: Theme.fg
             font.pixelSize: Theme.fsTitle
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("notifications.center.title")
         }
         KeyButton {
@@ -102,26 +97,16 @@ Column {
         Column {
             width: dndRow.width - dndSwitch.width - (hourBtn.visible ? hourBtn.width + Theme.gap : 0) - Theme.gap
             spacing: 0
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.notifications.dnd")
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: view.dndText
             }
         }
@@ -141,27 +126,17 @@ Column {
     // K28: a mod's header row (a focus or DND schedule); nothing when no mod contributes.
     SlotHost { slot: "notifications.expanded.header"; width: view.width }
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.locked
         width: view.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
+        dim: true
         text: I18n.tr("island.notifications.locked")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !view.locked && view.items.length === 0
         width: view.width
-        color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
+        dim: true
         text: I18n.tr("notifications.center.empty")
     }
     Repeater {
@@ -171,15 +146,11 @@ Column {
             required property var modelData
             width: view.width
             spacing: Theme.xs
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
                 elide: Text.ElideRight
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: group.modelData.app !== "" ? group.modelData.app : I18n.tr("island.notifications.app.unknown")
             }
             Repeater {
@@ -194,16 +165,11 @@ Column {
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: view.errText !== ""
         width: view.width
         wrapMode: Text.WordWrap
         color: Theme.error
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: view.errText
     }
     KeyButton {

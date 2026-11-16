@@ -54,17 +54,11 @@ Flow {
             Accessible.role: Accessible.ListItem
             Accessible.name: I18n.fmt("settings.ui.list_remove", { item: modelData })
 
-            Text {
+            Label {
                 id: lbl
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: entry.modelData
             }
             Text {

@@ -137,11 +137,8 @@ Column {
                         }
                     }
                 }
-                Text {
+                Label {
                     id: cap
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.top: face.bottom
                     anchors.topMargin: 4
                     width: card.width
@@ -152,7 +149,6 @@ Column {
                     color: card.on ? Theme.fg : Theme.dim
                     font.pixelSize: Theme.fs - 2
                     font.weight: card.on ? Font.Bold : Font.Normal
-                    font.family: Theme.fam(text, Theme.families)
                     text: card.caption
                 }
                 HoverHandler { id: hov }

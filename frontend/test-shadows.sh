@@ -82,26 +82,7 @@ bar_edge() {
 set_() { K set "$@" >/dev/null || fail "kurashi set $* refused"; }
 
 # The theme document's tokens (and a config key's provenance), over the socket.
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode()); f.flush()
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": "theme"})
-while True:
-    m = json.loads(f.readline())
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        t = (m.get("data") or {}).get("tokens", {})
-        print(json.dumps([t.get(k) for k in sys.argv[1:]]))
-        break
-PY
-toks() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+toks() { tk_ipc tokens "$@"; }
 # expect <label> <dx> <dy> [alpha]: the tokens within 0.02 px.
 expect() {
   local got

@@ -6,6 +6,8 @@
 //! sources. K38 adds host processes (`hosts`): a mod's own program, started and supervised here.
 
 pub mod hosts;
+pub mod program;
+pub mod served;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -687,16 +689,31 @@ impl Native {
             if active {
                 continue;
             }
-            let Some(module) = self.linked.get(&id).cloned() else {
-                let needs_code = reg
-                    .get(&id)
-                    .and_then(|e| e.manifest.as_ref())
-                    .is_some_and(needs_daemon_code);
-                if needs_code {
-                    self.refused.insert(id.clone(), ModError::NotBuilt);
+            let manifest = reg.get(&id).and_then(|e| e.manifest.as_ref());
+            let has_program = manifest.is_some_and(|m| !m.hosts.is_empty());
+            let module: Arc<dyn NativeMod> = match self.linked.get(&id).cloned() {
+                // K155 (W93): one or the other — a crate would register what the program serves.
+                Some(_) if has_program => {
+                    self.refused.insert(
+                        id.clone(),
+                        ModError::Failed("mods.error.host_and_native".into()),
+                    );
                     let _ = reg.disable(&id);
+                    continue;
                 }
-                continue;
+                Some(module) => module,
+                // K155 (W93): a mod whose code is its own program needs no crate.
+                None if has_program => match manifest {
+                    Some(m) => Arc::new(program::ProgramMod::new(m)),
+                    None => continue,
+                },
+                None => {
+                    if manifest.is_some_and(needs_daemon_code) {
+                        self.refused.insert(id.clone(), ModError::NotBuilt);
+                        let _ = reg.disable(&id);
+                    }
+                    continue;
+                }
             };
             match self.activate(module.as_ref(), reg, store) {
                 Ok(()) => {
@@ -765,7 +782,23 @@ impl Native {
             values: watch::channel(values).0,
             forced: watch::channel(forced_of(store, &keys)).0,
         });
-        let provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
+        let mut provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
+        let mut capabilities = manifest.capabilities.clone();
+        // K155 (W93): `[[host]]` declares the program: it stands for `host:<name>` (and the job that keeps a program
+        // started with the mod running), and a file in the mod's own `bin/` needs no `exec:` capability.
+        let bin_dir = reg
+            .get(module.id())
+            .map(|e| e.dir.join("bin"))
+            .unwrap_or_default();
+        for h in &manifest.hosts {
+            provides.push(format!("host:{}", h.name));
+            if h.start == kurashi_mods::HostStart::Enabled {
+                provides.push(format!("job:host-{}", h.name));
+            }
+            if hosts::is_executable(&bin_dir.join(&h.exec)) {
+                capabilities.push(format!("exec:{}", h.exec));
+            }
+        }
         let link = Arc::new(Link {
             island: self.island.clone(),
             config: self.config.clone(),
@@ -802,7 +835,7 @@ impl Native {
             .collect();
         let mut ctx = ModCtx::new(&provides, settings.settings(), link.clone())
             .with_uses(&uses)
-            .with_capabilities(&manifest.capabilities)
+            .with_capabilities(&capabilities)
             .with_picture_filter(Some(crate::texture::picture_filter()));
         module.enable(&mut ctx)?;
         let declared_jobs = ctx.take_jobs();
@@ -1006,6 +1039,8 @@ impl Native {
         let Some(ledger) = self.active.remove(id) else {
             return;
         };
+        // K155 (W93): a host program of this mod serves nothing from now on.
+        served::of(id).provides(Default::default(), Default::default());
         // The mod's handles stop reaching the island and the config before anything is taken back.
         ledger.link.state.lock().expect("link lock").live = false;
         for job in &ledger.jobs {
@@ -1179,7 +1214,11 @@ impl Native {
     /// Whether this build can run a mod (B15, I281): one whose manifest declares daemon code needs its `NativeMod`
     /// linked. A mod without it is not offered at all — no list entry, no settings page, no switch that cannot work.
     pub fn can_run(&self, e: &ModEntry) -> bool {
-        self.linked.contains_key(&e.id) || !e.manifest.as_ref().is_some_and(needs_daemon_code)
+        self.linked.contains_key(&e.id)
+            || !e
+                .manifest
+                .as_ref()
+                .is_some_and(|m| needs_daemon_code(m) && m.hosts.is_empty())
     }
 }
 

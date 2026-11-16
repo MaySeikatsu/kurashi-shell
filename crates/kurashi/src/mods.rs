@@ -44,6 +44,9 @@ pub enum ModCmd {
         /// What it reads and calls beyond its own, comma-separated (`doc:svc.clock,action:island.expand?`)
         #[arg(long, value_delimiter = ',')]
         uses: Vec<String>,
+        /// A program of its own beside the views, from that language's template: python (docs/MODDING.md 7a)
+        #[arg(long)]
+        host: Option<String>,
         /// Where its folder goes (default: your mods, $XDG_DATA_HOME/kurashi/mods; `mods` in a checkout)
         #[arg(long)]
         dir: Option<PathBuf>,
@@ -114,6 +117,7 @@ pub fn run(cmd: ModCmd, json: bool) -> Out {
             description,
             with,
             uses,
+            host,
             dir,
         } => {
             let spec = kurashi_mods::scaffold::Spec {
@@ -127,6 +131,7 @@ pub fn run(cmd: ModCmd, json: bool) -> Out {
                 icon,
                 with,
                 uses,
+                host,
             };
             let root = dir.unwrap_or_else(|| {
                 std::env::var_os("XDG_DATA_HOME")

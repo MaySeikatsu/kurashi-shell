@@ -49,16 +49,12 @@ Column {
             onClicked: foot.act("session.menu", {})
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: foot.errText !== ""
         width: foot.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: foot.errText
     }
 }

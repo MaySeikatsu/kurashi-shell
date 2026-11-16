@@ -17,18 +17,14 @@ Item {
     Component.onCompleted: Store.watch("runtime.layout")
     Component.onDestruction: Store.unwatch("runtime.layout")
 
-    Text {
+    Label {
         id: warning
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: "⚠ " + I18n.tr("settings.layout.empty_bar")
     }
 }

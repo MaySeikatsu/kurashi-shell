@@ -342,6 +342,38 @@ pub fn check_dir(dir: &Path, daemon: &Version) -> Report {
             return Report { id, findings };
         }
     };
+    // K155 (W93): a host program is a file the mod brings (`bin/<exec>`, executable), or a program on PATH that its
+    // capabilities name.
+    for (i, h) in m.hosts.iter().enumerate() {
+        use std::os::unix::fs::PermissionsExt;
+        let own = dir.join("bin").join(&h.exec);
+        let granted = m
+            .capabilities
+            .iter()
+            .any(|c| c == &format!("exec:{}", h.exec));
+        let at = format!("mod.toml: host[{i}].exec");
+        match std::fs::metadata(&own) {
+            Ok(meta) if meta.is_file() && meta.permissions().mode() & 0o111 == 0 => {
+                findings.push(Finding {
+                    rule: "host_exec",
+                    level: Level::Error,
+                    at,
+                    detail: format!("`bin/{}` is not executable", h.exec),
+                })
+            }
+            Ok(meta) if meta.is_file() => {}
+            _ if granted => {}
+            _ => findings.push(Finding {
+                rule: "host_exec",
+                level: Level::Error,
+                at,
+                detail: format!(
+                    "`{0}` is neither a file in `bin/` nor named in capabilities (`exec:{0}`)",
+                    h.exec
+                ),
+            }),
+        }
+    }
     let src = sources(dir);
     check_manifest(&m, &mut findings);
     check_reach(&m, &reach_of(&src), &crate_reach(dir, &m.id), &mut findings);

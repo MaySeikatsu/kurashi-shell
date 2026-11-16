@@ -63,36 +63,7 @@ NOBUS="unix:path=$R/no-system-bus"
 K() { timeout 10 "$W/kurashi" "$@"; }
 keys() { timeout 30 python3 -I "$ROOT/tools/bench/wl_keys.py" "$@" >> "$R/keys.log" 2>&1 || true; }
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in mods/tasks/test-tasks.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
-ui_is() { timeout 10 python3 -I "$W/ipc.py" runtime.ui | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($1) else 1)" 2>/dev/null; }
+ui_is() { tk_ipc runtime.ui | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($1) else 1)" 2>/dev/null; }
 wait_ui() { local i; for i in $(seq "$2"); do ui_is "$1" && return 0; sleep 0.25; done; return 0; }
 shot() { # shot <name> <geometry>
   sleep "${WAIT:-1.5}"
@@ -172,16 +143,10 @@ start_harness() {
 # pixels are the evidence that a surface is there or gone.
 cat > "$W/px.py" <<'PY'
 import sys
-data = open(sys.argv[1], "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j]); i = j
-w, h, raster = int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+w, h, raster = read_ppm(sys.argv[1])
 BG = (0x8f, 0xb8, 0xc8)
 ok = True
 for arg in sys.argv[2:]:

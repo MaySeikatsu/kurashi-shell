@@ -65,17 +65,11 @@ cat > "$W/px.py" <<'PY'
 import sys
 ppm, bg = sys.argv[1], sys.argv[2]
 B = tuple(int(bg.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
-data = open(ppm, "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-p = data[i + 1:i + 4]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+_, _, raster = read_ppm(ppm)
+p = raster[:3]
 print("desk" if max(abs(p[k] - B[k]) for k in range(3)) <= 24 else "ink")
 PY
 px() { timeout 20 grim -g "$1,$2 1x1" -t ppm "$W/px.ppm"; python3 -I "$W/px.py" "$W/px.ppm" "$BG"; }

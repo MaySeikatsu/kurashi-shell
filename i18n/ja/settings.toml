@@ -106,6 +106,7 @@
 "settings.ui.mod_state.invalid" = "不正"
 "settings.ui.mod_shadows" = "同梱モッドを上書き"
 "settings.ui.mod_caps" = "権限"
+"settings.ui.mod_runs_program" = "このモッドは独自のプログラムを実行します：{program}。あなたの権限で動き、上に書かれたものに届きます。"
 "settings.ui.mod_cost" = "負荷"
 "settings.ui.mod_adds" = "提供"
 "settings.ui.mod_none" = "なし"

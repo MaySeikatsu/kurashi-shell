@@ -52,10 +52,7 @@ Item {
                 visible: c.header
                 spacing: Theme.gap
                 bottomPadding: Theme.gap / 2
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: Theme.iconFamily !== "" && c.icon !== ""
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.iconFamily
@@ -64,15 +61,10 @@ Item {
                     color: Theme.accent
                     text: c.icon
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     anchors.verticalCenter: parent.verticalCenter
-                    color: Theme.fg
                     font.pixelSize: Theme.fs + 1
                     font.weight: Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
                     text: c.title
                 }
             }

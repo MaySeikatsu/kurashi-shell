@@ -423,7 +423,8 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     })?;
     // noren missing: the launcher's row leads to the mod's Settings page, where the reason and the option are.
     action(ctx, s, "sessions.help", |s, _| async move {
-        s.with_model(|m| m.handoff("settings.open", json!({"page": "mods.sessions"})));
+        // (`mod:<id>` is a mod's page; `mods.sessions` was refused: settings.error.page)
+        s.with_model(|m| m.handoff("settings.open", json!({"page": "mod:sessions"})));
         Ok(None)
     })?;
     action(ctx, s, "sessions.pin", |s, a| noren_verb(s, a, "pin"))?;

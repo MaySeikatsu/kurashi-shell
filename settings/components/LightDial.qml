@@ -211,29 +211,19 @@ Row {
         width: ld.width - (dial.visible ? dial.width + ld.spacing : 0) - (stage.visible ? stage.width + ld.spacing : 0)
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: ld.spotlight
                 ? I18n.fmt("settings.light.numbers_beam", { angle: Math.round(ld.shownAngle), elevation: Math.round(ld.shownElevation), beam: Math.round(ld.beam) })
                 : I18n.fmt("settings.light.numbers", { angle: Math.round(ld.shownAngle), elevation: Math.round(ld.shownElevation) })
         }
-        Text {
+        Label {
             id: note
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 1
-            font.family: Theme.fam(text, Theme.families)
             text: ld.mode === "pointer" ? I18n.tr("settings.light.pointer")
                 : ld.spotlight ? I18n.tr("settings.light.spotlight")
                 : ld.mode === "daytime" ? I18n.tr("settings.light.daytime." + (ld.detail || "day"))
@@ -241,18 +231,14 @@ Row {
                 : I18n.tr("settings.light.static")
         }
         // W58 (K79, Shōjiki): whether the lamp sees the pointer over windows too, or why it keeps to the shell's surfaces.
-        Text {
+        Label {
             id: reach
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             readonly property var pdoc: Light.pointerDoc
             visible: (ld.mode === "pointer" || ld.spotlight) && text !== ""
             width: parent.width
             wrapMode: Text.WordWrap
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 1
-            font.family: Theme.fam(text, Theme.families)
             text: !pdoc ? "" : pdoc.available === true ? I18n.tr("settings.light.everywhere")
                 : I18n.tr(pdoc.reason || "pointer.no_protocol")
         }

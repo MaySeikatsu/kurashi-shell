@@ -209,27 +209,17 @@ Column {
                 anchors.right: buttons.left
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     width: parent.width
                     elide: Text.ElideRight
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
                     text: (entry.index + 1) + ".  " + entry.name
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     visible: text !== ""
                     width: parent.width
                     elide: Text.ElideRight
-                    color: Theme.dim
+                    dim: true
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: rec.detailOf(entry.row)
                 }
             }
@@ -277,16 +267,12 @@ Column {
     }
 
     // Nothing yet: say so, and offer the first one.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: rec.items.length === 0 && rec.formRow < 0
         width: rec.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.records.empty")
     }
     Button {
@@ -317,14 +303,8 @@ Column {
             anchors.top: parent.top
             anchors.margins: Theme.pad
             spacing: Theme.gap / 2
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: parent.width
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: rec.formRow >= rec.items.length ? I18n.tr("settings.records.add_title") : I18n.tr("settings.records.edit_title")
             }
             Repeater {
@@ -345,14 +325,10 @@ Column {
                         else textField.focusInput()
                     }
                     // The field's name, visible above its control (the control's own label is its accessible name only).
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         width: fieldBox.width
-                        color: Theme.dim
+                        dim: true
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr(fieldBox.modelData.label ?? fieldBox.key)
                     }
                     TextField {
@@ -389,16 +365,12 @@ Column {
                         checked: rec.draft[fieldBox.key] === true
                         onToggled: v => rec.setDraft(fieldBox.key, v)
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: fieldBox.err !== ""
                         width: fieldBox.width
                         wrapMode: Text.WordWrap
                         color: Theme.error
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: "✕ " + fieldBox.err
                     }
                 }
@@ -418,15 +390,11 @@ Column {
                     onClicked: rec.cancelForm()
                 }
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 width: formCol.width
                 wrapMode: Text.WordWrap
-                color: Theme.dim
+                dim: true
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("settings.records.hint")
             }
         }
