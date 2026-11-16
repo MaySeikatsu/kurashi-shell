@@ -195,7 +195,7 @@ for DECOR in $DECORS; do
   echo "== $DECOR: hidden cards by Tab and Space, Done, undo"
   edit_key
   kp tab tab space          # the clock: Tab to its down key, then its eye; Space hides it (its switch)
-  kp down down down down    # focus to the tasks card, the fifth card (the eye key keeps Down for the card)
+  kp down down down         # focus to the tasks card, the fourth card (the eye key keeps Down for the card)
   kp tab tab tab space      # the tasks card: its up and down keys, then its eye; Space hides it (desktop.hidden)
   shot "hidden-edit-$DECOR"
   kp up return              # Up moves the focus off the eye onto a card; Return is Done from a card
