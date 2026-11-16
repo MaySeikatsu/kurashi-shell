@@ -86,8 +86,6 @@ Item {
     readonly property bool mediaPlaying: mediaDoc.playing === true && String(mediaDoc.title || "") !== ""
     readonly property bool sessionOk: (Store.docs["svc.session"] || ({})).available === true
     readonly property var clockDoc: Store.docs["svc.clock"] || ({})
-    // The avatar's letter: the login name's first letter (the session's environment; nothing else knows a name yet).
-    readonly property string userLetter: String(Quickshell.env("USER") || "").charAt(0).toUpperCase()
     // The greeting's part of the day, from the clock document's hour.
     readonly property string daypart: {
         var h = Number(clockDoc.hh)
@@ -640,35 +638,7 @@ Item {
                 height: avatar.height
                 Accessible.role: Accessible.Heading
                 Accessible.name: I18n.tr("island.quick.heading")
-                Block {
-                    id: avatar
-                    width: 44
-                    height: 44 + Theme.shadowDy
-                    radius: Theme.rFull
-                    fill: Theme.selected
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                        visible: quick.userLetter !== ""
-                        anchors.centerIn: parent
-                        color: Theme.color("color.on_selected", Theme.fg)
-                        font.pixelSize: Theme.fsTitle + 4
-                        font.weight: Theme.wBold
-                        font.family: Theme.fam(text, Theme.families)
-                        text: quick.userLetter
-                        TextFx { title: true }
-                    }
-                    Icon {
-                        visible: quick.userLetter === ""
-                        anchors.centerIn: parent
-                        name: "person"
-                        glyph: "◡"
-                        filled: true
-                        size: 24
-                        color: Theme.color("color.on_selected", Theme.fg)
-                    }
-                }
+                Avatar { id: avatar }
                 Column {
                     x: avatar.width + Theme.gap + 2
                     width: hello.width - x

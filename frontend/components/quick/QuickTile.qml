@@ -266,14 +266,14 @@ Item {
                     color: tile.lit ? Theme.fgOnAccent : Theme.dim
                 }
             }
-            Text {
+            // I586: the look's type, as every other line (a pixel look drew this one smoothed).
+            Label {
                 anchors { left: parent.left; right: parent.right; top: cbtn.bottom; topMargin: tile.compactLabelGap }
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 color: tile.failed ? Theme.error : Theme.fg
                 opacity: tile.inert ? 0.6 : 1
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
                 text: tile.label
             }
         }

@@ -13,6 +13,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 - `launcher.open {query}`: an action that opens the launcher in a mode, for a key of your own (for example `;` for the
   clipboard history, `:` for emoji).
 
+- The quick card's greeting and the sidebar's header show your account's picture and full name when the account has
+  them (set in your desktop's user settings, or a `~/.face` picture); before, only the login's first letter.
+
 ### Fixed
 - **Launcher:** `!` (or any mod's prefix) typed while its mod is switched off now says so and opens Mods, instead of
   searching the apps. A `>` command that needs words (`> task`, `> note`) is listed before you type them and fills the

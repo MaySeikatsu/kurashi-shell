@@ -1834,3 +1834,14 @@ runs no code); launching the hint row as the command with an empty argument (an 
 `launcher.open {query?}`: the launcher with `query` in its field (a key can open a mode: `;` the clipboard, `:` emoji,
 `>` commands), closing it when called again with the same query, as `launcher.keys` does for `?`.
 
+## K163 — The daemon says who the session belongs to (session 36, I108, rule 1)
+**Problem.** The quick card's greeting row and the sidebar's header each read `$USER` in QML and drew its first letter:
+state read in the frontend, twice, and no full name or picture.
+**Decision.** The `daemon` document carries `user: {name, full_name, icon}`: the login, the full name from the
+account's GECOS field, and the account's picture (AccountsService's file, else `~/.face`, `~/.face.icon`), read once
+at start. One component, `frontend/components/Avatar.qml`, draws it (picture, else the name's first letter, else a
+person) for both places.
+**Rejected.** A D-Bus call to AccountsService (the file it writes is what every greeter reads; no service to wait for);
+a document of its own (three fields that never change belong with the daemon's other facts).
+**Contract.** `daemon.user` (PROTOCOL §5, `fixtures/ipc/server/snap_daemon.json`).
+
