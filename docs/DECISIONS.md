@@ -1845,3 +1845,18 @@ person) for both places.
 a document of its own (three fields that never change belong with the daemon's other facts).
 **Contract.** `daemon.user` (PROTOCOL §5, `fixtures/ipc/server/snap_daemon.json`).
 
+## K164 — A large card at the bar's centre (session 36, I606, I538, I504)
+**Problem.** A card is at most a third of the screen wide and half of it tall (I504, the user's rule for ordinary
+cards). The wallpaper picker asked for 720 px and got 633 on a 1920 screen: two or three small columns. The user
+likes the size and place of the terminal's sheet (60 % × 45 % of the screen, joined to the bar's centre) and wants it
+as a place any module's card can open at.
+**Decision.** The Stage knows one more size: **large**. A large card is `bar.card_large_width` × `bar.card_large_height`
+of its screen (60 and 45 by default, the terminal sheet's numbers) and comes out at the bar's centre whatever opened
+it. A mod's panel asks for it with `property bool cardLarge: true` and is handed the height as `fillHeight` (the
+property sidebars already hand a panel); the user makes any module's card large by naming it in `bar.popups_large`.
+The three keys are Advanced. The launcher's appearance menu takes the same size. The wallpaper picker is the first
+panel that asks.
+**Rejected.** Raising the ordinary limits (every card would grow); a per-mod size in the core's defaults (the core
+would name a mod); a placement the manifest declares (a second place for what the panel's own property says).
+**Contract.** MODS.md "Panels": `cardLarge`. No IPC shape changes.
+

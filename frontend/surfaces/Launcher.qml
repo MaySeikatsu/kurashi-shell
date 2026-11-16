@@ -104,8 +104,10 @@ PanelWindow {
     property string menuPane: ""
     readonly property bool menuOn: menuPane !== ""
     property string menuNote: ""
-    readonly property int menuH: 540
-    readonly property int menuW: 760
+    // I538, I606: the appearance menu takes a large card's size (`bar.card_large_width` × `bar.card_large_height` of the
+    // screen, the terminal sheet's by default), never under what its panes need.
+    readonly property int menuH: Math.max(540, Math.round(scrH * Number(bars.valueOf("bar.card_large_height", 45)) / 100))
+    readonly property int menuW: Math.max(760, Math.min(scrW - 4 * Theme.pad, Math.round(scrW * Number(bars.valueOf("bar.card_large_width", 60)) / 100)))
     function openMenu(pane) {
         if (String(bars.valueOf("launcher.appearance_opens", "launcher")) === "card") {
             Store.act("appearance.open", { pane: pane, output: scr ? scr.name : "" }, function (done, e) {

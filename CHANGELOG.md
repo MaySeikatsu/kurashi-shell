@@ -13,6 +13,9 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 - `launcher.open {query}`: an action that opens the launcher in a mode, for a key of your own (for example `;` for the
   clipboard history, `:` for emoji).
 
+- **Large cards.** The wallpaper picker opens as a large card at the bar's centre (60 % × 45 % of the screen, the size
+  of the terminal's sheet), and the launcher's appearance menu takes the same size. Any module's card can open large:
+  Settings › Layout, Advanced, "Modules that open large"; the size is set beside it.
 - The quick card's greeting and the sidebar's header show your account's picture and full name when the account has
   them (set in your desktop's user settings, or a `~/.face` picture); before, only the login's first letter.
 
