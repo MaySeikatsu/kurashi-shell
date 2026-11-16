@@ -105,3 +105,4 @@
 "action.mod.check" = "モッドをルールに照らして確認"
 "action.mod.new" = "新しいモッドを作成"
 "action.mod.rescan" = "新しいモッドを探す"
+"action.mod.open_folder" = "モッドのフォルダーを開く"

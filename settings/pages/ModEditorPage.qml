@@ -917,6 +917,13 @@ Flickable {
                                 enabled: p.hasPage
                                 onClicked: p.pageRequested("mod:" + p.created.id)
                             }
+                            // I605: the new mod's folder in the file manager (`mod.open_folder`).
+                            Button {
+                                objectName: "mod-new-open-folder"
+                                label: I18n.tr("mods.new.open_folder")
+                                enabled: Store.live && !!p.createdEntry
+                                onClicked: Store.act("mod.open_folder", { id: p.created.id })
+                            }
                         }
                         Hint {
                             visible: p.forcedOn !== ""

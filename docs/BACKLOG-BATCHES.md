@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (460 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (457 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -14,11 +14,11 @@ batch or in two: give a new row its batch there, then run it again.
 | 1 | Launcher, small | 2 of 3 | S |
 | 1 | Web dock in the bar | 2 of 9 | S–M |
 | 1 | Settings, fixes | 5 of 9 | S–M |
-| 1 | Mods page and Mod Editor | 0 of 7 | S–M |
+| 1 | Mods page and Mod Editor | 2 of 7 | S–M |
 | 1 | Quick settings, small | 8 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
 | 1 | Icons and glyph sizes | 3 of 5 | M |
-| 1 | Media, small | 1 of 3 | S–M |
+| 1 | Media, small | 2 of 3 | S–M |
 | 2 | Settings, structure | 0 of 10 | M–L |
 | 2 | Settings, theming pages | 0 of 7 | M |
 | 2 | Settings docked in a sidebar | 0 of 3 | M |
@@ -118,8 +118,8 @@ Shares: the Mods page and the `mods` document (one contract change for I605 and 
 
 | Row | | What |
 |---|---|---|
-| I604 |  | The skip error names no variant. `kurashi_mods::editor::error_key` keeps only the text before the colon, so … |
-| I605 |  | The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
+| I604 |  | **done** — The skip error names no variant. `kurashi_mods::editor::error_key` keeps only the text before the colon, so … |
+| I605 |  | **done** — The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
 | I593 |  | Host programs: what the design names and W93 did not build. (1) The Mods page asks once before the first enable of a … |
 | I592 |  | A mod that waits for a required use (`mods.uses.missing`, K158) has not been seen on niri: no bundled mod requires … |
 | I575 |  | An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
@@ -174,7 +174,7 @@ Shares: the media face and Dynamic Media Color. Size: S–M. Needs you: I398: wh
 |---|---|---|
 | I133 |  | Media: a config key for fetching http covers (env `KURASHI_MEDIA_ART_FETCH=0` today); `art_colors` and … |
 | I398 | U | **done** — An option for the Now Playing card under Dynamic Media Color (K87): today it keeps its own cover colours and changes at … |
-| B89 |  | After K125: Dynamic Media Color's wheel blends (`media.blend = wheel_*`) still step every colour in JS and will stutter … |
+| B89 |  | **done** — After K125: Dynamic Media Color's wheel blends (`media.blend = wheel_*`) still step every colour in JS and will stutter … |
 
 ## 2. Passes over one area (one to a few days each)
 

@@ -105,3 +105,4 @@
 "action.mod.check" = "Check a mod against the rules"
 "action.mod.new" = "Create a new mod"
 "action.mod.rescan" = "Look for new mods"
+"action.mod.open_folder" = "Open a mod's folder"

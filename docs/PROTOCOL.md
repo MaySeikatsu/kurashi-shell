@@ -269,7 +269,7 @@ handler runs and fills the defaults in: a missing required one, a wrong type or 
 id is `cmd:<action>` or, with arguments from the rest of the line (`> timer 5`), `cmd:<action>\t<json>`, and
 `launcher.launch` runs the action with them.
 
-The `mods` document (K25; K154, additive): an entry also carries `icon` (the manifest's Material Symbols name) and
+The `mods` document: I605 (additive) an entry carries `dir`, the mod's folder; `mod.open_folder {id}` opens it in the file manager (only a folder the registry holds). The `mods` document (K25; K154, additive): an entry also carries `icon` (the manifest's Material Symbols name) and
 `menus: [{at, action, label?, icon?, args?}]` — its `[[menu]]` rows with the label and icon each shows (the row's own,
 else its action's); a menu draws the rows of the enabled mods whose `at` is its point (`module`, `desktop`, `bar`).
 Pinned by `fixtures/ipc/server/snap_mods.json`. The `i18n` document also holds each discovered mod's own strings
