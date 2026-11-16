@@ -55,43 +55,7 @@ printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_
 
 # One protocol exchange with the socket: `ipc sub <doc>` prints the first snapshot's data, `ipc act
 # <action> [args-json]` prints the reply (exit 1 on err). Plain stdlib, as in test-tray-bt.sh.
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-def reply(rid):
-    while True:
-        line = f.readline()
-        if not line:
-            sys.exit("ipc: connection closed")
-        m = json.loads(line)
-        if m.get("id") == rid and m["t"] in ("done", "err", "snap"):
-            return m
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-if sys.argv[1] == "act":
-    args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
-    send({"t": "act", "id": "a", "action": sys.argv[2], "args": args})
-    m = reply("a")
-    print(json.dumps(m))
-    sys.exit(0 if m["t"] == "done" else 1)
-send({"t": "sub", "id": "s", "doc": sys.argv[2]})
-print(json.dumps(reply("s").get("data")))
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 tok() { ipc sub theme | jq -r --arg k "$1" '.tokens[$k]'; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 # K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
@@ -117,27 +81,15 @@ def rgb(hex_color):
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
-def read_ppm(data):
-    # Four whitespace-separated fields (magic, width, height, maxval), one whitespace byte, the raster.
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import near, read_ppm
 
 
 path, edge = sys.argv[1], sys.argv[2]
 accent, dim = rgb(sys.argv[3]), rgb(sys.argv[4])
 bar, strip = int(float(sys.argv[5])), int(sys.argv[6])
-with open(path, "rb") as f:
-    w, h, raster = read_ppm(f.read())
+w, h, raster = read_ppm(path)
 
 
 def pix(a, b):
@@ -145,10 +97,6 @@ def pix(a, b):
     x, y = (a, b) if edge == "top" else (b, a)
     o = (y * w + x) * 3
     return (raster[o], raster[o + 1], raster[o + 2])
-
-
-def near(c, ref, tol):
-    return all(abs(c[k] - ref[k]) <= tol for k in range(3))
 
 
 # The bar's end: the right end of a top bar, the bottom end of a left bar.

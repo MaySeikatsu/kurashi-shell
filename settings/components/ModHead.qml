@@ -35,19 +35,14 @@ Column {
     Item {
         width: parent.width
         height: Math.max(title.implicitHeight, switchRow.height)
-        Text {
+        Label {
             id: title
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: Math.min(implicitWidth, parent.width - switchRow.width - Theme.pad * 2)
             elide: Text.ElideRight
-            color: Theme.fg
             font.pixelSize: Theme.fsTitle
             font.bold: true
-            font.family: Theme.fam(text, Theme.families)
             text: h.entry ? I18n.tr(h.entry.name) : ""
         }
         Row {
@@ -78,84 +73,59 @@ Column {
                 enabled: Store.live && h.forced === "" && h.entry !== null && !h.invalid
                 onToggled: v => h.setOn(v)
             }
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            Label {
                 height: Theme.controlH
                 verticalAlignment: Text.AlignVCenter
-                color: Theme.dim
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
+                dim: true
                 text: Store.modOn(h.modId) ? I18n.tr("settings.ui.on") : I18n.tr("settings.ui.off")
             }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: h.forced !== ""
         width: parent.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: "⊘ " + h.forced
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: h.failure !== ""
         width: parent.width
         wrapMode: Text.WordWrap
         color: Theme.error
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + h.failure
     }
 
     // --- what it is, does and costs --------------------------------------------------------------------
     // "Running now" names what it runs for (I48, docs/ux/settings.md): a job with nothing to do is not listed.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: h.entry !== null && h.entry.running !== undefined
         width: parent.width
         wrapMode: Text.WordWrap
         color: h.entry && h.entry.running ? Theme.fg : Theme.dim
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: h.entry && (h.entry.running_reasons || []).length > 0
             ? I18n.fmt("settings.mods.running_now", { reasons: Store.joinedWords(h.entry.running_reasons, "") })
             : I18n.tr("settings.mods.not_running")
         Accessible.role: Accessible.StaticText
         Accessible.name: text
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !!h.entry && !!h.entry.description
         width: parent.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: h.entry && h.entry.description ? I18n.tr(h.entry.description) : ""
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !!h.entry
         width: parent.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fs - 2
-        font.family: Theme.fam(text, Theme.families)
         text: h.entry ? I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(h.entry.capabilities, "settings.ui.cap.")
             + "    " + I18n.tr("settings.ui.mod_cost") + ": " + Store.word("settings.ui.cost.", h.entry.cost || "") : ""
     }
@@ -181,15 +151,11 @@ Column {
         visible: !!h.entry && (h.entry.provides || []).length > 0
         width: parent.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             height: Theme.controlH - 8
             verticalAlignment: Text.AlignVCenter
-            color: Theme.dim
+            dim: true
             font.pixelSize: Theme.fs - 2
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.mod_adds") + ":"
         }
         Repeater {
@@ -197,15 +163,10 @@ Column {
             delegate: Row {
                 required property var modelData
                 spacing: 4
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                Label {
                     height: Theme.controlH - 8
                     verticalAlignment: Text.AlignVCenter
-                    color: Theme.fg
                     font.pixelSize: Theme.fs - 2
-                    font.family: Theme.fam(text, Theme.families)
                     text: Store.addsLabel(modelData)
                 }
                 LinkText {

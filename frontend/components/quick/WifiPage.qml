@@ -70,16 +70,10 @@ Column {
     Row {
         width: wifi.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width - sw.width - Theme.gap
             anchors.verticalCenter: sw.verticalCenter
             elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.network.heading")
         }
         ToggleSwitch {
@@ -90,16 +84,12 @@ Column {
             onToggled: on => { if (wifi.wifiReq !== null) wifi.wifiReq.begin(on) }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: wifi.noDevice
         width: wifi.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("error.network.no_wifi_device")
     }
     StateLine {
@@ -111,16 +101,10 @@ Column {
         visible: wifi.hasAirplane
         width: wifi.width
         spacing: Theme.gap
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             width: parent.width - air.width - Theme.gap
             anchors.verticalCenter: air.verticalCenter
             elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.wifi.airplane")
         }
         ToggleSwitch {
@@ -131,16 +115,12 @@ Column {
             onToggled: on => { if (wifi.airReq !== null) wifi.airReq.begin(on) }
         }
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: !wifi.hasAirplane
         width: wifi.width
         wrapMode: Text.WordWrap
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.wifi.airplane_unavailable")
     }
     StateLine {
@@ -148,15 +128,11 @@ Column {
         req: wifi.airReq
         pendingText: I18n.tr("island.quick.changing")
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: wifi.scan.available !== false && !wifi.noDevice
         width: wifi.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.wifi.networks")
     }
     Repeater {

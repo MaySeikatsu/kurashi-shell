@@ -126,16 +126,11 @@ Item {
                         Accessible.role: Accessible.PageTab
                         Accessible.name: I18n.fmt("settings.appearance.category_count", { name: chip.name, n: modelData.count })
                         Accessible.selected: chip.on
-                        Text {
+                        Label {
                             id: lbl
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.centerIn: parent
                             color: chip.on ? Theme.fgOnSelected : Theme.fg
-                            font.pixelSize: Theme.fs
                             font.weight: chip.on ? Theme.wBold : Theme.wMedium
-                            font.family: Theme.fam(text, Theme.families)
                             text: I18n.fmt("settings.appearance.category_count", { name: chip.name, n: modelData.count })
                         }
                         HoverHandler { id: hov }

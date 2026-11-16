@@ -41,16 +41,11 @@ Item {
                 size: 18
             }
         }
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        Label {
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: -Theme.shadowDy / 2
-            color: Theme.fg
             font.pixelSize: Theme.fsTitle
             font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
             text: hd.title
             TextFx { title: true }
         }

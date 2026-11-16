@@ -47,35 +47,6 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state XDG_DATA_HOME=$
        KURASHI_DATA_DIR=$ROOT
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (stdlib only, as in test-peek.sh).
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-send({"t": "sub", "id": "s", "doc": sys.argv[1]})
-while True:
-    line = f.readline()
-    if not line:
-        sys.exit("ipc: connection closed")
-    m = json.loads(line)
-    if m.get("id") == "s" and m["t"] in ("snap", "err"):
-        if m["t"] == "err":
-            sys.exit("ipc: " + json.dumps(m))
-        print(json.dumps(m.get("data")))
-        break
-PY
 cat > "$W/geo.py" <<'PY'
 # geo.py LOG HEIGHT MODS TRAY HIDDEN: the asserts on the last geometry dump of the frontend's bar (Bar.qml, KURASHI_BAR_GEOMETRY=1).
 # Prints "ok <what>" and "FAIL <what>" lines; the exit status is 1 when any check fails.
@@ -426,7 +397,7 @@ def main():
 if __name__ == "__main__":
     main()
 PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 # K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
 bar_edge() {
@@ -651,18 +622,10 @@ cat > "$W/join.py" <<'PY'
 import sys
 ppm, edge, side = sys.argv[1], sys.argv[2], sys.argv[3]
 X, Y, W, H, winy, barh, ow, strip = (int(v) for v in sys.argv[4:12])
-data = open(ppm, "rb").read()
-fields, i = [], 0
-while len(fields) < 4:
-    while data[i:i + 1].isspace():
-        i += 1
-    j = i
-    while not data[j:j + 1].isspace():
-        j += 1
-    fields.append(data[i:j])
-    i = j
-sw, sh = int(fields[1]), int(fields[2])
-px = data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import read_ppm
+sw, sh, px = read_ppm(ppm)
 def at(x, y):
     o = (y * sw + x) * 3
     return tuple(px[o:o + 3])

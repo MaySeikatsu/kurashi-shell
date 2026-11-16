@@ -45,11 +45,8 @@ Item {
             a11y: lv.a11y
             onMoved: v => lv.moved(v)
         }
-        Text {
+        Label {
             id: readoutText
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             x: pill.innerW - width - 14
             width: 64
             height: pill.innerH
@@ -59,7 +56,6 @@ Item {
             color: lv.unavailable ? Theme.dim : Theme.fg
             font.pixelSize: Theme.fsLabel
             font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
             text: lv.readout
             TextFx {}
         }

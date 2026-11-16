@@ -20,28 +20,17 @@ Flow {
 
     spacing: Theme.gap / 2
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         width: 260
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: r.name
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
-        color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
+        dim: true
         text: r.before ? Store.displayValue(r.before.value) : I18n.tr("settings.ui.not_set")
     }
     ProvenanceChip {
@@ -60,15 +49,9 @@ Flow {
         font.pixelSize: Theme.fs
         text: "→"
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
         text: r.after ? Store.displayValue(r.after.value) : I18n.tr("settings.ui.not_set")
     }
     Chip {

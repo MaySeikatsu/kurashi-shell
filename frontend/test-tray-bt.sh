@@ -16,6 +16,7 @@
 # evidence to read, not just the exit code. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$ROOT/frontend/test-lib.sh"
 NAME=${1:-${KURASHI_SB_PREFIX:-}fe-tray-bt}
 MOCK_BIN=${KURASHI_MOCK_BIN:-${CARGO_TARGET_DIR:-$ROOT/target}/debug/kurashi-mock}
 OUT=$ROOT/frontend/shots/tray-bt
@@ -41,43 +42,7 @@ mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 
 # One protocol exchange with the socket: `ipc.py act <action> <args-json>` (exit 1 on err) or
 # `ipc.py sub <doc>` (prints the first snapshot's data). Plain stdlib, no daemon knowledge here.
-cat > "$W/ipc.py" <<'PY'
-import json, os, socket, sys
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.environ["KURASHI_SOCKET"])
-f = sock.makefile("rwb")
-
-
-def send(msg):
-    f.write((json.dumps(msg) + "\n").encode())
-    f.flush()
-
-
-def reply(rid):
-    while True:
-        line = f.readline()
-        if not line:
-            sys.exit("ipc: connection closed")
-        m = json.loads(line)
-        if m.get("id") == rid and m["t"] in ("done", "err", "snap"):
-            return m
-
-
-send({"t": "hello", "v": 1, "client": "test", "caps": ["intents", "resync"]})
-if json.loads(f.readline())["t"] != "welcome":
-    sys.exit("ipc: no welcome")
-if sys.argv[1] == "act":
-    args = json.loads(sys.argv[3]) if len(sys.argv) > 3 else {}
-    send({"t": "act", "id": "a", "action": sys.argv[2], "args": args})
-    m = reply("a")
-    print(json.dumps(m))
-    sys.exit(0 if m["t"] == "done" else 1)
-send({"t": "sub", "id": "s", "doc": sys.argv[2]})
-print(json.dumps(reply("s").get("data")))
-PY
-ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+ipc() { tk_ipc "$@"; }
 
 # The mock: fixed clock, one output; its socket is the sandbox's.
 : > "$R/mock.log"; : > "$R/qs.log"
@@ -197,32 +162,16 @@ SURFACE, HIGH, ACCENT, ERROR = (tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) fo
 X0, X1, Y0, Y1 = 1280, 2560, 40, 1000   # the output is 2560 wide: the card stands under its widget at the right end (W36), under the 36 px bar
 
 
-def read_ppm(data):
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+import os, sys
+sys.path.insert(0, os.environ["KIT"])  # tools/testkit (python3 -I ignores PYTHONPATH)
+from px import near, pixel, read_ppm
 
 
-with open(ppm, "rb") as f:
-    w, h, raster = read_ppm(f.read())
+w, h, raster = read_ppm(ppm)
 
 
 def px(x, y):
-    o = (y * w + x) * 3
-    return raster[o], raster[o + 1], raster[o + 2]
-
-
-def near(c, colour, tol):
-    return all(abs(c[k] - colour[k]) <= tol for k in range(3))
+    return pixel(w, raster, x, y)
 
 
 def card():

@@ -10,29 +10,19 @@ ControlPage {
     id: kp
     readonly property var d: Store.docs["svc.idle"] || ({})
     readonly property var others: d.inhibitors || []
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         visible: kp.others.length > 0
         width: kp.width
-        color: Theme.dim
+        dim: true
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("quick.caffeine.others")
     }
     Repeater {
         model: kp.others
-        delegate: Text {
+        delegate: Label {
             required property var modelData
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: kp.width
             wrapMode: Text.WordWrap
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: String(modelData.who || "") + (modelData.why ? " — " + String(modelData.why) : "")
         }
     }
