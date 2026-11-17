@@ -39,14 +39,10 @@ Flow {
         key: r.entry.key || ""
         output: r.entry.output ?? ""
     }
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    Label {
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
-        font.pixelSize: Theme.fs
         text: "→"
     }
     Label {

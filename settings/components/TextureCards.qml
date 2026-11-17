@@ -105,10 +105,7 @@ Column {
                         rotation: 45
                         color: Theme.outline
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: modelData.name !== "none" && modelData.image === ""
                         anchors.centerIn: parent
                         color: Theme.dim
@@ -125,10 +122,7 @@ Column {
                         height: 18
                         radius: 9
                         color: Theme.accent
-                        Text {
-                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                            antialiasing: !Theme.pixelType
-                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        Label {
                             anchors.centerIn: parent
                             color: Theme.fgOnAccent
                             font.pixelSize: 12

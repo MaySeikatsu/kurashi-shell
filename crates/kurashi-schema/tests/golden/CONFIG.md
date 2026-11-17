@@ -2334,6 +2334,15 @@ Show ISO week numbers beside the calendar's rows.
 
 - type: `bool` · default: `false`
 
+### Media
+
+#### `media.fetch_covers` — Covers from the web
+
+A player may name its cover by a web address (a streaming service does). On: the shell fetches the picture for the Now Playing card and its colours. Off: nothing is fetched; such a track shows without a cover.
+
+- type: `bool` · default: `true`
+- advanced
+
 ## Notifications
 
 ### Server

@@ -70,10 +70,7 @@ Column {
                     color: ik.colorOf(sw.modelData)
                     border.width: sw.on ? 2 : 1
                     border.color: sw.on ? Theme.accent : Theme.outline
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.centerIn: parent
                         visible: sw.on || sw.modelData === "palette" || sw.modelData === "custom"
                         color: Theme.surface

@@ -1183,6 +1183,16 @@ impl ModTable {
         Self { mods }
     }
 
+    /// I215: each mod's name as its manifest gives it, with the key of its own translated name (`mods.<id>.name`): an
+    /// offer is labelled by that key where the session's strings have it, so a mod's face, panel, widget and desk card
+    /// read in the session's language, as its page in Settings' sidebar does.
+    fn name_keys(&self) -> Vec<(String, String)> {
+        self.mods
+            .iter()
+            .map(|m| (m.name.clone(), format!("mods.{}.name", m.id)))
+            .collect()
+    }
+
     /// Face id → the name of the mod that provides it (the label of its island offer).
     fn face_names(&self) -> BTreeMap<String, String> {
         self.mods
@@ -2246,7 +2256,7 @@ impl ConfigStore {
     /// no patch (hub).
     fn publish_settings(&self) {
         // The mods' face names and panels are read under their own lock first: `offers_now` reads the hub.
-        let (mod_faces, mod_panels, mod_widgets, mod_desks) = {
+        let (mut mod_faces, mut mod_panels, mut mod_widgets, mut mod_desks, name_keys) = {
             let cfg = self.cfg.lock().expect("config lock");
             let mods = &cfg.schema().mods;
             (
@@ -2254,8 +2264,27 @@ impl ConfigStore {
                 mods.panel_offers(),
                 mods.widget_offers(),
                 mods.desk_offers(),
+                mods.name_keys(),
             )
         };
+        // I215: a mod's offers carry the key of its translated name where the session's strings have one.
+        let strings = self
+            .hub
+            .snapshot("i18n")
+            .map(|(_, d)| d["strings"].clone())
+            .unwrap_or_default();
+        let translated = |label: &mut String| {
+            if let Some((_, key)) = name_keys
+                .iter()
+                .find(|(name, key)| name == label && strings.get(key).is_some())
+            {
+                *label = key.clone();
+            }
+        };
+        mod_faces.values_mut().for_each(translated);
+        for offers in [&mut mod_panels, &mut mod_widgets, &mut mod_desks] {
+            offers.iter_mut().for_each(|o| translated(&mut o.label));
+        }
         let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets, &mod_desks);
         // Session 30 (I502, `layout.groups`): each named group is something a bar zone and a sidebar can list, as
         // `group:<id>`, named by its name (or its id).

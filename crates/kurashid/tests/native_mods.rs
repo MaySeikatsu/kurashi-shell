@@ -1550,6 +1550,34 @@ async fn a_mod_waits_for_a_required_use_then_follows_and_calls_it() {
     assert_eq!(pokes.load(Ordering::SeqCst), 1);
 }
 
+/// I592: a mod of views alone (no crate, no program) is held to its required uses too: switched on, with the use's
+/// name as the reason, and the reason goes when the use is there.
+#[tokio::test]
+async fn a_views_only_mod_says_which_required_use_it_waits_for() {
+    let extra = scratch("viewer-mods");
+    write(
+        &extra.join("giver/mod.toml"),
+        &manifest("giver", "\"service:giver\", \"action:giver.poke\"", ""),
+    );
+    write(
+        &extra.join("viewer/mod.toml"),
+        &manifest("viewer", "\"widget:viewer\"", "\"doc:mod.giver\""),
+    );
+    let pokes = Arc::new(AtomicUsize::new(0));
+    let d = start(
+        &scratch("viewer"),
+        std::slice::from_ref(&extra),
+        vec![Box::new(Giver(pokes)) as Box<dyn NativeMod>],
+    );
+    d.act("mod.enable", "viewer").await.unwrap();
+    assert_eq!(d.state("viewer"), "enabled");
+    let errors = d.entry("viewer")["errors"].clone();
+    assert_eq!(errors[0]["key"], "mods.uses.missing");
+    assert_eq!(errors[0]["detail"], "doc:mod.giver");
+    d.act("mod.enable", "giver").await.unwrap();
+    assert_eq!(d.entry("viewer")["errors"], json!([]), "the reason is gone");
+}
+
 #[tokio::test]
 async fn a_use_the_manifest_does_not_name_refuses_the_enable() {
     let extra = scratch("snoop-mods");

@@ -399,6 +399,12 @@ ShellRoot {
             function drawer(on: bool): void { win.navShown = on && win.compact }
             function query(): string { return win.query }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
+            // I593: the switch's own path (asks before a mod with a program goes on), the mod it asks about, the answer.
+            function modWish(id: string, on: bool): void { modsPage.wish(id, on) }
+            function modAsking(): string { return modsPage.asking }
+            function modAnswer(yes: bool): void { modsPage.answer(yes) }
+            // I592: what a switched-on mod waits for, empty when nothing.
+            function modWaits(id: string): string { const m = Store.modEntry(id); return m && m.state !== "invalid" ? modsPage.waits(m) : "" }
             function modLoad(id: string): void { modsPage.load(id) }
             function modUnload(id: string): void { modsPage.unload(id) }
             // Mod Editor test (W94): the page's state as JSON, "none" while it is not shown.

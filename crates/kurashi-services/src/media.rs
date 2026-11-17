@@ -625,6 +625,16 @@ pub mod art {
     pub const FG_MIN: f64 = 4.5;
     pub const ACCENT_MIN: f64 = 3.0;
 
+    /// I133: the user's switch (`media.fetch_covers`): a cover at an `http(s)` address is fetched only while it is on.
+    /// The daemon sets it at start and when the setting changes; a cover already in the cache is still used.
+    static FETCH_ALLOWED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+    pub fn allow_fetch(on: bool) {
+        FETCH_ALLOWED.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+    pub fn fetch_allowed() -> bool {
+        FETCH_ALLOWED.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Where answers are kept and whether `http(s)` covers may be fetched.
     #[derive(Clone, Debug)]
     pub struct ArtConfig {
@@ -672,7 +682,10 @@ pub mod art {
         }
         let colors = if let Some(path) = file_path(url) {
             colors_of_file(&path)
-        } else if (url.starts_with("http://") || url.starts_with("https://")) && cfg.fetch {
+        } else if (url.starts_with("http://") || url.starts_with("https://"))
+            && cfg.fetch
+            && fetch_allowed()
+        {
             let _ = std::fs::create_dir_all(&cfg.cache);
             let tmp = cfg.cache.join(format!("{}.part", key(url)));
             let got = fetch(url, &tmp).ok().and_then(|()| colors_of_file(&tmp));

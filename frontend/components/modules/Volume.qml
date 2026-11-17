@@ -44,8 +44,9 @@ ControlModule {
             Slider {
                 id: sl
                 anchors.centerIn: parent
-                width: 110
-                rotation: m.vertical ? -90 : 0
+                vertical: m.vertical   // I484: upright in a side bar, its face's own upright form (was turned)
+                width: m.vertical ? implicitWidth : 110
+                height: m.vertical ? 110 : implicitHeight
                 value: c.level
                 unavailable: !c.ok
                 fill: c.muted ? Theme.dim : Theme.accent
