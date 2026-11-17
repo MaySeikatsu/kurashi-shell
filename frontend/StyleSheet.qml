@@ -268,6 +268,22 @@ ShellRoot {
                         }
                     }
                 }
+                // I484: the same four upright, as a side bar's volume and brightness sliders stand.
+                Row {
+                    spacing: 32
+                    Repeater {
+                        model: [[0, false], [0.4, false], [1, false], [0.4, true]]
+                        Slider {
+                            required property var modelData
+                            objectName: "sheet-slider-up-" + modelData[0] + (modelData[1] ? "-off" : "")
+                            vertical: true
+                            height: 110
+                            value: modelData[0]
+                            unavailable: modelData[1]
+                            a11y: "slider"
+                        }
+                    }
+                }
                 Row {
                     spacing: 16
                     Repeater {

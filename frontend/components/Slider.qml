@@ -18,6 +18,10 @@ Item {
     property string a11y: ""            // translated accessible name, from the caller
     property real step: 0.05
     property bool unavailable: false
+    // I484: a slider that stands upright (a side bar's): drawn upright, the value rising from the bottom — its face is
+    // told so (SliderBase `vertical`) and draws its own upright form, where the slider used to be turned as a whole (a
+    // turned face has its light, its bevels and its pixel grid turned with it).
+    property bool vertical: false
     signal moved(real v)
     // K61 (docs/ux/texture.md "Controls"): the track, its fill and the knob are opaque, so they carry the relief, in a
     // window that shares its sheet (Relief makes its own otherwise). Nothing is drawn while unavailable.
@@ -33,8 +37,8 @@ Item {
     // Clamped (B12): a level past the scale, such as svc.audio's 1.5, must not draw past the track.
     readonly property real shown: Math.max(0, Math.min(1, dragging ? local : value))
 
-    implicitWidth: 120
-    implicitHeight: 20
+    implicitWidth: vertical ? 20 : 120
+    implicitHeight: vertical ? 120 : 20
     activeFocusOnTab: !s.unavailable
 
     onValueChanged: if (keyPending && Math.abs(value - keyTarget) < 0.005) keyPending = false
@@ -67,16 +71,24 @@ Item {
     readonly property int trackH: Theme.ringW > 0 ? 12 : 6
     Rectangle {
         id: trackRect
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width; height: s.trackH; radius: Math.min(height / 2, Theme.rFull)
+        anchors.verticalCenter: s.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: s.vertical ? parent.horizontalCenter : undefined
+        width: s.vertical ? s.trackH : parent.width
+        height: s.vertical ? parent.height : s.trackH
+        radius: Math.min(Math.min(width, height) / 2, Theme.rFull)
         color: Theme.ringW > 0 ? Theme.ring : s.track
         border.width: Theme.ringW > 0 ? Theme.outlineW : 0
         border.color: Theme.outlineColor
         visible: !s.unavailable && !face.has
         Rectangle {
-            x: trackRect.border.width; y: trackRect.border.width
-            width: Math.max(height, (parent.width - 2 * x) * s.shown); height: parent.height - 2 * y
-            radius: Math.min(height / 2, Theme.rFull); color: s.fill
+            readonly property real bw: trackRect.border.width
+            readonly property real across: (s.vertical ? parent.width : parent.height) - 2 * bw
+            readonly property real along: Math.max(across, ((s.vertical ? parent.height : parent.width) - 2 * bw) * s.shown)
+            x: bw
+            y: s.vertical ? parent.height - bw - along : bw
+            width: s.vertical ? across : along
+            height: s.vertical ? along : across
+            radius: Math.min(across / 2, Theme.rFull); color: s.fill
             visible: s.shown > 0
         }
         // The relief over the track and its fill (the outline stays flat).
@@ -93,8 +105,8 @@ Item {
         color: Theme.ringW > 0 ? Theme.ring : s.fill
         border.width: Theme.ringW > 0 ? Theme.outlineW : 0
         border.color: Theme.outlineColor
-        anchors.verticalCenter: parent.verticalCenter
-        x: (s.width - width) * s.shown
+        x: s.vertical ? (s.width - width) / 2 : (s.width - width) * s.shown
+        y: s.vertical ? (s.height - height) * (1 - s.shown) : (s.height - height) / 2
         visible: !s.unavailable && !face.has
         // The relief over the knob (its ring stays flat).
         Loader {
@@ -114,6 +126,7 @@ Item {
         onLoaded: {
             item.value = Qt.binding(function () { return s.shown })
             item.pressed = Qt.binding(function () { return s.dragging })
+            item.vertical = Qt.binding(function () { return s.vertical })
             if (item.hovered !== undefined) item.hovered = Qt.binding(function () { return sliderHover.hovered })
         }
     }
@@ -134,17 +147,21 @@ Item {
         running: s.dragging
         onTriggered: if (s.dirty) { s.dirty = false; s.moved(s.local) }
     }
-    function setFrom(x) {
-        local = Math.max(0, Math.min(1, x / width)); dirty = true
+    function setFrom(x, y) {
+        local = Math.max(0, Math.min(1, vertical ? 1 - y / height : x / width)); dirty = true
     }
     MouseArea {
         anchors.fill: parent
         // The hit area grows to the control height; the drawn track keeps its size.
-        anchors.topMargin: -Math.max(0, (Theme.controlH - s.height) / 2)
-        anchors.bottomMargin: -Math.max(0, (Theme.controlH - s.height) / 2)
+        readonly property real grow: Math.max(0, (Theme.controlH - (s.vertical ? s.width : s.height)) / 2)
+        anchors.topMargin: s.vertical ? 0 : -grow
+        anchors.bottomMargin: s.vertical ? 0 : -grow
+        anchors.leftMargin: s.vertical ? -grow : 0
+        anchors.rightMargin: s.vertical ? -grow : 0
         enabled: !s.unavailable
-        onPressed: m => { s.dragging = true; s.setFrom(m.x) }
-        onPositionChanged: m => { if (s.dragging) s.setFrom(m.x) }
+        // (the margins move the area's origin: the point is read in the slider's own coordinates)
+        onPressed: m => { s.dragging = true; var p = mapToItem(s, m.x, m.y); s.setFrom(p.x, p.y) }
+        onPositionChanged: m => { if (s.dragging) { var p = mapToItem(s, m.x, m.y); s.setFrom(p.x, p.y) } }
         onReleased: { s.dragging = false; s.moved(s.local); s.dirty = false }
         onCanceled: { s.dragging = false; s.dirty = false }
     }
