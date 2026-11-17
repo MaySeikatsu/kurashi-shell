@@ -17,7 +17,7 @@ B = [
   ("Settings, fixes", "the Settings app's own code (search, reconnect, the sheet host, `Label`); one screenshot round", "S–M", "—",
    "I597 I334 I361 I352 I351 I601 I589 I81 B59 B158"),
   ("Mods page and Mod Editor", "the Mods page and the `mods` document (one contract change for I605 and I593)", "S–M", "—",
-   "I604 I605 I593 I592 I575 I215 I195"),
+   "I604 I605 I593 I592 I575 I215 I195 I612"),
   ("Quick settings, small", "the quick card and the control modules", "S–M", "—",
    "I586 I204 I108 B71 B72 B73 B75 I484 I326 B159"),
   ("Wallpaper picker", "the picker's card (I538 and I83 are the same wish: more room for the pictures)", "S–M", "—",

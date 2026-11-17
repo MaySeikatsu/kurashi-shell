@@ -11,9 +11,9 @@ license = "MIT"
 
 [[version]]
 version = "0.1.0"
-shell = ">=0.4, <0.5"                       # the shell versions it was checked against
+shell = ">=0.5, <0.6"                       # the shell versions it was checked against
 source = { git = "https://example.org/kurashi-tea", rev = "0000000000000000000000000000000000000000" }
-hash = "sha256-BKQo9NbOp/R6xJSvR635VBB37bjLONHYdVqEhSonZIk="   # `kurashi mod hash <tree>` = `nix hash path <tree>`
+hash = "sha256-lEsLvkuj8hfsyHPHnbhjLyXGB85Ocik749aEFj0rxF8="   # `kurashi mod hash <tree>` = `nix hash path <tree>`
 
 # Written by the index's CI (`tools/mod-index/build.py summary <index> tea`), never by hand.
 [version.summary]

@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (449 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (450 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -14,7 +14,7 @@ batch or in two: give a new row its batch there, then run it again.
 | 1 | Launcher, small | 2 of 4 | S |
 | 1 | Web dock in the bar | 6 of 9 | S–M |
 | 1 | Settings, fixes | 8 of 10 | S–M |
-| 1 | Mods page and Mod Editor | 5 of 7 | S–M |
+| 1 | Mods page and Mod Editor | 5 of 8 | S–M |
 | 1 | Quick settings, small | 8 of 10 | S–M |
 | 1 | Wallpaper picker | 2 of 6 | S–M |
 | 1 | Icons and glyph sizes | 3 of 5 | M |
@@ -127,6 +127,7 @@ Shares: the Mods page and the `mods` document (one contract change for I605 and 
 | I575 |  | **done** — An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
 | I215 |  | Island faces follow-ups 2: mod face labels in Settings' faces offers are the manifest name in English under ja … |
 | I195 |  | **done** — Mods outside the repo cannot ship their own strings (desk titles `mod-<id>.desk.<name>`, any `mod-<id>` key): decide … |
+| I612 |  | `tools/mod-index/example/mods/tea.toml` carries the hash of a mod scaffolded on the spot, and the scaffold writes … |
 
 ### Quick settings, small
 
