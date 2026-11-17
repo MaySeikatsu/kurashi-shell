@@ -122,6 +122,7 @@ PickerCore {
                 onEdited: t => picker.query = t
                 onSubmitted: picker.focusGrid()
                 onDown: picker.focusGrid()
+                onCleared: picker.focusGrid()
             }
             SortChips {
                 id: sort
@@ -145,7 +146,6 @@ PickerCore {
                 host: picker
                 least: 4
                 tabTo: picker.wide ? sidePreview.firstAction : underPreview.firstAction
-                backTo: search.input
                 width: parent.width - (picker.wide ? body.sideW + Theme.pad : 0)
                 height: parent.height
             }
@@ -167,6 +167,8 @@ PickerCore {
                     width: sideFlick.width
                 }
             }
+            // a short column (the picture at its least) scrolls: what it cuts blends out, as the grid's does
+            ScrollEdge { view: sideFlick }
         }
         // a narrow pane: the selected picture's notes and the actions under the grid (the live preview shows it)
         PreviewPane {
@@ -181,6 +183,13 @@ PickerCore {
             host: picker
             visible: picker.onLibrary
             width: parent.width
+        }
+        // The backend stopped answering while the grid is shown (the empty state has its own restart button).
+        Button {
+            objectName: "wall-restart"
+            visible: picker.installed && picker.loaded && !picker.backendUp && picker.showGrid
+            label: I18n.tr("mod-wallpaper.backend.restart")
+            onClicked: picker.restartBackend()
         }
 
         // ---- Wallhaven: the mod's own tab, made only while chosen ----

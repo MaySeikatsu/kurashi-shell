@@ -287,7 +287,7 @@ Item {
             keyNavigationEnabled: true
             activeFocusOnTab: true
             model: wh.rows
-            readonly property int columns: Math.max(2, Math.floor(width / 160))
+            readonly property int columns: wh.host.columnsFor(width, 2)
             cellWidth: Math.floor(width / columns)
             cellHeight: Math.round((cellWidth - 8) * 2 / 3) + 8
             boundsBehavior: Flickable.StopAtBounds

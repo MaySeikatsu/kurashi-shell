@@ -4,14 +4,13 @@ import qs.components
 
 // The library as a grid (both pickers), or the state in its place. Virtualised: delegates exist for the visible cells
 // only (Tile.qml asks for its page). Columns of about 220 px where there is room, never fewer than `least` (I538).
-// `tabTo` / `backTo`: where Tab and Shift+Tab go from the grid (the preview's actions, the search field), so the focus
-// does not leave the picker for the host's next control (I32).
+// `tabTo`: where Tab goes from the grid (the selected picture's actions), so the focus does not leave the picker for the
+// host's next control (I32); Shift+Tab takes the plain order back (the sort, the search field).
 Item {
     id: lg
     required property var host
     property int least: 2
     property Item tabTo: null
-    property Item backTo: null
     readonly property alias grid: gv
     readonly property real cellH: gv.cellHeight
     clip: true
@@ -34,7 +33,6 @@ Item {
         activeFocusOnTab: true
         keyNavigationEnabled: true
         KeyNavigation.tab: lg.tabTo
-        KeyNavigation.backtab: lg.backTo
         highlightMoveDuration: Theme.quickMs
         model: lg.host.total
         cellWidth: Math.floor(width / lg.host.columnsFor(width, lg.least))

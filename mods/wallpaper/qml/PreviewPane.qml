@@ -145,17 +145,19 @@ Column {
         id: head
         width: pp.width
         readonly property real imgW: !pp.showImage ? 0 : (pp.side ? pp.width : Math.min(208, Math.round(pp.width * 0.34)))
+        // Beside the grid the picture gives way first: it shrinks (16:9 kept, 72 px at least) so its name, the actions,
+        // the notes and the theme diff fit the column's height; only below that does the column scroll.
+        readonly property real sideH: Math.round(Math.max(72, Math.min(pp.width * 9 / 16,
+            pp.fitHeight - sideName.height - actions.height - sideDetails.implicitHeight - 3 * Theme.gap)))
         height: pp.side ? img.height + Theme.gap + sideName.height : Math.max(img.height, info.implicitHeight)
         Image {
             id: img
             visible: pp.showImage
             Component.onCompleted: Light.addPicture(img, Window.window)
             Component.onDestruction: Light.removePicture(img)
-            width: head.imgW
-            // 16:9; beside the grid no taller than the column leaves for the name and the actions (72 px at least)
-            height: !pp.showImage ? 0 : pp.side && pp.fitHeight > 0
-                ? Math.round(Math.max(72, Math.min(width * 9 / 16, pp.fitHeight - sideName.height - actions.height - 2 * Theme.gap)))
-                : Math.round(width * 9 / 16)
+            width: pp.side && pp.fitHeight > 0 ? Math.min(head.imgW, Math.round(height * 16 / 9)) : head.imgW
+            // 16:9; beside the grid no taller than the column leaves for the rest (head.sideH)
+            height: !pp.showImage ? 0 : pp.side && pp.fitHeight > 0 ? head.sideH : Math.round(head.imgW * 9 / 16)
             source: pp.showImage && pp.row && pp.row.thumb ? pp.host.fileUrl(pp.row.thumb) : ""
             sourceSize.width: pp.side ? 480 : 256
             asynchronous: true
@@ -244,6 +246,6 @@ Column {
         }
     }
     // beside the grid: the notes and the diff after the actions
-    Details { pane: pp; visible: pp.side; width: pp.width }
+    Details { id: sideDetails; pane: pp; visible: pp.side; width: pp.width }
     readonly property Item firstAction: themeSwitch
 }

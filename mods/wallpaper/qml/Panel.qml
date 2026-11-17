@@ -238,7 +238,8 @@ PickerCore {
                 id: restartButton
                 anchors.right: parent.right
                 label: I18n.tr("mod-wallpaper.backend.restart")
-                visible: picker.installed && picker.loaded && !picker.backendUp
+                // (the empty state has its own while the grid is not shown)
+                visible: picker.installed && picker.loaded && !picker.backendUp && picker.showGrid
                 onClicked: picker.restartBackend()
             }
         }
@@ -270,7 +271,6 @@ PickerCore {
             host: picker
             least: 2
             tabTo: preview.firstAction
-            backTo: search.input
             width: picker.wide ? parent.width - body.sideW - Theme.pad : parent.width
             height: picker.wide || !body.previewShown ? parent.height : parent.height - sideFlick.height - Theme.gap
         }
@@ -306,5 +306,7 @@ PickerCore {
                 width: sideFlick.width
             }
         }
+        // a short column (the picture at its least) scrolls: what it cuts blends out, as the grid's does
+        ScrollEdge { view: sideFlick }
     }
 }
