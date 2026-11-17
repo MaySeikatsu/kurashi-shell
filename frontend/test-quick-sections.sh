@@ -603,8 +603,15 @@ settle 1
 card_shot footer-no-session 0.8
 # I204: and the power menu itself says so: its keys stay, dimmed, with the reason (session-no-service).
 K act session.menu '{}' >/dev/null || fail "session.menu refused"
-settle 1
-card_shot session-no-service 0.8
+for _ in $(seq 25); do [ "$(panel)" = session ] && break; sleep 0.2; done
+[ "$(panel)" = session ] || fail "session.menu did not open the power menu (panel \"$(panel)\")"
+# The menu is its own card (wider than the quick card), so this is not a card_shot: cx0/cy0 stay the quick card's.
+ppm_shot session-no-service 0.8
+res=$(timeout 60 python3 -I "$W/analyse.py" "$W/session-no-service.ppm" "$(token color.surface 1b1a1e)") \
+  || fail "session-no-service: analysis failed"
+echo "session-no-service: $res"
+jq -e '.surface >= 15000 and .bbox != null' <<<"$res" >/dev/null || fail "session-no-service: no power menu drawn ($res)"
+timeout 20 grim -o HEADLESS-1 "$OUT/session-no-service.png" || fail "grim failed on session-no-service"
 K act ui.close '{}' >/dev/null
 settle 1
 K act mock.doc '{"doc":"svc.session","patch":{"available":true}}' >/dev/null
