@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (454 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (449 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -11,12 +11,12 @@ batch or in two: give a new row its batch there, then run it again.
 
 | Section | Batch | Done | Size |
 |---|---|---|---|
-| 1 | Launcher, small | 2 of 3 | S |
-| 1 | Web dock in the bar | 2 of 9 | S–M |
-| 1 | Settings, fixes | 6 of 9 | S–M |
-| 1 | Mods page and Mod Editor | 4 of 7 | S–M |
-| 1 | Quick settings, small | 8 of 9 | S–M |
-| 1 | Wallpaper picker | 0 of 5 | S–M |
+| 1 | Launcher, small | 2 of 4 | S |
+| 1 | Web dock in the bar | 6 of 9 | S–M |
+| 1 | Settings, fixes | 8 of 10 | S–M |
+| 1 | Mods page and Mod Editor | 5 of 7 | S–M |
+| 1 | Quick settings, small | 8 of 10 | S–M |
+| 1 | Wallpaper picker | 2 of 6 | S–M |
 | 1 | Icons and glyph sizes | 3 of 5 | M |
 | 1 | Media, small | 2 of 3 | S–M |
 | 2 | Settings, structure | 0 of 10 | M–L |
@@ -79,6 +79,7 @@ Shares: the launcher's prefix handling and its rows; one suite, one niri look. A
 | I539 | U | **done** — With the terminal mod off (not enabled in Home-Manager), `!` in the launcher silently searches apps. It should say the … |
 | I572 |  | **done** — A `>` command that needs words shows nothing until they are typed (`> task` alone lists no row). A hint row ("Add task … |
 | I138 |  | Launcher: a `launcher.keys` bind in `docs/niri-binds.kdl` and HM defaults; mock parity for the new actions; paste after … |
+| I610 |  | The launcher logs `ScrollHost at surfaces/Launcher.qml:904 Binding loop "overflows"` once on nested niri (the result … |
 
 ### Web dock in the bar
 
@@ -90,11 +91,11 @@ Shares: the dock's bar widget and the mod's `[[menu]]` rows; the five suite rows
 | I600 | U | **done** — Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
 | I69 | U | Web dock: a browse/search section to find sites, and "pin this page" while on a site (not required for v1). |
 | I73 |  | Web dock composition: pins as a launcher provider; unread count from a page title as a badge and an Island signal; a … |
-| B131 |  | `mods/webdock/test/test-dock.sh` "bar widget: a click asks for the dock's card (mod.panel.open)" fails on the session … |
+| B131 |  | **done** — `mods/webdock/test/test-dock.sh` "bar widget: a click asks for the dock's card (mod.panel.open)" fails on the session … |
 | B123 |  | `mods/webdock/test/test-dock.sh`: "bar widget: a click asks for the dock's card" fails on the base too; its growth … |
-| B69 |  | `mods/webdock/test/test-dock.sh`: "bar widget: a click sends webdock.toggle for the output the bar is on" fails on … |
-| I403 |  | webdock `test-dock`: the bar widget is not in the bar during the "bar widget: a click sends webdock.toggle" step (shot … |
-| I434 |  | `mods/webdock/test/test-dock.sh` (outside the merge set) fails, on `main` and on 31686f73 before session 24: "bar … |
+| B69 |  | **done** — `mods/webdock/test/test-dock.sh`: "bar widget: a click sends webdock.toggle for the output the bar is on" fails on … |
+| I403 |  | **done** — webdock `test-dock`: the bar widget is not in the bar during the "bar widget: a click sends webdock.toggle" step (shot … |
+| I434 |  | **done** — `mods/webdock/test/test-dock.sh` (outside the merge set) fails, on `main` and on 31686f73 before session 24: "bar … |
 
 ### Settings, fixes
 
@@ -108,9 +109,10 @@ Shares: the Settings app's own code (search, reconnect, the sheet host, `Label`)
 | I352 |  | Settings' sheet host: the sidebar's Mods and Profiles entries spill below the sheet (the shared host, not the Motion … |
 | I351 |  | **done** — Under reduce motion (or a profile that does not move) every motion row is inert, so a motion setting the user changed … |
 | I601 |  | **done** — Settings › Power › Location, the rest: the section shows the switch and two sliders, not the place in effect — add a … |
-| I589 |  | 65 `Text` blocks in `settings/components` are not on `Label`: 27 lack the hinting line (`ColorPicker`, … |
-| I81 |  | Records editor follow-ups: Alt+Up/Down, Delete, Up/Down between rows and Enter-to-edit are wired but unverified (an … |
+| I589 |  | **done** — 65 `Text` blocks in `settings/components` are not on `Label`: 27 lack the hinting line (`ColorPicker`, … |
+| I81 |  | **done** — Records editor follow-ups: Alt+Up/Down, Delete, Up/Down between rows and Enter-to-edit are wired but unverified (an … |
 | B59 |  | **done** — Settings run from the worktree (`kurashi-settings-s26`) averaged 5.4 % CPU over almost 3 hours while it should idle. … |
+| B158 |  | `settings/test-sheet.sh` (outside the merge set) fails at its first check, "the desktop round the sheet is not dimmed, … |
 
 ### Mods page and Mod Editor
 
@@ -121,7 +123,7 @@ Shares: the Mods page and the `mods` document (one contract change for I605 and 
 | I604 |  | **done** — The skip error names no variant. `kurashi_mods::editor::error_key` keeps only the text before the colon, so … |
 | I605 |  | **done** — The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
 | I593 |  | Host programs: what the design names and W93 did not build. (1) The Mods page asks once before the first enable of a … |
-| I592 |  | A mod that waits for a required use (`mods.uses.missing`, K158) has not been seen on niri: no bundled mod requires … |
+| I592 |  | **done** — A mod that waits for a required use (`mods.uses.missing`, K158) has not been seen on niri: no bundled mod requires … |
 | I575 |  | **done** — An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
 | I215 |  | Island faces follow-ups 2: mod face labels in Settings' faces offers are the manifest name in English under ja … |
 | I195 |  | **done** — Mods outside the repo cannot ship their own strings (desk titles `mod-<id>.desk.<name>`, any `mod-<id>` key): decide … |
@@ -141,6 +143,7 @@ Shares: the quick card and the control modules. Size: S–M. Needs you: —.
 | B75 |  | **done** — `docs/ux/control-centre-modules.md` "Others": written from memory, no other shell was looked up (GNOME quick settings, … |
 | I484 |  | Controls, round two. A parts-sheet row for every slider and switch face in every state (I326); vertical faces drawn for … |
 | I326 |  | **done** — Sliders never seen in shots: the sandbox has no audio or brightness, so `slider/Fluent`, `slider/Classic` and the … |
+| B159 |  | `frontend/test-controls.sh` (outside the merge set) fails 6 checks: the relief does not change the gallery's sliders … |
 
 ### Wallpaper picker
 
@@ -148,11 +151,12 @@ Shares: the picker's card (I538 and I83 are the same wish: more room for the pic
 
 | Row | | What |
 |---|---|---|
-| I538 | U | The Wallpaper & Theming menu's wallpaper selection needs more space for the pictures (a larger grid / bigger … |
+| I538 | U | **done** — The Wallpaper & Theming menu's wallpaper selection needs more space for the pictures (a larger grid / bigger … |
 | I83 |  | Wallpaper picker: the card is 360 px with two thumbnail columns although mod panels may ask for up to 720 px (row 66, … |
 | I32 |  | Wallpaper not yet to brief: keyboard grid/search not exercised, grow origin from tile, drag-and-drop, folder … |
-| I135 |  | Wallpaper picker shows "Theme not applied yet (no source)" after applying with theme in the sandbox (also in the … |
+| I135 |  | **done** — Wallpaper picker shows "Theme not applied yet (no source)" after applying with theme in the sandbox (also in the … |
 | B88 | U | The wallpaper is a little behind the shell in a change of colour (its grade and material are recoloured by their own … |
+| I611 |  | The wallpaper card's first open still said "Reading the pictures…" after 2.5 s with 15 small pictures whose thumbnails … |
 
 ### Icons and glyph sizes
 

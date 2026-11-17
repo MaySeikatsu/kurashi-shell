@@ -8,11 +8,12 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-17
+
 ### Added
 - `> note <text>` in the launcher adds a line to your note (the Tasks mod), as `> task <text>` adds a task.
 - `launcher.open {query}`: an action that opens the launcher in a mode, for a key of your own (for example `;` for the
   clipboard history, `:` for emoji).
-
 - **Sidebars on the top and bottom edges.** Settings › Sidebar › Top sidebar / Bottom sidebar: give one its sections
   (the same ones the side sidebars offer, and the mods' panels) and it opens as a sheet out of that edge, joined to the
   bar there — a centred part of the edge (66 %) or the whole edge, 45 % of the screen tall (both under Advanced). Open it
@@ -30,11 +31,35 @@ release is a git tag `vX.Y.Z` on `main`, made after its PR is merged. Format: [K
   Settings › Layout, Advanced, "Modules that open large"; the size is set beside it.
 - The quick card's greeting and the sidebar's header show your account's picture and full name when the account has
   them (set in your desktop's user settings, or a `~/.face` picture); before, only the login's first letter.
+- **Wallpaper pickers.** The picker in the appearance menu (the launcher's Wallpaper pane) can now do what the
+  wallpaper card can: folders with their path, sort and the ★ Looks filter, the preview with the theme it would give,
+  a choice per screen, "Wallpaper only", keep or apply a look, and the card's keys. Both use the room they are given:
+  the columns follow the width, the rows the height.
+- **Mods page:** a mod that runs a program of its own says which in its row, and its switch asks before it goes on
+  ("Switch on" / "Keep off"). A mod that is on but waiting for something it needs names what it waits for. A mod's
+  folder is shown with "Open the folder".
+- **Dynamic Media Color:** the Now Playing card can keep the cover's colours (as before), blend with the shell, or
+  take the theme (Settings › Island › Media, Advanced).
+- **Location** (Settings › Power) says which place is in effect and takes typed degrees and a name.
+
+### Changed
+- **Side bars work like the top bar.** A card opens out of the bar at its module, the notification centre stands at a
+  left bar, and the volume and brightness sliders stand upright in the look's own upright form (they were the
+  horizontal slider turned on its side).
+- Without a session service (no logind) the power menu's keys and the quick card's Lock and Suspend stay, dimmed, and
+  say why; before, they were hidden or failed after the press.
+- Dynamic Media Color's colour-wheel blends are drawn on the GPU.
 
 ### Fixed
 - **Launcher:** `!` (or any mod's prefix) typed while its mod is switched off now says so and opens Mods, instead of
   searching the apps. A `>` command that needs words (`> task`, `> note`) is listed before you type them and fills the
   field when chosen. Sessions, folders and other mod rows show their icon.
+- **Wallpaper:** "theme follows the picture" now takes effect when a picture is applied (it was sent in a way the
+  shell ignored, so the picker said "Theme not applied yet").
+- **Tray:** an icon with empty space round its drawing is trimmed, so it fills its place on the bar.
+- **Settings:** search answers as you type on a large schema; a mod's face, panel, widget and desk offers carry its
+  translated name; text in the palette editor, pick lists and previews follows the look's type (pixel looks).
+- The island's glyphs are the bar's icon size.
 
 ## [0.4.0] — 2026-11-16
 
