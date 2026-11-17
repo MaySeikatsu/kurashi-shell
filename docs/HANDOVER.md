@@ -17,6 +17,75 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-17 — session 36 (machine A): quick polish — 0.5.0, one PR open
+**State.** `main` = 0.4.0 (`v0.4.0` tagged and pushed, PR #63 merged). Everything of this session is on
+**`feat/s36-polish`** = 0.5.0, **one PR to `main`, not merged** (the user merges; then `git tag v0.5.0` on `main` and
+push the tag, K151). The gate's line, on the last code commit (the commits after it are docs):
+`gate: passed on 0035643f at 2026-11-17T09:54Z: check, suites (merge set; 1 known failing as on main), hm-eval, nix build`.
+The session ran in two parts: the first stopped on the usage limit with three branches unmerged, the second (a pickup
+from that state) finished them and closed the run. Task: the "Quick polish" section of `docs/BACKLOG-BATCHES.md`
+(8 batches, 50 rows) and sidebars on the top and bottom edges (I607).
+**The user's rules of this session** (each is in the memory too): one subagent at a time; a new tuning knob goes under
+Advanced; a feature that does not extend an existing one is a first-party mod; vertical bars must work like horizontal
+ones; rows are described by what they are, ids in brackets.
+**Merged into the integration branch.**
+- Launcher (K162): a prefix whose mod is off says so, a `>` command waiting for its words is listed, `> note`,
+  `launcher.open {query}`, mod rows draw their icon.
+- Frontend polish (K163–K165): the user's picture and name, the large card at the bar's centre, sidebars on the top
+  and bottom edges (brief `docs/ux/edge-sidebars.md`), the Now Playing card's colour option, glyph sizes.
+- Settings fixes: search, reconnect, reset on inert rows, Location; the components' text on `Label` (I589).
+- Web dock: a site's menu in the bar card and the sidebar, sites on the bar as icons (K166), the suite's bar-widget
+  row (the mock takes a `mods` document from a test now).
+- Side bars: every card comes out of the bar at its module; the volume and brightness sliders stand upright in the
+  look's own upright face (`Slider.vertical`).
+- The colour wheel on the GPU (B89), tray pictures trimmed (B61), the power menu and the quick footer inert with the
+  reason without a session service (I204).
+- Mods: a mod's folder and "Open the folder", a views-only mod reports the use it waits for and the Mods row names it
+  (I592), the row says which program a mod runs and its switch asks first (I593 parts 1 and 3), covers from the web
+  can be switched off (I133).
+- W99 the wallpaper pickers (an Opus agent, stopped once and finished by a second one): one `PickerCore`, both pickers
+  use the room, the appearance menu's picker has the card's features, "theme follows the picture" takes effect (I135).
+**Not done, and why** (each has its row).
+- I593: the mod's own Settings page lists no `uses` and its switch does not ask (the `mods` document carries no
+  `uses`: a contract change); rust and go host templates; bubblewrap.
+- I484: only the sliders. Keycap chrome, material on controls, more faces, the hover preview are open.
+- B62: the tint is seen in the window list and the launcher; a toast drew the bell glyph in the sandbox, the dock was
+  not looked at.
+- I352 (the sheet's sidebar spill): probably ended by the scrolling sidebar of 2026-11-10; not seen, because
+  `settings/test-sheet.sh` fails at its first check (**B158**, fails before this session's Settings changes too).
+- **B159**: `frontend/test-controls.sh` fails 6 relief checks, the same on the branch before the upright sliders.
+- B123: the web dock suite's growth check is still noise (+6.5 MiB this time).
+- B88 (the wallpaper lags a colour change): cause found, in Rust (bake every output first; the shell's fade
+  duration); not fixed.
+- I138 (launcher grab-bag), I69, I73 (web dock ideas), I214, I83's "Clear thumbnails" (CONTRACT-CHANGE row 821),
+  I32's drag-and-drop / lock wallpaper / `look:` provider.
+- I611: at the default large-card height a 1080p screen shows under two rows of pictures; the appearance card's side
+  column scrolls. A decision for the user: a taller card for pickers, or a smaller preview.
+**What the lead chose without asking** (each can be changed): the question before a program mod goes on is asked every
+time, not remembered ("asks once" read as one confirm step, as Delete does); the Mods-page hook `mod` stays the direct
+path and `modWish` is the switch's; the upright slider is the same component with `vertical`, not a second one;
+`mock.doc` may create the mock's `mods` document; `frontend/test-media.sh` got new click coordinates for the large
+card (outside W99's owned paths, needed).
+**Verified.** Seen on nested niri: the parts sheet's upright sliders in eight looks; the Mods page with a waiting mod
+and the question, light and dark; Palettes and Bar in the snes look after `Label`; the icon tint in the window list;
+the wallpaper card, the launcher's pane and the appearance card, light, dark and sekai (W99's shots, read by the
+lead). Suites: the merge set in the gate (56 suites; `test-quick-modules` known, B92; `test-card` and
+`test-previews` failed under load and passed alone). `mods/webdock/test/test-dock.sh` outside it: every row but the
+growth check. The first gate runs stopped in `just check` on the mod index's example entry, whose hash moves with the
+version (I612).
+**Left in the workspace.** Nothing of this session: its worktrees, branches (`feat/s36-*` but the integration
+branch) and agent build dirs are removed, `just sweep` ran (target 120 G, 62 older sandboxes kept by the sweep's own
+rule); 332 G free.
+**Next steps (in order).**
+1. The user merges the PR; then `git tag v0.5.0` on `main`, push the tag.
+2. The parked structure session, unchanged and still first when the user asks for it: **B156** (the frontend's memory
+   growth), **W92 rows 4–6**, **W95 .2, .4, .5** and the per-mod `Label` cards, **W96** (the red suites: I603, I594 —
+   and now B158, B159).
+3. Only if the user asks for features: I593's contract change (`uses` in the `mods` document), B88's fix, I611's
+   decision, the rest of the quick-polish rows above.
+**Open decisions for the user.** I611 (picker height or preview size). Whether the program question should be
+remembered per mod. The brief `docs/ux/mod-catalogue.md` is still unread (from session 35).
+
 ## 2026-11-16 — session 35 (machine A): the integration branch — 0.4.0, one PR open
 **State.** `main` = 0.3.0, tagged `v0.3.0` and pushed. Everything else is on **`feat/s35-integration`** = 0.4.0, **one
 PR to `main`, not merged** (the user's rule: the lead merges nothing into `main`; the user merges; then `git tag v0.4.0`
@@ -224,44 +293,3 @@ check `nix flake update` keeps building them. The appearance menu's preview appl
 (put back on Esc/close): a crash mid-preview leaves the previewed value — undo restores it.
 
 ---
-
-## 2026-11-13 — session 32 (machine A): B128, the travelling workspace mark, Local mode, groups round two, the user's live bugs
-**State.** One branch `feat/s32-combined` = #58 (W77) + #59 (session 31 handover) + this session; **PR #60 is open, not merged**
-(the user merges; it closes #58 and #59). After the merge remove #58's worktree `.claude/worktrees/agent-ac748735f1e82a580`
-(branch `feat/s31-settings-dock`), `~/.cache/kurashi-agents-target/w77`, and W80's worktree
-`.claude/worktrees/agent-ae7eda47dcd83e6c3` (locked by its agent's process: `git worktree remove -f -f`). W78, W79, W81's
-worktrees and build dirs are gone. Disk: ~180 GB free.
-**Done** (K148, K149; CONTRACT-CHANGE 760, 764 decided; 766/767 deferred):
-1. B128: the web dock's bar card kept open followed the focus (`bar.popups_follow`); a kept card stays, one not kept follows.
-2. I507 / K148: the focused workspace is one travelling mark — `modules.workspaces.motion` goo (default) / stretch / slide /
-   off; the wobble from the motion profile; `test-ws-motion` (merge set).
-3. The user's live bugs: B132 a hover-opened sidebar holds while the pointer is on the web dock's page (`webdock.side_page`,
-   `sidebar.hover`); B133 a pinned sidebar's page was one column off (placed on the output now, zones ignored);
-   B134 the pins scroll with the wheel; B135 scroll edges on every scrolling view (ScrollEdge takes no room now).
-4. B127 / K149: the docked Settings holds a hover-opened sidebar (`settings.dock_hover`, `runtime.settings.hover`); W79:
-   one Settings process per start, a crash clears the dock, doctor and mock.
-5. W80 (I508, partly): groups in Settings' list and a bar preview (drag/keys), "Group with…"/"Leave group" in the module
-   menu; one `frontend/components/groups.js` (linked into settings/components). Open ends in I508.
-6. W78: Local mode; Online lists sites only (the user); the desktop-apps evaluation (I510).
-7. W81: B119/B120 measured, no fix: B119 is Qt's threaded render loop (BENCH.md, the rows).
-**The user's answers this session.** #58/#59: build on top, one PR. B128: unpinned follows; it was the bar card. Workspace
-motion default: goo. W78: Local mode, apps evaluated. Groups: both the list and a bar preview. B129: no key handover, click
-only. Online: sites only. Apps spike: yes, next session. "Fix all bugs, then tests and builds; don't waste time on long
-compiles before."
-**Verified.** `just check` green; `just suites` (44): 43 pass, `quick-modules` red — the same on `main` (B92, checked in a
-worktree of origin/main); `nix build .#kurashi` green. Seen on nested niri: the workspace mark (washi keys, dots, Material),
-Settings' page edges and the notifications' edge, groups on the bar and the module menu, the docked Settings' hover hold.
-On sway only: the web dock sidebar (pinned, hover), B128 (two outputs). Live on the user's session: frontend 0.0 % CPU at
-rest (music paused); nothing visual yet.
-**Next steps (in order; ask the user where a step says so — batched, one AskUserQuestion):**
-1. Check PR #60's state; after the merge clean the worktrees above.
-2. Live read with the user (read-only): `top -H` with music playing; ask them to look at the PR's "check live" list. File
-   what they report.
-3. Ask: try `QSG_RENDER_LOOP=basic` as an experiment card on the real session (B119)?
-4. The desktop-apps spike (I510): a script on nested niri with `foot` and `chromium --app` — the user said yes.
-5. I508's open ends (empty group drawn, states shot, motion, cross-zone drops, the `rect` hook with screen coordinates).
-6. B123/B131 (`test-dock`'s mock bar has no web dock widget), B92 (`quick-modules`: a click past the output), B130, B120.
-7. Older: B113, B112/B100, B114, B115, B116, B121, I483, I509's rest, the workspace mark in a side bar's column.
-**Risks.** The scroll edge now on Settings' pages turns each page's layer on while it overflows (a layer per page; 0 frames
-at rest, but memory). The web dock sidebar's place changed meaning (on the output, zones ignored): a compositor that counts
-zones differently would misplace it — seen on sway and in the pinned case only.
