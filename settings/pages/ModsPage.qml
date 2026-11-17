@@ -311,6 +311,14 @@ Flickable {
                     font.pixelSize: Theme.fs - 2
                     text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
                 }
+                // I605: where the mod lives, as a link that opens the folder (shown with its check: an author's line, not
+                // every row's).
+                LinkText {
+                    objectName: "mod-folder:" + entry.modelData
+                    visible: !!p.checks[entry.modelData] && !!entry.mod.dir
+                    text: I18n.fmt("mods.folder", { path: String(entry.mod.dir || "") })
+                    onActivated: Store.act("mod.open_folder", { id: entry.modelData })
+                }
                 // Its check, once asked: "Every rule is met", or the findings with where and what (the editor's wording).
                 CheckReport {
                     readonly property var result: p.checks[entry.modelData] || null

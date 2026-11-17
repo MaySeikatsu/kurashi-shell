@@ -715,6 +715,21 @@ impl Shared {
 
     /// `webdock.retarget {pin, url?}`: "replace the pin with this page" (a web pin's address; K40). W76: without `url`,
     /// the page's address the host reported (`at`; the pin's menu, "Update pin to this page").
+    /// `webdock.bar {pin, on}` (I600): the site stands on the bar as an icon of its own, or leaves it.
+    async fn bar(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let on = args
+            .get("on")
+            .and_then(Value::as_bool)
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let rows = dock::bar_row(&rows_of(&self.settings), pin, on).map_err(dock_error)?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
     async fn retarget(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
         let url = match str_arg(args, "url") {
@@ -816,12 +831,13 @@ impl Shared {
 }
 
 /// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
-const SETTING_KEYS: [&str; 23] = [
+const SETTING_KEYS: [&str; 24] = [
     "pins",
     "site_icons",
     "sizes",
     "search",
     "bar_site",
+    "bar_sites_max",
     "bar_playing",
     "default_view",
     "width",
@@ -987,6 +1003,7 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     write_action(ctx, s, "webdock.retarget", |s, a| async move {
         s.retarget(&a).await
     })?;
+    write_action(ctx, s, "webdock.bar", |s, a| async move { s.bar(&a).await })?;
     write_action(
         ctx,
         s,

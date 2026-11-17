@@ -118,7 +118,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 - [x] [bug] Right-click context menu on a website's icon — done S36 (I599: the pin menu in the bar card and the sidebar; Reload, Unload, Update pin to this page, Unpin but keep open, Move, Remove)
 - [bug] a click on the bar widget does not ask for the dock's card → B145 (W96)
 - [bug] 20 reveal/hide cycles grow the shell by 5–6.6 MiB (budget 1) → B145, B156 (the same growth as the island's card: the windows that unmap)
-- [idea] WebDock Sites should get Option to be pinned directly to the Bar as icons, which then can open the website/webdock directly from there. → I600
+- [x] [idea] web dock sites pinned to the bar as icons — done S36 (I600, K166: "Show on the bar" in a site's menu)
 
 ## Around the shell
 

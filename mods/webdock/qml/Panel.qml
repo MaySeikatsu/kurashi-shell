@@ -404,6 +404,7 @@ Item {
                 onRemoved: { Store.act("webdock.remove", { pin: panel.menuId }); panel.menuId = "" }
                 onReloaded: { Store.act("webdock.reload", { pin: panel.menuId }); panel.menuId = "" }
                 onUnloadAsked: unload(panel.menuId)
+                onBarToggled: on => { Store.act("webdock.bar", { pin: panel.menuId, on: on }); panel.menuId = "" }
                 onRetargeted: { Store.act("webdock.retarget", { pin: panel.menuId }); panel.menuId = "" }
                 onUnpinned: { Store.act("webdock.unpin", { pin: panel.menuId }); panel.menuId = "" }
                 onClosed: panel.menuId = ""

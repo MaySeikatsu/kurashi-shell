@@ -1,6 +1,6 @@
 # Backlog, sorted into batches
 
-Every open row of `docs/BACKLOG.md` (460 on 2026-11-16), each in exactly one batch: rows that share files, a
+Every open row of `docs/BACKLOG.md` (454 on 2026-11-16), each in exactly one batch: rows that share files, a
 design decision or a review round, so that they are cheaper done together. The backlog stays the source: a row's
 full text and status are there; this file only groups the ids. `U` marks a row that came from the user. A row
 that is closed stays in its batch, marked done. Sizes are the lead's guess at its own working time, not measured
@@ -12,13 +12,13 @@ batch or in two: give a new row its batch there, then run it again.
 | Section | Batch | Done | Size |
 |---|---|---|---|
 | 1 | Launcher, small | 2 of 3 | S |
-| 1 | Web dock in the bar | 1 of 9 | S–M |
+| 1 | Web dock in the bar | 2 of 9 | S–M |
 | 1 | Settings, fixes | 6 of 9 | S–M |
-| 1 | Mods page and Mod Editor | 2 of 7 | S–M |
-| 1 | Quick settings, small | 7 of 9 | S–M |
+| 1 | Mods page and Mod Editor | 4 of 7 | S–M |
+| 1 | Quick settings, small | 8 of 9 | S–M |
 | 1 | Wallpaper picker | 0 of 5 | S–M |
-| 1 | Icons and glyph sizes | 2 of 5 | M |
-| 1 | Media, small | 1 of 3 | S–M |
+| 1 | Icons and glyph sizes | 3 of 5 | M |
+| 1 | Media, small | 2 of 3 | S–M |
 | 2 | Settings, structure | 0 of 10 | M–L |
 | 2 | Settings, theming pages | 0 of 7 | M |
 | 2 | Settings docked in a sidebar | 0 of 3 | M |
@@ -87,7 +87,7 @@ Shares: the dock's bar widget and the mod's `[[menu]]` rows; the five suite rows
 | Row | | What |
 |---|---|---|
 | I599 | U | **done** — Web dock: a site's icon has no right-click menu: refresh, unload, pin the page it shows now, and so on (the shell's one … |
-| I600 | U | Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
+| I600 | U | **done** — Web dock: a site pinned to the bar as an icon that opens the page or the dock from there (a module per pinned site, or … |
 | I69 | U | Web dock: a browse/search section to find sites, and "pin this page" while on a site (not required for v1). |
 | I73 |  | Web dock composition: pins as a launcher provider; unread count from a page title as a badge and an Island signal; a … |
 | B131 |  | `mods/webdock/test/test-dock.sh` "bar widget: a click asks for the dock's card (mod.panel.open)" fails on the session … |
@@ -118,8 +118,8 @@ Shares: the Mods page and the `mods` document (one contract change for I605 and 
 
 | Row | | What |
 |---|---|---|
-| I604 |  | The skip error names no variant. `kurashi_mods::editor::error_key` keeps only the text before the colon, so … |
-| I605 |  | The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
+| I604 |  | **done** — The skip error names no variant. `kurashi_mods::editor::error_key` keeps only the text before the colon, so … |
+| I605 |  | **done** — The `mods` document carries no folder path. The Mod Editor's "Open the folder" and a folder line on the Mods page need … |
 | I593 |  | Host programs: what the design names and W93 did not build. (1) The Mods page asks once before the first enable of a … |
 | I592 |  | A mod that waits for a required use (`mods.uses.missing`, K158) has not been seen on niri: no bundled mod requires … |
 | I575 |  | **done** — An action a mod registers and does not declare is only logged at enable. The static list of the bundled mods' actions … |
@@ -133,7 +133,7 @@ Shares: the quick card and the control modules. Size: S–M. Needs you: —.
 | Row | | What |
 |---|---|---|
 | I586 |  | **done** — `frontend/components/quick/QuickTile.qml`'s compact label is a `Text` without the look's render block, so in pixel … |
-| I204 |  | Quick settings follow-ups: the accent badge on its on-state container is 2.39:1 in dark wa-iro (3.16 light), below 3:1 … |
+| I204 |  | **done** — Quick settings follow-ups: the accent badge on its on-state container is 2.39:1 in dark wa-iro (3.16 light), below 3:1 … |
 | I108 |  | **done** — Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService … |
 | B71 |  | **done** — `modules/Volume.qml`'s WheelHandler has no `acceptedDevices` (the control modules needed `Mouse \/ TouchPad` to hear … |
 | B72 |  | **done** — `Stage.qml` `ownKey`: the quick card comes out under any module pressed in the last 1.5 s, not only a control module; … |
@@ -160,7 +160,7 @@ Shares: `Icon.qml` and the bar's glyph metrics. Size: M. Needs you: —.
 
 | Row | | What |
 |---|---|---|
-| B61 | U | Bar glyphs are not one size: on the user's bar they run from 12 to 20 px tall (tray icons most), two sit 1.5 to 2 px … |
+| B61 | U | **done** — Bar glyphs are not one size: on the user's bar they run from 12 to 20 px tall (tray icons most), two sit 1.5 to 2 px … |
 | B52 |  | **done** — Island faces other than media keep their own sizes (notifications at fs+4, the media pause icon at fs+3) and are not … |
 | B62 |  | Icon tint (K110, session 27 rework), not seen: a notification's app icon (a test notification gave no popup in the … |
 | B70 |  | **done** — `QML Icon at components/modules/ControlModule.qml: Binding loop detected for property "drawFamily"` when the look … |
@@ -174,7 +174,7 @@ Shares: the media face and Dynamic Media Color. Size: S–M. Needs you: I398: wh
 |---|---|---|
 | I133 |  | Media: a config key for fetching http covers (env `KURASHI_MEDIA_ART_FETCH=0` today); `art_colors` and … |
 | I398 | U | **done** — An option for the Now Playing card under Dynamic Media Color (K87): today it keeps its own cover colours and changes at … |
-| B89 |  | After K125: Dynamic Media Color's wheel blends (`media.blend = wheel_*`) still step every colour in JS and will stutter … |
+| B89 |  | **done** — After K125: Dynamic Media Color's wheel blends (`media.blend = wheel_*`) still step every colour in JS and will stutter … |
 
 ## 2. Passes over one area (one to a few days each)
 

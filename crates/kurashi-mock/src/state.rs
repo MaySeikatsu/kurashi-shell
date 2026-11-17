@@ -1356,6 +1356,17 @@ impl State {
             .get("patch")
             .filter(|p| p.is_object())
             .ok_or_else(|| Fail::invalid("mock.doc needs doc and patch (an object)"))?;
+        // The mock has no mods of its own and serves no `mods` document; a test that needs a mod's widget in the bar
+        // gives it one here, and the layout follows it as kurashid's does (B131).
+        if doc == "mods" && !self.docs.contains_key("mods") {
+            self.docs.insert(
+                "mods".to_owned(),
+                Doc {
+                    rev: 1,
+                    data: json!({"mods": []}),
+                },
+            );
+        }
         if !self.docs.contains_key(&doc) {
             return Err(Fail::invalid(format!("mock.doc: no document {doc}")));
         }

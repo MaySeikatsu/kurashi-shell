@@ -2721,6 +2721,11 @@
 # beside its own icon, so you see what opens.
 # bar_site = false
 #
+# Sites on the bar at most — How many of the sites marked "On the bar" the web dock's module shows
+# as icons of their own; the others open from the dock's icon.
+#   range: 1..=12
+# bar_sites_max = 4
+#
 # Show what plays in the bar — While a site plays sound, the bar module shows that site's image
 # and the page's title — the track for a music site.
 # bar_playing = false

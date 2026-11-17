@@ -1877,3 +1877,19 @@ the core's sections and the other mods' panels: it is a host, which the core is)
 **Contract.** `sidebar.toggle` / `sidebar.open` take `side: "top" | "bottom"`; `runtime.ui.sidebar` may be `top` or
 `bottom`; actions `sidebar.top.toggle`, `sidebar.bottom.toggle` (PROTOCOL §6). Brief: `docs/ux/edge-sidebars.md`.
 
+## K166 — A mod's setting can be Advanced; sites on the bar are the web dock's own (session 36, I600, the user's rules)
+**Problem.** The user: new tuning options go under Advanced, and a feature that is not part of an existing one is a
+first-party mod's, not the core's. A mod's manifest could not mark a setting as Advanced, so every mod option stood on
+its page. And the wish "sites pinned directly to the bar as icons" (I600) needed a place.
+**Decision.** (1) `[[setting]] advanced = true` in a manifest: the setting's row is shown only in Settings' Advanced
+view (the schema's own flag; `kurashi_mods::manifest::Setting::advanced`). (2) Sites on the bar belong to the web dock
+mod: a pin's row carries `bar` (the pin's menu: "Show on the bar" / "Take off the bar", action `webdock.bar {pin,
+on}`; the records editor shows the field), and the dock's bar module draws those sites as keys of their own after its
+icon — at most `bar_sites_max` (4; Advanced) — each opening the bar's card on its site. The user's choice of the three
+offered: icons per site up to a number, the rest behind the dock's icon. The core learns nothing: the module is the
+mod's `widget:webdock`.
+**Rejected.** A core module per site (the core would know sites); a count of "the first N pins" with no per-site
+choice (the user pins a site to the bar, not a position).
+**Contract.** Manifest: `advanced` on a setting. `mod.webdock`: a pin's `bar: true` (absent otherwise),
+`bar_sites_max` while a site is on the bar. Action `webdock.bar`.
+

@@ -72,6 +72,7 @@
 "mods.new.turn_on" = "Turn it on"
 "mods.new.open_folder" = "Open the folder"
 "mods.new.open_page" = "Open its page"
+"mods.folder" = "Folder: {path}"
 "mods.new.open_page.needs_on" = "Its page is in Settings once it is turned on"
 "mods.new.discard" = "Discard this mod?"
 "mods.new.discard.keep" = "Keep editing"

@@ -259,6 +259,9 @@ pub struct Setting {
     pub unit: Option<String>,
     pub label: Option<String>,
     pub help: Option<String>,
+    /// K166: shown only in Settings' Advanced view (`advanced = true`): a tuning knob, not an everyday choice.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub advanced: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -407,6 +410,9 @@ struct RawSetting {
     item_label: Option<String>,
     /// The launcher provider (`launcher:<name>`) whose prefix this string setting holds (K162).
     launcher: Option<String>,
+    /// Shown only in Settings' Advanced view (K166).
+    #[serde(default)]
+    advanced: bool,
 }
 
 /// One `[[setting.field]]` (MODS.md "Records").
@@ -1009,6 +1015,7 @@ pub fn parse(
                 unit: s.unit.clone(),
                 label: s.label.clone(),
                 help: s.help.clone(),
+                advanced: s.advanced,
             });
             if let Some((spec, _)) = records {
                 record_specs.push((s.key.clone(), spec));

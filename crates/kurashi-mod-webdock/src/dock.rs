@@ -336,6 +336,8 @@ pub struct PinSpec {
     pub profile: String,
     /// "Keep running in the background" (W73): never frozen while loaded, never unloaded by the dock's rules.
     pub background: bool,
+    /// I600: the site stands on the bar as an icon of its own (the row's `bar`).
+    pub bar: bool,
     /// W76: a page the daemon serves that the settings do not hold (`temporary` in the document); `None` for a row.
     pub temp: Option<Temp>,
 }
@@ -415,6 +417,8 @@ pub struct Config {
     pub hover_takes_page: bool,
     /// The bar module shows the shown pin's image beside its own (`bar_site`, I495).
     pub bar_site: bool,
+    /// I600: how many sites marked "on the bar" the bar module shows as icons of their own (`bar_sites_max`).
+    pub bar_sites_max: u32,
     /// While a page plays sound the bar module shows its image and its title (`bar_playing`, I495).
     pub bar_playing: bool,
     /// The engine fetches a page's own icon for the strip and the bar (`site_icons`, session 31).
@@ -476,6 +480,7 @@ impl Config {
             hover: flag("hover", true),
             hover_takes_page: flag("hover_takes_page", true),
             bar_site: flag("bar_site", false),
+            bar_sites_max: number("bar_sites_max", 4),
             bar_playing: flag("bar_playing", false),
             site_icons: flag("site_icons", true),
             reopen_last: flag("reopen_last", true),
@@ -936,6 +941,7 @@ impl Dock {
             view: ViewSetting::Default,
             profile: BROWSE_PROFILE.into(),
             background: false,
+            bar: false,
             temp: Some(Temp::Browse),
         };
         self.temps.push(pin.clone());
@@ -1665,6 +1671,10 @@ impl Dock {
         if self.config.bar_site {
             doc["bar_site"] = json!(true);
         }
+        // I600: named only while a site is on the bar (the widget shows that many at most).
+        if self.pins.iter().any(|p| p.bar) {
+            doc["bar_sites_max"] = json!(self.config.bar_sites_max);
+        }
         // (session 31: named only while off — the engine then fetches no page icon, K38's proof)
         if !self.config.site_icons {
             doc["site_icons"] = json!(false);
@@ -1795,6 +1805,10 @@ impl Dock {
                 }
             }
             // W73: the pin keeps running in the background; its page stays Active though hidden and silent.
+            // I600: the site has an icon of its own on the bar.
+            if p.bar {
+                out["bar"] = json!(true);
+            }
             if p.background {
                 out["background"] = json!(true);
             }
@@ -2140,6 +2154,25 @@ pub fn retarget_row(
     Ok(into_values(out))
 }
 
+/// The `pins` rows after `webdock.bar {pin, on}` (I600): the site's row says whether it stands on the bar; the key is
+/// absent while it does not (as a row written before it existed).
+pub fn bar_row(rows: &[Map<String, Value>], pin: &str, on: bool) -> Result<Vec<Value>, DockError> {
+    let index = row_index(rows, pin)?;
+    if !pins_of(rows)
+        .iter()
+        .any(|p| p.id == pin && p.kind == Kind::Web)
+    {
+        return Err(DockError::NotASite);
+    }
+    let mut out = rows.to_vec();
+    if on {
+        out[index].insert("bar".into(), json!(true));
+    } else {
+        out[index].remove("bar");
+    }
+    Ok(into_values(out))
+}
+
 /// The `sizes` rows (W76) after `webdock.resize {output, width?, height?}`: the output's row replaced by `size`, or
 /// removed when `size` is `None` (the default again). Each side must be within [`MIN_BOX`]..=[`MAX_BOX`].
 pub fn sizes_rows(
@@ -2319,6 +2352,7 @@ fn parse_pin(row: &Map<String, Value>) -> Option<PinSpec> {
         view,
         profile,
         background: row.get("background").and_then(Value::as_bool) == Some(true),
+        bar: row.get("bar").and_then(Value::as_bool) == Some(true),
         temp: None,
     })
 }
@@ -3877,6 +3911,30 @@ mod tests {
         d.unpin_undo("chat");
         assert!(d.temp_of("chat").is_none());
         assert!(pin_of(&d.doc(), "chat").get("temporary").is_none());
+    }
+
+    /// I600: a site's row carries `bar` while it stands on the bar; the document says so and names the cap.
+    #[test]
+    fn a_site_on_the_bar_is_a_flag_on_its_row() {
+        let rows: Vec<Map<String, Value>> = vec![
+            json!({"id": "mail", "title": "Mail", "target": "https://mail.example.org/"})
+                .as_object()
+                .unwrap()
+                .clone(),
+            json!({"id": "weather", "title": "Weather", "target": "mod:weather:weather"})
+                .as_object()
+                .unwrap()
+                .clone(),
+        ];
+        let on = bar_row(&rows, "mail", true).unwrap();
+        assert_eq!(on[0]["bar"], true);
+        let rows_on: Vec<Map<String, Value>> =
+            on.iter().map(|v| v.as_object().unwrap().clone()).collect();
+        assert!(pins_of(&rows_on)[0].bar);
+        let off = bar_row(&rows_on, "mail", false).unwrap();
+        assert!(off[0].get("bar").is_none(), "off: the key goes");
+        assert_eq!(bar_row(&rows, "weather", true), Err(DockError::NotASite));
+        assert_eq!(bar_row(&rows, "nope", true), Err(DockError::UnknownPin));
     }
 
     /// I599: "Unload" in a pin's menu lets a loaded page go; a page on screen, or one that is not loaded, is refused.

@@ -1910,6 +1910,38 @@ pub fn mods_native(
             async move { mod_new(&v, &hub, &state, config.as_deref(), &roots) }
         });
     }
+    // I605: `mod.open_folder {id}`: the mod's own folder in the file manager (xdg-open) — only a folder the registry
+    // holds, never a path a client names.
+    {
+        let state = state.clone();
+        actions.register(
+            "mod.open_folder",
+            "action.mod.open_folder",
+            move |v: Value| {
+                let state = state.clone();
+                async move {
+                    let id = v["id"]
+                        .as_str()
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                    let dir = state
+                        .lock()
+                        .expect("mods lock")
+                        .reg
+                        .get(id)
+                        .map(|e| e.dir.clone())
+                        .ok_or_else(|| ActionError::Invalid("mods.error.unknown".into()))?;
+                    tokio::process::Command::new("xdg-open")
+                        .arg(&dir)
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .map(|_| None)
+                        .map_err(|e| ActionError::Unavailable(format!("xdg-open: {e}")))
+                }
+            },
+        );
+    }
     {
         let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
         actions.register("mod.rescan", "action.mod.rescan", move |_v: Value| {
