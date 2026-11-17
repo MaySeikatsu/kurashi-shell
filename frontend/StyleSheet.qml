@@ -13,7 +13,7 @@ import "components/lock"
 //   niri-sandbox.sh spawn env KURASHI_SHEET=<mode> qs -p frontend/StyleSheet.qml
 // (It lives beside shell.qml because Quickshell resolves the shell's imports only from the config's own directory.)
 // Modes: `parts` (default): captions active and inactive, start dresses at rest/open, the bar ground with a start and a
-// tray well, menu rows, a balloon/tooltip with its tail, buttons; `lock`, `lock-error`, `lock-caps`, `lock-busy`,
+// tray well, menu rows, a balloon/tooltip with its tail, buttons, the sliders and switches in every state; `lock`, `lock-error`, `lock-caps`, `lock-busy`,
 // `lock-wait`, `lock-prompt`, `lock-secondary`: the look's lock face (`decor.lock`) full screen with that state faked
 // (a typed key never leaves this window). Test tool only: never part of the shell.
 ShellRoot {
@@ -248,6 +248,52 @@ ShellRoot {
                                 font.family: Theme.families[0]
                                 font.pixelSize: Theme.fs
                             }
+                        }
+                    }
+                }
+                // I326, I484: the look's slider and switch faces in every state, with no service behind them (a sandbox has
+                // no audio and no backlight, so the shell's own sliders are never on a shot): empty, part, full and
+                // unavailable; off, on and inert.
+                Row {
+                    spacing: 16
+                    Repeater {
+                        model: [[0, false], [0.4, false], [1, false], [0.4, true]]
+                        Slider {
+                            required property var modelData
+                            objectName: "sheet-slider-" + modelData[0] + (modelData[1] ? "-off" : "")
+                            width: 150
+                            value: modelData[0]
+                            unavailable: modelData[1]
+                            a11y: "slider"
+                        }
+                    }
+                }
+                // I484: the same four upright, as a side bar's volume and brightness sliders stand.
+                Row {
+                    spacing: 32
+                    Repeater {
+                        model: [[0, false], [0.4, false], [1, false], [0.4, true]]
+                        Slider {
+                            required property var modelData
+                            objectName: "sheet-slider-up-" + modelData[0] + (modelData[1] ? "-off" : "")
+                            vertical: true
+                            height: 110
+                            value: modelData[0]
+                            unavailable: modelData[1]
+                            a11y: "slider"
+                        }
+                    }
+                }
+                Row {
+                    spacing: 16
+                    Repeater {
+                        model: [[false, true], [true, true], [false, false], [true, false]]
+                        ToggleSwitch {
+                            required property var modelData
+                            objectName: "sheet-switch-" + (modelData[0] ? "on" : "off") + (modelData[1] ? "" : "-inert")
+                            checked: modelData[0]
+                            enabled: modelData[1]
+                            label: "switch"
                         }
                     }
                 }

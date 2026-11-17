@@ -18,6 +18,20 @@ Rectangle {
     signal removed()
     signal closed()
     signal reloaded()
+    signal unloadAsked()
+    // I600: put the site on the bar as an icon of its own, or take it off (`webdock.bar`).
+    signal barToggled(bool on)
+    // I599: why the last entry chosen did nothing (the daemon's refusal, worded): a page that is on screen cannot be
+    // unloaded. Shown above Close; the menu stays open.
+    property string note: ""
+    // The owner's: ask the daemon to unload the page; the menu closes when it did, else says why.
+    function unload(id) {
+        note = ""
+        Store.act("webdock.unload", { pin: id }, function (done, err) {
+            if (err) note = I18n.tr("webdock.menu.shown_now")
+            else menu.closed()
+        })
+    }
     signal retargeted()
     signal unpinned()
     readonly property bool site: pin.kind === "web"
@@ -30,7 +44,7 @@ Rectangle {
     Keys.onEscapePressed: menu.closed()
     // The menu takes the keyboard when it opens: the first button that is enabled has the focus.
     Component.onCompleted: Qt.callLater(function () {
-        var first = [moveUp, moveDown, removeBtn, reloadBtn, retargetBtn, unpinBtn, closeBtn]
+        var first = [moveUp, moveDown, removeBtn, reloadBtn, unloadBtn, retargetBtn, unpinBtn, barBtn, closeBtn]
             .filter(function (b) { return b.visible && b.enabled })
         if (first.length > 0) first[0].forceActiveFocus()
     })
@@ -93,6 +107,15 @@ Rectangle {
             Accessible.description: menu.loaded ? "" : I18n.tr("webdock.menu.not_loaded")
             onClicked: menu.reloaded()
         }
+        // I599: let the page go now (its memory comes back; it opens at the pin's address the next time).
+        Button {
+            id: unloadBtn
+            visible: menu.site
+            label: I18n.tr("webdock.menu.unload")
+            enabled: menu.loaded
+            Accessible.description: !menu.loaded ? I18n.tr("webdock.menu.not_loaded") : menu.note
+            onClicked: menu.unloadAsked()
+        }
         Button {
             id: retargetBtn
             visible: menu.site
@@ -108,6 +131,22 @@ Rectangle {
             label: I18n.tr("webdock.menu.unpin")
             enabled: !menu.forced
             onClicked: menu.unpinned()
+        }
+        Button {
+            id: barBtn
+            visible: menu.site
+            label: I18n.tr(menu.pin.bar === true ? "webdock.menu.bar_off" : "webdock.menu.bar_on")
+            enabled: !menu.forced
+            Accessible.description: menu.forced ? I18n.tr("webdock.dock.forced") + " " + String(menu.pin.forced_by || "") : ""
+            onClicked: menu.barToggled(menu.pin.bar !== true)
+        }
+        Label {
+            visible: menu.note !== ""
+            width: parent.width
+            wrapMode: Text.WordWrap
+            dim: true
+            font.pixelSize: Theme.fsCaption
+            text: menu.note
         }
         Button {
             id: closeBtn

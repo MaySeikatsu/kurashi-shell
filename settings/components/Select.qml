@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls as C   // (as C: Controls has a Label of its own, which would win the name, I589)
 import "../core"
 
 // Dropdown for a `select` row whose offers come from the daemon (I9) or are many. The list opens over the whole window
@@ -79,7 +79,7 @@ Item {
     function popupY() {
         var gap = 2
         var h = Math.min(s.choices.length * Theme.controlH, 320) + pop.topPadding + pop.bottomPadding
-        var win = Overlay.overlay
+        var win = C.Overlay.overlay
         if (!win) return s.height + gap
         var top = s.mapToItem(win, 0, 0).y
         return (top + s.height + gap + h > win.height && top - gap - h >= 0) ? -gap - h : s.height + gap
@@ -112,11 +112,8 @@ Item {
         border.width: 1
         border.color: Theme.outline
 
-        Text {
+        Label {
             id: shownText
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.left: parent.left
             anchors.leftMargin: Theme.pad
             anchors.right: caret.left
@@ -124,20 +121,14 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
             color: s.chosen ? Theme.fg : Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: s.shown
         }
-        Text {
+        Label {
             id: caret
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.right: parent.right
             anchors.rightMargin: Theme.pad
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.dim
-            font.pixelSize: Theme.fs
             text: pop.visible ? "▴" : "▾"
         }
         MouseArea {
@@ -152,7 +143,7 @@ Item {
         }
     }
 
-    Popup {
+    C.Popup {
         id: pop
         parent: s
         width: s.width
@@ -160,7 +151,7 @@ Item {
         modal: false
         dim: false
         focus: true
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent
+        closePolicy: C.Popup.CloseOnEscape | C.Popup.CloseOnPressOutsideParent
         onOpened: list.forceActiveFocus()
         // Focus goes back to the control, so Tab carries on from the row (keyboard path).
         onClosed: s.forceActiveFocus()
@@ -212,42 +203,28 @@ Item {
                     anchors.leftMargin: Theme.pad
                     anchors.rightMargin: Theme.gap
                     anchors.verticalCenter: parent.verticalCenter
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         width: parent.width
                         elide: Text.ElideRight
                         color: opt.pickable ? Theme.fg : Theme.dim
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr(opt.modelData.label)
                     }
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         visible: opt.reasonText !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
                         color: Theme.dim
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: opt.reasonText
                     }
                 }
                 // The chosen offer is marked by a tick, not only by its place in the list.
-                Text {
+                Label {
                     id: tick
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
-                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
                     anchors.verticalCenter: parent.verticalCenter
                     visible: opt.isChosen
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
                     text: "✓"
                 }
                 FocusRing {

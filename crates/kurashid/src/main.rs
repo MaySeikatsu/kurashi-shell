@@ -44,7 +44,7 @@ async fn run() -> anyhow::Result<()> {
     let hub = Hub::new();
     hub.register(
         "daemon",
-        json!({"version": env!("CARGO_PKG_VERSION")}),
+        json!({"version": env!("CARGO_PKG_VERSION"), "user": kurashid::user::document()}),
         None,
     );
     let locale = kurashid::i18n::locale_from_env();
@@ -194,6 +194,17 @@ async fn run() -> anyhow::Result<()> {
         data_dir_found: Some(kurashid::i18n::data_dir().join("i18n").is_dir()),
         ..Default::default()
     });
+    // I133: covers at a web address are fetched only while `media.fetch_covers` is on.
+    if let Some(store) = config.clone() {
+        let follow = |c: &kurashid::config::ConfigStore| {
+            kurashi_services::media::art::allow_fetch(
+                c.get("media.fetch_covers", None)
+                    .is_none_or(|p| p.value != false),
+            );
+        };
+        follow(&store);
+        store.on_change(follow);
+    }
     // Compositor capabilities (blur, session lock, …) → `forced:capability` pins (M2.3).
     if let Some(store) = config.clone() {
         let hub = hub.clone();

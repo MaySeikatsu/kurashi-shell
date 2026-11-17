@@ -214,6 +214,22 @@ async fn add_toggle_external_edit_and_notes() {
         "# Groceries\nmilk\n"
     );
 
+    // `> note <text>`: one more line at the end, the rest untouched.
+    e.action("tasks.notes.add")(json!({"text": "eggs"}))
+        .await
+        .expect("notes.add");
+    let d = wait_for(&seen, "note line", |d| {
+        d["notes"]["text"] == "# Groceries\nmilk\neggs\n"
+    })
+    .await;
+    assert_eq!(d["notes"]["state"], "ready");
+    assert!(
+        e.action("tasks.notes.add")(json!({"text": "  "}))
+            .await
+            .is_err(),
+        "an empty line is refused"
+    );
+
     // The settings feed ends (the mod is disabled): the service ends with its watch.
     drop(e.tx);
     tokio::time::timeout(Duration::from_secs(2), service)

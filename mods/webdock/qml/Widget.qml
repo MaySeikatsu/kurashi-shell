@@ -62,10 +62,29 @@ Item {
         else Store.act("mod.panel.open", { id: "webdock", panel: "webdock" })
     }
 
+    // I600 (the user, session 35: "sites should get an option to be pinned directly to the bar as icons"): the sites
+    // whose row says `bar`, in the strip's order, as keys of their own after the dock's icon — as many as
+    // `bar_sites_max` allows (Advanced); the others open from the dock's icon as before. A click opens the bar's card on
+    // that site (again: closes it).
+    readonly property var barSites: {
+        var out = pins.filter(function (p) { return p.bar === true && p.temporary !== true })
+        return out.slice(0, Math.max(0, Number(d.bar_sites_max !== undefined ? d.bar_sites_max : 4)))
+    }
+    readonly property string cardPin: String((d.card && d.card.pin) || "")
+    function openSite(id) {
+        if (!available) return
+        if (cardUp && cardPin === id) { Store.act("ui.close", {}); return }
+        Store.act("webdock.card_select", { pin: id }, function () {
+            if (!w.cardUp) Store.act("mod.panel.open", { id: "webdock", panel: "webdock" })
+        })
+    }
+    readonly property real sitesLen: barSites.length > 0 ? barSites.length * (site.side + Theme.xs) : 0
+    readonly property real headLen: Theme.barH + (sitePin ? site.side + Theme.xs : 0)
+
     // W66: a square as thick as the bar, as the quick settings button (the same room round the icon as its neighbours)
-    implicitWidth: vertical ? Theme.barH : Theme.barH + (sitePin ? site.width + Theme.xs : 0)
+    implicitWidth: vertical ? Theme.barH : headLen + sitesLen
         + (showTitle ? Math.min(220, title.implicitWidth) + Theme.gap : 0)
-    implicitHeight: vertical ? Theme.barH + (sitePin ? site.height + Theme.xs : 0) : Theme.barH
+    implicitHeight: vertical ? headLen + sitesLen : Theme.barH
     opacity: available ? 1 : Theme.staleOpacity
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -97,54 +116,59 @@ Item {
         y: frameR.y + frameR.height / 2 - frameR.font.pixelSize / 2 - 1
     }
 
-    // The site: its image on a small key, or its letter.
-    Item {
-        id: site
-        visible: w.sitePin !== null
+    // A site as a small key: its image, or its letter (the shown site, I495; a site of its own on the bar, I600).
+    component SiteKey: Item {
+        id: key
+        property var pin: null
+        // (playing, or loaded: a small dot of the accent in its corner, the dock strip's own mark)
+        property bool dot: false
         readonly property int side: Math.max(14, Math.round(Theme.barH * 0.62))
         width: side
         height: side
-        x: w.vertical ? (Theme.barH - side) / 2 : Theme.barH
-        y: w.vertical ? Theme.barH + Theme.xs : (Theme.barH - side) / 2
-        readonly property string iconUrl: w.sitePin && w.sitePin.icon ? String(w.sitePin.icon) : ""
+        readonly property string iconUrl: key.pin && key.pin.icon ? String(key.pin.icon) : ""
         Rectangle {
             anchors.fill: parent
             radius: Math.round(width * 0.3)
             color: Theme.containerHigh
-            visible: siteImg.status !== Image.Ready
+            visible: keyImg.status !== Image.Ready
         }
         Image {
-            id: siteImg
+            id: keyImg
             anchors.fill: parent
             anchors.margins: 1
-            source: site.iconUrl
+            source: key.iconUrl
             sourceSize: Qt.size(64, 64)
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             cache: false
             smooth: true
         }
-        Text {
-            visible: siteImg.status !== Image.Ready
+        Label {
+            visible: keyImg.status !== Image.Ready
             anchors.centerIn: parent
-            text: w.sitePin ? String(w.sitePin.title || w.sitePin.id || "?").charAt(0).toUpperCase() : ""
-            color: Theme.fg
-            font.pixelSize: Math.round(site.side * 0.62)
+            text: key.pin ? String(key.pin.title || key.pin.id || "?").charAt(0).toUpperCase() : ""
+            font.pixelSize: Math.round(key.side * 0.62)
             font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
         }
-        // (playing: a small dot of the accent in its corner, the dock strip's own "loaded" mark)
         Rectangle {
-            visible: w.playingPin !== null
+            visible: key.dot
             width: 5; height: 5; radius: 2.5
             color: Theme.accent
             x: parent.width - 3; y: -2
         }
     }
+    SiteKey {
+        id: site
+        visible: w.sitePin !== null
+        pin: w.sitePin
+        dot: w.playingPin !== null
+        x: w.vertical ? (Theme.barH - side) / 2 : Theme.barH
+        y: w.vertical ? Theme.barH + Theme.xs : (Theme.barH - side) / 2
+    }
     Text {
         id: title
         visible: w.showTitle
-        x: site.x + site.width + Theme.gap
+        x: w.headLen + w.sitesLen + Theme.gap - Theme.xs
         anchors.verticalCenter: parent.verticalCenter
         width: Math.min(220, implicitWidth)
         elide: Text.ElideRight
@@ -165,5 +189,31 @@ Item {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         onClicked: mouse => { if (mouse.button === Qt.MiddleButton) w.toggle(); else w.card() }
+    }
+    // I600: the sites on the bar (over the widget's own click area: each is its own button).
+    Repeater {
+        model: w.barSites
+        delegate: SiteKey {
+            id: barKey
+            required property var modelData
+            required property int index
+            pin: modelData
+            dot: modelData.loaded === true
+            x: w.vertical ? (Theme.barH - side) / 2 : w.headLen + index * (side + Theme.xs)
+            y: w.vertical ? w.headLen + index * (side + Theme.xs) : (Theme.barH - side) / 2
+            opacity: w.cardUp && w.cardPin === String(modelData.id) ? 1 : 0.92
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: I18n.tr("webdock.dock.widget.site").replace("{site}", String(modelData.title || modelData.id))
+            Keys.onReturnPressed: w.openSite(String(modelData.id))
+            Keys.onEnterPressed: w.openSite(String(modelData.id))
+            Keys.onSpacePressed: w.openSite(String(modelData.id))
+            FocusRing { anchors.fill: parent; shown: barKey.activeFocus; corner: Theme.rSm }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: w.openSite(String(barKey.modelData.id))
+            }
+        }
     }
 }

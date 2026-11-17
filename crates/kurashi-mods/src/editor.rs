@@ -75,6 +75,11 @@ pub fn spec(v: &Value) -> Option<Spec> {
 /// A scaffold error's key (`mods.new.error.*`), and whether it is the folder that could not be written (`unavailable`
 /// rather than `invalid`).
 pub fn error_key(e: &ScaffoldError) -> (String, bool) {
+    // I604: a refusal that names what it is about keeps the name after its key (`mods.new.error.skip_empty: desk`), so
+    // the page can mark that field; every other detail (a path, an id) stays out of the message.
+    if let ScaffoldError::SkipEmpty(_) = e {
+        return (e.to_string(), false);
+    }
     let key = e
         .to_string()
         .split(':')
@@ -140,7 +145,11 @@ mod tests {
         }))
         .unwrap();
         let e = check_draft(&own, &scratch, &v).unwrap_err();
-        assert_eq!(error_key(&e).0, "mods.new.error.skip_empty");
+        assert!(
+            error_key(&e).0.starts_with("mods.new.error.skip_empty: "),
+            "the refusal names the variant (I604): {}",
+            error_key(&e).0
+        );
         let own = Spec {
             skips: [(
                 "desk".to_string(),

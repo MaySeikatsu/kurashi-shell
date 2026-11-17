@@ -9,6 +9,7 @@
 "frontend.session.confirm.reboot" = "もう一度押すと再起動"
 "frontend.session.confirm.poweroff" = "もう一度押すとシャットダウン"
 "frontend.session.failed" = "操作に失敗しました"
+"frontend.session.unavailable" = "セッションサービス（logind）が応答しないため、いまは実行できません。"
 "frontend.session.hint" = "↑ ↓ 選択 · Enter 実行 · Esc 閉じる"
 "frontend.tray.menu" = "メニュー"
 "frontend.module.settings" = "すべての設定…"

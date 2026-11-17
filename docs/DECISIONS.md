@@ -1814,3 +1814,82 @@ timer), not above them; `desktop.left` / `desktop.right` place it as before.
 **Not built yet:** fetching the index, `mod.add` / `update` / `remove` in the daemon, Browse, the Home-Manager option
 (W98 steps 2–7).
 
+## K162 — The launcher knows a prefix whose mod is off, and a command that waits for its words (session 36, I539, I572, K150, K154)
+**Problem.** With the terminal mod off, `!` in the launcher searched the apps as if the prefix meant nothing (the
+user: "the ! command doesn't work"), and `> task` alone listed no row, so a command that needs words could not be found
+by its name. Both hide something that exists (Shōjiki).
+**Decision.** (1) A mod's manifest marks the setting that holds a launcher provider's prefix: `[[setting]] launcher =
+"<provider name>"` (a string setting; the provider must be one the mod provides; once per provider; errors
+`setting_launcher_type`, `…_unknown`, `…_duplicate`). The daemon keeps, for every mod that is installed and not
+enabled, that setting's value (its default while the mod's keys are not loaded). A query that starts with such a prefix
+— when no provider in effect holds it and it is not one of the launcher's own — gets one row, "<mod> is switched off",
+which opens Settings' Mods view (`settings.open {page: "mods"}`, a new page id). The core names no mod: the prefix, the
+name and the icon come from the manifest. (2) A declared `>` command whose `rest` argument is required and missing is
+a row of kind `fill`: the launcher puts `> <command> ` into its field and stays open. (3) Rows of kind `mod` and `fill`
+draw the icon they carry (the sessions' state icons were sent and never drawn).
+**Rejected.** A list of prefixes in the core (names mods); asking every off mod's crate for its prefix (an off mod
+runs no code); launching the hint row as the command with an empty argument (an error instead of a hint).
+**Contract.** Manifest: `launcher` on a setting. IPC: row kind `fill` with `fill`; `settings.open` takes `mods`
+(PROTOCOL §5, §6). New actions: `tasks.notes.add {text}` (`> note <text>`): one line at the note's end;
+`launcher.open {query?}`: the launcher with `query` in its field (a key can open a mode: `;` the clipboard, `:` emoji,
+`>` commands), closing it when called again with the same query, as `launcher.keys` does for `?`.
+
+## K163 — The daemon says who the session belongs to (session 36, I108, rule 1)
+**Problem.** The quick card's greeting row and the sidebar's header each read `$USER` in QML and drew its first letter:
+state read in the frontend, twice, and no full name or picture.
+**Decision.** The `daemon` document carries `user: {name, full_name, icon}`: the login, the full name from the
+account's GECOS field, and the account's picture (AccountsService's file, else `~/.face`, `~/.face.icon`), read once
+at start. One component, `frontend/components/Avatar.qml`, draws it (picture, else the name's first letter, else a
+person) for both places.
+**Rejected.** A D-Bus call to AccountsService (the file it writes is what every greeter reads; no service to wait for);
+a document of its own (three fields that never change belong with the daemon's other facts).
+**Contract.** `daemon.user` (PROTOCOL §5, `fixtures/ipc/server/snap_daemon.json`).
+
+## K164 — A large card at the bar's centre (session 36, I606, I538, I504)
+**Problem.** A card is at most a third of the screen wide and half of it tall (I504, the user's rule for ordinary
+cards). The wallpaper picker asked for 720 px and got 633 on a 1920 screen: two or three small columns. The user
+likes the size and place of the terminal's sheet (60 % × 45 % of the screen, joined to the bar's centre) and wants it
+as a place any module's card can open at.
+**Decision.** The Stage knows one more size: **large**. A large card is `bar.card_large_width` × `bar.card_large_height`
+of its screen (60 and 45 by default, the terminal sheet's numbers) and comes out at the bar's centre whatever opened
+it. A mod's panel asks for it with `property bool cardLarge: true` and is handed the height as `fillHeight` (the
+property sidebars already hand a panel); the user makes any module's card large by naming it in `bar.popups_large`.
+The three keys are Advanced. The launcher's appearance menu takes the same size. The wallpaper picker is the first
+panel that asks.
+**Rejected.** Raising the ordinary limits (every card would grow); a per-mod size in the core's defaults (the core
+would name a mod); a placement the manifest declares (a second place for what the panel's own property says).
+**Contract.** MODS.md "Panels": `cardLarge`. No IPC shape changes.
+
+## K165 — Sidebars on the top and bottom edges are the terminal's sheet made general (session 36, I607)
+**Problem.** The user wants sidebars on the top and bottom edges, in sizes: the full width, or a part of it such as
+the terminal's sheet. The side sidebars' surface (`Sidebar.qml`) is a column: its shape, its slide and its geometry
+(`runtime.layout.sidebars`) are for a left or right edge.
+**Decision.** `sidebar.top` and `sidebar.bottom` are a surface of their own, `SidebarSheet.qml`, built from what the
+terminal's drop-down already was: its geometry and its frame move into two shared components (`SheetGeom`: where a
+sheet stands on an output; `SheetFrame`: the joined card or the look's card, and the slide), which the terminal's
+surface now uses too. The sheet holds the sidebars' sections as pages with tabs (`LeftColumn`) and follows the same
+open-on-output rule (`OpenOn`, taken out of `Sidebar.qml`). Size: `span` (a centred part, or the whole edge), `length`
+(the part's share, 66 %) and `height` (45 %, the terminal's); the two numbers are Advanced. A sidebar exists only while
+its `sections` list is not empty. Opened by `sidebar.toggle {side: top | bottom}` and the `>` commands; no default key.
+**Rejected.** Teaching `Sidebar.qml` four sides (1100 lines of column geometry would fork per side); a mod (it hosts
+the core's sections and the other mods' panels: it is a host, which the core is); pinning with reserved space in v1
+(half the screen reserved; needs a strip size first).
+**Contract.** `sidebar.toggle` / `sidebar.open` take `side: "top" | "bottom"`; `runtime.ui.sidebar` may be `top` or
+`bottom`; actions `sidebar.top.toggle`, `sidebar.bottom.toggle` (PROTOCOL §6). Brief: `docs/ux/edge-sidebars.md`.
+
+## K166 — A mod's setting can be Advanced; sites on the bar are the web dock's own (session 36, I600, the user's rules)
+**Problem.** The user: new tuning options go under Advanced, and a feature that is not part of an existing one is a
+first-party mod's, not the core's. A mod's manifest could not mark a setting as Advanced, so every mod option stood on
+its page. And the wish "sites pinned directly to the bar as icons" (I600) needed a place.
+**Decision.** (1) `[[setting]] advanced = true` in a manifest: the setting's row is shown only in Settings' Advanced
+view (the schema's own flag; `kurashi_mods::manifest::Setting::advanced`). (2) Sites on the bar belong to the web dock
+mod: a pin's row carries `bar` (the pin's menu: "Show on the bar" / "Take off the bar", action `webdock.bar {pin,
+on}`; the records editor shows the field), and the dock's bar module draws those sites as keys of their own after its
+icon — at most `bar_sites_max` (4; Advanced) — each opening the bar's card on its site. The user's choice of the three
+offered: icons per site up to a number, the rest behind the dock's icon. The core learns nothing: the module is the
+mod's `widget:webdock`.
+**Rejected.** A core module per site (the core would know sites); a count of "the first N pins" with no per-site
+choice (the user pins a site to the bar, not a position).
+**Contract.** Manifest: `advanced` on a setting. `mod.webdock`: a pin's `bar: true` (absent otherwise),
+`bar_sites_max` while a site is on the bar. Action `webdock.bar`.
+

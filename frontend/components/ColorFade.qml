@@ -32,7 +32,9 @@ Item {
         ShaderEffect {
             property var old: was
             property real t: f.t
-            fragmentShader: Qt.resolvedUrl("../shaders/color_mix.frag.qsb")
+            // B89: round the colour wheel (`media.blend = wheel_*`) the two pictures are mixed by hue, not faded.
+            property real turn: Theme.fadeTurn
+            fragmentShader: Qt.resolvedUrl(Theme.fadeKind === "fade" ? "../shaders/color_mix.frag.qsb" : "../shaders/color_wheel.frag.qsb")
         }
     }
     function done(): void {

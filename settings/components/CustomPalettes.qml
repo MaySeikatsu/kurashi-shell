@@ -83,29 +83,20 @@ Column {
         }
     }
 
-    Text {
+    Label {
         visible: !editorLoader.active && cu.choices.length === 0
         objectName: "palettes-empty"
         width: cu.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: I18n.fmt("palettes.custom.empty", { dir: cu.dir })
         color: Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
-    Text {
+    Label {
         visible: !editorLoader.active && !cu.writable
         objectName: "palettes-read-only"
         width: cu.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: I18n.fmt("palettes.custom.read_only", { dir: cu.dir })
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
 
     Flow {
@@ -149,16 +140,13 @@ Column {
                     border.width: 1
                     border.color: Theme.outline
                     opacity: 0.75
-                    Text {
+                    Label {
                         anchors.fill: parent
                         anchors.margins: Theme.gap
                         wrapMode: Text.Wrap
                         elide: Text.ElideRight
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.fmt("palettes.custom.broken", {
                             file: tile.modelData.value + ".toml",
                             reason: I18n.tr(tile.modelData.reason || "palettes.error.parse")
@@ -201,15 +189,10 @@ Column {
                     visible: cu.asking === tile.modelData.value
                     width: parent.width
                     spacing: 4
-                    Text {
+                    Label {
                         width: parent.width
                         wrapMode: Text.Wrap
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
                         text: I18n.fmt("palettes.custom.delete_ask", { name: tile.name })
-                        color: Theme.fg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                     }
                     Row {
                         spacing: 4
@@ -251,36 +234,25 @@ Column {
                 anchors.centerIn: parent
                 width: parent.width - 2 * Theme.gap
                 spacing: 2
-                Text {
+                Label {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
                     text: Theme.iconFamily !== "" ? "add" : "+"
                     font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam(text, Theme.families)
                     font.pixelSize: 28
-                    color: Theme.fg
                 }
-                Text {
+                Label {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
                     text: I18n.tr("palettes.custom.new")
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
                     font.weight: Theme.wMedium
-                    font.family: Theme.fam(text, Theme.families)
                 }
-                Text {
+                Label {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
                     text: I18n.fmt("palettes.custom.new_hint", { name: Store.packLabel("palettes", cu.startFrom) })
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
                 }
             }
             HoverHandler { id: newHover }
@@ -293,15 +265,11 @@ Column {
             FocusRing { anchors.fill: parent; shown: newTile.activeFocus; corner: newTile.radius }
         }
     }
-    Text {
+    Label {
         visible: cu.failure !== ""
         width: cu.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: cu.failure
         color: Theme.error
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
 }

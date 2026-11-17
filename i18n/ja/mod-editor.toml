@@ -71,6 +71,7 @@
 "mods.new.turn_on" = "オンにする"
 "mods.new.open_folder" = "フォルダを開く"
 "mods.new.open_page" = "ページを開く"
+"mods.folder" = "フォルダー：{path}"
 "mods.new.open_page.needs_on" = "オンにすると、そのページが設定に加わります"
 "mods.new.discard" = "このモッドを破棄しますか？"
 "mods.new.discard.keep" = "編集を続ける"

@@ -32,7 +32,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### Launcher
 
-- [idea] a `>` command that needs words shows nothing until they are typed: a hint row that keeps the launcher open → I572
+- [x] [idea] a `>` command that needs words shows nothing until they are typed: a hint row that keeps the launcher open — done S36 (I572, K162)
 - [x] [bug] `test-launcher` expects a Settings page `bar`; the schema's is `layout` — fixed S35 (W96: the suite asks for `layout`; in the merge set)
 
 ### Quick settings
@@ -56,7 +56,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 - [ask] should a mod's row in the sidebar show its icon beside its state mark? → I573
 - [bug] settings section of sidebar is a mess and should be cleaned up/reiterated, since some options don't make sense as they are rn, mainly the quick settings opens the right sidebar and the other woggles of that section (keep a closed sidebar ready is fine imo) → I595
 - [idea] resort the menu properly to create a better overview in the menu. Make use of advanced settings to put advanced options in and hide it to not overwhelm users too much → I596
-- [bug] search settings is currently very slow and stuttery, the searching should be way more fluent, especially the writing (it also just jumps to one random matching queue instead of showing and highlighting all matching pairs) → I597
+- [x] [bug] search settings is slow and stuttery; it jumps to one match instead of showing all — done S36 (I597: 2.1 s → 0.2 s per key, the 30 best hits listed with the match marked)
 - [bug] Layout menu is a mess, options are partially doublicated and not visually clear. Needs a major overhaul with clear decisions and design questions being asked to the project owner → I598
 
 ### Theming: looks, styles, palettes, texture, motion, fonts
@@ -99,7 +99,7 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### tasks
 
-- [idea] `> note <text>` appends to the notes (today only `> task <text>`; `tasks.notes.set` replaces the whole note)
+- [x] [idea] `> note <text>` appends to the notes — done S36 (`tasks.notes.add`, K162)
 
 ### terminal
 
@@ -115,10 +115,10 @@ record. Done lines are removed at the next session's start (git keeps them; the 
 
 ### webdock
 
-- [bug] Right-click context menu on a websites icon is missing. It should have a context menu with options to refresh, unload, pin the current updated site and so on → I599
+- [x] [bug] Right-click context menu on a website's icon — done S36 (I599: the pin menu in the bar card and the sidebar; Reload, Unload, Update pin to this page, Unpin but keep open, Move, Remove)
 - [bug] a click on the bar widget does not ask for the dock's card → B145 (W96)
 - [bug] 20 reveal/hide cycles grow the shell by 5–6.6 MiB (budget 1) → B145, B156 (the same growth as the island's card: the windows that unmap)
-- [idea] WebDock Sites should get Option to be pinned directly to the Bar as icons, which then can open the website/webdock directly from there. → I600
+- [x] [idea] web dock sites pinned to the bar as icons — done S36 (I600, K166: "Show on the bar" in a site's menu)
 
 ## Around the shell
 

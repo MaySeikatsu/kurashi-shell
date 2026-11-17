@@ -429,3 +429,16 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S35.8 | W94 the Mod Editor | 🟡 functional: contract, daemon, mock, the page, `> new mod`, its suite in the merge set · 🟡 UX: fresh / id taken / passed / created seen on niri in two looks, light and dark; the icon picker, the folder action and the other states on niri open | integration |
 | S35.9 | W98 the catalogue | 🟡 its UX brief (not read by the user) and step 1: tree hash, index entries, summary, `.source`, `tools/mod-index/` (K161) | integration |
 | S35.10 | W92 the core names no mod | 🟡 rows 1–3 of 6: `svc.location` (K159), the desk's weather card (K160, schema 8), the clock's peek (I602) | integration |
+
+## Session 36 — quick polish and the edge sidebars (K162–K166; card W99) — 0.5.0
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| S36.1 | Launcher: a prefix whose mod is off, a command waiting for its words, `> note`, `launcher.open {query}` (K162) | ✅ functional · ✅ UX (niri, light and dark) | integration |
+| S36.2 | Frontend polish: the user's picture and name (K163), the large card (K164), Now Playing's colour option, glyph sizes | ✅ functional · ✅ UX (niri) | integration |
+| S36.3 | Sidebars on the top and bottom edges (K165, brief `docs/ux/edge-sidebars.md`) | ✅ functional · 🟡 UX (niri light and dark; no suite of its own) | integration |
+| S36.4 | Settings fixes: search, reconnect, reset on inert rows, Location, the components' text on `Label` (I589) | ✅ functional (`settings/test.sh`) · 🟡 UX (`Label` seen in one pixel look; the sheet host not seen, B158) | integration |
+| S36.5 | Web dock: a site's menu, sites on the bar (K166), the suite's bar-widget row | ✅ functional · ✅ UX (niri) · open: the suite's growth check (B123) | integration |
+| S36.6 | Side bars like the top bar: cards out of the bar (I609), upright sliders (I484 in part) | ✅ functional · 🟡 UX (the sliders on the parts sheet in eight looks; not on a live side bar: a sandbox has no audio) | integration |
+| S36.7 | The colour wheel on the GPU (B89), tray pictures trimmed (B61), the power menu without a session service (I204) | ✅ functional · ✅ UX (niri; B61 on the live session) | integration |
+| S36.8 | Mods page: the folder, what a mod waits for (I592), which program it runs and the question before it goes on (I593 in part), covers from the web (I133) | ✅ functional (`settings/test.sh` 7c, 7d) · ✅ UX (niri light and dark) · open: `uses` on the mod's page | integration |
+| S36.9 | W99 the wallpaper pickers: one core, the large card, parity, the theme follows the picture (I135) | ✅ functional (10 suites) · 🟡 UX (niri light, dark, sekai; under two rows at the default height, I611) · open: B88, I83's Clear thumbnails | integration |

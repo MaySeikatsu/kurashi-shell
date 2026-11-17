@@ -28,14 +28,11 @@ Item {
             size: Theme.fs * 2 + 8
             color: Theme.dim
         }
-        Text {
+        Label {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            color: Theme.fg
             font.pixelSize: Theme.fs + 1
-            font.family: Theme.fam(text, Theme.families)
             text: en.text
             Accessible.role: Accessible.StaticText
             Accessible.name: text

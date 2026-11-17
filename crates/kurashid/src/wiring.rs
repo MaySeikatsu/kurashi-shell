@@ -287,7 +287,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     );
     // I154: each side as an action of its own, without arguments — what the launcher's `>` commands and a plain bind
     // run (the frontend's focused output).
-    for side in ["left", "right"] {
+    for side in ["left", "right", "top", "bottom"] {
         let open = sidebar_open(hub.clone(), true);
         actions.register(
             &format!("sidebar.{side}.toggle"),
@@ -499,7 +499,8 @@ pub(crate) fn open_sidebar(
     output: Option<String>,
     toggle: bool,
 ) -> Result<Option<Value>, ActionError> {
-    if side == "left" && left_sidebar_empty(hub) {
+    // (K165: the top and bottom sidebars exist only while they have sections; the right one has its own by default)
+    if side != "right" && sidebar_empty(hub, side) {
         return Err(ActionError::Invalid(SIDEBAR_NO_TABS.into()));
     }
     hub.update("runtime.ui", None, |d| {
@@ -538,6 +539,8 @@ fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError
     let side = match a["side"].as_str() {
         Some("left") => "left",
         Some("right") => "right",
+        Some("top") => "top",
+        Some("bottom") => "bottom",
         _ => return Err(invalid()),
     };
     let output = match a.get("output") {
@@ -548,10 +551,10 @@ fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError
     Ok((side, output))
 }
 
-/// Whether `sidebar.left.sections` lists no tab in effect (the `config` document's value; unknown counts as not empty).
-fn left_sidebar_empty(hub: &Hub) -> bool {
+/// Whether `sidebar.<side>.sections` lists no tab in effect (the `config` document's value; unknown counts as not empty).
+fn sidebar_empty(hub: &Hub, side: &str) -> bool {
     hub.snapshot(crate::config::DOC).is_ok_and(|(_, d)| {
-        d["values"]["sidebar.left.sections"]["value"]
+        d["values"][format!("sidebar.{side}.sections")]["value"]
             .as_array()
             .is_some_and(Vec::is_empty)
     })
@@ -1102,6 +1105,9 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         .map_or_else(|| m.label.clone(), str::to_owned),
                     icon: m.icon.as_deref(),
                     command,
+                    hint: strings["launcher.command.needs_words"]
+                        .as_str()
+                        .unwrap_or("launcher.command.needs_words"),
                 };
                 let args_for = |words: &str| decl.command_args(words);
                 rows.extend(kurashi_launcher::commands::declared_row(
@@ -1275,6 +1281,41 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 Ok(None)
             }
         });
+    // K162: `launcher.open {query}` opens the launcher with `query` in its field (a mode's prefix such as `;` for the
+    // clipboard, or any text), so a key can open a mode; called again with the same query while it shows, it closes
+    // (as `launcher.keys` does for `?`). Without a query it opens the plain launcher.
+    let h = daemon.hub.clone();
+    daemon.actions.register(
+        "launcher.open",
+        "action.launcher.open",
+        move |args: Value| {
+            let hub = h.clone();
+            async move {
+                let query = match args.get("query") {
+                    None | Some(Value::Null) => String::new(),
+                    Some(Value::String(q)) => q.clone(),
+                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                };
+                hub.update("runtime.ui", None, |d| {
+                    let showing = d["launcher"].as_bool() == Some(true)
+                        && d["launcher_query"].as_str().unwrap_or("") == query;
+                    d["launcher"] = json!(!showing);
+                    if let Some(o) = d.as_object_mut() {
+                        o.remove("launcher_query");
+                    }
+                    if !showing {
+                        if !query.is_empty() {
+                            d["launcher_query"] = json!(query);
+                        }
+                        clear_sidebar(d);
+                        close_panel(d);
+                    }
+                })
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        },
+    );
     let run_actions = daemon.actions.clone();
     daemon.actions.register(
         "launcher.launch",
@@ -1667,6 +1708,44 @@ struct ModsState {
     native: Native,
 }
 
+/// K162 (I539): the launcher prefixes of the mods that are installed and not enabled — the setting each manifest marks
+/// (`launcher = "<provider>"`), as configured when the mod's keys are known, else its default.
+fn off_prefixes(
+    reg: &kurashi_mods::Registry,
+    store: Option<&ConfigStore>,
+) -> Vec<crate::launcher_mods::OffPrefix> {
+    use kurashi_mods::manifest::SettingValue;
+    let mut out = Vec::new();
+    for e in reg.iter() {
+        let Some(m) = &e.manifest else { continue };
+        if matches!(e.state, kurashi_mods::registry::ModState::Enabled) {
+            continue;
+        }
+        for key in m.launcher_prefixes.values() {
+            let configured = store
+                .and_then(|s| s.get(&format!("mods.{}.{key}", e.id), None))
+                .and_then(|p| p.value.as_str().map(str::to_owned));
+            let default =
+                m.settings
+                    .iter()
+                    .find(|s| &s.key == key)
+                    .and_then(|s| match &s.default {
+                        SettingValue::Str(t) => Some(t.clone()),
+                        _ => None,
+                    });
+            if let Some(prefix) = configured.or(default).filter(|p| !p.trim().is_empty()) {
+                out.push(crate::launcher_mods::OffPrefix {
+                    mod_id: e.id.clone(),
+                    name: m.name.clone(),
+                    icon: m.icon.clone(),
+                    prefix,
+                });
+            }
+        }
+    }
+    out
+}
+
 /// Brings the native mods and the `mods` document in line with the registry: the mod table goes to
 /// the config, enabled native mods are activated and the others deactivated, the settings in effect
 /// are pushed, and the document is published.
@@ -1685,6 +1764,7 @@ fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
     }
     let _ = hub.update("mods", None, |d| *d = st.native.document(&mut st.reg));
     let _ = hub.update(SLOTS_DOC, None, |d| *d = st.native.slots(&st.reg));
+    hub.launcher_mods.set_off(off_prefixes(&st.reg, store));
     // A mod panel cannot stay open once its mod is off: the frontend already dropped the component,
     // so `runtime.ui` would name a panel nothing draws (rule 2; found by the live all-mods test).
     let _ = hub.update("runtime.ui", None, |d| {
@@ -1829,6 +1909,38 @@ pub fn mods_native(
                 (hub.clone(), state.clone(), config.clone(), roots.clone());
             async move { mod_new(&v, &hub, &state, config.as_deref(), &roots) }
         });
+    }
+    // I605: `mod.open_folder {id}`: the mod's own folder in the file manager (xdg-open) — only a folder the registry
+    // holds, never a path a client names.
+    {
+        let state = state.clone();
+        actions.register(
+            "mod.open_folder",
+            "action.mod.open_folder",
+            move |v: Value| {
+                let state = state.clone();
+                async move {
+                    let id = v["id"]
+                        .as_str()
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                    let dir = state
+                        .lock()
+                        .expect("mods lock")
+                        .reg
+                        .get(id)
+                        .map(|e| e.dir.clone())
+                        .ok_or_else(|| ActionError::Invalid("mods.error.unknown".into()))?;
+                    tokio::process::Command::new("xdg-open")
+                        .arg(&dir)
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .map(|_| None)
+                        .map_err(|e| ActionError::Unavailable(format!("xdg-open: {e}")))
+                }
+            },
+        );
     }
     {
         let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
@@ -4134,7 +4246,7 @@ mod tests {
         // Bad arguments; a left sidebar the config gives no tab.
         for bad in [
             json!({}),
-            json!({"side": "top"}),
+            json!({"side": "middle"}),
             json!({"side": "left", "output": ""}),
         ] {
             assert!(actions.invoke("sidebar.toggle", bad).await.is_err());

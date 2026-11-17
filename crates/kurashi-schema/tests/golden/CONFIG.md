@@ -71,6 +71,30 @@ The widest a card grows, as a share of its screen's width; a card never gets nar
 - range: `20..=100`, step `1` (%)
 - since schema v7
 
+#### `bar.card_large_width` — Large card width
+
+How wide a large card is, as a share of its screen's width. A large card opens at the bar's centre: a module's card that asks for the room (the wallpaper picker), and the modules listed under "Modules that open large".
+
+- type: `int` · default: `60`
+- range: `30..=100`, step `5` (%)
+- advanced
+
+#### `bar.card_large_height` — Large card height
+
+How tall a large card is, as a share of its screen's height.
+
+- type: `int` · default: `45`
+- range: `20..=95`, step `5` (%)
+- advanced
+
+#### `bar.popups_large` — Modules that open large
+
+These modules' cards open as a large card at the bar's centre instead of at their usual size.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- advanced
+
 #### `bar.card_keep_loaded` — Keep a closed card ready
 
 A card that has closed keeps what it showed for a minute, off screen, so it opens again at once and at its size. It costs its memory for that minute, and what it watches stays watched. Off: a closed card is gone at once and is made again each time it opens.
@@ -790,6 +814,15 @@ The colour wheel takes half as long again, as it has further to go.
 - range: `200..=4000`, step `100` (ms)
 - only while `theme.colors.media.follow == true`
 - only while `theme.colors.media.blend != "direct"`
+
+#### `theme.colors.media.card` — Now Playing card
+
+The card with the cover and the titles keeps the cover's own colours and changes with the track at once. Or it changes over the same time as the shell does; or it takes the shell's colours instead of the cover's.
+
+- type: `choice` · default: `"cover"`
+- choices: `"cover"` | `"blend"` | `"theme"`
+- only while `theme.colors.media.follow == true`
+- advanced
 
 #### `theme.colors.wallpaper_grade.enabled` — Wallpaper Color Grade
 
@@ -2301,6 +2334,15 @@ Show ISO week numbers beside the calendar's rows.
 
 - type: `bool` · default: `false`
 
+### Media
+
+#### `media.fetch_covers` — Covers from the web
+
+A player may name its cover by a web address (a streaming service does). On: the shell fetches the picture for the Now Playing card and its colours. Off: nothing is fetched; such a track shows without a cover.
+
+- type: `bool` · default: `true`
+- advanced
+
 ## Notifications
 
 ### Server
@@ -2658,6 +2700,13 @@ Degrees east of Greenwich; west is negative.
 - range: `-180.0..=180.0`, step `0.01` (°)
 - only while `location.manual == true`
 
+#### `location.name` — Name of the place
+
+What to call it, for example your town. Shown where the shell names the place in effect.
+
+- type: `string` · default: `""`
+- only while `location.manual == true`
+
 ### Recorder
 
 #### `recorder.directory` — Folder
@@ -2867,6 +2916,70 @@ Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, j
 - type: `choice` · default: `"auto"`
 - choices: `"auto"` | `"floating"` | `"dynamic"` | `"connected"`
 - since schema v3
+
+### Top sidebar
+
+#### `sidebar.top.sections` — Sections
+
+What this sidebar holds, one page each with tabs above: the same sections the side ones offer, and the mods' panels. Empty: there is no sidebar on this edge.
+
+- type: `string_list` · default: `[]`
+- choices: from `sidebar.sections` (resolved at runtime)
+
+#### `sidebar.top.span` — Width
+
+The whole edge, or a centred part of it (how much: "Share of the edge", under Advanced).
+
+- type: `choice` · default: `"part"`
+- choices: `"part"` | `"full"`
+
+#### `sidebar.top.length` — Share of the edge
+
+How wide a sidebar that takes a part of its edge is, as a share of the screen's width.
+
+- type: `int` · default: `66`
+- range: `30..=100`, step `1` (%)
+- advanced
+
+#### `sidebar.top.height` — Height
+
+How far it reaches into the screen, as a share of the screen's height.
+
+- type: `int` · default: `45`
+- range: `20..=95`, step `5` (%)
+- advanced
+
+### Bottom sidebar
+
+#### `sidebar.bottom.sections` — Sections
+
+What this sidebar holds, one page each with tabs above: the same sections the side ones offer, and the mods' panels. Empty: there is no sidebar on this edge.
+
+- type: `string_list` · default: `[]`
+- choices: from `sidebar.sections` (resolved at runtime)
+
+#### `sidebar.bottom.span` — Width
+
+The whole edge, or a centred part of it (how much: "Share of the edge", under Advanced).
+
+- type: `choice` · default: `"part"`
+- choices: `"part"` | `"full"`
+
+#### `sidebar.bottom.length` — Share of the edge
+
+How wide a sidebar that takes a part of its edge is, as a share of the screen's width.
+
+- type: `int` · default: `66`
+- range: `30..=100`, step `1` (%)
+- advanced
+
+#### `sidebar.bottom.height` — Height
+
+How far it reaches into the screen, as a share of the screen's height.
+
+- type: `int` · default: `45`
+- range: `20..=95`, step `5` (%)
+- advanced
 
 ### Sidebar
 

@@ -751,6 +751,11 @@ pub fn document_with(
                 "media.blend_ms".into(),
                 json!(f(store, "theme.colors.media.blend_ms", 1200.0)),
             );
+            // I398: the Now Playing card under Dynamic Media Color (cover | blend | theme).
+            tokens.insert(
+                "media.card".into(),
+                json!(s(store, "theme.colors.media.card")),
+            );
             // I472 (K117): every other change of colour fades too (ColorBlend.qml), unless motion is reduced.
             tokens.insert(
                 "motion.blend_colors".into(),

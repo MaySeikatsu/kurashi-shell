@@ -56,14 +56,9 @@ Column {
 
     Keys.onEscapePressed: event => { cp.cancelled(); event.accepted = true }
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
+    Label {
         text: I18n.fmt("palettes.picker.title", { role: cp.role })
-        color: Theme.fg
-        font.pixelSize: Theme.fs
         font.weight: Theme.wBold
-        font.family: Theme.fam(text, Theme.families)
     }
     Row {
         spacing: Theme.pad
@@ -191,13 +186,10 @@ Column {
             required property var modelData
             visible: modelData.colors.length > 0
             spacing: 4
-            Text {
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
+            Label {
                 text: I18n.tr("palettes.picker.from_" + group.modelData.id)
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
             }
             Row {
                 spacing: 4

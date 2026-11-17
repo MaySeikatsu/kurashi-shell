@@ -121,7 +121,7 @@ test holds the shell's `SlotHost { slot: … }` names to it.
 |---|---|---|---|
 | `glance` · | variant | `widget:<name>` | A module in a bar or an edge zone (`qml/Widget.qml`): its short form; `vertical`, `compact`, `room` are set by the bar |
 | `peek` · | variant | `peek:<name>` | The card under the module on hover or focus (`qml/Peek.qml`, K35) |
-| `panel` · | variant | `panel:<name>` | The expanded view: a Stage card, a sidebar section, a web dock view (`qml/Panel.qml`); `fillHeight`, `placement`, `cardPlacement` |
+| `panel` · | variant | `panel:<name>` | The expanded view: a Stage card, a sidebar section, a web dock view (`qml/Panel.qml`); `fillHeight`, `placement`, `cardPlacement`, `cardLarge` |
 | `desk` · | variant | `desk:<name>` | A card on the desktop's widget column (`qml/desk/<name>.qml`, K46); it takes the column's width |
 | `island-face` · | variant | `island-face:<name>` | A face of the Island with its expanded view (`qml/Face.qml`, `qml/FaceExpanded.qml`); raised through `ModCtx::face` |
 | `quick-tile` · | variant | `slot:quick.tiles` | A tile in quick settings (`qml/slots/quick.tiles.qml`) |
@@ -267,6 +267,11 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   with a prefix in effect is the provider's alone (`query(rest)`), a provider without one adds rows after the apps.
   A row (`LauncherRow {key, name, sub, icon, action, args}`) runs one of the mod's own actions with `args` when
   launched (a row naming another mod's action is dropped); `sub` may be an i18n key. The launcher's own prefixes
+  K166: `advanced = true` on any `[[setting]]` shows its row only in Settings' Advanced view.
+  K162: the setting that holds a provider's prefix says so in the manifest (`[[setting]] launcher = "<name>"`, a
+  string setting, a provider the mod has, once per provider), so that while the mod is switched off the launcher
+  answers that prefix with a row "<mod> is switched off" that opens Mods, instead of searching the apps.
+  The launcher's own prefixes
   (`kurashi_launcher::BUILTIN_PREFIXES`: `:` `;` `?` `>`), an empty prefix and one an earlier provider holds are
   refused: `runtime.launcher {builtin, providers: [{id, prefix} | {id, refused: {reason, prefix?, by?}}]}` says which
   and why. The web dock's is `/` (`mods.webdock.launcher_prefix`): its pins, the address the text names, or a search,
@@ -314,6 +319,8 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   (a mod file loads from `file://`, the shell from `qs:@/qs/`, so a relative import would make a second, disconnected
   Store/Theme/I18n; found in the session-5 live check). The loader also hands `store`, `theme`, `i18n` as required
   properties. Mods talk to the daemon only through their own documents/actions. A panel may declare
+  `property bool cardLarge: true` (K164): the Stage gives the panel a large card — `bar.card_large_width` ×
+  `bar.card_large_height` of the screen, at the bar's centre — and hands its height as `fillHeight`.
   `property real fillHeight: 0`: a host that offers a fixed height (the left sidebar, K54/row 238) sets it, and the
   panel can fill it (the AI chat puts its composer at the bottom); the Stage card sets nothing. A panel may also declare
   `property var cardPlacement` (row 721, W72): in a Stage card the panel is handed `{output, rest: true, x, y, width,

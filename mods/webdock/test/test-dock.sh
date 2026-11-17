@@ -421,7 +421,7 @@ phase_intents() {
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
-  start_frontend KURASHI_WEBDOCK_DEBUG=1
+  start_frontend KURASHI_WEBDOCK_DEBUG=1 KURASHI_BAR_GEOMETRY=1
   setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
   start_input
   sleep 1
@@ -501,8 +501,15 @@ phase_intents() {
   click 2531 754
   seen "i['action']=='webdock.browse' and i['args'].get('place')=='edge'" && r=1 || r=0
   check "$r" "add: + asks the daemon for a temporary page at the edge (webdock.browse)"
-  click 2256 17   # W23: the keyboard layout chip sits right of the widget (was 2338); K58: the sidebar button too (was 2304)
-  # (I482, session 28: a click opens the dock's card; the dock at the edge is a middle click. The click's fixed x is I403's.)
+  # (I482, session 28: a click opens the dock's card; the dock at the edge is a middle click.)
+  # B131, B123, B69, I403, I434: the mock lays the bar out from its own `mods` document (the relay's reaches only the
+  # frontend), and the mock has none, so the bar held no widget and no coordinate could hit it. The dock becomes the
+  # mock's one mod here, and the click goes where the bar says the widget stands (BARZONE, KURASHI_BAR_GEOMETRY=1).
+  drv act mock.doc '{"doc":"mods","patch":{"mods":[{"id":"webdock","name":"Web dock","version":"0.1.0","tier":"native","state":"enabled","running":true,"capabilities":[],"cost":"low","provides":["widget:webdock"],"errors":[],"shadows_bundled":false}]}}' > /dev/null || fail "mock.doc refused the web dock in the mock's mods"
+  for _ in $(seq 40); do grep -q 'BARZONE HEADLESS-1 top end mod:webdock:webdock ' "$R/qs.log" && break; sleep 0.25; done
+  read -r wx0 wy0 wx1 wy1 <<< "$(grep 'BARZONE HEADLESS-1 top end mod:webdock:webdock ' "$R/qs.log" | tail -1 | sed 's/.*mod:webdock:webdock //')"
+  [ -n "${wx1:-}" ] || fail "bar widget: the bar does not hold the web dock's widget (no BARZONE … mod:webdock:webdock in $R/qs.log)"
+  click $(( (wx0 + wx1) / 2 )) $(( (wy0 + wy1) / 2 ))
   seen "i['action']=='mod.panel.open' and i['args'].get('id')=='webdock'" && r=1 || r=0
   check "$r" "bar widget: a click asks for the dock's card (mod.panel.open)"
   stop_phase

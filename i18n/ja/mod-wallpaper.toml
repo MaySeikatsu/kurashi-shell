@@ -192,3 +192,7 @@
 "mod-wallpaper.wallhaven.error.not_found" = "この壁紙は Wallhaven にもうありません"
 "mod-wallpaper.wallhaven.error.not_found.hint" = "削除された可能性があります。別の壁紙を選んでください。"
 "mod-wallpaper.wallhaven.error.thumb" = "サムネイルを読み込めませんでした"
+
+# The pickers while their first page is out (W99)
+"mod-wallpaper.thumbs.loading" = "画像を読み込んでいます…"
+"mod-wallpaper.thumbs.loading.hint" = "サムネイルは画像ごとに一度だけ作られます。大きなフォルダーは初回に少し時間がかかります。"

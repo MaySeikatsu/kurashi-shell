@@ -192,3 +192,7 @@
 "mod-wallpaper.wallhaven.error.not_found" = "That wallpaper is no longer on Wallhaven"
 "mod-wallpaper.wallhaven.error.not_found.hint" = "It may have been removed. Pick another one."
 "mod-wallpaper.wallhaven.error.thumb" = "The thumbnail did not load"
+
+# The pickers while their first page is out (W99)
+"mod-wallpaper.thumbs.loading" = "Reading the pictures…"
+"mod-wallpaper.thumbs.loading.hint" = "Thumbnails are made once per picture; a large folder takes a moment the first time."

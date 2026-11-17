@@ -36,6 +36,10 @@ Item {
     implicitHeight: body.implicitHeight
 
     onActiveChanged: if (!active) { disarm(); errText = "" }
+    // I204: without the session service (logind does not answer) nothing here can run. The keys stay, dimmed, and the
+    // menu says why before anything is pressed (rule 2), instead of failing after the press.
+    Watch { doc: "svc.session"; active: menu.visible }
+    readonly property bool gated: (Store.docs["svc.session"] || ({})).available === false
 
     // Runs only for the 3 s after a first press (Ma: nothing ticks while the menu is not armed).
     Timer {
@@ -49,7 +53,7 @@ Item {
     }
 
     function activate(i) {
-        if (busy) return
+        if (busy || gated) return
         var e = entries[i]
         if (e.destructive && armed !== i) {
             errText = ""
@@ -108,6 +112,7 @@ Item {
                     readonly property bool isArmed: menu.armed === index
                     width: menu.keyW
                     height: 96 + Theme.shadowDy
+                    opacity: menu.gated ? 0.5 : 1
                     radius: ms.radius(Theme.rLg)
                     pressed: tap.pressed
                     // An outlined chrome with no shadow (line): the keys are outlined boxes, no fill until lit.
@@ -162,12 +167,12 @@ Item {
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: body.width
-            visible: menu.errText !== ""
+            visible: menu.errText !== "" || menu.gated
             wrapMode: Text.WordWrap
-            color: Theme.color("color.error", "#c9404b")
+            color: menu.gated ? Theme.dim : Theme.color("color.error", "#c9404b")
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            text: menu.errText
+            text: menu.gated ? I18n.tr("frontend.session.unavailable") : menu.errText
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

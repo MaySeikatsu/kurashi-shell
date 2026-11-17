@@ -35,6 +35,7 @@ pub mod texture;
 pub mod theme;
 pub mod theme_export;
 pub mod title;
+pub mod user;
 pub mod wiring;
 pub mod workspaces;
 

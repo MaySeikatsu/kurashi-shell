@@ -39,7 +39,9 @@ Text {
         if (symbols && contentWidth > 1.5 * font.pixelSize)
             tier = tier === 0 && fallbackFamily !== "" ? 1 : 2
     }
-    onContentWidthChanged: settle()
+    // (B70: after the event loop, not inside the change itself — a look's new family changes the width while the family's
+    // own binding is still being evaluated, and raising the tier there was reported as a binding loop on `drawFamily`)
+    onContentWidthChanged: Qt.callLater(settle)
     // A new name or a new theme family starts again at 0. The layout of the new text may not have run yet; the check
     // after the event loop reads it.
     function retry() {

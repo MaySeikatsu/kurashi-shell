@@ -10,6 +10,7 @@
 "settings.ui.disconnected" = "Daemon not reachable; showing the last known values"
 "settings.ui.no_results" = "No settings match"
 "settings.ui.mod_gone" = "This page is gone: its mod was removed from disk. Its settings are kept; put the mod back to see them again."
+"settings.ui.search_more" = "Showing the {shown} best of {count} matches. Type more to narrow it down."
 "settings.ui.no_match_scope" = "No settings match “{query}”. Searched {count} settings on every page, mods included."
 "settings.ui.output" = "Output"
 "settings.ui.all_outputs" = "All outputs"
@@ -199,6 +200,10 @@
 # W15-job-active (I48, docs/ux/settings.md "Mods"): "Running now" names its reasons, or says it is not running.
 "settings.mods.running_now" = "Running now: {reasons}"
 "settings.mods.not_running" = "Not running"
+"settings.mods.runs_program" = "Runs a program of its own: {program}"
+"settings.mods.program_ask" = "{name} runs a program of its own: {program}. It runs as you, and reaches what its capabilities say. Switch it on?"
+"settings.mods.program_yes" = "Switch on"
+"settings.mods.program_no" = "Keep off"
 # W15-profiles: the profile overlay (B13) and export/import in the Profiles page (I41).
 "settings.ui.profile_replaced" = "your change replaced"
 "settings.ui.profile_kept" = "{n} of your changes stay"

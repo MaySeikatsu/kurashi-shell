@@ -102,6 +102,16 @@ tintRed=$(tok media.tint); wait_tok media.tint "$tintRed" != ; sleep 0.2
 [ "$(bar)" = "$barBlue" ]; check $(( $? == 0 )) "direct: at once"
 K set theme.colors.media.blend=wheel_closest >/dev/null
 
+# B89: round the colour wheel — two pictures mixed on the GPU, their hues turned: colours in between, then the new cover's.
+echo "art file://$R/covers/red.png" >&7
+tintB=$(tok media.tint); wait_tok media.tint "$tintB" != ; seen=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do seen="$seen $(bar)"; sleep 0.2; done
+sleep 2.5
+n=$(echo "$seen" | tr ' ' '\n' | grep -v '^$' | sort -u | wc -l)
+[ "$n" -ge 4 ]; check $(( $? == 0 )) "wheel: $n colours on the way ($barBlue ->$seen -> $(bar))"
+[ "$(bar)" = "$barRed" ]; check $(( $? == 0 )) "wheel: the bar landed on the new cover"
+sleep 0.3; [ "$(bar)" = "$barRed" ]; check $(( $? == 0 )) "wheel: it rests"
+
 # `keep`: the style's light.
 K set theme.colors.media.tone=keep >/dev/null; sleep 0.4
 [ "$(app scheme_effective)" = light ]; check $(( $? == 0 )) "keep: stays light"

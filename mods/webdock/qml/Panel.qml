@@ -160,8 +160,12 @@ Item {
     // included) plus the well's place in it, as the docked Settings measures its well (K146). The host maps its window
     // with the zones ignored, so a pinned column's zone no longer pushes the page one column's width off the well.
     readonly property var qsw: panel.Window.window ? panel.QsWindow.window : null
+    // I599: the pin whose menu is open over the well ("" none). While it is, the well's place is withdrawn, so the
+    // host's window (the page) is not over the menu.
+    property string menuId: ""
+    onListedChanged: if (menuId !== "" && pinOf(menuId) === null) menuId = ""
     readonly property var wellPlace: {
-        if (!placement || well.width < 1 || well.height < 1) return null
+        if (!placement || well.width < 1 || well.height < 1 || menuId !== "") return null
         var right = placement.side === "right"
         var sw = qsw && qsw.screen ? qsw.screen.width : 0
         if (!qsw || sw <= 0) return null
@@ -202,7 +206,7 @@ Item {
     // ---- W72: the well's place on the output while the bar card rests, reported on change only ----
     readonly property var cardWellPlace: {
         var cp = cardPlacement
-        if (!inCard || !cp || cp.rest !== true || well.width < 1 || well.height < 1) return null
+        if (!inCard || !cp || cp.rest !== true || well.width < 1 || well.height < 1 || menuId !== "") return null
         return { on: true, output: String(cp.output), x: Math.round(cp.x + well.x), y: Math.round(cp.y + well.y),
                  width: Math.round(well.width), height: Math.round(well.height) }
     }
@@ -281,7 +285,8 @@ Item {
                     tileSize: panel.tile
                     shown: String(modelData.id) === panel.selId
                     onActivated: panel.choose(String(modelData.id))
-                    onMenuRequested: Store.act("settings.open", { key: "mods.webdock.pins" })
+                    // I599: the pin's menu, as in the edge dock (it was a jump to Settings).
+                    onMenuRequested: panel.menuId = String(modelData.id)
                     onTabbed: back => {
                         var n = nextItemInFocusChain(!back)
                         if (n) n.forceActiveFocus()
@@ -381,6 +386,30 @@ Item {
         border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         clip: true
+
+        // I599: the pin's menu over the page area (the dock's own PinMenu: move, remove, reload, unload, update the pin
+        // to this page, unpin but keep open).
+        Loader {
+            z: 5
+            active: panel.menuId !== ""
+            x: Theme.pad
+            y: Theme.pad
+            width: Math.min(well.width - 2 * Theme.pad, 360)
+            height: well.height - 2 * Theme.pad
+            sourceComponent: PinMenu {
+                pin: panel.pinOf(panel.menuId) || ({})
+                index: panel.listed.findIndex(function (p) { return String(p.id) === panel.menuId })
+                count: panel.listed.length
+                onMoved: to => { Store.act("webdock.move", { pin: panel.menuId, to: to }); panel.menuId = "" }
+                onRemoved: { Store.act("webdock.remove", { pin: panel.menuId }); panel.menuId = "" }
+                onReloaded: { Store.act("webdock.reload", { pin: panel.menuId }); panel.menuId = "" }
+                onUnloadAsked: unload(panel.menuId)
+                onBarToggled: on => { Store.act("webdock.bar", { pin: panel.menuId, on: on }); panel.menuId = "" }
+                onRetargeted: { Store.act("webdock.retarget", { pin: panel.menuId }); panel.menuId = "" }
+                onUnpinned: { Store.act("webdock.unpin", { pin: panel.menuId }); panel.menuId = "" }
+                onClosed: panel.menuId = ""
+            }
+        }
 
         // A view pin: its mod's panel, drawn here and given the well's height.
         ModLoader {

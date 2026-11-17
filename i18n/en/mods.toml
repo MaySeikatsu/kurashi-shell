@@ -29,6 +29,9 @@
 "mods.error.setting_choices_from_type" = "only a text setting can take its choices from a source"
 "mods.error.setting_choices_and_from" = "a setting takes its choices from a list or a source, not both"
 "mods.error.setting_choices_from_invalid" = "the name of the choice source is not valid"
+"mods.error.setting_launcher_type" = "only a text setting can hold a launcher prefix"
+"mods.error.setting_launcher_unknown" = "this mod has no launcher provider of that name"
+"mods.error.setting_launcher_duplicate" = "two settings name the same launcher provider"
 "mods.error.setting_default_duplicate" = "a default lists the same choice twice"
 
 # Native mods without daemon code (B15): a manifest that declares a service, action, island face,
@@ -102,3 +105,4 @@
 "action.mod.check" = "Check a mod against the rules"
 "action.mod.new" = "Create a new mod"
 "action.mod.rescan" = "Look for new mods"
+"action.mod.open_folder" = "Open a mod's folder"

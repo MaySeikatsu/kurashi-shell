@@ -58,7 +58,7 @@ Item {
             wh.total = d.total || 0
             wh.seed = d.seed || ""
             grid.currentIndex = 0
-            if (wh.rows.length > 0 && !field.activeFocus) grid.forceActiveFocus()
+            if (wh.rows.length > 0 && !field.input.activeFocus) grid.forceActiveFocus()
         })
     }
     function apply(row, origin) {
@@ -81,7 +81,7 @@ Item {
             if (d.path) host.setWallpaper(d.path, false, host.withTheme, origin)
         })
     }
-    Component.onCompleted: { search(1); Qt.callLater(function () { if (wh.gate.open) field.forceActiveFocus() }) }
+    Component.onCompleted: { search(1); Qt.callLater(function () { if (wh.gate.open) field.input.forceActiveFocus() }) }
     Component.onDestruction: gate.open = false
     onSortingChanged: if (searched) search(1)
     onSketchyChanged: if (searched) search(1)
@@ -96,40 +96,12 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         spacing: Theme.xs
-        Rectangle {
+        SearchBox {
+            id: field
             width: Math.max(96, parent.width - sortTop.width - sortNew.width - sortRandom.width - parent.spacing * 3)
-            height: Theme.controlH
-            radius: Theme.rSm
-            color: Theme.containerHigh
-            border.width: field.activeFocus ? 1 : 0
-            border.color: Theme.focusRing
-            TextInput {
-                id: field
-                anchors.fill: parent
-                anchors.leftMargin: Theme.gap
-                anchors.rightMargin: Theme.gap
-                verticalAlignment: TextInput.AlignVCenter
-                clip: true
-                color: Theme.fg
-                selectionColor: Theme.accent
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
-                activeFocusOnTab: true
-                maximumLength: 200
-                onAccepted: { wh.query = text.trim(); wh.search(1) }
-                Keys.onEscapePressed: event => { if (text !== "") { text = ""; event.accepted = true } else event.accepted = false }
-                Keys.onDownPressed: if (wh.rows.length > 0) grid.forceActiveFocus()
-                Accessible.role: Accessible.EditableText
-                Accessible.name: I18n.tr("mod-wallpaper.wallhaven.search")
-                Text {
-                    anchors.fill: parent
-                    verticalAlignment: Text.AlignVCenter
-                    visible: field.text.length === 0
-                    text: I18n.tr("mod-wallpaper.wallhaven.search")
-                    color: Theme.dim
-                    font: field.font
-                }
-            }
+            placeholder: I18n.tr("mod-wallpaper.wallhaven.search")
+            onSubmitted: t => { wh.query = t.trim(); wh.search(1) }
+            onDown: if (wh.rows.length > 0) grid.forceActiveFocus()
         }
         PickButton {
             id: sortTop
@@ -315,7 +287,7 @@ Item {
             keyNavigationEnabled: true
             activeFocusOnTab: true
             model: wh.rows
-            readonly property int columns: Math.max(2, Math.floor(width / 160))
+            readonly property int columns: wh.host.columnsFor(width, 2)
             cellWidth: Math.floor(width / columns)
             cellHeight: Math.round((cellWidth - 8) * 2 / 3) + 8
             boundsBehavior: Flickable.StopAtBounds
@@ -326,7 +298,7 @@ Item {
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_PageDown && wh.page < wh.lastPage) { wh.search(wh.page + 1); event.accepted = true }
                 else if (event.key === Qt.Key_PageUp && wh.page > 1) { wh.search(wh.page - 1); event.accepted = true }
-                else if (event.key === Qt.Key_Slash) { field.forceActiveFocus(); event.accepted = true }
+                else if (event.key === Qt.Key_Slash) { field.input.forceActiveFocus(); event.accepted = true }
             }
             delegate: Item {
                 id: cell

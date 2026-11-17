@@ -414,11 +414,14 @@ pub fn mods_doc(r: &Registry) -> Value {
                     "capabilities": m.capabilities, "cost": m.cost,
                     "provides": m.provides.iter().map(|p| p.to_string()).collect::<Vec<_>>(),
                     "errors": errors, "shadows_bundled": shadowed,
+                    // I605: the mod's folder, for "Open the folder" and for an author looking for their files.
+                    "dir": e.dir.to_string_lossy(),
                 }),
                 None => json!({
                     "id": e.id, "name": e.id, "state": "invalid", "running": running,
                     "running_reasons": e.running_reasons, "capabilities": [], "provides": [],
                     "errors": errors, "shadows_bundled": shadowed,
+                    "dir": e.dir.to_string_lossy(),
                 }),
             };
             if let Some(d) = e.manifest.as_ref().and_then(|m| m.description.as_ref()) {

@@ -104,8 +104,10 @@ PanelWindow {
     property string menuPane: ""
     readonly property bool menuOn: menuPane !== ""
     property string menuNote: ""
-    readonly property int menuH: 540
-    readonly property int menuW: 760
+    // I538, I606: the appearance menu takes a large card's size (`bar.card_large_width` × `bar.card_large_height` of the
+    // screen, the terminal sheet's by default), never under what its panes need.
+    readonly property int menuH: Math.max(540, Math.round(scrH * Number(bars.valueOf("bar.card_large_height", 45)) / 100))
+    readonly property int menuW: Math.max(760, Math.min(scrW - 4 * Theme.pad, Math.round(scrW * Number(bars.valueOf("bar.card_large_width", 60)) / 100)))
     function openMenu(pane) {
         if (String(bars.valueOf("launcher.appearance_opens", "launcher")) === "card") {
             Store.act("appearance.open", { pane: pane, output: scr ? scr.name : "" }, function (done, e) {
@@ -512,6 +514,8 @@ PanelWindow {
             })
             return
         }
+        // I572: a `>` command that waits for its words: the command goes into the field and the launcher stays open.
+        if (r.kind === "fill" && r.fill) { field.text = r.fill; field.cursorPosition = field.text.length; return }
         if (!r.id) return
         var id = r.id
         if (id.indexOf("appearance:") === 0) { openMenu(id.substring("appearance:".length)); return }
@@ -1205,10 +1209,13 @@ PanelWindow {
                                 border.color: Theme.outlineColor
                                 Icon {
                                     anchors.centerIn: parent
-                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb || row.kind === "appearance"
+                                    // A mod's row (K150: sessions, folders, pins) and a command waiting for its words (I572) draw
+                                    // the icon they carry; without one, a mod's row keeps the plain tile.
+                                    readonly property bool carried: (row.kind === "mod" || row.kind === "fill") && !!row.entry.icon
+                                    visible: row.isCalc || row.isNote || row.isCommand || row.isWeb || row.kind === "appearance" || carried
                                     name: row.isCalc ? "calculate"
-                                        : ((row.isCommand || row.isWeb || row.kind === "appearance") ? (row.entry.icon || "bolt") : "info")
-                                    glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i"))
+                                        : ((row.isCommand || row.isWeb || row.kind === "appearance" || carried) ? (row.entry.icon || "bolt") : "info")
+                                    glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : ((row.isCommand || carried) ? "›" : "i"))
                                     filled: true
                                     color: row.isCalc ? Theme.fgOnAccent : Theme.dim
                                 }
@@ -1294,7 +1301,8 @@ PanelWindow {
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
                             text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
-                                : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open")))
+                                : (row.kind === "fill" ? "launcher.continue"
+                                : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open"))))
                         }
                     }
                     Loader {

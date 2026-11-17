@@ -14,6 +14,34 @@ checked for this brief (W70 did not look them up either; from memory, unverified
 area that opens the whole panel, KDE and Waybar give each applet its own icon with its own popup, macOS lets each
 Control Centre module be dragged to the menu bar as its own item — the model here).
 
+## Others (looked up 2026-11-16, B75)
+The first version of this brief described other shells from memory. Looked up since, each fact with its source in
+`docs/ux/edge-sidebars.research.md` ("Question 2"); what no source says is listed there as not found.
+- **macOS**: every Control Centre module has "Show in Menu Bar"; Control-click adds a control to the bar, Command-drag
+  takes it off; "Edit Controls" at the panel's foot is the edit mode (drag in, out, reorder, resize); some items cannot
+  be added or removed. https://support.apple.com/guide/mac-help/mchlc9d0e1f2/mac
+- **COSMIC**: "All of the features on the panel and dock are implemented as applets that can be moved around or turned
+  off", placed in Settings › Desktop › Panel; applets have no options of their own yet. https://lwn.net/Articles/1050268/
+- **KDE Plasma 6**: tray entries are shown or hidden one by one in the tray's settings; 6.6 lets Audio Volume stand
+  alone on a panel. https://community.kde.org/Plasma/Plasma_6
+- **Noctalia**: volume, brightness, network, media are bar widgets of their own, named in the bar's list (several
+  copies allowed); *peek* slides the value out on hover (100 ms) and collapses at once; a click opens the control
+  centre on that widget's tab; the wheel changes volume and brightness per step; brightness hides itself when there
+  is no backlight unless told to stay as a muted icon. https://docs.noctalia.dev/noctalia/bar/widgets/
+- **Caelestia**: the bar's status icons are separate modules with an `enabled` switch each; the quick toggles sit in a
+  drawer, not on the bar; the wheel on the bar changes volume and brightness. https://github.com/caelestia-dots/shell
+- **GNOME**: one menu; extensions add toggles and sliders to it, users cannot place one on the top bar.
+  https://gjs.guide/extensions/topics/quick-settings.html
+- **Windows 11**: one flyout whose tiles are edited with a pencil (add, unpin, drag); no tile on the taskbar.
+  https://pureinfotech.com/change-quick-settings-buttons-windows-11/
+- end-4, DankMaterialShell, HyprPanel: not found (HyprPanel is archived).
+
+**What it confirms of the design below.** A control that is a module of its own with the centre opening on its page
+(Noctalia, macOS); the wheel on the module (Noctalia, Caelestia); the list as the place that is edited, the same in
+the centre's edit mode and in Settings (macOS). **What we do differently, on purpose.** A module that cannot act stays
+with its reason instead of hiding (Noctalia hides brightness; rule 2). The value beside the mark is a setting per
+module, not a hover peek.
+
 ## Proposal
 1. **One module per control**, each with the three faces every module has: a **bar glance** (icon, optionally a value:
    the Wi-Fi's network, the battery's percent), a **card** (its page: networks, devices, sinks and per-app volume,

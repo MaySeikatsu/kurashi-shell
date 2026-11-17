@@ -4,6 +4,8 @@
 "action.sidebar.close" = "Close sidebar"
 "action.sidebar.right.toggle" = "Right sidebar"
 "action.sidebar.left.toggle" = "Left sidebar"
+"action.sidebar.top.toggle" = "Top sidebar"
+"action.sidebar.bottom.toggle" = "Bottom sidebar"
 "sidebar.bar.right" = "Open the right sidebar"
 "sidebar.bar.left" = "Open the left sidebar"
 "sidebar.open_now" = "Open now"

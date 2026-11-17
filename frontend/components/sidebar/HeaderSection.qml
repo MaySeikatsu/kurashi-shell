@@ -14,7 +14,8 @@ Item {
     implicitHeight: Math.max(avatar.height, keys.implicitHeight)
     Watch { doc: "svc.session" }
     readonly property bool sessionOk: (Store.docs["svc.session"] || ({})).available === true
-    readonly property string user: String(Quickshell.env("USER") || "")
+    // I108: the full name of the account, else the login (the daemon reads it; `Avatar`).
+    readonly property string user: avatar.name
     property string errText: ""
     // The sidebar whose pin this header carries ("" = none: the column has its own pin row, K84).
     property string pinSide: ""
@@ -24,35 +25,7 @@ Item {
         Store.act(action, args, function (done, err) { if (err) hd.errText = refusal.text(err, "sidebar.header.failed") })
     }
 
-    Block {
-        id: avatar
-        width: 44
-        height: 44 + Theme.shadowDy
-        radius: Theme.rFull
-        fill: Theme.selected
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-            visible: hd.user !== ""
-            anchors.centerIn: parent
-            color: Theme.color("color.on_selected", Theme.fg)
-            font.pixelSize: Theme.fsTitle + 4
-            font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
-            text: hd.user.charAt(0).toUpperCase()
-            TextFx { title: true }
-        }
-        Icon {
-            visible: hd.user === ""
-            anchors.centerIn: parent
-            name: "person"
-            glyph: "◡"
-            filled: true
-            size: 24
-            color: Theme.color("color.on_selected", Theme.fg)
-        }
-    }
+    Avatar { id: avatar }
     Column {
         x: avatar.width + Theme.gap + 2
         width: keys.x - x - Theme.gap

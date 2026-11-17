@@ -16,7 +16,10 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
     let c = &m.constraints;
     match m.ty {
         Ty::Bool => "toggle",
-        Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() => "slider",
+        // I601: a range of more steps than a slider can be set to by hand (a latitude in hundredths: 18 000) is typed.
+        Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() && steps(c) <= SLIDER_STEPS => {
+            "slider"
+        }
         Ty::Int | Ty::Float => "number",
         Ty::Choice => "select",
         // K64: every `keys.*` string is a shortcut, recorded by keys (`keys.write` is a bool). A stand-in until the derive
@@ -34,6 +37,18 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Curve => "curve",
         // A list of tables with declared fields (K38): the generic records editor.
         Ty::Records => "records",
+    }
+}
+
+/// The most steps a slider row has; beyond it the row is a number field.
+const SLIDER_STEPS: f64 = 5000.0;
+
+/// How many steps a ranged number has (its `step`, else 1).
+fn steps(c: &crate::meta::Constraints) -> f64 {
+    let num = |v: &Option<Value>| v.as_ref().and_then(Value::as_f64);
+    match (num(&c.min), num(&c.max)) {
+        (Some(min), Some(max)) => (max - min) / num(&c.step).filter(|s| *s > 0.0).unwrap_or(1.0),
+        _ => 0.0,
     }
 }
 

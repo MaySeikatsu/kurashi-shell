@@ -180,6 +180,18 @@ T
 # The records test mod (K38, W17): the repo's test data, copied in so the daemon discovers it like a user mod.
 mkdir -p "$R/data/kurashi/mods/records"
 cp "$ROOT/crates/kurashid/tests/data/mods/records/mod.toml" "$R/data/kurashi/mods/records/mod.toml"
+# I592, I593: a mod of views alone that requires a document nobody serves, and the repo's test mod with a program of its own.
+mkdir -p "$R/data/kurashi/mods/viewer"
+cat > "$R/data/kurashi/mods/viewer/mod.toml" <<'T'
+id = "viewer"
+name = "Viewer"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["widget:viewer"]
+uses = ["doc:mod.giver"]
+T
+cp -r "$ROOT/crates/kurashid/tests/data/host-programs/mods/tea" "$R/data/kurashi/mods/tea"
 # Data dir = the repo itself: i18n/ (incl. the generated schema catalog) and palettes/, exactly what the package installs.
 export KURASHI_DATA_DIR=$ROOT
 
@@ -1300,6 +1312,36 @@ Q goto @mods
 for _ in $(seq 15); do [ -z "$(Q modRefusal broken-demo)" ] && break; sleep 0.2; done
 [ -z "$(Q modRefusal broken-demo)" ] || fail "mods: refusal survived a change elsewhere: $(Q modRefusal broken-demo)"
 shot 7b-mods-after-change
+# 7c. I592: a mod that is switched on and waits for a use it requires says for what, with the use's name.
+enabled_has() { [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" == *"\"$1\""* ]]; }
+Q modLoad viewer
+for _ in $(seq 20); do [ "$(Q navOrder | tr ',' '\n' | grep -c viewer)" -ge 1 ] && break; sleep 0.2; done
+Q mod viewer true
+for _ in $(seq 25); do [[ "$(Q modWaits viewer)" == *doc:mod.giver* ]] && break; sleep 0.2; done
+[[ "$(Q modWaits viewer)" == *doc:mod.giver* ]] || fail "mods: the row of a waiting mod does not name the use it waits for (\"$(Q modWaits viewer)\")"
+# 7d. I593: the switch of a mod with a program of its own asks first; Keep off leaves it off, Switch on enables it.
+Q modLoad tea
+for _ in $(seq 20); do [ "$(Q navOrder | tr ',' '\n' | grep -c tea)" -ge 1 ] && break; sleep 0.2; done
+Q modWish tea true
+[ "$(Q modAsking)" = tea ] || fail "mods: the switch of a mod with a program did not ask (asking \"$(Q modAsking)\")"
+shot 7d-mods-program-ask
+Q modAnswer false
+sleep 0.6
+[ -z "$(Q modAsking)" ] || fail "mods: Keep off left the question open"
+enabled_has tea && fail "mods: Keep off enabled the mod"
+Q modWish tea true
+Q modAnswer true
+for _ in $(seq 25); do enabled_has tea && break; sleep 0.2; done
+enabled_has tea || fail "mods: Switch on did not enable the mod with a program"
+shot 7d-mods-waits-and-program
+# Both leave again, so the rest of the run sees the mods it always saw.
+Q mod tea false
+Q mod viewer false
+for _ in $(seq 25); do enabled_has tea || enabled_has viewer || break; sleep 0.2; done
+Q modUnload tea
+Q modUnload viewer
+for _ in $(seq 50); do [ "$(Q unanswered)" = 0 ] && break; sleep 0.2; done
+echo "ok: mods: a waiting mod names its use; a mod with a program asks before it goes on"
 
 # --- keyboard only from here: one virtual keyboard for the whole run (a keyboard that goes away drops focus) ----
 rm -f "$R/keys.fifo"   # a run stopped early leaves its fifo in the sandbox dir

@@ -218,6 +218,9 @@ ShellRoot {
     // The edge sidebars (W29, docs/ux/sidebar.md): a window only while runtime.ui.sidebar names its side, on that output.
     Sidebar { side: "right"; focusedScreen: root.focusedScreen() }
     Sidebar { side: "left"; focusedScreen: root.focusedScreen() }
+    // K165: sidebars on the top and bottom edges (a window only while one is open).
+    SidebarSheet { side: "top"; focusedScreen: root.focusedScreen() }
+    SidebarSheet { side: "bottom"; focusedScreen: root.focusedScreen() }
     Lock {}
     // The material's relief over every output, apps included (K59, scope everything): a window only while that scope is on
     // (made then, not kept hidden: B35).

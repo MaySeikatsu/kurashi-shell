@@ -1183,6 +1183,16 @@ impl ModTable {
         Self { mods }
     }
 
+    /// I215: each mod's name as its manifest gives it, with the key of its own translated name (`mods.<id>.name`): an
+    /// offer is labelled by that key where the session's strings have it, so a mod's face, panel, widget and desk card
+    /// read in the session's language, as its page in Settings' sidebar does.
+    fn name_keys(&self) -> Vec<(String, String)> {
+        self.mods
+            .iter()
+            .map(|m| (m.name.clone(), format!("mods.{}.name", m.id)))
+            .collect()
+    }
+
     /// Face id → the name of the mod that provides it (the label of its island offer).
     fn face_names(&self) -> BTreeMap<String, String> {
         self.mods
@@ -1339,6 +1349,8 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
     meta.help = s.help.clone();
     meta.page = format!("mods.{}", m.id);
     meta.section = "general".into();
+    // K166: a mod's tuning knobs sit behind Advanced, as the core's do.
+    meta.flags.advanced = s.advanced;
     meta.constraints.unit = s.unit.clone();
     if let Some((lo, hi)) = s.range {
         meta.constraints.min = Some(bound(s.ty, lo));
@@ -2120,7 +2132,8 @@ impl ConfigStore {
     /// own views (`@changed`, `@mods`, `@profiles`) are not pages — but for the Mod Editor, `mods.new` (W94), which
     /// the launcher's `> new mod` and a link open.
     pub fn has_settings_page(&self, page: &str) -> bool {
-        if page == "mods.new" {
+        // `mods`: the Mods view itself (K162: the launcher's row for a prefix whose mod is switched off opens it).
+        if page == "mods.new" || page == "mods" {
             return true;
         }
         let id = match page.strip_prefix("mod:") {
@@ -2178,7 +2191,16 @@ impl ConfigStore {
             (true, Some(lat), Some(lon)) => Some((lat, lon)),
             _ => None,
         };
-        crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"))
+        let mut place =
+            crate::location::resolve(manual, &self.place_feeds.lock().expect("place feeds"));
+        // I601: a place set by hand carries the name the user gave it.
+        if let Some(p) = place.as_mut().filter(|p| p.source == "config") {
+            p.name = self
+                .get("location.name", None)
+                .and_then(|v| v.value.as_str().map(|s| s.trim().to_owned()))
+                .unwrap_or_default();
+        }
+        place
     }
 
     /// The place in effect, for a follower: a new value on every change of it.
@@ -2234,7 +2256,7 @@ impl ConfigStore {
     /// no patch (hub).
     fn publish_settings(&self) {
         // The mods' face names and panels are read under their own lock first: `offers_now` reads the hub.
-        let (mod_faces, mod_panels, mod_widgets, mod_desks) = {
+        let (mut mod_faces, mut mod_panels, mut mod_widgets, mut mod_desks, name_keys) = {
             let cfg = self.cfg.lock().expect("config lock");
             let mods = &cfg.schema().mods;
             (
@@ -2242,8 +2264,27 @@ impl ConfigStore {
                 mods.panel_offers(),
                 mods.widget_offers(),
                 mods.desk_offers(),
+                mods.name_keys(),
             )
         };
+        // I215: a mod's offers carry the key of its translated name where the session's strings have one.
+        let strings = self
+            .hub
+            .snapshot("i18n")
+            .map(|(_, d)| d["strings"].clone())
+            .unwrap_or_default();
+        let translated = |label: &mut String| {
+            if let Some((_, key)) = name_keys
+                .iter()
+                .find(|(name, key)| name == label && strings.get(key).is_some())
+            {
+                *label = key.clone();
+            }
+        };
+        mod_faces.values_mut().for_each(translated);
+        for offers in [&mut mod_panels, &mut mod_widgets, &mut mod_desks] {
+            offers.iter_mut().for_each(|o| translated(&mut o.label));
+        }
         let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets, &mod_desks);
         // Session 30 (I502, `layout.groups`): each named group is something a bar zone and a sidebar can list, as
         // `group:<id>`, named by its name (or its id).

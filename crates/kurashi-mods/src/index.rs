@@ -395,7 +395,9 @@ hosts = [{ name = "main", exec = "tea-host", start = "subscribed" }]
         ))
         .unwrap();
         assert_eq!(e.id, "tea");
-        let r = e.best(&Version::parse("0.4.0").unwrap()).expect("fits 0.4");
+        let r = e
+            .best(&Version::parse(env!("CARGO_PKG_VERSION")).unwrap())
+            .expect("fits this version");
         assert_eq!(r.summary.as_ref().unwrap().hosts[0].start, "subscribed");
         assert!(crate::index::hash_ok(&r.hash));
     }

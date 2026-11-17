@@ -106,16 +106,37 @@ fn best_icon(pixmaps: &[Pixmap]) -> Option<Icon> {
         .chunks_exact(4)
         .flat_map(|p| [p[1], p[2], p[3], p[0]])
         .collect();
-    let img = image::RgbaImage::from_raw(*w as u32, *h as u32, rgba)?;
+    let img = trimmed(image::RgbaImage::from_raw(*w as u32, *h as u32, rgba)?);
+    let (w, h) = (img.width() as i32, img.height() as i32);
     let mut png = Vec::new();
     image::DynamicImage::ImageRgba8(img)
         .write_to(Cursor::new(&mut png), image::ImageFormat::Png)
         .ok()?;
     Some(Icon {
-        w: *w,
-        h: *h,
+        w,
+        h,
         png_base64: base64(&png),
     })
+}
+
+/// B61: the picture without its empty margins. Apps pad their tray pictures by different amounts (a keyboard layout's
+/// two letters in the middle of a 22 px square), so the same box on the bar held glyphs of different sizes; the bar
+/// fits what is drawn. A picture with nothing in it stays as it is.
+fn trimmed(img: image::RgbaImage) -> image::RgbaImage {
+    const SEEN: u8 = 16;
+    let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0, 0);
+    for (x, y, p) in img.enumerate_pixels() {
+        if p.0[3] > SEEN {
+            x0 = x0.min(x);
+            y0 = y0.min(y);
+            x1 = x1.max(x);
+            y1 = y1.max(y);
+        }
+    }
+    if x0 > x1 || (x0 == 0 && y0 == 0 && x1 + 1 == img.width() && y1 + 1 == img.height()) {
+        return img;
+    }
+    image::imageops::crop_imm(&img, x0, y0, x1 - x0 + 1, y1 - y0 + 1).to_image()
 }
 
 /// Standard alphabet with padding. Hand-rolled: one call site does not justify a new dependency.
@@ -197,6 +218,30 @@ mod tests {
         let mid = (32, 32, vec![0; 32 * 32 * 4]);
         let picked = best_icon(&[big, small, mid]).expect("a pixmap fits");
         assert_eq!((picked.w, picked.h), (32, 32));
+    }
+
+    /// B61: a picture's empty margins are cut, so every tray glyph fills the bar's box.
+    #[test]
+    fn a_pixmap_is_trimmed_to_what_it_draws() {
+        // 8×8, opaque only in the 4×2 block at (2,3).
+        let mut argb = vec![0u8; 8 * 8 * 4];
+        for y in 3..5 {
+            for x in 2..6 {
+                let i = (y * 8 + x) * 4;
+                argb[i..i + 4].copy_from_slice(&[255, 200, 10, 10]);
+            }
+        }
+        let icon = best_icon(&[(8, 8, argb)]).expect("an icon");
+        assert_eq!((icon.w, icon.h), (4, 2));
+        // A picture that fills its box, and an empty one, keep their size.
+        assert_eq!(
+            best_icon(&[(2, 2, vec![255; 16])]).map(|i| (i.w, i.h)),
+            Some((2, 2))
+        );
+        assert_eq!(
+            best_icon(&[(2, 2, vec![0; 16])]).map(|i| (i.w, i.h)),
+            Some((2, 2))
+        );
     }
 
     #[test]

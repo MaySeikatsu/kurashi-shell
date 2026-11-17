@@ -59,19 +59,15 @@ Column {
     Accessible.role: Accessible.Grouping
     Accessible.name: I18n.tr("settings.groups.preview")
 
-    Text {
-        color: Theme.fg
-        font.pixelSize: Theme.fs
+    Label {
         font.bold: true
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.groups.preview")
     }
-    Text {
+    Label {
         width: bp.width
         wrapMode: Text.WordWrap
         color: Theme.dim
         font.pixelSize: Theme.fs - 1
-        font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("settings.groups.preview_help")
     }
     // The bar: three zones, start at the left, centre in the middle, end at the right.
@@ -106,12 +102,11 @@ Column {
                     id: chips
                     anchors.centerIn: parent
                     spacing: 4
-                    Text {
+                    Label {
                         visible: zone.list.length === 0
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.dim
                         font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("settings.groups.zone." + zone.modelData) + ": " + I18n.tr("settings.groups.zone_empty")
                     }
                     Repeater {
@@ -168,13 +163,11 @@ Column {
                                 onPressed: mouse => bp.startDrag(zone.modelData, chip.modelData, chip.name, carea, mouse)
                                 onReleased: bp.endDrag()
                             }
-                            Text {
+                            Label {
                                 id: label
                                 visible: !chip.isGroup
                                 anchors.centerIn: parent
-                                color: Theme.fg
                                 font.pixelSize: Theme.fs - 2
-                                font.family: Theme.fam(text, Theme.families)
                                 text: chip.isGroup ? "" : chip.name
                             }
                             // A group: its members side by side inside the frame, each draggable out (and a drop target).
@@ -225,12 +218,10 @@ Column {
                                             onPressed: mouse => bp.startDrag(zone.modelData, mchip.modelData, mlabel.text, marea, mouse)
                                             onReleased: bp.endDrag()
                                         }
-                                        Text {
+                                        Label {
                                             id: mlabel
                                             anchors.centerIn: parent
-                                            color: Theme.fg
                                             font.pixelSize: Theme.fs - 2
-                                            font.family: Theme.fam(text, Theme.families)
                                             text: Store.moduleName(mchip.modelData)
                                         }
                                     }
@@ -246,11 +237,8 @@ Column {
     Row {
         visible: bp.askMerge !== null
         spacing: Theme.gap
-        Text {
+        Label {
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: bp.askMerge ? I18n.fmt("settings.groups.merge_ask",
                 { from: bp.groupName(bp.askMerge.from), into: bp.groupName(bp.askMerge.into) }) : ""
         }
@@ -285,12 +273,10 @@ Column {
             border.width: 1
             border.color: Theme.accent
             opacity: 0.92
-            Text {
+            Label {
                 id: plabel
                 anchors.centerIn: parent
-                color: Theme.fg
                 font.pixelSize: Theme.fs - 2
-                font.family: Theme.fam(text, Theme.families)
                 text: proxy.text
             }
         }

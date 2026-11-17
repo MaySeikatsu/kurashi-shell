@@ -23,7 +23,15 @@ FocusScope {
     signal back()                         // Esc with nothing to put back (the launcher goes back to its search)
 
     implicitWidth: 712
-    implicitHeight: 540
+    // As a card the menu is a large one (W99, K164): the Stage hands it the height as `fillHeight`; the launcher sets
+    // its height itself.
+    property real fillHeight: 0
+    implicitHeight: fillHeight > 0 ? fillHeight : 540
+    // What the pane shows at once (the wallpaper picker gives its grid what is left of it).
+    readonly property real paneHeight: paneFlick.height
+    // The wallpaper picker shows the selected picture beside its grid on a wide pane: the live preview stands aside.
+    readonly property bool pickerPreview: shownPane === "wallpaper" && wallLoader.item !== null
+        && wallLoader.item.ownsPreview === true
     Accessible.role: Accessible.Pane
     Accessible.name: I18n.tr("appearance-menu.title")
 
@@ -283,10 +291,12 @@ FocusScope {
         }
         MiniDesk {
             id: desk
-            visible: am.previewOn
+            visible: am.previewOn && !am.pickerPreview
             y: (noteLine.visible ? noteLine.y + noteLine.height : head.height) + Theme.gap
             width: parent.width
-            height: visible ? implicitHeight : 0
+            // 16:5 at the pane's width, but never more than a third of the menu (a fifth on the Wallpaper pane, whose
+            // grid wants the room): on a large menu the panes keep theirs
+            height: visible ? Math.min(implicitHeight, Math.round(am.height / (am.shownPane === "wallpaper" ? 5 : 3))) : 0
             picture: am.shownPane === "wallpaper" && wallLoader.item && wallLoader.item.previewPath
                 ? wallLoader.item.previewPath : am.currentPicture
             roles: am.shownPane === "wallpaper" && wallLoader.item ? wallLoader.item.previewRoles : null

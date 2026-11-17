@@ -10,6 +10,7 @@
 "settings.ui.disconnected" = "デーモンに接続できません。最後に取得した値を表示しています"
 "settings.ui.no_results" = "一致する設定はありません"
 "settings.ui.mod_gone" = "このページはもうありません。モッドがディスクから削除されました。設定は残っており、モッドを戻すと再び表示されます。"
+"settings.ui.search_more" = "{count} 件中、上位 {shown} 件を表示しています。続けて入力すると絞り込めます。"
 "settings.ui.no_match_scope" = "「{query}」に一致する設定はありません。すべてのページとモッドの {count} 件を検索しました。"
 "settings.ui.output" = "出力"
 "settings.ui.all_outputs" = "すべての出力"
@@ -198,6 +199,10 @@
 # W15-job-active (I48, docs/ux/settings.md のモッド): 実行中は理由を示し、理由がなければ停止中と示す。
 "settings.mods.running_now" = "稼働中: {reasons}"
 "settings.mods.not_running" = "停止中"
+"settings.mods.runs_program" = "独自のプログラムを実行します：{program}"
+"settings.mods.program_ask" = "{name} は独自のプログラムを実行します：{program}。あなたの権限で動き、権限に書かれたものに届きます。オンにしますか？"
+"settings.mods.program_yes" = "オンにする"
+"settings.mods.program_no" = "オフのまま"
 # W15-profiles: プロファイルの上書き方式 (B13) と、プロファイルページの書き出し・取り込み (I41)。
 "settings.ui.profile_replaced" = "あなたの変更を置換"
 "settings.ui.profile_kept" = "あなたの変更のうち {n} 件は残ります"

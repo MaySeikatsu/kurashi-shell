@@ -602,6 +602,8 @@ PanelWindow {
             onRemoved: { dock.send("webdock.remove", { pin: dock.menuId }); dock.side = "" }
             // W76: the page's own entries (docs/ux/webdock.md "Round three": the pin's menu)
             onReloaded: { dock.send("webdock.reload", { pin: dock.menuId }); dock.side = "" }
+            onUnloadAsked: unload(dock.menuId)
+            onBarToggled: on => { dock.send("webdock.bar", { pin: dock.menuId, on: on }); dock.side = "" }
             onRetargeted: { dock.send("webdock.retarget", { pin: dock.menuId }); dock.side = "" }
             onUnpinned: { dock.send("webdock.unpin", { pin: dock.menuId }); dock.side = "" }
             onClosed: dock.side = ""
