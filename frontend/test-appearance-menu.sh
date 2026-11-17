@@ -156,10 +156,10 @@ for _ in $(seq 50); do grep -q "awww img .*pic-2.jpg" "$WP_LOG" && break; sleep 
 check "$(grep -c "awww img .*pic-2.jpg" "$WP_LOG" | awk '{print ($1 > 0)}')" "Enter in the grid sets the picture (awww img pic-2.jpg)"
 until_eq "$WORK/pics/pic-2.jpg" wall_path || true
 check "$([ "$(wall_path)" = "$WORK/pics/pic-2.jpg" ] && echo 1 || echo 0)" "the mod's document shows the picture ($(wall_path))"
-# Add a folder: back to + Add folder (search, then the button), Return opens the path field.
+# Add a folder: back to + Add folder (the four sort chips, search, then the button), Return opens the path field.
 MORE=$XDG_RUNTIME_DIR/more
 mkdir -p "$MORE" && cp "$WORK/more/plasma.png" "$MORE/"
-keys shift+tab shift+tab
+keys shift+tab shift+tab shift+tab shift+tab shift+tab shift+tab
 sleep 0.2
 keys return
 sleep 0.4

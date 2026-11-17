@@ -30,7 +30,8 @@ FIX=$ROOT/crates/kurashi-mod-wallpaper/tests/fixtures
 PILL_GEOM=${PILL_GEOM:-"980,0 600x48"}
 CARD_GEOM=${CARD_GEOM:-"860,30 840x760"}
 DESK_GEOM=${DESK_GEOM:-"2200,30 360x700"}
-PICK_GEOM=${PICK_GEOM:-"860,30 840x760"}
+# (W99: the picker is a large card, 60 % x 45 % of the 2560 x 1440 output at the bar's centre, K164)
+PICK_GEOM=${PICK_GEOM:-"512,30 1536x660"}
 PORT=8766
 mkdir -p "$OUT"
 FAILS=0
@@ -340,21 +341,21 @@ for DECOR in $DECORS; do
   sleep 2
   check "$([ "$(grep -c '^/api/v1/search' "$R/wallhaven.log" || true)" = 0 ] && echo 1 || echo 0)" "$DECOR nothing is fetched while the library tab is shown"
   WAIT=1 shot "picker-library-$DECOR" "$PICK_GEOM"
-  click_at "${TAB_X:-1043}" "${TAB_Y:-95}"
+  click_at "${TAB_X:-641}" "${TAB_Y:-95}"
   sleep 3
   check "$([ "$(grep -c '^/api/v1/search' "$R/wallhaven.log" || true)" = 1 ] && echo 1 || echo 0)" "$DECOR opening the tab runs one search (SFW: $(grep -o 'purity=[0-9]*' "$R/wallhaven.log" | head -1))"
   check "$(grep -q 'purity=100' "$R/wallhaven.log" && echo 1 || echo 0)" "$DECOR the search is SFW only by default"
   check "$(ls "$XDG_CACHE_HOME/kurashi/wallpaper/wallhaven/"*.jpg >/dev/null 2>&1 && echo 1 || echo 0)" "$DECOR the page's thumbnails are in the cache"
   shot "wallhaven-$DECOR" "$PICK_GEOM"
   # The first tile, then Download and set.
-  click_at "${TILE_X:-1020}" "${TILE_Y:-288}"
-  click_at "${SET_X:-1515}" "${SET_Y:-625}"
+  click_at "${TILE_X:-600}" "${TILE_Y:-260}"
+  click_at "${SET_X:-1928}" "${SET_Y:-613}"
   sleep 3
   check "$(ls "$XDG_DATA_HOME/kurashi/wallpaper/wallhaven/wallhaven-94x38z."* >/dev/null 2>&1 && echo 1 || echo 0)" "$DECOR the picture is saved in the mod's data folder"
   check "$(grep -q 'awww img .*wallhaven-94x38z\.' "$R/awww.log" && echo 1 || echo 0)" "$DECOR the backend was asked to show it"
   shot "wallhaven-set-$DECOR" "$PICK_GEOM"
   stop_server
-  click_at "${TOP_X:-1467}" "${TOP_Y:-167}"
+  click_at "${TOP_X:-1872}" "${TOP_Y:-129}"
   sleep 3
   shot "wallhaven-offline-$DECOR" "$PICK_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true
