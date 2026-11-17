@@ -300,9 +300,10 @@ PanelWindow {
     // the terminal's sheet by default), joined at the bar's centre whatever opened it. A panel asks for it
     // (`property bool cardLarge: true`; it is handed the height as `fillHeight`), or the user names its module
     // (`bar.popups_large`).
-    readonly property bool large: contentKind === "mod" && !full
+    // (W99: the appearance menu as a card is large too, as in the launcher: its pictures want the room)
+    readonly property bool large: (contentKind === "appearance" && !full) || (contentKind === "mod" && !full
         && ((modPanel !== null && modPanel.cardLarge === true)
-            || (bars.valueOf("bar.popups_large", []) || []).indexOf(shownPanelMod) >= 0)
+            || (bars.valueOf("bar.popups_large", []) || []).indexOf(shownPanelMod) >= 0))
     readonly property real largeW: screen ? Math.round(screen.width * Number(bars.valueOf("bar.card_large_width", 60)) / 100) : 1100
     readonly property real largeH: screen ? Math.round(screen.height * Number(bars.valueOf("bar.card_large_height", 45)) / 100) : 480
     Binding {
@@ -310,6 +311,12 @@ PanelWindow {
         property: "fillHeight"
         value: stage.large ? Math.max(160, stage.largeH - 2 * stage.cardPad - stage.titleH - 2 * stage.frameW) : 0
         when: stage.modPanel !== null && stage.modPanel.fillHeight !== undefined && !stage.mapsSurface
+    }
+    Binding {
+        target: stage.contentKind === "appearance" ? view.item : null
+        property: "fillHeight"
+        value: stage.large ? Math.max(160, stage.largeH - 2 * stage.cardPad - stage.titleH - 2 * stage.frameW) : 0
+        when: stage.contentKind === "appearance" && view.item !== null
     }
     readonly property int modCardWidth: {
         if (large) return Math.max(360, Math.min(largeW, screen ? screen.width - 2 * Theme.pad : largeW))
@@ -1881,7 +1888,7 @@ PanelWindow {
         // (W53.5: a view may ask for more with `cardWant` — the calendar's grid in a wide pixel face.)
         readonly property real naturalW: ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0
             ? Math.max(400, Math.min(stage.viewWant, stage.fullW))
-            : (stage.contentKind === "mod" ? stage.modCardWidth
+            : (stage.contentKind === "mod" || stage.contentKind === "appearance" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
         readonly property real naturalH: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH + 2 * stage.frameW
