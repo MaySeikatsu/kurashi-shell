@@ -199,6 +199,10 @@
 # W15-job-active (I48, docs/ux/settings.md のモッド): 実行中は理由を示し、理由がなければ停止中と示す。
 "settings.mods.running_now" = "稼働中: {reasons}"
 "settings.mods.not_running" = "停止中"
+"settings.mods.runs_program" = "独自のプログラムを実行します：{program}"
+"settings.mods.program_ask" = "{name} は独自のプログラムを実行します：{program}。あなたの権限で動き、権限に書かれたものに届きます。オンにしますか？"
+"settings.mods.program_yes" = "オンにする"
+"settings.mods.program_no" = "オフのまま"
 # W15-profiles: プロファイルの上書き方式 (B13) と、プロファイルページの書き出し・取り込み (I41)。
 "settings.ui.profile_replaced" = "あなたの変更を置換"
 "settings.ui.profile_kept" = "あなたの変更のうち {n} 件は残ります"

@@ -56,6 +56,20 @@ Flickable {
     }
     // Public so the test hooks can drive the page like a click would.
     function setEnabled(id, on) { request(on ? "mod.enable" : "mod.disable", id) }
+    // I593 (MODS.md "Host programs"): a mod that runs a program of its own is switched on only after the page said
+    // which program and the user said yes. `asking` is that mod's id; the switch stays off until the answer.
+    property string asking: ""
+    function programs(m) { return ((m && m.hosts) || []).map(function (x) { return x.exec }).join(", ") }
+    function wish(id, on) {
+        if (on && programs(Store.modEntry(id)) !== "") { asking = id; return }
+        asking = ""
+        setEnabled(id, on)
+    }
+    function answer(yes) {
+        var id = asking
+        asking = ""
+        if (yes && id !== "") setEnabled(id, true)
+    }
     function load(id) { request("mod.load", id) }
     function unload(id) { request("mod.unload", id) }
     function request(action, id) {
@@ -97,6 +111,14 @@ Flickable {
         return (m.errors || []).map(function (e) {
             var text = I18n.tr(e.key)
             return e.path && text.indexOf(e.path) < 0 ? text + " (" + e.path + ")" : text
+        }).join("\n")
+    }
+    // I592: a mod that is switched on and waits (K158: a use it requires is not there) says for what: the reason's text
+    // and the use's own name, which is an identifier and not prose.
+    function waits(m) {
+        return (m.errors || []).map(function (e) {
+            var text = I18n.tr(e.key)
+            return e.key === "mods.uses.missing" && e.detail ? text + ": " + e.detail : text
         }).join("\n")
     }
     Component.onCompleted: refreshIds()
@@ -232,7 +254,10 @@ Flickable {
                                 anchors.verticalCenter: parent.verticalCenter
                                 checked: entry.mod.state === "enabled"
                                 enabled: Store.live && p.forcedEnabled === ""
-                                onToggled: v => p.setEnabled(entry.modelData, v)
+                                onToggled: v => {
+                                    p.wish(entry.modelData, v)
+                                    if (p.asking === entry.modelData) Qt.callLater(function () { askYes.forceActiveFocus() })
+                                }
                             }
                         }
                     }
@@ -280,6 +305,16 @@ Flickable {
                             text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.mod.capabilities, "settings.ui.cap.")
                                 + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.mod) || I18n.tr("settings.ui.mod_none"))
                         }
+                        // I593: a mod with a program of its own says so in its row too (the row listed capabilities only).
+                        Label {
+                            visible: text !== ""
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            color: Theme.warning
+                            font.pixelSize: Theme.fs - 2
+                            text: p.programs(entry.mod) !== ""
+                                ? I18n.fmt("settings.mods.runs_program", { program: p.programs(entry.mod) }) : ""
+                        }
                         // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
                         Label {
                             visible: entry.isLoaded
@@ -294,6 +329,52 @@ Flickable {
                             Accessible.name: text
                         }
                     }
+                }
+                // I593: the question before a mod with a program is switched on. Escape or Keep off leaves it off.
+                Column {
+                    visible: p.asking === entry.modelData
+                    width: parent.width
+                    spacing: 4
+                    // The question is under the row: brought into view with its keys, whatever asked (switch or action).
+                    onVisibleChanged: if (visible) Qt.callLater(function () { follow.reveal(askRow) })
+                    Label {
+                        objectName: "mod-ask:" + entry.modelData
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: I18n.fmt("settings.mods.program_ask", { name: I18n.tr(entry.mod.name), program: p.programs(entry.mod) })
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: text
+                    }
+                    Row {
+                        spacing: 4
+                        id: askRow
+                        Button {
+                            id: askYes
+                            objectName: "mod-ask-yes:" + entry.modelData
+                            primary: true
+                            label: I18n.tr("settings.mods.program_yes")
+                            onClicked: { p.answer(true); tog.forceActiveFocus() }
+                            Keys.onEscapePressed: event => { p.answer(false); tog.forceActiveFocus(); event.accepted = true }
+                        }
+                        Button {
+                            objectName: "mod-ask-no:" + entry.modelData
+                            label: I18n.tr("settings.mods.program_no")
+                            onClicked: { p.answer(false); tog.forceActiveFocus() }
+                            Keys.onEscapePressed: event => { p.answer(false); tog.forceActiveFocus(); event.accepted = true }
+                        }
+                    }
+                }
+                // I592: switched on, and waiting for something it requires.
+                Label {
+                    objectName: "mod-waits:" + entry.modelData
+                    visible: entry.isLoaded && (entry.mod.errors || []).length > 0
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.warning
+                    font.pixelSize: Theme.fs - 2
+                    text: visible ? p.waits(entry.mod) : ""
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: text
                 }
                 Label {
                     visible: entry.invalid
