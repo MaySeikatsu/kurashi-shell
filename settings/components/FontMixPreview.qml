@@ -32,13 +32,10 @@ SectionCard {
             visible: !!hand
             width: parent.width
             spacing: Theme.gap
-            Text {
+            Label {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - drawKey.width - parent.spacing
                 wrapMode: Text.WordWrap
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr(parent.on ? "fonts.hand.on" : "fonts.hand.off")
             }
             Button {
@@ -51,13 +48,12 @@ SectionCard {
                                      : Store.act("mod.enable", { id: "handwriting" })
             }
         }
-        Text {
+        Label {
             visible: text !== ""
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
             text: mp.state_ === "building" ? I18n.tr("fonts.preview.building")
                 : mp.state_ === "too_few" ? I18n.tr("fonts.preview.too_few")
                 : mp.state_ === "failed" ? I18n.tr("fonts.preview.failed")
@@ -89,22 +85,20 @@ SectionCard {
                 }
                 readonly property string shown: file !== "" ? (load.object && load.object.status === FontLoader.Ready ? load.object.name : "") : family
                 readonly property bool inEffect: mp.preset !== "off" && modelData.length === Math.min(mp.count, mp.list.length)
-                Text {
+                Label {
                     color: rowItem.inEffect ? Theme.accent : Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.weight: rowItem.inEffect ? Theme.wBold : Theme.wMedium
-                    font.family: Theme.fam(text, Theme.families)
                     readonly property string label: (rowItem.modelData.length === 1 ? I18n.tr("fonts.preview.one")
                         : I18n.tr("fonts.preview.many").replace("{n}", rowItem.modelData.length)) + ": " + rowItem.modelData.join(" + ")
                     text: rowItem.inEffect ? I18n.tr("fonts.preview.current").replace("{label}", label) : label
                 }
                 Repeater {
                     model: rowItem.shown !== "" ? mp.samples : []
-                    Text {
+                    Label {
                         required property string modelData
                         width: rowItem.width
                         elide: Text.ElideRight
-                        color: Theme.fg
                         font.pixelSize: Theme.fs + 4
                         font.family: rowItem.shown
                         text: modelData

@@ -344,11 +344,8 @@ Column {
                 Row {
                     visible: entry.merging
                     spacing: Theme.gap
-                    Text {
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.fg
-                        font.pixelSize: Theme.fs
-                        font.family: Theme.fam(text, Theme.families)
                         text: entry.merging ? I18n.fmt("settings.groups.merge_ask",
                             { from: l.groupName(l.askMerge.from), into: entry.name }) : ""
                     }
@@ -385,12 +382,11 @@ Column {
                         enabled: l.enabled
                         onToggled: v => l.setGroupField(entry.gid, "accordion", v)
                     }
-                    Text {
+                    Label {
                         id: accWord
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.dim
                         font.pixelSize: Theme.fs - 1
-                        font.family: Theme.fam(text, Theme.families)
                         text: I18n.tr("settings.groups.accordion")
                     }
                     Button {
@@ -452,15 +448,13 @@ Column {
                             onPressed: mouse => l.startDrag(mem.value, mem.name, mdrag, mouse)
                             onReleased: l.endDrag()
                         }
-                        Text {
+                        Label {
                             anchors.left: parent.left
                             anchors.leftMargin: Theme.pad
                             anchors.right: leaveBtn.left
                             anchors.verticalCenter: parent.verticalCenter
                             elide: Text.ElideRight
                             color: l.offer(mem.value) !== null ? Theme.fg : Theme.dim
-                            font.pixelSize: Theme.fs
-                            font.family: Theme.fam(text, Theme.families)
                             text: "· " + mem.name
                         }
                         Button {
@@ -502,11 +496,9 @@ Column {
         border.width: leaveDrop.containsDrag ? 2 : 1
         border.color: leaveDrop.containsDrag ? Theme.accent : Theme.outline
         objectName: "groupleavezone"
-        Text {
+        Label {
             anchors.centerIn: parent
             color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.groups.drop_leave")
         }
         DropArea {
@@ -537,13 +529,10 @@ Column {
             Drag.keys: ["kurashi-pick"]
             Drag.hotSpot.x: 16
             Drag.hotSpot.y: height / 2
-            Text {
+            Label {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.pad
                 anchors.verticalCenter: parent.verticalCenter
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: proxy.text
             }
         }

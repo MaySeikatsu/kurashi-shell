@@ -61,16 +61,12 @@ Flow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: entry.modelData
             }
-            Text {
+            Label {
                 id: cross
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
-                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.dim
-                font.pixelSize: Theme.fs
                 text: "×"
                 MouseArea {
                     // A 32 px hit area around the glyph; the chip itself keeps its height.

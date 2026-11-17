@@ -119,16 +119,13 @@ Item {
                     }
                     FocusRing { anchors.fill: parent; shown: pic.activeFocus; corner: Theme.rSm }
                 }
-                Text {
-                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                    antialiasing: !Theme.pixelType
+                Label {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
                     color: card.on ? Theme.fg : Theme.dim
                     font.pixelSize: Theme.fs - 2
                     font.weight: card.on ? Theme.wMedium : Theme.wRegular
-                    font.family: Theme.fam(text, Theme.families)
                     text: cards.label(card.modelData)
                 }
             }

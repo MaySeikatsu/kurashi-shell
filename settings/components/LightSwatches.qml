@@ -64,10 +64,7 @@ Column {
                     }
                     border.width: sw.on ? 2 : 1
                     border.color: sw.on ? Theme.accent : Theme.outline
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
-                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    Label {
                         anchors.centerIn: parent
                         visible: sw.on || sw.modelData === "natural" || sw.modelData === "custom"
                         color: "#3a3530"

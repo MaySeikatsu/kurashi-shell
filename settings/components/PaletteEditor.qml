@@ -188,23 +188,15 @@ Column {
         event.accepted = true
     }
 
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
+    Label {
         text: ed.mode === "edit" ? I18n.fmt("palettes.editor.title_edit", { name: ed.label || ed.name }) : I18n.tr("palettes.editor.title_new")
-        color: Theme.fg
         font.pixelSize: Theme.fsTitle
         font.weight: Theme.wBold
-        font.family: Theme.fam(text, Theme.families)
     }
-    Text {
+    Label {
         visible: !ed.loaded
         text: ed.loadError !== "" ? ed.loadError : I18n.tr("palettes.editor.loading")
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         color: ed.loadError !== "" ? Theme.error : Theme.dim
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
     Button {
         visible: !ed.loaded && ed.loadError !== ""
@@ -228,24 +220,18 @@ Column {
         }
         Column {
             anchors.verticalCenter: parent.verticalCenter
-            Text {
+            Label {
                 objectName: "palette-file:" + ed.fileName
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
                 text: ed.fileName !== "" ? I18n.fmt("palettes.editor.file", { file: ed.fileName + ".toml" }) : ""
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
                 font.family: "monospace"
             }
-            Text {
+            Label {
                 visible: ed.note !== ""
                 objectName: "palette-name-note"
-                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                antialiasing: !Theme.pixelType
                 text: ed.note !== "" ? I18n.fmt(ed.note, { file: ed.fileName + ".toml" }) : ""
-                color: Theme.fg
                 font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
             }
         }
     }
@@ -272,15 +258,10 @@ Column {
     Row {
         visible: ed.loaded && !ed.hasSide
         spacing: Theme.pad
-        Text {
+        Label {
             objectName: "palette-side-missing"
             anchors.verticalCenter: parent.verticalCenter
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
             text: I18n.tr(ed.side === "light" ? "palettes.editor.missing_light" : "palettes.editor.missing_dark")
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
         }
         Button {
             objectName: "palette-add-side"
@@ -305,14 +286,11 @@ Column {
                     required property var modelData
                     width: rolesCol.width
                     spacing: 2
-                    Text {
-                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                        antialiasing: !Theme.pixelType
+                    Label {
                         text: I18n.tr("palettes.editor.group." + grp.modelData.id)
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.weight: Theme.wBold
-                        font.family: Theme.fam(text, Theme.families)
                     }
                     Repeater {
                         model: grp.modelData.roles
@@ -370,36 +348,24 @@ Column {
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ed.openPicker(row.modelData) }
                                     FocusRing { anchors.fill: parent; shown: sw.activeFocus; corner: sw.radius }
                                 }
-                                Text {
+                                Label {
                                     width: 130
                                     anchors.verticalCenter: parent.verticalCenter
                                     elide: Text.ElideRight
-                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                    antialiasing: !Theme.pixelType
                                     text: ed.roleName(row.modelData)
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.fs
-                                    font.family: Theme.fam(text, Theme.families)
                                 }
-                                Text {
+                                Label {
                                     width: 76
                                     anchors.verticalCenter: parent.verticalCenter
-                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                    antialiasing: !Theme.pixelType
                                     text: ed.colourOf(row.modelData)
-                                    color: Theme.fg
-                                    font.pixelSize: Theme.fs
                                     font.family: "monospace"
                                 }
-                                Text {
+                                Label {
                                     objectName: "palette-provenance:" + row.modelData + ":" + (row.mine ? "yours" : "derived")
                                     anchors.verticalCenter: parent.verticalCenter
-                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                    antialiasing: !Theme.pixelType
                                     text: I18n.tr(row.mine ? "palettes.editor.yours" : "palettes.editor.derived")
                                     color: Theme.dim
                                     font.pixelSize: Theme.fsCaption
-                                    font.family: Theme.fam(text, Theme.families)
                                 }
                                 Button {
                                     visible: row.mine && !row.must
@@ -411,17 +377,13 @@ Column {
                                 }
                             }
                             // Shōjiki: the colour picked is not the one on screen, and why.
-                            Text {
+                            Label {
                                 visible: row.mv !== null
                                 objectName: "palette-moved:" + row.modelData
                                 width: row.width
                                 wrapMode: Text.Wrap
-                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-                                antialiasing: !Theme.pixelType
                                 text: row.mv ? I18n.fmt("palettes.editor.shown_as", { picked: row.mv.picked, shown: row.mv.shown, why: ed.whyText(row.mv) }) : ""
-                                color: Theme.fg
                                 font.pixelSize: Theme.fsCaption
-                                font.family: Theme.fam(text, Theme.families)
                             }
                             Loader {
                                 active: ed.picking === row.modelData
@@ -458,26 +420,24 @@ Column {
                 x: Theme.pad; y: Theme.pad
                 width: parent.width - Theme.pad * 2
                 spacing: Theme.gap
-                Text {
+                Label {
                     objectName: "palette-sample-text:" + ed.shown("on_surface")
                     text: I18n.tr("palettes.editor.sample_text")
                     color: ed.shown("on_surface")
                     font.pixelSize: Theme.fs + 1
                     font.weight: Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
                 }
                 Rectangle {
                     width: parent.width
                     height: 40
                     radius: Theme.rSm
                     color: ed.shown("surface_container")
-                    Text {
+                    Label {
                         anchors.verticalCenter: parent.verticalCenter
                         x: Theme.gap
                         text: I18n.tr("palettes.editor.sample_quiet")
                         color: ed.shown("on_surface_variant")
                         font.pixelSize: Theme.fsCaption
-                        font.family: Theme.fam(text, Theme.families)
                     }
                 }
                 Row {
@@ -488,14 +448,12 @@ Column {
                         height: 30
                         radius: height / 2
                         color: ed.shown("accent")
-                        Text {
+                        Label {
                             id: btnText
                             anchors.centerIn: parent
                             text: I18n.tr("palettes.editor.sample_button")
                             color: ed.shown("on_accent")
-                            font.pixelSize: Theme.fs
                             font.weight: Theme.wMedium
-                            font.family: Theme.fam(text, Theme.families)
                         }
                     }
                     // A switch, on.
@@ -524,13 +482,12 @@ Column {
                             height: 22
                             radius: 11
                             color: ed.shown(modelData)
-                            Text {
+                            Label {
                                 id: chip
                                 anchors.centerIn: parent
                                 text: ed.roleName(parent.modelData)
                                 color: ed.shown(({ error: "on_error", warning: "on_warning", success: "on_success" })[parent.modelData])
                                 font.pixelSize: Theme.fsCaption
-                                font.family: Theme.fam(text, Theme.families)
                             }
                         }
                     }
@@ -540,50 +497,35 @@ Column {
     }
 
     // --- what the editor is doing, and Save -------------------------------------------------------------------------
-    Text {
+    Label {
         visible: ed.loaded
         width: ed.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: I18n.tr("palettes.editor.live")
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
     }
-    Text {
+    Label {
         visible: ed.loaded && ed.hasTerminal
         width: ed.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: I18n.tr("palettes.editor.terminal_kept")
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
     }
-    Text {
+    Label {
         visible: ed.loaded && !ed.writable
         objectName: "palette-editor-read-only"
         width: ed.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: I18n.fmt("palettes.editor.read_only", { dir: ed.dir })
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
-    Text {
+    Label {
         visible: ed.saveError !== ""
         width: ed.width
         wrapMode: Text.Wrap
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
         text: ed.saveError
         color: Theme.error
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
     }
     Row {
         visible: ed.loaded
